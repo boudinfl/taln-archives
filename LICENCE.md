@@ -1,0 +1,1 @@
+Les articles scientifiques au format pdf ont été récupérés à partir des différents sites web des conférences, et les droits appartiennent à l'ATALA. L'ensemble des meta-informations disponibles sur TALN Archives sont disponibles sous licence Creative Commons CC-BY-NC.
