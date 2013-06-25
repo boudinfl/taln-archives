@@ -1,5 +1,8 @@
 # taln-archives
 
+Mises à jour
+ - 25 juin 2013, ajout des actes des conférences TALN 2013 et RECITAL 2013
+
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
 conférences RECITAL et TALN de 2007 à 2012.
