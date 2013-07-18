@@ -1,6 +1,7 @@
 # taln-archives
 
 Mises à jour
+ - 18 juillet 2013, ajout des fichiers de génération de bibtex et du site web
  - 25 juin 2013, ajout des actes des conférences TALN 2013 et RECITAL 2013
 
 TALN Archives est une archive numérique francophone des articles de recherche en
@@ -28,7 +29,16 @@ conférences, ce dernier contient :
   - Nom de la session dans le programme
 
 Les fichiers bibtex de tous les articles ont été générés automatiquement à 
-partir du fichier de méta-données.
+partir du fichier de méta-données avec la commande :
+
+    cd tools/
+    python generate_bib.py
+
+La version web de l'archive a été créée avec la commande :
+
+    cd tools/
+    python generate_html.py
+
 
 Si vous utilisez cet ensemble de données, veuillez citer l'article :
 
