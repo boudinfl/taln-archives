@@ -1,0 +1,589 @@
+TALN 2011, Montpellier, 27 juin Ğ 1er juillet 2011
+Une approche holiste et unifie de lÕalignement et de la mesure dÕaccord
+inter-annotateurs
+Yann Mathet1 Antoine Widlšcher1
+(1) GREYC, UMR CNRS 6072, Universit de Caen, 14032 Caen Cedex
+{prenom.nom}@unicaen.fr
+Rsum. LÕalignement et la mesure dÕaccord sur des textes multi-annots sont des enjeux majeurs pour la
+constitution de corpus de rfrence. Nous dfendons dans cet article lÕide que ces deux t‰ches sont par essence
+interdpendantes, la mesure dÕaccord ncessitant de sÕappuyer sur des annotations alignes, tandis que les choix
+dÕalignements ne peuvent se faire quÕˆ lÕaune de la mesure quÕils induisent. Nous proposons des principes formels
+relevant cette gageure, qui sÕappuient notamment sur la notion de dsordre du systme constitu par lÕensemble
+des jeux dÕannotations dÕun texte. Nous posons que le meilleur alignement est celui qui minimise ce dsordre,
+et que la valeur de dsordre obtenue rend compte simultanment du taux dÕaccord. Cette approche, qualifie
+dÕholiste car prenant en compte lÕintgralit du systme pour oprer, est algorithmiquement lourde, mais nous
+sommes parvenus ˆ produire une implmentation dÕune version lgrement dgrade de cette dernire, et lÕavons
+intgre ˆ la plate-forme dÕannotation Glozz.
+Abstract. Building reference corpora makes it necessary to align annotations and to measure agreement
+among annotators, in order to test the reliability of the annotated ressources. In this paper, we argue that alignment
+and agreement measure are interrelated : agreement measure applies to pre-aligned data and alignment assumes a
+prior agreement measure. We describe here a formal and computational framework which takes this interrelation
+into account, and relies on the notion of disorder of annotation sets available for a text. In this framework, the
+best alignment is the one which has the minimal disorder, and this disorder reflects an agreement measure of these
+data. This approach is said to be holistic insofar as alignment and measure depend on the system as a whole and
+cannot be locally determined. This holism introduces a computational cost which has been reduced by a heuristic
+strategy, implemented within the Glozz annotation platform.
+Mots-cls : Alignement dÕannotations, mesure dÕaccord inter-annotateurs, linguistique de corpus.
+Keywords: Alignment, inter-coder agreement measure, corpus linguistics.
+1 Contexte
+La multiplication des travaux sur corpus, en linguistique computationnelle et en TAL conduit naturellement ˆ la
+multiplication des campagnes dÕannotation et rend ncessaire la mise en place de mthodes et dÕoutils permet-
+tant dÕinterprter le fruit de ces campagnes. Pour tablir des corpus annots de rfrence, ou simplement pour
+mieux comprendre les phnomnes linguistiques que ces campagnes prennent pour objets, il est notamment n-
+cessaire de mettre en correspondance (dÕaligner) les annotations produites par diffrents annotateurs (humains ou
+automatiques), sur un mme jeu de donnes, et de prendre la mesure de leurs accords et dsaccords.
+Dans cet article, nous nous intressons aux questions dÕalignement et dÕaccord inter-annotateurs, en nous limitant
+ˆ des annotations de textes consistant, de faon trs gnrale, ˆ dlimiter et ˆ catgoriser des units. Il est important
+de noter que la mthode que nous cherchons ˆ dfinir doit permettre dÕaligner et de comparer des objets textuels
+relativement varis, distribus dans le texte de manires elles aussi varies, et quÕˆ ce titre, nous devons nous
+carter de nombreux travaux eux aussi consacrs ˆ lÕalignement et ˆ la mesure dÕaccord (cf. section 2).
+Nous cherchons ˆ aligner et ˆ comparer des units, segments de texte commenant et sÕachevant en des positions
+dtermines. Insistons sur le fait que la segmentation du texte, i.e. le positionnement des units, nÕest pas consi-
+dre comme acquise. En effet, dans certains cas, les annotateurs nÕauront pas exclusivement ˆ caractriser des
+donnes djˆ dlimites, mais devront galement dterminer leur position dans le texte et leur taille. Concernant ce
+YANN MATHET, ANTOINE WIDL…CHER
+positionnement des units, prcisons de plus quÕil ne conduit pas ncessairement ˆ un pavage complet du texte, la
+sporadicit des phnomnes tant mme parfois assez grande. Concernant leur taille, ajoutons que celle-ci pourra
+varier fortement dÕune unit ˆ lÕautre, et cela, ventuellement, pour un mme type dÕobjet linguistique. Pour le
+positionnement relatif des units, nous souhaitons de plus offrir une grande souplesse : les units pourront se
+succder, sÕinclure, se chevaucher. Chaque unit possde par ailleurs une catgorie choisie parmi un ensemble
+prdfini pour une campagne dÕannotation donne. Ajoutons que les couches dÕannotations correspondant aux
+diffrentes catgories ne doivent pas tre regardes comme indpendantes, lÕattribution dÕune mauvaise catgorie
+ˆ un objet pouvant tre parfois, dans une certaine mesure, acceptable.
+Les raisons pour lesquelles nous devons privilgier la tolrance tiennent dans une large mesure ˆ la nature des ob-
+jets linguistiques sur lesquels nous travaillons par ailleurs. En effet, nous oprons souvent dans le champ discipli-
+naire de lÕanalyse du discours et explorons des structures textuelles varies, telles quÕenvisages par des approches
+aussi htrognes que lÕArgumentative Zoning (Teufel et al., 1999), lÕencadrement du discours (Charolles, 1997)
+ou encore la SDRT (Segmented Discourse Relation Theory) (Asher, 1993). Ë titre dÕexemple, prcisons que ce tra-
+vail prend place dans la continuit du projet ANR Annodis (Pry-Woodley et al., 2009), qui vise la mise en place
+dÕun corpus de rfrence pour le franais, en analyse de discours. Comme on le verra, il entretient par ailleurs
+de nombreuses relations avec la plate-forme dÕannotation et dÕexploration de corpus Glozz (Widlšcher & Mathet,
+2009), plate-forme permettant de produire des annotations htrognes exigeant cette tolrance.
+La mthode que nous proposons ici nÕest nanmoins pas ddie ˆ lÕvaluation dÕannotations discursives. Elle se
+veut aussi gnrique que possible et nous pouvons rsumer ainsi son objectif : nous recherchons ˆ la fois un
+alignement et une mesure dÕaccord multi-annotateurs portant sur des annotations composes dÕunits marques
+par leur possible varit de grain, leur possible varit catgorielle, leur possible sporadicit et la souplesse de
+leurs distributions relatives.
+2 ƒtat de lÕart
+Parmi les travaux dans la continuit desquels notre tude prend position, nous pouvons distinguer ceux qui portent
+leur attention sur la question de lÕattribution de catgories ˆ des units prdfinies (la caractrisation) dÕune part
+et ceux qui privilgient la question de la segmentation des units dÕautre part.
+Pour les premiers, lÕaccord entre annotateurs concerne principalement lÕaffectation, par chacun, dÕune catgorie
+choisie parmi un ensemble dfini pour une campagne dÕannotation donne, ˆ des units dont la dlimitation est
+considre comme non problmatique, souvent le mot. Dans cette perspective, de nombreux travaux se rfrent
+notamment aux coefficients que sont pi (Scott, 1955) et ? (Cohen, 1960) ainsi quÕˆ des variantes multi-annotateurs
+tel le K de (Siegel & Castellan, 1988) et aux coefficients pondrs ? (Krippendorff, 1980) et ?w (Cohen, 1968)1.
+Non spcifiquement issues du TAL ou de la linguistique, ces diffrentes approches de la mesure dÕaccord font
+lÕobjet de travaux qui visent ˆ tudier leur pertinence et leurs limites dans ces domaines dÕaccueil et ˆ en comparer
+les retombes. Nous pensons ici en particulier ˆ lÕexcellente synthse de (Artstein & Poesio, 2008), sur laquelle
+nous nous appuyons fortement ici. Si la prsente tude apporte, comme on le verra, au problme de la caract-
+risation une rponse provisoire relativement lgre, la frquentation de ces travaux nous ouvre toutefois dÕores
+et djˆ des perspectives essentielles, dont lÕinfluence sera encore accrue dans nos travaux futurs. En particulier,
+lÕimportance que ces travaux accordent ˆ la confrontation entre les accords observs et ceux que le seul hasard
+peut engendrer est tout ˆ fait clairante, de mme que lÕest leur rflexion sur lÕobtention du Ç meilleur hasard
+possible È, qui tiendra compte des proprits particulires de la campagne engage et de son corpus, ainsi, le cas
+chant, que des tendances des annotateurs. Une autre avance importante concerne la proposition de solutions,
+intimement lie ˆ la rflexion sur les coefficients pondrs, permettant de rendre compte du fait important que
+tous les dsaccords ne se valent pas. Ce point sera videmment au cÏur de la question de la segmentation, mais,
+dans la continuit de ces travaux, nous y accorderons aussi une large place en ce qui concerne la caractrisation
+des units. Enfin, mentionnons la place mrite que ces travaux accordent ˆ la dlicate question de lÕinterprtation
+qualitative des rsultats quantitatifs. Dans le prolongement de leur effort, nous serons aussi amens ˆ envisager
+des Ç grilles È permettant lÕinterprtation des mesures que nous proposons.
+Naturellement, la principale limite de ces travaux, du point de vue qui nous occupe, est le fait que la segmentation y
+1Comme le note (Artstein & Poesio, 2008), certains flottements de dnomination perturbent souvent les discussions relatives ˆ ces coeffi-
+cients. Nous retenons la clarification quÕils proposent.
+UNE APPROCHE HOLISTE ET UNIFIƒE DE LÕALIGNEMENT ET DE LA MESURE DÕACCORD
+soit globalement considre comme acquise. Il convient toutefois de remarquer, et (Artstein & Poesio, 2008) nous
+y invitent, que ces approches peuvent fournir un cadre pour lÕestimation de lÕaccord sur des t‰ches de segmentation.
+Ainsi, (Teufel et al., 1999) envisagent par exemple lÕaccord obtenu sur lÕattribution de r™les argumentatifs ˆ des
+phrases, en utilisant le coefficient de (Siegel & Castellan, 1988), phrases dont lÕajacence conduit ˆ lÕmergence
+de segments. Les mesures dÕaccord sur lÕattribution de catgories peuvent encore tre utilises, comme cÕest le
+cas dans (Hearst, 1997), non plus sur le contenu des segments, mais pour mesurer lÕaccord sur lÕidentification
+des bornes, cÕest-ˆ-dire sur lÕattribution dÕune catgorie borne. Toutefois, lÕutilisation de ces approches pour des
+t‰ches de segmentation se heurte ˆ la difficult majeure suivante : une dlimitation dÕunit nÕest regarde comme
+faisant consensus que si les annotateurs sont parfaitement dÕaccord sur le positionnement exact des bornes. Or en
+la matire, et en particulier aux chelles discursives, une plus grande souplesse est ncessaire, pour que de lgers
+dsaccords dans le positionnement des bornes soient moins lourdement pnaliss.
+La mthode propose par (Grouin et al., 2011), adosse ˆ la mesure dÕerreur slot error rate (Makhoul et al.,
+1999), permet de combiner alignement et mesure dÕerreur et dÕaborder simultanment positionnement des units
+et attribution de catgories. Certes, elle permet dÕaligner des units dont les positions ne sont pas identiques, mais
+les diffrentes raisons suivantes la rendent peu adapte ˆ notre perspective : tous les carts sont sanctionns de
+manire identique ; elle est prvue pour comparer seulement deux annotations, dont lÕune fait office de rfrence ;
+enfin, elle opre ˆ lÕchelle de la phrase et non du texte.
+DÕautres travaux visent ˆ prendre spcifiquement en charge les problmes de segmentation, en particulier dans le
+domaine de la segmentation thmatique. Dans ce domaine, un consensus sÕest tabli autour de la mesure Win-
+dowDiff (Pevzner & Hearst, 2002), qui consiste ˆ dplacer une fentre glissante le long du texte, et ˆ comparer
+le nombre de ruptures prsentes dans une annotation considre comme rfrence et dans une annotation value.
+Aux limites de cette mthode voques par exemple par (Lamprier et al., 2007) et (Bestgen, 2009) (difficult ˆ
+interprter les rsultats, dpendance ˆ lÕgard de la taille de la fentre glissante, erreurs pnalises diffremment
+selon leur position dans le texte, erreurs lgres parfois trop pnalises...) sÕajoute dans notre perspective le fait que
+cette mthode ne fournit pas ˆ proprement dÕalignement, limite qui sÕapplique galement aux amnagements de
+WindowDiff proposs par (Lamprier et al., 2007). (Bestgen, 2009) prconise pour sa part le recours ˆ la distance
+de Hamming gnralise (DHG) (Bookstein et al., 2002), distance dÕdition entre deux annotations, qui ajoute
+ˆ la distance de Hamming lÕopration de dplacement qui permet de donner la souplesse ncessaire ˆ la prise
+en compte dÕerreurs lgres dans le positionnement des bornes. Offrant un rsultat plus facile ˆ interprter que
+dÕautres indices, cette mthode souffre selon nous de limites qui sÕappliquent du reste galement ˆ WindowDiff.
+Penses (dans le cas de WindowDiff) ou dtournes (dans le cas de DHG) pour lÕvaluation de la segmentation
+thmatique, ces mthodes sont intimement lies dÕune part ˆ lÕide de pavage complet du texte (ce qui enfreint
+notre contrainte dÕventuelle sporadicit) et dÕautre part ˆ lÕunicit du phnomne envisag, i.e. le phnomne de
+rupture thmatique (ce qui enfreint notre contrainte de prise en charge dÕannotation multi-catgorielles). Ajoutons
+que ces mthodes nÕintgrent pas de correction par le hasard. La solution ?U propose par (Krippendorff, 1995),
+qui repose sur la mesure du recouvrement entre les annotations de diffrents annotateurs rpond ˆ beaucoup des
+exigences que nous avons fixes et nous devrons lÕvaluer davantage. Elle impose toutefois, comme lÕindiquent
+(Artstein & Poesio, 2008), que les annotations dÕun mme annotateur ne se recouvrent pas, ce qui contredit la
+contrainte de souplesse positionnelle que nous nous sommes fixe.
+3 Quelle mesure dÕaccord ?
+3.1 Difficult majeure : interdpendance de la mesure dÕaccord et de lÕalignement
+Pour un Ç mme phnomne È repr par plusieurs annotateurs, il est ncessaire de prvoir une mesure dÕaccord
+suffisamment souple pour pouvoir rendre compte dÕune double divergence, la premire portant sur le choix de
+catgorie attribue au phnomne, la seconde portant sur son positionnement. Il nÕest pas rare, en particulier, que
+le positionnement diffre de faon substantielle sur lÕune, lÕautre, ou mme les deux bornes. Du fait de ces diver-
+gences de positionnement, la mesure dÕaccord est assujettie ˆ la dtermination dÕun alignement inter-annotateurs,
+un tel alignement consistant ˆ dterminer quelle unit de tel annotateur correspond ˆ telle autre de tel autre an-
+notateur. Si lÕon dispose dÕun alignement complet des annotations de lÕensemble des annotateurs, il est possible,
+pour chaque unit repre, de dterminer dans quelle mesure les annotateurs se sont entendus sur son position-
+nement et sur sa qualification. Cette quantification sera tablie au moyen dÕune mesure de Ç dissimilarit È entre
+YANN MATHET, ANTOINE WIDL…CHER
+units annotes : plus les units seront considres comme Ç proches È, plus cette mesure devra tre faible. Des
+propositions relatives ˆ lÕtablissement de telles mesures seront faites ci-aprs.
+Mais comment obtenir un tel alignement ? Aligner une unit ua de lÕannotateur A avec une unit ub de lÕannotateur
+B consiste ˆ considrer que les proprits (catgorie, position) de ua et de ub sont suffisamment Ç proches È pour
+pouvoir tre assimiles : lÕannotateur A et lÕannotateur B ont rendu compte dÕun Ç mme phnomne È, bien que
+de faon ventuellement (et lgrement) diffrente. La mthode dÕalignement doit donc pour sa part sÕappuyer sur
+une Ç distance È entre units pour pouvoir oprer.
+Ds lors, mesure dÕaccord et alignement sont inter-dpendants : on ne peut mesurer sans disposer dÕun alignement,
+ni lÕon ne peut aligner sans disposer dÕune mesure, si bien que ces deux processus ne peuvent constituer deux
+tapes successives. Cette interdpendance renvoie simplement ˆ lÕunicit de lÕobjectif effectivement pos : tablir
+dans quelle mesure des lments ventuellement diffrents peuvent malgr tout tre considrs comme semblables,
+soit pour quantifier ces diffrences (dans le cas de la mesure), soit pour assimiler des units Ç similaires È (dans le
+cas de lÕalignement). Il est donc ncessaire de disposer dÕune mthode unifie pour la mesure et lÕalignement.
+3.2 Le dsaccord comme crateur de dsordre
+Considrons un ensemble de n annotateurs travaillant sur un mme texte et une mme t‰che dÕannotation. Ida-
+lement, si la t‰che dÕannotation tait rigoureusement tablie, et si elle relevait de phnomnes ne prtant pas ˆ
+confusion, les n annotateurs devraient dlivrer le mme ensemble dÕlments annots. CÕest cependant bien en-
+tendu un constat que nous ne faisons jamais. Pour autant, les diffrentes propositions des annotateurs devraient en
+grande partie converger, ˆ dfaut de quoi la t‰che propose devrait tre considre comme un chec (t‰che trop peu
+spcifie, phnomnes tudis ne permettant aucun consensus...). Ainsi, pour une campagne dÕannotation donne,
+on constatera un Ç taux dÕaccord È inter-annotateurs situ entre lÕidal constitu par une annotation unique (les
+n annotateurs ont annot exactement le mme ensemble dÕunits) et le cas le pire constitu par n gnrateurs
+alatoires dÕannotations. LÕenjeu de la mesure dÕaccord est de situer ce jeu dÕannotations entre ces deux extrmes.
+Notre proposition est de considrer que lÕannotation multiple est potentiellement gnratrice de dsordre. Le cas
+idal (dans lequel tous les annotateurs ont dlivr exactement le mme jeu dÕannotations) peut tre considr
+comme parfaitement ordonn : lÕinformation porte par les annotations dÕun annotateur donn est parfaitement
+confirme par les annotations de chacun des autres annotateurs. Par rapport ˆ cette situation idale, oprons un
+ensemble de transformations lmentaires sur un certain nombre dÕunits : dplacement de lÕune des deux bornes
+dÕune unit, requalification de sa catgorie, ou encore, suppression pure et simple. Chacune de ces transformations
+va engendrer un certain dsordre au sein de ce systme. Le dsordre total obtenu pour un ensemble de transforma-
+tions lmentaires sera la rsultante de lÕensemble des dsordres lmentaires ainsi crs. Nous dfinirons ci-aprs
+un cadre formel et une mthode de calcul de ce dsordre, et poserons que le taux dÕaccord inter-annotateurs cor-
+respond au niveau dÕordre du systme relativement au niveau dÕordre dÕun systme construit alatoirement.
+4 Dissimilarit, alignement, entropie et accord
+4.1 Dfinitions : unit, annotateur, jeu dÕannotations
+Nous dfinissons tout dÕabord A lÕensemble des annotateurs, T lÕensemble des textes et U lÕensemble des units.
+Unit : une unit u possde une catgorie note cat(u), et une position donne par ses deux bornes, correspondant
+chacune ˆ un indice de caractre du texte, notes respectivement start(u) et end(u), start et end tant donc des
+fonctions de U vers N+. Nous dfinissons lÕgalit entre deux units comme suit :
+?(u, v) ? U2, u = v ? ((cat(u) = cat(v)) ? (start(u) = start(v)) ? (end(u) = end(v)))
+Une unit est produite par un annotateur donn, et est relative ˆ un texte donn (dans le cadre dÕune campagne
+donne). LÕunit manant de lÕannotateur a et de rang i est note uia.
+UNE APPROCHE HOLISTE ET UNIFIƒE DE LÕALIGNEMENT ET DE LA MESURE DÕACCORD
+Jeu dÕAnnotations : un jeu dÕannotations j est un ensemble dÕunits relatives ˆ un mme texte et produites par
+un ensemble donn dÕannotateurs. Un tel jeu est dit alatoire quand ses annotateurs sont des processus alatoires.
+4.2 Dissimilarit entre deux units
+Une dissimilarit est une fonction d : U2 ? R+, telle que :
+?(u, v) ? U2,
+{
+d(u, v) = d(v, u) (d est symtrique)
+d(u, v) = 0? u = v
+Une dissimilarit nÕest pas ncessairement une distance au sens mathmatique dans la mesure o lÕingalit trian-
+gulaire nÕest pas impose. Nous verrons pourquoi.
+4.2.1 Dissimilarit positionnelle dpos
+Il est possible de proposer diffrentes mesures de dissimilarits positionnelles pour diffrents paradigmes dÕanno-
+tation. Nous nous en tiendrons ici ˆ la dissimilarit suivante, bien adapte ˆ des annotations sporadiques :
+dpos?sporadique(u, v) =
+?? |start(u)? start(v)|+ |end(u)? end(v)|(
+(end(u)?start(u))+(end(v)?start(v))
+2
+)
+??2 (1)
+Cette dissimilarit rend compte des diffrences entre les bornes gauches des deux units ainsi quÕentre leurs
+bornes droites. Sa croissance est quadratique par rapport ˆ la somme de ces diffrences, si bien que lÕon pnalise
+dÕautant plus les carts importants. Elle ne respecte pas lÕingalit triangulaire pour cette raison. Par ailleurs, le
+fait de diviser les diffrences par la moyenne des deux longueurs des units (cf. dnominateur) permet de rendre
+la dissimilarit insensible aux changements dÕchelle. CÕest un choix qui peut tre discut selon la campagne
+dÕannotation envisage. A titre dÕexemple, une seconde dissimilarit positionnelle est actuellement exprimente
+pour muler la distance de Hamming gnralise, base sur la longueur moyenne des units note k :
+dpos?Hamming(u, v) =
+|end(u)? end(v)|
+k/2
+(2)
+4.2.2 Dissimilarit catgorielle dcat
+Soit C lÕensemble des catgories. Pour une campagne dÕannotation donne, n catgories distinctes sont dfinies.
+Nous dfinissons tout dÕabord la distance catgorielle entre catgories distcat au moyen dÕune matrice carre
+de taille n, prenant lÕensemble des catgories ˆ la fois sur les lignes et sur les colonnes. Chaque case indique
+la distance entre deux catgories par une valeur situe dans lÕintervalle [0, 1]. La valeur 0 signifie lÕgalit des
+catgories (du fait des proprits dÕune distance), tandis que la valeur 1, maximale, signifie que les deux catgories
+sont incompatibles (lÕune ne peut en aucun cas se substituer ˆ lÕautre). Une telle matrice est ncessairement
+symtrique et possde une diagonale nulle, du fait, lˆ encore, des proprits dÕune distance. Voici un exemple de
+matrice rendant compte dÕun ensemble de 3 catgories. Elle permet une correspondance possible entre une unit
+de type cat1 avec une unit de type cat2, avec un cot de 0.5 (qui sera ˆ mettre en balance avec les cots issus des
+dissimilarits positionnelles), et elle interdit les autres correspondances :
+cat1 cat2 cat3
+cat1 0 0.5 1
+cat2 0.5 0 1
+cat3 1 1 0
+TAB. 1 Ğ Exemple de matrice pour 3 catgories
+YANN MATHET, ANTOINE WIDL…CHER
+On dfinit alors la dissimilarit catgorielle entre deux units par :
+dcat(u, v) = distcat(cat(u), cat(v)).Æ? (3)
+Æ? est une constante qui sera dfinie ultrieurement et qui assure ici notamment que deux units de catgories
+distinctes ne seront jamais alignes.
+4.2.3 Dissimilarits combine dcombi
+Soient deux dissimilarits d1 et d2 donnes. On dfinit dcombi(d1,d2,?,?) par :
+dcombi(d1,d2,?,?)(u, v) = ?.d1(u, v) + ?.d2(u, v) (4)
+Cette combinaison linaire de dissimilarits est elle-mme une dissimilarit. Elle permet notamment, dans le cas
+o ? = 0.5 et ? = 0.5, de donner un poids gal ˆ deux dissimilarits (par ex. positionnelle et catgorielle).
+4.3 Alignement
+4.3.1 Alignement unitaire aú
+Un alignement unitaire aú est un i-uplet, i tant compris entre 1 et n, n tant le nombre dÕannotateurs, contenant
+au plus une unit de chaque annotateur. Pour des raisons dÕhomognit facilitant notamment son implmentation
+informatique, nous crons une unit fictive vide, note u?, correspondant ˆ la rification du fait quÕun alignement
+unitaire ne contienne aucune unit pour un annotateur donn. Nous ferons comme si cet alignement contenait cette
+unit fictive pour cet annotateur lˆ, si bien que tout alignement unitaire devient finalement, dans tous les cas, un
+n-uplet, contenant au moins une unit non vide, et, pour chaque annotateur, soit lÕune de ses units, soit u?. Pour
+n annotateurs numrots de 1 ˆ n, et ayant respectivement annot cardi units, le nombre dÕalignement unitaires
+quÕil est possible de gnrer est de (
+¸n
+i=1 cardi)? 1 (en retirant lÕalignement ne contenant que des u?).
+4.3.2 Alignement aø
+Pour un jeu dÕannotations donn, un alignement aø est dfini comme un2 ensemble dÕalignements unitaires tel que
+chaque unit de chaque annotateur appara”t dans un et un seul de ses alignements unitaires.
+4.4 Alignement et entropie3
+4.4.1 Entropie dÕun alignement unitaire
+LÕentropie dÕun alignement unitaire aú, note eú(aú), est dfinie pour une dissimilarit dx donne comme la valeur
+moyenne des dissimilarits deux ˆ deux de ses units constituantes :
+eú(aú) =
+1
+C2n
+á
+·
+(u,v)?aú2
+dx(u, v) (5)
+Cependant, tant donn quÕun alignement unitaire peut comporter des units fictives u?, il est ncessaire de dfinir
+la dissimilarit entre une unit relle et lÕunit fictive u?.
+Pour toute dissimilarit dx, pour toute unit u, dx(u, u?) = dx(u?, u) = Æ?, constante qui est ˆ dfinir pour
+une campagne donne. En effet, cette valeur indique jusquÕˆ quel seuil de dissimilarit il convient de prfrer
+aligner une unit avec une autre plut™t quÕavec u?. Par exemple, si on choisit comme dissimilarit positionnelle
+2Notons que, pour n annotateurs qui auraient chacun cr le mme nombre p dÕunits, le nombre dÕalignements quÕil est possible de
+gnrer est suprieur ˆ (p!)n?1, ce qui dpasse trs rapidement les capacits de stockage et de traitement des machines.
+3Le terme entropie est ici quelque peu usurp, pris seulement pour voquer la notion de dsordre.
+UNE APPROCHE HOLISTE ET UNIFIƒE DE LÕALIGNEMENT ET DE LA MESURE DÕACCORD
+dpos?sporadique, et que lÕon souhaite que deux units de mme longueur soient alignables tant quÕelles se touchent
+(et en faisant abstraction de la dissimilarit catgorielle ventuelle), on calcule la dissemblance dÕune telle confi-
+guration (unit u positionne de x ˆ x + l et v positionne de x + l ˆ x + 2l, soit dpos?sporadique(u, v) =
+((l + l)/l)2 = 22 = 4) et on pose donc Æ? = 4. Par ailleurs, concernant la dissimilarit catgorielle, la formule
+(3) montre quÕune valeur de 1 dans la matrice des distances fait systmatiquement prfrer le choix de u? (va-
+leur Æ?) ˆ une unit de la catgorie concerne (valeur Æ+? ), mme si la dissimilarit positionnelle est nulle. Bien
+sr, lorsque lÕon combine dpos et dcat, les cart positionnels et catgoriels sÕajoutant, on en vient dÕautant plus
+rapidement ˆ dpasser la valeur Æ? et ˆ prfrer u? ˆ une unit relle.
+Enfin, le choix de la valeur moyenne des dissimilarit plut™t que leur somme permet de sÕabstraire du nombre
+dÕannotateurs.
+4.4.2 Entropie dÕun alignement
+LÕentropie dÕun alignement aø, note eø(aø), est la valeur moyenne de lÕentropie de ses alignements unitaires :
+eø(aø) =
+1
+|aø| á
+|aø|·
+i=1
+eú(aúi) (6)
+Nous faisons le choix de considrer la valeur moyenne des entropies unitaires plut™t que leur somme afin par
+exemple que lÕentropie dÕun jeu multiple dÕannotations qui serait constitu de la duplication dÕun jeu donn pos-
+sde la mme entropie que ce dernier et non pas son double.
+4.5 Alignement idal et mesure dÕaccord
+Alignement idal aö . Un alignement aø dÕun jeu dÕannotation j est considr comme idal vis-ˆ-vis dÕune fonction
+de dissimilarit dx donne sÕil minimise son entropie parmi tous les alignements possibles de j. Il est alors not aö.
+Entropie dÕun jeu dÕannotations e(j). LÕentropie dÕun jeu dÕannotations j, note e(j), pour une fonction de
+dissimilarit dx donne, est dfinie comme lÕentropie de son ou de ses alignements idaux eø(aö). Par prudence,
+nous sommes contraints de parler de Ç ses alignements idaux È et non pas de son alignement idal car, mme si
+cÕest peu probable, plusieurs alignements distincts peuvent minimiser lÕentropie dÕun jeu dÕannotations.
+Nous venons dÕtablir les deux dfinitions cruciales de notre approche, qui rendent compte en particulier de son
+caractre unifi. En effet, le choix de lÕalignement idal se fait sur la base de lÕentropie, donc de la mesure dÕaccord
+(cf. ci-dessous) entre annotateurs, et, rciproquement et paralllement, la mesure dÕaccord se fait sur la base de
+lÕalignement idal.
+Corpus : un corpus c est un ensemble donn de textes et lÕensemble des jeux dÕannotations relatifs ˆ ces textes.
+Entropie alatoire ealeatoire. Pour un corpus c donn, soit P lÕensemble des processus alatoires dÕannotation
+actuellement disponibles4. ?p ? P , soit eAvg(p) la moyenne des entropies obtenues sur un ensemble significatif
+de jeux dÕannotations produits par p. LÕentropie alatoire de ce corpus, note ealeatoire(c), est dfinie comme
+min({eAvg(p)/p ? P}). CÕest une valeur qui sera susceptible de sÕamliorer (diminuer) au fil des avances en
+termes de gnration alatoire astucieuse.
+Mesure dÕaccord. La mesure dÕaccord inter-annotateurs dÕun jeu dÕannotations est alors donne par :
+?j ? c, accord(j) = ealeatoire(c)? e(j)
+ealeatoire(c)
+(7)
+Si les annotateurs sont parfaitement dÕaccord, comme dans le cas idal voqu au dbut de cet article, lÕentropie
+rsultante est nulle, si bien que la mesure dÕaccord est gale ˆ 1. Au contraire, si les annotateurs ne font pas mieux
+que le hasard, leur taux dÕaccord est nul, voire ngatif.
+4Nous proposons deux tels processus de gnration alatoire en section suivante.
+YANN MATHET, ANTOINE WIDL…CHER
+La mthode propose peut tre qualifie dÕholiste dans la mesure o cÕest la considration de lÕensemble des
+annotations qui permet de dterminer les alignements unitaires. Il est impossible de partir dÕalignements unitaires
+Ç srs È pour constituer, de faon ascendante, lÕalignement idal complet.
+5 Oprationalisation : vers une mthode dÕimplmentation de lÕaligne-
+ment et de la mesure dÕaccord holistes
+Pour toute la suite de cet article, nous allons utiliser la dissimilarit positionnelle dpos?sporarique, et une dissi-
+milarit catgorielle dfinie par une matrice remplie de 1, ˆ lÕexception de la diagonale qui est, comme toujours,
+nulle. Son r™le est ici limit ˆ lÕinterdiction des couplages entre units de catgories distinctes, afin de limiter
+les phnomnes entrant en jeu dans le cadre de cet article. Enfin, nous combinons ces deux dissimilarits en les
+sommant via dcombi(dpos?sporadique,dcat,1,1).
+Les dfinitions que nous venons de poser ont valeur dÕun point de vue thorique, mais leur implmentation infor-
+matique pose un important problme de complexit, en raison du caractre holiste de la mthode propose. Un
+parcours de toutes les possibilits est en effet inenvisageable, lÕespace de recherche tant minor par (p!)n?1. A
+titre dÕillustration, mentionnons que pour 5 annotateurs ayant simplement annot chacun 5 units, cette minoration
+est de (5!)4 = 1204, soit plus de 207 millions.
+Nous allons tablir des principes permettant de rduire cet espace de recherche de faon ˆ obtenir une mthode
+utilisable avec des jeux de donnes rels, tels que 4 annotateurs ayant chacun annot une centaine dÕunits.
+5.1 Une rduction de lÕespace de recherche
+Parmi les innombrables possibilits dÕalignements quÕoffre lÕespace de recherche, une immense majorit reposent
+sur des alignements unitaires improbables. Nous allons dmontrer quÕil est possible dÕliminer un grand nombre
+dÕentre eux sans carter lÕalignement idal.
+En effet, considrons lÕalignement idal aö, de cardinalit m. Soit aú lÕun quelconque de ses alignements unitaires.
+Par commodit, nous lui donnons lÕindice 1 (aú = aú1), les autres ayant donc les indices de 2 ˆ m. Cet alignement
+unitaire aú contient n units (relles ou u?). Pour chacune de ces units ui (avec 1 ² i ² n), crons lÕalignement
+unitaire aúm+i = (ui, u?, ..., u?) de cardinalit n. Il est possible de crer un alignement aø constitu de lÕensemble
+des alignements unitaires de aö \ {aú}, auquel on ajoute les alignements unitaires aúm+1 ˆ aúm+n que lÕon vient de
+crer5. Il est de cardinalit m+ n? 1. On a, du fait que aö minimise lÕentropie :
+eø(aö) ² eø(aø)? 1
+m
+m·
+i=1
+eú(aúi) ² 1
+m+ n? 1
+m+n·
+i=2
+eú(aúi)?
+m·
+i=1
+eú(aúi) ² m
+m+ n? 1
+m+n·
+i=2
+eú(aúi) ²
+m+n·
+i=2
+eú(aúi)
+? eú(aú1) ²
+m+n·
+i=m+1
+eú(aúi)
+et comme ?i > m, aúi = Æ?, et que lÕon a pos aú = aú1,
+? eú(aú) ² n áÆ? (8)
+On a donc major lÕentropie unitaire de tout alignement unitaire candidat ˆ lÕalignement idal. Ainsi, sur exemple
+rel, pour 3 annotateurs crant chacun 25 units, on passe dÕenviron 19000 ˆ 1000 alignements unitaires.
+5.2 Un algorithme rapide pour lÕobtention dÕune solution approche
+Une fois lÕensemble des alignements unitaires (restreint aux seuls alignements susceptibles dÕappartenir ˆ la so-
+lution, cf. point prcdent) gnr, trions ce dernier, et obtenons ainsi la liste Linitial. LÕalgorithme 1 permet
+5aø est bien un alignement, puisque chacune des units appara”t dans un et un seul alignement unitaire.
+UNE APPROCHE HOLISTE ET UNIFIƒE DE LÕALIGNEMENT ET DE LA MESURE DÕACCORD
+dÕobtenir une solution approche de la recherche dÕun alignement idal. Sa complexit observe est telle quÕil est
+utilisable en des temps raisonnables, comme le montre le tableau 2.
+Algorithm 1 Algorithme rapide pour une solution approche
+Require: Linitial, L, L? des listes, i ? N, aú un alignement unitaire
+1: L? Linitial
+2: i? 0
+3: while i < size(L)? 1 do
+4: aú? L [i]
+5: L? ? L [i+ 1, (size(L)? 1)]
+6: Retirer de L? tous les alignements contenant (au moins) lÕune des units de aú
+7: i? i+ 1
+8: end while
+Nb. dÕannotateurs Nb. dÕunits par annotateur
+Espace de recherche
+(alignements unitaires
+aprs filtrage)
+Temps dÕexcution
+Cas 1 3 25 1145 Instantan
+Cas 2 3 100 4347 < 1 sec.
+Cas 3 4 100 38624 5 sec.
+Cas 4 4 200 69994 16 sec.
+Cas 5 5 25 96794 9 sec.
+TAB. 2 Ğ Temps dÕexcution de lÕalgorithme 1
+Les alignements rsultant de cette mthode ont t valus qualitativement, par observation graphique de sorties
+telles que sur la figure 1. Si lÕon observe localement quelques croisements, on notera toutefois quÕils sont rares
+et de faible amplitude. Nous considrons que le degr de prcision obtenu sur le calcul dÕentropie qui en rsulte
+suffira aux expriences menes dans la prsente tude.
+FIG. 1 Ğ Exemple de rsultat dÕalignement avec lÕalgorithme 1 (un annotateur par ligne)
+5.3 Vers une valeur minimale de ealeatoire
+En lÕabsence provisoire de lÕalignement idal, nous nous contenterons, pour la suite de cette tude, de lÕapproxi-
+mation obtenue ci-dessus. Il reste ˆ calculer la mesure dÕaccord, cÕest-ˆ-dire ˆ situer lÕentropie des annotations
+observes par rapport ˆ ce que pourrait produire le hasard. Pour ce faire, nous chercherons ˆ simuler le travail
+dÕun observateur judicieux qui annoterait en aveugle un nouveau texte (en connaissant sa taille, mais sans pouvoir
+le lire), en sÕinspirant des annotations faites par dÕautres sur dÕautres textes et en cherchant minimiser lÕentropie.
+Une premire stratgie (random1) de gnration alatoire dÕannotations a consist, tout simplement, ˆ observer
+des donnes relles, en tenant compte du nombre (plages) dÕannotations par annotateur, puis ˆ gnrer des anno-
+tations conformes ˆ ces observations, et de taille alatoire. Il nous a toutefois sembl quÕun hasard bien entendu
+devrait prendre en compte des rgularits plus fines observables sur un corpus donn, telles que (et de faon non
+limitative) : telle catgorie conduit ˆ un pavage complet du texte, telle autre donne lieu ˆ des tailles relativement
+stables, les textes commencent ou se terminent toujours par tel type particulier... La stratgie random2 vise ˆ
+prendre en compte de telles rgularits. Elle consiste ˆ assembler, au sein dÕun mme texte virtuel, des annota-
+tions manant de textes rels diffrents, en respectant la rgle suivante : pour gnrer une annotation virtuelle
+de n annotateurs, on utilise n textes diffrents dans chacun desquels on puise les annotations dÕun et dÕun seul
+annotateur6. Nous obtenons ainsi un jeu dÕannotations qui respecte par construction la distribution des units dans
+6Une mthode permettant de pallier les diffrences de taille entre les diffrents textes a t mise en place.
+YANN MATHET, ANTOINE WIDL…CHER
+les textes (rgularit de position, de quantit...). Il est dÕautre part effectivement alatoire, puisque les annotations
+sont assembles en aveugle : elles sont issues de textes sans rapport entre eux et ni avec le texte virtuel7. LÕexp-
+rience rapporte ci-dessous confirme la supriorit de cette stratgie random2 : nous obtenons en effet des tirages
+alatoires ayant une entropie plus faible que celle provenant dÕun tirage ralis selon random1 (3.48 au lieu de
+3.67 pour un maximum possible de 4, soit 57 % de dsordre en moins).
+6 Observations exprimentales
+6.1 Exprimentations sur un jeu de donnes factices
+Afin de disposer dÕune grille de lecture permettant de savoir ˆ quoi correspondent les valeurs dÕaccord situes entre
+0 et 1 (1 tant lÕaccord parfait, et 0 ce quÕest capable de faire le hasard), nous avons procd ˆ lÕtablissement em-
+pirique de deux courbes correspondant ˆ deux modes de lecture parallles. En premier lieu, nous cherchons ˆ
+savoir comment fluctue le taux dÕaccord dÕun jeu de donnes ˆ partir dÕun tat parfait vers un tat de plus en plus
+dgrad du seul point de vue du placement des units. Pour ce faire, un algorithme cre alatoirement les annota-
+tions dÕun premier annotateur (25 units rparties alatoirement et de tailles alatoires), puis cre des annotations
+pour deux autres annotateurs par dgradation du premier jeu dÕannotation selon un facteur k, selon le principe sui-
+vant : chaque unit de lÕannotateur 1 est duplique pour chacun des annotateurs 2 et 3, et modifie alatoirement
+par translation de chacune de ses deux bornes dÕun vecteur compris entre ?k2 et +k2 fois la longueur de lÕunit
+duplique. En second lieu, nous nous intressons aux fluctuations relatives ˆ un jeu de donnes possdant de plus
+en plus de faux ngatifs. Cette fois, lÕalgorithme cre les annotations des annotateurs 2 et 3 en dupliquant chacune
+des units de lÕannotateur 1 avec une probabilit p dÕoubli (faux ngatif). Avec p = 0.5, il y aura en moyenne
+une unit sur deux non prsente dans les jeux 2 et 3 par rapport au jeu 1. Par contre, les entits conserves restent
+parfaitement alignes avec les originales. Les fluctuations obtenues sont reportes dans les graphes suivants.
+0 1 2 3 4
+0.
+2
+0.
+4
+0.
+6
+0.
+8
+1.
+0
+Dgradation positionnelle
+A
+cc
+or
+d
+0.0 0.2 0.4 0.6 0.8 1.0
+0.
+0
+0.
+2
+0.
+4
+0.
+6
+0.
+8
+1.
+0
+Dgradation par omission
+A
+cc
+or
+d
+FIG. 2 Ğ ƒvolution du taux dÕaccord selon la dgradation applique
+Il est ainsi possible de voir quel est lÕquivalent dÕune valeur dÕaccord donne soit en termes de dgradation
+positionnelle, soit en termes dÕoublis (faux ngatifs). Ë titre dÕillustration, la figure 3 donne deux exemples issus
+de ces deux paradigmes dÕinterprtation correspondant ˆ la mme valeur dÕaccord de 0.5.
+6.2 Exprimentation sur un jeu de donnes relles
+Une premire exprimentation sur des donnes relles a t ralise sur la base du corpus tabli par (Labadi et al.,
+2010), dont les annotations portent sur la segmentation thmatique des textes, comportent plusieurs catgories, et
+comprennent des units superposes au sein mme des annotations dÕun annotateur.
+7Ajoutons que cette mthode permet de gnrer ˆ moindre cot des donnes alatoires en quantit importante. Pour a annotateurs et t
+textes (t ³ a), on peut en effet gnrer jusquÕˆ Cat á aa combinaisons diffrentes.
+UNE APPROCHE HOLISTE ET UNIFIƒE DE LÕALIGNEMENT ET DE LA MESURE DÕACCORD
+Accord de 0.5 par dgradation positionnelle Accord de 0.5 par dgradation par omissions
+FIG. 3 Ğ Illustrations dÕun accord de 0.5
+Nb. annot. eobs erandom1 a1 erandom2 a2
+Texte 31 3 3.44 3.76 0.09 3.48 0.01
+Texte 121 3 3.20 3.76 0.15 3.48 0.08
+Texte 20 4 2.81 3.72 0.24 3.34 0.16
+Texte 14 3 2.79 3.76 0.25 3.48 0.20
+Texte 1 3 2.67 3.76 0.29 3.48 0.23
+Texte 13 3 2.37 3.76 0.36 3.48 0.32
+Texte 6 3 2.18 3.76 0.42 3.48 0.37
+TAB. 3 Ğ Rsultats obtenus sur donnes relles
+Le tableau 3 rapporte les rsultats obtenus sur 7 de ces textes (en utilisant la mme dissimilarit que prcdem-
+ment), en donnant pour chacun son entropie (eobs), celles obtenues par random1 (erandom1) et par random2
+(erandom2) pour le corpus correspondant, et les mesures dÕaccord respectives qui en rsultent.
+On constate que random2 est sensiblement plus efficace que random1, faisant passer le meilleur accord de 0.42
+ˆ 0.37, et que la baseline ainsi obtenue est relativement svre dans la mesure o dans le cas le pire, lÕaccord
+obtenu nÕest que de 0.01, soit dÕun niveau quivalent ˆ random2. Une observation visuelle, donc qualitative,
+des 7 textes annots, confirme lÕordre obtenu par le calcul. Mentionnons que le texte 6 donnant lieu au meilleur
+accord a2 = 0.37 correspond respectivement ˆ une valeur k = 1.2 (translation des bornes jusquÕˆ ±0.6 fois la
+largeur des units associes, mais aucune omission) et p = 0.46 (omission dÕune unit dans 46% des cas, mais
+positionnements parfaits) de nos deux grilles de lecture.
+7 Conclusions et perspectives
+Nous avons propos une mthode ralisant alignement et mesure dÕaccord dans un processus commun. Trs g-
+nrale, cette mthode autorise les variations positionnelles et catgorielles, et ne dpend pas de la taille des entits
+annotes. Elle peut tre configure pour chaque paradigme dÕannotation, par le choix des formules de calcul de
+la dissimilarit positionnelle et par lÕindication des similarits entre catgories. Nous la disons holiste dans la
+mesure o elle sÕappuie sur lÕintgralit des donnes pour faire des choix, lˆ o des mthodes fentres comme
+WindowDiff oprent localement. Par ailleurs, elle nÕexige pas de jeu dÕannotations de rfrence pour fonctionner
+ou sÕamorcer. Nous travaillons actuellement ˆ la mise en place de mthodes permettant de calculer automatique-
+ment les valeurs optimales de Æ? et des coefficients des matrices catgorielles (pour ce second point, voir aussi
+(Fort et al., 2010)). Un algorithme permettant dÕapprocher la solution optimale a t dfini et nous avons procd ˆ
+une implmentation complte du systme, avec rendu graphique des alignements effectus. Cette implmentation
+sera distribue avec la prochaine version de la plate-forme Glozz (1.1.0), devenant ainsi publiquement accessible,
+et directement exploitable par les utilisateurs de cette plate-forme. Un travail est actuellement men, en partenariat
+avec Jean-Philippe Mtivier (GREYC), qui vise ˆ calculer dans un temps raisonnable la solution optimale. Ë cette
+fin, un systme ˆ base de CSP (Constraint Satisfaction Problem) prend en entre lÕensemble des alignements uni-
+taires candidats ˆ la solution. Nous pourrons ainsi dÕune part quantifier la diffrence dÕentropie entre la solution
+approche et la solution idale, et dÕautre part proposer, mais dans un temps ventuellement beaucoup plus long,
+la solution idale.
+Remerciements
+Nous tenons ˆ remercier Jr™me Chauveau qui a rcemment rejoint lÕquipe de dveloppement de Glozz et contri-
+bu aux dveloppements ncessaires aux exprimentations dont il est fait mention ici.
+YANN MATHET, ANTOINE WIDL…CHER
+Rfrences
+ARTSTEIN R. & POESIO M. (2008). Inter-coder agreement for computational linguistics. Computational Lin-
+guistics, 34(4), 555Ğ596.
+ASHER N. (1993). Reference to Abstract Objects in Discourse. Kluwer.
+BESTGEN Y. (2009). Quel indice pour mesurer lÕefficacit en segmentation de textes ? In Actes de TALN 2009
+(Traitement automatique des langues naturelles), Senlis : ATALA LIPN.
+BOOKSTEIN A., KULYUKIN V. A. & RAITA T. (2002). Generalized Hamming distance. Information Retrieval,
+(5), 353Ğ375.
+CHAROLLES M. (1997). LÕencadrement du discours : Univers, champs, domaines et espaces. Cahier de Re-
+cherche Linguistique, (6).
+COHEN J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement,
+20(1), 37Ğ46.
+COHEN J. (1968). Weighted kappa : Nominal scale agreement with provision for scaled disagreement or partial
+credit. Psychological Bulletin, 70(4), 213Ğ220.
+FORT K., FRAN‚OIS C. & GHRIBI M. (2010). Evaluer des annotations manuelles disperses : les coefficients
+sont-ils suffisants pour estimer lÕaccord inter-annotateurs ? In Traitement Automatique des Langues Naturelles
+(TALN) Traitement Automatique des Langues Naturelles (TALN), p.0÷, Montral France. Quaero.
+GROUIN C., GALIBERT O., ROSSET S., QUINTARD L. & ZWEIGENBAUM P. (2011). Mesures dÕvaluation
+pour entits nommes structures. In ƒvaluation des mthodes dÕExtraction de Connaissances dans les Donnes,
+Brest, France.
+HEARST M. (1997). Texttiling : segmenting text into multi-paragraph subtopic passages. Computational Lin-
+guistics, 23(1), 33Ğ64.
+KRIPPENDORFF K. (1980). Content Analysis : An Introduction to Its Methodology, chapter 12. Sage : Beverly
+Hills, CA.
+KRIPPENDORFF K. (1995). On the reliability of unitizing contiguous data. Sociological Methodology, (25),
+47Ğ76.
+LABADIƒ A., ENJALBERT P., MATHET Y. & WIDL…CHER A. (2010). Discourse structure annotation : Creating
+reference corpora. In Workshop on Language Resource and Language Technology Standards - state of the art,
+emerging needs, and future developments, La Valetta, Malta : Conference LREC 2010.
+LAMPRIER S., AMGHAR T., LEVRAT B. & SAUBION F. (2007). On evaluation methodologies for text segmen-
+tation algorithms. In , Ed., Proceedings of ICTAI 2007, p. 19Ğ26 : .
+MAKHOUL J., KUBALA F., SCHWARTZ R. & WEISCHEDEL R. (1999). Performance measures for information
+extraction. In Proceedings of DARPA Broadcast News Workshop, p. 249Ğ252.
+PƒRY-WOODLEY M.-P., ASHER N., ENJALBERT P., BENAMARA F., BRAS M., FABRE C., FERRARI S.,
+HO-DAC L.-M., LE DRAOULEC A., MATHET Y., MULLER P., PRƒVOT L., REBEYROLLE J., TANGUY L.,
+VERGEZ-COURET M., VIEU L. & WIDL…CHER A. (2009). ANNODIS : une approche outille de lÕannota-
+tion de structures discursives. In Actes de la 16e Confrence Traitement Automatique des Langues Naturelles
+(TALNÕ09), session posters, Senlis, France.
+PEVZNER L. & HEARST M. (2002). A critique and improvement of an evaluation metric for text segmentation.
+Computational Linguistics, 28(1), 19Ğ36.
+SCOTT W. (1955). Reliability of content analysis : The case of nominal scale coding. Public Opinion Quarterly,
+19(3), 321Ğ325.
+SIEGEL S. & CASTELLAN N. J. (1988). Nonparametric Statistics for the Behavioral Sciences. McGraw-Hill,
+New York, 2nd edition.
+TEUFEL S., CARLETTA J. & MOENS M. (1999). An annotation scheme for discourse-level argumentation in
+research articles. In Proceedings of Ninth Conference of the EACL, p. 110Ğ117, Bergen.
+WIDL…CHER A. & MATHET Y. (2009). La plate-forme Glozz : environnement dÕannotation et dÕexploration de
+corpus. In Actes de TALN 2009 (Traitement automatique des langues naturelles), Senlis, France : ATALA LIPN.

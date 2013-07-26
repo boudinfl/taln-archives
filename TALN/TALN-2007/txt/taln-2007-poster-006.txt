@@ -1,0 +1,471 @@
+TALN 2007, Toulouse, 5–8 juin 2007
+Analyse automatique de sondages téléphoniques d’opinion?
+Nathalie CAMELIN1, Frédéric BÉCHET1
+Géraldine DAMNATI2, Renato DE MORI1
+1 LIA/CNRS, University of Avignon,
+BP1228, 84911 Avignon cedex 09 France
+2 France Télécom R&D – TECH/SSTP/RVA, 2 av. Pierre Marzin,
+22307 Lannion Cedex 07, France
+{nathalie.camelin,frederic.bechet,renato.demori}@
+univ-avignon.fr
+geraldine.damnati@francetelecom.com
+Résumé. Cette étude présente la problématique de l’analyse automatique de sondages té-
+léphoniques d’opinion. Cette analyse se fait en deux étapes : tout d’abord extraire des messages
+oraux les expressions subjectives relatives aux opinions de utilisateurs sur une dimension par-
+ticulière (efficacité, accueil, etc.) ; puis sélectionner les messages fiables, selon un ensemble de
+mesures de confiance, et estimer la distribution des diverses opinions sur le corpus de test. Le
+but est d’estimer une distribution aussi proche que possible de la distribution de référence. Cette
+étude est menée sur un corpus de messages provenant de vrais utilisateurs fournis par France
+Télécom R&D.
+Abstract. This paper introduces the context of the automatic analysis of opinion tele-
+phone surveys. This analysis is done by means of two stages : firstly the subjective expressions,
+related to the expression of an opinion on a particular dimension (efficiency, courtesy, . . . ), are
+extracted from the audio messages ; secondly the reliable messages, according to a set of confi-
+dence measures, are selected and the distribution of the positive and negative opinions in these
+messages is estimated. The goal is to obtain a distribution as close as possible to the reference
+one. This study is carried on a telephone survey corpus, provided by France Télécom R&D,
+obtained in real field conditions.
+Mots-clés : détection d’opinions, classification automatique, reconnaissance automa-
+tique de la parole, champs conditionnels aléatoires.
+Keywords: opinion extraction, automatic classification, automatic speech recognition,
+conditional random fields.
+1 Introduction
+Face à la quantité grandissante de donnée disponible, l’extraction d’information pertinente est
+devenue un des défis de ces dernières années. Plus précisément, l’extraction d’opinion a ré-
+?Travaux réalisés en collaboration avec France Télécom’s R&D, contrat 021B178.
+63
+Nathalie CAMELIN, Frédéric BÉCHET, Géraldine DAMNATI, Renato DE MORI
+cemment fait l’objet d’une grande attention de la part de la communauté TALN (atelier d’ACL
+2006 Sentiment and Subjectivity in Text, DEFT’07). Ce domaine a donné lieu à de nombreuses
+publications (Wiebe et al., 2005; Choi et al., 2005) portant principalement sur deux aspects :
+la détection automatique d’opinions à partir d’avis rédigés par des consommateurs (Popescu
+& Etzioni, 2005) et d’autre part l’analyse de la subjectivité d’une phrase pour les systèmes de
+résumé automatique ou de question/réponse (Riloff & Wiebe, 2003).
+Les travaux présentés dans cette étude concernent le premier cadre applicatif : la détection
+automatique d’opinions à partir de sondage d’utilisateurs. Il s’agit ici de sondages téléphoniques
+effectués par France Télécom auprès d’utilisateurs réels. Une des principales caractéristiques
+de cette étude est la détection d’opinions à partir de messages vocaux, contenant de la parole
+complètement spontanée, collectée dans des conditions réelles.
+A cause des difficultés intrinsèques à ce type de corpus (bruits, téléphone mobile, disfluences,
+grande variété d’accents, nombreuses digressions entraînant un nombre important de mots hors-
+vocabulaire), il est très important de développer des méthodes robustes, peu sensibles aux er-
+reurs de Reconnaissance Automatique de la Parole (RAP). En contrepartie, le nombre d’opi-
+nions susceptibles d’être détectées est forcément réduit. Nous avons présenté dans (Camelin
+et al., 2006) une stratégie de RAP utilisant des modèles de langage spécifiques à la détec-
+tion d’opinions afin de limiter le bruit généré par les portions de messages hors-sujet (ou di-
+gressions). La problématique des sondages d’opinions à partir de corpus de messages vocaux
+et une stratégie d’analyse automatique de ces mêmes sondages a été présentée dans (Béchet
+et al., 2006). Les travaux présentés ici proposent de nouvelles stratégies mettant l’accent sur
+l’introduction de connaissances explicites dans le processus de classification automatique. La
+définition de critères de calibrage du système de détection, spécifiques à la problématique des
+sondages, est également abordée.
+Cet article est organisé comme suit : le paragraphe 2 formalise le problème de la détection d’opi-
+nion et de l’analyse de sondages ; le paragraphe 3 introduit le corpus utilisé dans cette étude ;
+le paragraphe 4 présente les stratégies de détection d’opinions sur des transcriptions manuelles
+des messages et sur des sorties du module de RAP ; enfin la section 5 permet de comparer ces
+2 stratégies et détaille l’ajout de connaissances explicites dans la stratégie analysant les mes-
+sages vocaux ; elle expose également comment le système peut être paramétré pour le problème
+particulier de l’analyse de sondages.
+2 Formulation du problème
+L’analyse automatique d’opinions à partir de messages collectés dans des conditions réelles est
+une tâche difficile. Une très grande variété de locuteurs exprime leurs opinions de très nom-
+breuses façons, avec des messages de tailles variables, et un grand nombre de répétitions, cor-
+rections et contradictions. Á cette variabilité des locuteurs s’ajoute la variabilité acoustique due
+à des environnements et des canaux de transmissions très variés (téléphones portables, bruits
+ambiants). Pour toutes ces raisons, les résultats obtenus par les systèmes de RAP sur ce type de
+corpus sont très variables, avec des taux d’erreurs sur les mots dépassant les 50%.
+Ces erreurs de reconnaissance vont grandement affecter les performances de détection d’opi-
+nions pour les messages très bruités, cependant le problème de l’analyse de sondages ne néces-
+site pas le traitement de la totalité des messages enregistrés. En effet, le but recherché est de
+connaître la distribution des étiquettes d’opinions sur le corpus, pas les étiquettes individuelles
+64
+Analyse automatique de sondages téléphoniques d’opinion
+de chaque message. On retrouve ici la problématique traditionnelle des sondages d’opinion :
+comment collecter un sous-ensemble traitable d’observations qui conserve les mêmes distri-
+butions d’opinions que celles du corpus général. Le sous-ensemble traitable, dans notre cas,
+est l’ensemble des messages considérés comme fiables par les modèles de RAP et de détection
+d’opinion. Nous verrons au paragraphe 4 comment cette fiabilité est estimée à l’aide de mesures
+de confiance.
+2.1 Analyse de sondage
+Le problème est formalisé de la manière suivante :
+Soit C un corpus de n messages orauxm1,m2, . . . ,mn.
+Soit C ? ? C un sous-ensemble de n? messages de C sélectionné par la stratégie d’analyse
+automatique.
+Soit O(m,x) ? {o1, . . . , ok} l’opinion exprimé dans le message m à propos de la dimen-
+sion x ? D. Les dimensions correspondent ici aux différentes analyses effectuées dans le son-
+dage, par exemple sur l’efficacité d’un service, la courtoisie des opérateurs, le coût, etc. Les
+valeurs d’opinions oi ? O sont les différentes opinions possibles. Dans cette étude on considère
+les opinions suivantes :
+O = {entièrement positives, entièrement négatives,mitigées, sans opinion}.
+Les opinions Or(m,x) sont les opinions de référence, données par des annotateurs humains.
+Les opinions Oh(m,x) sont les étiquettes d’opinions attribuées automatiquement.
+Le but des stratégies proposées dans cette étude est de minimiser la distance entre la distribution
+des opinions de référence PC pour la dimension x :
+PC(x) = [p(o1), . . . , p(ok)] et p(oi) =
+|Coi|
+n
+avecm ? Coi ssi m ? C et Or(m,x) = oi.
+et la distribution PC ? estimée sur le sous-corpus extrait C ? :
+PC ?(x) = [p?(o1), . . . , p?(ok)] et p?(oi) =
+??C ?oi??
+n?
+avecm ? C ?oi ssi m ? C ? et Oh(m,x) = oi.
+Cette distance est évaluée grâce à la divergence de Kullback-Leibler (KLD) entre les deux
+distributions :
+DKL(PC(x)?PC ?(x)) =
+k∑
+i=1
+p(oi) · log p(oi)
+p?(oi)
+(1)
+2.2 Détection d’opinions
+Le formalisme introduit dans le paragraphe précédent nécessite le calcul de O(m,x) qui repré-
+sente l’opinion oi contenue dans le message m à propos de la dimension x. Ces opinions oi
+65
+Nathalie CAMELIN, Frédéric BÉCHET, Géraldine DAMNATI, Renato DE MORI
+sont exprimées dans le message sous la forme d’expressions subjectives notées W (oi, x). Par
+exemple pour la dimension x =courtoisie et oi =entièrement positive on peut trouver dans notre
+corpus :W (oi, x) = [l’accueil était parfait].
+Le rôle du module de détection d’opinions est d’extraire des messages vocauxm ces séquences
+W (oi, x) afin de calculer O(m,x). Cette opération se fait en deux étapes : tout d’abord extraire
+du message les segments susceptibles de représenter des expressions subjectives, puis caracté-
+riser ces segments en fonctions des différentes étiquettes d’opinions.
+Une fois ces étapes effectuées, un messagem est décrit par une séquence de segments :
+m = W1(o1, d1) . . .Wl(ol, dl) avec oi ? O et dj ? D.
+L’attribution de l’opinion O(m,x) au message m pour la dimension x est effectuée de la ma-
+nière suivante :
+O(m,x) =
+???????
+sans opinion si ? Wi(oi, di) ? m on a di #= x
+satisfait si ? Wi(oi, x) ? m on a oi =satisfait
+insatisfait si ? Wi(oi, x) ? m on a oi =insatisfait
+mitigé sinon
+3 Description du corpus de sondage téléphoniques
+Le corpus de sondage téléphonique a été collecté auprès de réels clients d’un service de France
+Télécom. Les personnes contactées sont invitées par un court message à appeler un numéro gra-
+tuit qui leur permet d’exprimer leur satisfaction vis à vis du service-client qu’ils ont récemment
+appelé. En composant ce numéro, le message vocal suivant les invite à laisser un message : [. . . ]
+Vous avez récemment contacté notre service clientèle. Nous souhaitons nous assurer que vous
+avez été satisfait de l’accueil et de la suite donnée à votre appel. N’hésitez pas à me faire part
+de tous vos commentaires et de vos suggestions sur notre service, ceux-ci nous aideront à nous
+améliorer. Nous vous remercions de votre aide et nous restons à votre disposition. Laissez votre
+message après le signal sonore. [. . .]
+A l’origine ces messages étaient destinés à être traités par des opérateurs. Ainsi aucune consigne
+de nature à faciliter le traitement automatique n’a été donnée : pas de conseils sur le mode
+d’élocution, question ouverte et même incitation à laisser des commentaires. Pour cette étude un
+ensemble de 1779 messages, collectés sur une période de 3 mois, a été transcrit manuellement
+au niveau mots, expressions subjectives et marqueurs (indication de disfluence et marqueurs
+discursifs). Ce corpus a été divisé en deux sous-corpus : un corpus d’apprentissage contenant
+environ 80% des messages et un corpus de test contenant les 20% restant.
+L’analyse de la satisfaction des utilisateurs par l’équipe d’analyse des sondages se fait selon
+trois dimensions : la qualité de l’accueil (notée accueil), la rapidité d’accès au service (notée
+attente) et enfin l’efficacité du service (notée efficacité). Cette dernière dimension est la plus
+représenté dans le corpus, elle concerne à la fois l’évaluation des réponses aux attentes des
+utilisateurs (est ce que le problème a été réglé ?) mais aussi la qualité des informations données.
+Chaque expression subjective peut recevoir deux polarités : positive et négative. Nous avons
+donc un total de 6 étiquettes pour caractériser les expressions subjectives du corpus.
+Dans la transcription manuelle, au sein de chaque message, ces expressions sont indiquées
+par des balises. Nous disposons ainsi d’un corpus de segments, chacun porteur d’une opinion
+66
+Analyse automatique de sondages téléphoniques d’opinion
+particulière. Le but du traitement automatique est de retrouver ces segments et de les étiqueter
+avec l’une des 6 étiquettes. Voici un exemple de message avec les balises manuelles :
+oui c’est monsieur NOMS PRENOMS j’avais appelé donc le service client ouais <seg la-
+bel=accueil,pos> j’ai été très bien accueilli </seg> des <seg label=efficacité,pos> bons ren-
+seignements </seg> sauf que <seg label=efficacité,neg> ça ne fonctionne toujours pas </seg>
+donc je sais pas si j’ai fait une mauvaise manipulation ou y a un problème enfin voilà sinon
+<seg label=efficacité,pos label=accueil,pos> l’accueil était et les conseils très judicieux </seg>
+même si <seg label=efficacité,neg> le résultat n’est pas n’est pas là </seg> merci au revoir
+4 Détection et classification d’expressions subjectives
+Deux stratégies ont été développées pour extraire et classifier les expressions subjectives des
+messages vocaux : l’une (notée ref ) s’appuie sur les transcriptions manuelles des messages ;
+l’autre (notée asr) est intégrée dans le processus de décodage de parole. Ces deux stratégies
+nous permettent de dissocier les erreurs dues à une mauvaise transcription en mots des erreurs
+de détection d’opinions. Il a été nécessaire de différencier les traitements sur les transcriptions
+manuelles des traitements sur les transcriptions automatiques à cause de la très mauvaise qualité
+de ces dernières : les méthodes développées sur le texte propre ne sont pas assez robustes pour
+s’appliquer aux transcriptions automatiques bruitées. La figure 1 présente ces stratégies. Elles
+sont décrites brièvement dans les prochains paragraphes.
+Segmentation
+Filtrage des segments
+Classification 
+en type d’expression
+(dimension+polarité)
+Processus de décision
+CRF
+étiqueteur
+ML Opinion
+Classifieur
+(text+RAP mes. conf.)
++Seuil de rejet ?
+Concaténation segments
++
+Classiffieur
+2 stratégies:
+- sur les messages audio
+- sur les transcriptions manuelles 
+Message audioTranscription manuelle
+Seuil de rejet ?
+Extraction uniquement
+des expressions subjectives
+Concaténation segments
++
+Classiffieur
+Seuil de rejet ?
+FIG. 1 – Stratégies de détection et de classification d’expressions subjectives pour les transcrip-
+tions manuelles et les messages audio
+67
+Nathalie CAMELIN, Frédéric BÉCHET, Géraldine DAMNATI, Renato DE MORI
+Modèles de Langage spécifiques à l’expression d’opinions. Nous avons montré dans (Ca-
+melin et al., 2006) qu’un modèle de langage spécifique à la détection des opinions permettait
+d’obtenir de meilleures performances lors de la phase de classification qu’un modèle RAP stan-
+dard de type bigramme. Ceci est dû principalement au protocole de collecte des messages (pas
+de contraintes d’élocution, encouragement à laisser des commentaires) qui implique une très
+grande dispersion dans les fréquences de distribution des mots du corpus collecté.
+Ce modèle de langage spécifique permet ainsi d’obtenir le message en une suite d’hypothèses
+d’expressions subjectives séparées par un symbole représentant les segments considérés comme
+vides.
+Un ensemble de mesures de confiance (acoustiques et linguistiques) est associé à chaque hy-
+pothèse. Sa probabilité d’être correcte est alors approximée sur le corpus d’apprentissage par
+régression logistique sur ses mesures de confiance. Comme présenté dans la figure 1 cette pro-
+babilité permet de filtrer les hypothèses peu fiables (seuil ? de la figure).
+Le principal avantage d’un tel modèle est de segmenter directement le flux audio en hypothèses
+d’expressions subjectives.
+Segmentation des messages avec des Champs Conditionnels Aléatoires. Pour le traitement
+des transcriptions manuelles un segmenteur basé sur les Champs Conditionnels Aléatoires (ou
+Conditional Random Fields CRF) a été développé. Les CRF (Lafferty et al., 2001) ont été
+utilisés avec succès dans de nombreuses tâches d’étiquetage telles que l’étiquetage morpho-
+syntaxique ou la détection d’entités nommées. L’avantage principal des CRF par rapport à des
+modèles génératifs tels que les Modèles de Markov Cachés est la possibilité d’utiliser l’en-
+semble des observations d’une séquence pour prédire une étiquette. Ce n’est donc pas le seul
+historique immédiat qui contraint l’attribution d’une étiquette à une observation mais potentiel-
+lement toutes les observations précédentes et suivantes.
+Dans notre cas, le corpus d’apprentissage est formaté de manière à associer à chaque mot une
+étiquette indiquant s’il fait partie d’une expression subjective ou non. L’étiqueteur développé
+est basé sur l’outil CRF++1 qui permet de représenter chaque mot selon différents niveaux.
+Ainsi un mot est représenté par : son lemme et une étiquette nommée seed. En effet, plusieurs
+études (Hatzivassiloglou & McKeown, 1997) utilisent un ensemble de mots (appelés seeds) qui
+expriment explicitement une opinion (e.g. gentil, agaçant, utile, efficace).
+Lors de l’analyse d’un nouveau message, les étiquettes posées par le CRF permettent d’extraire
+uniquement les hypothèses d’expressions subjectives.
+Classification des opinions. Une fois la segmentation du message effectuée, les hypothèses
+d’expressions subjectives associées à un même label sont concaténées. Chaque segment ainsi
+obtenu est ensuite étiqueté par un classifieur basé sur l’algorithme AdaBoost (Schapire & Singer,
+2000).
+Deux modèles sont appris sur les expressions subjectives du corpus d’entraînement annotées
+manuellement. La transcription exacte est utilisée pour le modèle ref et la transcription automa-
+tique pour le modèle asr. Chaque expression subjective est représentée en entrée du classifieur
+par ses lemmes et seeds ainsi que le nombre de mots.
+1Toolkit CRF++ : http ://www/chasen.org/ taku/software/CRF++/
+68
+Analyse automatique de sondages téléphoniques d’opinion
+!"#
+!$#
+!%#
+!&#
+!'#
+!(#
+!)#
+!*#
+!%& !&# !&& !'# !'& !(# !(& !)# !)& !*# !*&
++
+,-
+-.
+/
+012345467
+,51
+1.8
+!#
+!#9:
+!#9"
+!#9$
+!#9%
+!#9&
+!#9'
+!#9(
+!#9)
+!#9*
+!:
+!:9:
+!%& !&# !&& !'# !'& !(# !(& !)# !)& !*# !*&
+;
+45
+<,
+73
+.!
+=.
+!>
+?/
+/@
+,3
+A?
+B
+4.
+@/
+.1
+012345467
+,51
+1.8
+FIG. 2 – Courbes de précision/rappel sur les segments d’opinion (gauche) et de préci-
+sion/divergence DKL (droite) obtenues sur le corpus de test en faisant varier les seuils de rejet
+? et ? pour les transcriptions manuelles (ref ) et les sorties du module de RAP (asr)
+Ainsi l’expression subjective (transcription manuelle) : j’ai été très satisfaite euh de la commu-
+nication avec euh l’interlocuteur que j’avais au téléphone donc euh j’ attends des documents la
+personne était très gentille et très serviable et m’ a bien dépannée est représentée par : il avoir
+être très satisfaire de le communication avec le interlocuteur que il avoir au téléphone donc il
+attendre des document le personne être très gentil et très serviable et me avoir bien dépanné ,
+satisfaire communication téléphone attendre personne gentil serviable dépanné , 29.
+En sortie du classifieur, un score de confiance est attribué à chaque étiquette recherchée pour
+le segment considéré. Les étiquettes retenues sont celles dépassant le seuil ? de la stratégie
+présentée dans la figure 1.
+5 Expériences
+Cette section permet de comparer les 2 stratégies présentées précédemment et ainsi d’évaluer
+l’influence des erreurs du module RAP. Une amélioration de la stratégie asr avec l’introduction
+de connaissances explicites est ensuite proposée. Enfin, les critères de choix d’une stratégie par
+rapport à une autre selon la problématique des sondages sont exposés.
+Évaluation des stratégies. L’évaluation est faite sur le corpus de test par rapport à deux types
+de mesures : les mesures de précision/rappel sur la détection des expressions subjectives et
+la mesure de la distance de Kullback-Leibler (DKL) entre la distribution de référence sur les
+opinions et celle estimée automatiquement. La figure 2 présente les courbes obtenues en faisant
+varier les seuils de rejet ? et ?.
+Comme attendu la stratégie ref s’appliquant aux transcriptions manuelles donne de bien
+meilleurs résultats en terme de précision/rappel. Il est par contre particulièrement intéressant
+de constater que pour la mesure de la divergence les deux courbes atteignent les mêmes valeurs.
+Ce résultat valide notre approche consistant à sélectionner un sous-ensemble représentatif de
+messages pour lesquels les prises de décision sur l’attribution d’opinions sont fiables selon la
+stratégie implémentée.
+69
+Nathalie CAMELIN, Frédéric BÉCHET, Géraldine DAMNATI, Renato DE MORI
+Utilisation de connaissances explicites. Une étude manuelle des erreurs générées par la stra-
+tégie asr sur le corpus d’entraînement a permis de mettre en évidence que de nombreux mes-
+sages rejetés contenaient des phrases idiomatiques selon une ou plusieurs des dimensions re-
+cherchées. Ces phrases ont été extraites du corpus d’entraînement puis manuellement générali-
+sées sous formes d’expressions régulières. Ces expressions sont très générales, en petit nombre,
+non ambiguë, et sont relativement indépendante de l’application visée de service clientèle. La
+raison pour laquelle elles n’ont pas été capturées par le processus de classification automa-
+tique est due à la faible taille du corpus d’apprentissage. L’apport de connaissance explicite
+vise ainsi à pallier aux faiblesses des méthodes d’apprentissage automatique sur des données de
+taille réduite. A la suite de ce processus manuel huit expressions régulière ont été associées à la
+dimension accueil, deux pour attente et treize pour efficacité.
+Pour pouvoir évaluer l’apport de l’utilisation de cette connaissance explicite à notre système,
+quatre stratégies sont proposées :
+– La stratégie ?1 est celle utilisée dans le système asr, sans l’apport de connaissances expli-
+cites.
+– Pour la stratégie ?2, les expressions régulières ont été intégrées comme paramètre d’entrée
+de l’algorithme de classification AdaBoost.
+– La stratégie ?3 correspond à la fusion des hypothèses d’opinions obtenues par la stratégie
+?1 et celles obtenues en appliquant directement les expressions régulières sur les segments.
+– Enfin la stratégie?4 correspond à une stratégie séquentielle : les expressions régulières ayant
+été apprises principalement sur l’ensemble des messages rejetés par la stratégie ?1, celles-ci
+sont appliquées uniquement sur l’ensemble des messages rejetés par ?1.
+Toutes ces stratégies suivent la règle de rejet suivante : si aucun des segments du message n’a
+été associé à une étiquette d’opinion, le message est rejeté.
+Pour chaque stratégie, la précision, le rappel et la F-mesure ont été calculés en faisant varier
+les seuils ? et ?. La figure 3, présentant la F-mesure en fonction de la précision, permet de
+mettre en évidence l’apport significatif de l’utilisation de connaissances explicites quelles que
+soit la stratégie choisie, et ce malgré le faible nombre d’expressions régulières rajoutées pour
+chaque dimension. La stratégie de fusion ?3 est celle qui permet d’obtenir la plus forte valeur
+de F-mesure.
+Choix de la stratégie et réglage du système. Pour les systèmes de détection d’entités, le
+choix de la meilleure stratégie ou le réglage de paramètres tels que les seuils de rejet est généra-
+lement fait sur des courbes de précision/rappel ou de F-mesure telles que la courbe 3. Dans cette
+étude, le choix de la stratégie à utiliser est fait selon la problématique des sondages d’opinions.
+En effet, il s’agit de trouver la stratégie qui conservera le mieux les distributions du corpus géné-
+ral. Pour cela la divergence de Kullback-Leibler entre les proportions réelles et celles estimées
+est calculée pour toutes les stratégies avec différentes valeurs pour les seuils ? et ?. Le point de
+fonctionnement du système est choisi comme celui qui minimise cette divergence. La figure 4
+présente cette courbe pour les quatre stratégies développées.
+Les stratégies?3 et?4 montrent une distance de Kullback-Leibler systématiquement plus faible
+que la stratégie ?1, la stratégie de fusion ?3 apparaissant comme la plus performante.
+70
+Analyse automatique de sondages téléphoniques d’opinion
+!"#
+!$%
+!$#
+!&%
+!&#
+!#%
+!##
+!'%
+!'#
+!(%
+!(#
+!#% !## !'% !'# !(% !(# !)% !)# !*% !*#
++?
+,
+-.
+/0
+-
+10234.456
+?1?2?3?4
+FIG. 3 – F-mesure obtenue par les 4 stratégies d’extraction d’opinions sur le corpus de test en
+faisant varier les seuils ? and ?.
+6 Conclusion
+Nous avons présenté dans cette étude la problématique de l’analyse automatique de sondages
+d’opinion à partir de messages oraux. Trois résultats originaux ont été obtenus :
+1. Il est possible d’extraire de manière robuste de l’information à partir de transcriptions
+automatiques très bruitées (dues à l’extrême variabilité des corpus oraux collectés) si on
+accepte de filtrer et sélectionner les messages fiables selon un ensemble de mesures de
+confiance. Les résultats obtenus dans cette étude avec cette stratégie sont identiques à
+ceux obtenus sur des transcriptions exactes.
+2. L’ajout de connaissances explicites peut améliorer un processus de classification automa-
+tique en permettant de généraliser certains phénomènes peu représentés dans le corpus
+d’apprentissage. Diverses stratégies sont proposées pour réaliser cet ajout, c’est la fusion
+des hypothèses qui s’est montrée la plus robuste dans notre étude.
+3. Enfin le choix de la stratégie et son point de fonctionnement doivent être fait par rapport
+à la tâche visée. Dans le cadre de l’analyse de sondages, c’est la divergence entre la
+distribution de référence des opinions et celle estimée qui doit être minimisée, plutôt que
+la précision ou le rappel dans la détection des opinions.
+Références
+BÉCHET F., DAMNATI G., CAMELIN N. & DE MORI R. (2006). Spoken opinion extrac-
+tion detecting variations in user satisfaction. In IEEE/ACL Workshop on Spoken Language
+Technology.
+71
+Nathalie CAMELIN, Frédéric BÉCHET, Géraldine DAMNATI, Renato DE MORI
+!"#"$
+!"#%
+!"#%$
+!"#&
+!"#&$
+!"#'
+!(" !($ !)" !)$ !*" !*$ !+"
+,
+-.
+/0
+12
+3!
+43
+!5
+67
+78
+02
+9?
+:
+-3
+87
+3;
+<;=2-.->1
+?1?2?3?4
+FIG. 4 – Distance de Kullback-Leibler obtenue par les différentes stratégies appliquées sur le
+corpus de test transcrit automatiquement. Les courbes sont obtenus pour différentes valeurs de
+? et ?.
+CAMELIN N., DAMNATI G., BÉCHET F. & DE MORI R. (2006). Détection automatique
+d’opinions dans des corpus de messages oraux. In Journées d’Etude de la Parole, France.
+CHOI Y., CARDIE C., RILOFF E. & PATWARDHANN S. (2005). Identifying sources of opi-
+nions with conditional random fields and extraction patterns. In HLT/EMNLP, p. 355–362,
+Vancouver, Canada.
+HATZIVASSILOGLOU V. & MCKEOWN K. R. (1997). Predicting the semantic orientation of
+adjectives. In European chapter of ACL, p. 174–181, Morristown, NJ, USA : Association for
+Computational Linguistics.
+LAFFERTY J., MCCALLUM A. & PEREIRA F. (2001). Conditional random fields : Probabi-
+listic models for segmenting and labeling sequence data. In Proc. 18th International Conf. on
+Machine Learning, p. 282–289 : Morgan Kaufmann, San Francisco, CA.
+POPESCU A.-M. & ETZIONI O. (2005). Extracting product features and opinions from re-
+views. In HLT/EMNLP.
+RILOFF E. & WIEBE J. (2003). Learning extraction patterns for subjective expressions. In
+Proceedings of the 2003 conference on EMNLP.
+SCHAPIRE R. E. & SINGER Y. (2000). BoosTexter : A boosting-based system for text cate-
+gorization. Machine Learning, 39, 135–168.
+WIEBE J., WILSON T. & CARDIE C. (2005). Annotationg expressions of opinions and emo-
+tions in language. In Language Resources and Evaluation.
+72

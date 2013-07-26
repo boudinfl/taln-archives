@@ -1,0 +1,423 @@
+TALN 2007, Toulouse, 5–8 juin 2007
+Les ellipses dans un système
+de traduction automatique de la parole
+Pierrette BOUILLON1, Manny RAYNER1, 2
+Marianne STARLANDER1, Marianne SANTAHOLMA1
+1 University of Geneva, TIM/ISSCO
+40, bvd du Pont-d’Arve, CH-1211 Geneva 4, Switzerland
+2 Powerset Inc, 475 Brannan Street, San Francisco, CA 94107, US
+{Pierrette.Bouillon,Emmanuel.Rayner}@issco.unige.ch
+{Marianne.Starlander,Marianne.Santaholma}@eti.unige.ch
+Résumé. Dans tout dialogue, les phrases elliptiques sont très nombreuses. Dans cet article,
+nous évaluons leur impact sur la reconnaissance et la traduction dans le système de traduction
+automatique de la parole MedSLT. La résolution des ellipses y est effectuée par une méthode ro-
+buste et portable, empruntée aux systèmes de dialogue homme-machine. Cette dernière exploite
+une représentation sémantique plate et combine des techniques linguistiques (pour construire la
+représentation) et basées sur les exemples (pour apprendre sur la base d’un corpus ce qu’est une
+ellipse bien formée dans un sous-domaine donné et comment la résoudre).
+Abstract. Elliptical phrases are frequent in all genres of dialogue. In this paper, we des-
+cribe an evaluation of the speech understanding component of the MedSLT medical speech
+translation system, which focusses on the contrast between system performance on elliptical
+phrases and full utterances. Ellipsis resolution in the system is handled by a robust and portable
+method, adapted from similar methods commonly used in spoken dialogue systems, which ex-
+ploits the flat representation structures used. The resolution module combines linguistic me-
+thods, used to construct the representations, with an example-based approach to defining the
+space of well-formed ellipsis resolutions in a subdomain.
+Mots-clés : traduction automatique de la parole, reconnaissance de la parole, ellipses,
+évaluation, traitement du dialogue, modèle du language fondé sur les grammaire.
+Keywords: speech recognition, speech translation, ellipsis, dialogue processing, gram-
+mar-based language modelling, evaluation.
+1 Introduction
+Dans tout dialogue, les phrases elliptiques sont très nombreuses et il semble important de pou-
+voir les traiter correctement (Fernandez & Ginzburg, 2002). Ceci est particulièrement vrai avec
+MedSLT, un système de traduction automatique de la parole dans le domaine médical. Celui-
+ci traduit des questions de diagnostic pour des patients étrangers, et ceci en anglais, français,
+japonais, espagnol, catalan et arabe (Bouillon et al., 2005). Dans sa version unidirectionnelle
+(où le médecin pose essentiellement des questions de type oui-non auxquelles le patient répond
+53
+Pierrette BOUILLON, Manny RAYNER, Marianne STARLANDER, Marianne SANTAHOLMA
+de manière non verbale), l’utilisation des ellipses permet en effet au docteur (M) d’éviter les
+répétitions et pallie ainsi la nécessité de poser des question oui-non (1)1 :
+(1) M : avez-vous mal sur le côté droit ?
+M : le côté gauche ?
+M : des deux côtés ?
+M : avez-vous ces douleurs depuis une semaine ?
+M : deux semaines ?
+M : plus de deux semaines ?
+Dans la version bidirectionnelle (où le patient (P) répond aux questions du docteur), elle permet
+de simplifier la tâche. Si le système n’accepte que des réponses elliptiques, comme en (2), il
+devient en effet plus facile de prévoir les réponses du patient (il y moins de variations stylis-
+tiques possibles avec des phrases courtes que complètes) et de le guider ensuite vers des phrases
+couvertes par le système.
+(2) M : do you have a fever ?
+P : un poco / mucho / sí treinta y nueve
+L’utilisation des ellipses dans ce contexte particulier soulève cependant deux questions : (1)
+qu’en est-il de la reconnaissance des ellipses, par rapport aux phrases complètes ? et (2) est-
+il possible, avec les techniques actuelles, d’obtenir une traduction de qualité suffisante pour
+ce type d’application ? La première question n’a pas encore reçu beaucoup d’attention à notre
+connaissance. A priori, les ellipses devraient avoir des conséquences bénéfiques pour la recon-
+naissance. Du fait que les phrases sont plus courtes, celle-ci devrait prendre moins de temps ;
+elle devrait aussi être de meilleure qualité - on s’attend à avoir moins d’erreurs dans une phrase
+courte que longue. Mais on sait par ailleurs que les phrases et mots courts peuvent être difficiles
+à reconnaître, faute de contraintes syntaxiques et sémantiques venant du contexte. Il semble
+donc important de vérifier leur impact réel sur la reconnaissance. Pour la traduction, différentes
+approches sont envisageables. Dans un système général, il devrait être possible de traduire les
+ellipses mot à mot. Mais si la qualité est importante, comme dans le domaine médical, les pro-
+blèmes seront très nombreux et on peut se demander jusqu’à quel point ce type de traduction
+restera compréhensible (Boitet et al., 2002). Même pour des langues proches et dans un do-
+maine limité comme le nôtre, la traduction des ellipses ne peut pas se faire sans contexte. Dans
+l’exemple (3), celui-ci conditionne l’accord de l’adjectif.
+(3) M : is the pain severe ?
+Trad : la douleur est-elle intense ?
+M : moderate
+Trad : modéré / modérée / modérées / modérés
+Il est aussi indispensable pour que les règles de traduction puissent s’appliquer correctement.
+En (4), for doit être traduit par “depuis” si l’aspect de la phrase est perfectif.
+(4) M : have you had headaches for days ?
+Trad : avez vous mal depuis plusieurs jours ?
+M : for weeks
+Trad : pendant plusieurs semaines
+En (5), le complément de lieu en anglais (in your stomach) devient le sujet de la phrase en
+espagnol, ce qui fait que la traduction de l’ellipse devrait changer de catégorie syntaxique (“in
+1Tous les exemples de cet article sont directement repris des données collectées dans le cadre du projet MedSLT.
+54
+Les ellipses dans un système de traduction automatique de la parole
+your head” (pp)? la cabeza (np)). Ce type de divergence est fréquent aussi quand on traduit
+vers des langues plus éloignées. En japonais par exemple, les ellipses adjectivales ou nominales
+relèvent de la langue familière et se traduisent plutôt par des phrases complètes comme en (6).
+(5) M : do you have a pain in your stomach ?
+Trad : le duele el estomago ?
+M : in your head
+Trad : en la cabeza ?
+(6) M : is the pain severe ?
+Trad : hageshii itami desu ka ? (sevère douleur est Q ?)
+M : moderate ?
+Trad : *chuuteido / *chuuteido no (moderée / moderée GEN)
+chuuteido no itami desu ka (modérée GEN douleur est Q)
+Pour éviter la traduction mot à mot, une autre solution, à l’extrême opposé, consiste à effectuer
+une analyse profonde au niveau de la syntaxe et du discours, de manière à pouvoir traduire les
+ellipses en contexte. C’est l’optique choisie dans Verbmobil (Kipp et al., 2000). On sait cepen-
+dant que les différentes composantes sous-jacentes (mémoire du dialogue, processeur de plan
+et processeur de dialogue) sont très coûteuses et restent peu robustes et portables. Nous pro-
+posons donc plutôt une approche intermédiaire, possible elle aussi pour des domaines limités.
+Empruntée directement aux méthodes similaires traditionnellement utilisées en traitement de
+dialogue (par exemple, (Ward & Issar, 1994) dans le contexte de ATIS), elle exploite des re-
+présentations sémantiques plates (Rayner et al., 2005) et combine des techniques linguistiques
+(pour construire la représentation) et d’apprentissage (pour apprendre ce qu’est une ellipse bien
+formée dans un sous-domaine donné et comment la résoudre). Dans la suite, nous décrivons
+d’abord MedSLT, en focalisant sur les composantes qui nous intéressent ici, puis nous présen-
+tons la manière dont les ellipses y sont traitées. L’évaluation répond aux deux questions posées
+plus haut : quel est l’impact des ellipses sur la reconnaissance et la traduction ? Elle montre que
+l’architecture générale de MedSLT permet une intégration simple avec le contexte qui conduit
+à une traduction en contexte de qualité suffisante pour la tâche.
+2 MedSLT
+MedSLT est un système de traduction automatique de la parole (TAP) pour le diagnostic d’ur-
+gence de patients étrangers. Il permet à un docteur de poser des questions à un patient dans des
+domaines spécifiques, comme les maux de tête ou les douleurs abdominales, avec un vocabu-
+laire d’approximativement 1000 à 1500 mots par domaine. En deux mots, MedSLT présente
+deux spécificités principales (Bouillon et al., 2005). Contrairement aux autres applications de
+ce type où la reconnaissance est soit statistique (Seligman & Dillinger, 2006; Gao et al., 2006),
+soit basée sur des grammaires ad hoc de bas niveau (Ehsani et al., 2006), le modèle du lan-
+gage pour la reconnaissance est compilé ici à partir de grammaires d’unification générales de
+la langue. Ceci se fait avec la plateforme Regulus, bâtie directement sur les outils vocaux de
+Nuance(Rayner et al., 2006). Celle-ci permet de dériver toutes les grammaires du système à
+partir de la même grammaire générale. Pour ce faire, Regulus va d’abord spécialiser les gram-
+maires générales par des méthodes d’apprentissage basées sur des corpus pour les rendre moins
+ambiguës et les plus spécifiques possibles pour un domaine et/ou une tâche donnés. Il compile
+ensuite les grammaires spécialisées pour les différentes tâches du système, à savoir : reconnais-
+55
+Pierrette BOUILLON, Manny RAYNER, Marianne STARLANDER, Marianne SANTAHOLMA
+sance/analyse après conversion dans le format CFG requis par Nuance, puis génération. De là,
+découle la seconde spécificité. Comme ce type de reconnaisance donne surtout des résultats
+compétitifs pour les phrases couvertes par la grammaire, il s’agit d’une application contrôlée
+qui suppose que l’utilisateur pourra apprendre la couverture du système, de manière à en ti-
+rer le meilleur profit possible. Pour l’aider dans cette tâche, nous utilisons un système d’aide
+(Starlander et al., 2005; Chatzichrisafis et al., 2006). Au docteur, celui-ci propose, après chaque
+question, des phrases similaires, couvertes par le système, dont il pourra s’inspirer ; au patient, il
+donne des exemples de réponses possibles après chaque question. Pour dériver l’aide, le système
+repose un corpus de phrases préenregistrées avec des questions et les réponses liées. Pour les
+questions, le système fait en parallèle une reconnaissance statistique et compare ensuite le ré-
+sultat de cette reconnaissance avec les phrases pré-enregistrées pour extraire les plus similaires
+(en termes de n-grammes). C’est ainsi que nous introduisons de la robustesse dans un système
+contrôlé ; pour les réponses, le système d’aide cherche dans le corpus la question la plus simi-
+laire à celle qui a été envoyée à la traduction et propose les réponses correspondantes. Une fois
+reconnue, la phrase est traduite, suivant la méthode interlingue. Dans notre approche, la même
+grammaire spécialisée est utilisée pour la reconnaissance et l’analyse, ce qui assure que chaque
+phrase reconnue recevra aussi une analyse. Regulus permet différents types de représentation
+(Rayner et al., 2006), mais nous avons choisi ici d’exploiter la plus simple possible. Il s’agit
+d’une structure sémantique quasi plate, formée par concaténation de la sémantique des mots.
+Par exemple, “avez-vous mal à la tête quand vous buvez du café ?” sera représenté de la manière
+suivante :
+[[sc, quand],
+[clause, [[pronoun, vous], [voice, active],
+[tense, present], [action, boire], [cause, café]],
+[path_proc, avoir], [pronoun, vous], [symptom, mal],
+[tense, present], [utterance_type, sentence],
+[voice, active], [locative_prep, à], [body_part, tête]]
+Le même formalisme est aussi utilisé pour l’interlangue, qui est une version standardisée de la
+langue source. Nous avons déjà montré l’avantage de ces structures pour la traduction (Rayner
+et al., 2005) et comment il est possible de dériver des grammaires spécialisées pour la génération
+qui évitent le problème de surgénération (Bouillon et al., 2006). Dans la suite, nous verrons
+qu’elles constituent aussi un excellent point de départ pour le traitement des ellipses.
+3 Le traitement des ellipses dans MedSLT
+Dans MedSLT, les ellipses sont très productives. On y trouve non seulement des omissions,
+comme en (7), mais aussi des substitutions (Cf. (8)), où l’ellipse remplace une information déjà
+existante.
+(7) M : avez vous souvent des maux de tête ?
+Trad : do you often have the headaches ?
+M : le soir
+Trad : do you often have the headaches in the evening
+56
+Les ellipses dans un système de traduction automatique de la parole
+(8) M : avez vous des maux de tête chaque jour ?
+Trad : do you have the headaches every day ?
+M : plusieurs fois par jour
+Trad : do you have the headaches several times a day ?
+Différents types de substitution sont également possibles. Il est par exemple très courant de
+substituer deux éléments non interrogatifs au niveau de la question, comme en (8). Un élément
+non interrogatif peut aussi remplacer un élément interrogatif, au niveau de la question (9) ou
+de la réponse (10). L’algorithme de résolution devra donc être assez puissant pour traiter ces
+différents cas.
+(9) M : when did you visit the doctor ?
+Trad : cuándo ha consultado un médico ?
+M : yesterday
+Trad : ha consultado un médico ayer ?
+(10) M : when did you visit the doctor ?
+Trad : cuándo ha consultado un médico ?
+P : ayer
+Trad : i visited the doctor yesterday
+Comme nous l’avons dit plus haut, nous ne nous appuyons pourtant pas ici sur une analyse
+profonde. Les représentations plates de MedSLT vont en effet nous permettre un traitement
+plus efficace et portable, directement adapté des systèmes traditionnels de dialogue homme-
+machine : comme les phrases elliptiques et leur contexte sont représentés dans des listes plates
+d’attributs-valeurs, nous pouvons considérer la résolution comme une forme de manipulation
+de listes d’attributs. Nous traitons ainsi l’omission comme une simple concaténation de listes
+et la substitution comme une substitution de listes d’éléments similaires. Pour ce faire, il nous
+faut cependant répondre à deux questions spécifiques à la TAP : (1) à quel niveau du flux de
+traitement devons-nous manipuler les listes ? et (2) surtout : comment déterminer les éléments
+substituables les uns aux autres dans la phrase elliptique et la phrase complète, de la manière la
+moins ad-hoc possible ?
+La Figure 1 illustre le flux de traduction par interlangue dans MedSLT pour les deux phrases
+does the pain radiate to your neck ? et the jaw ? Pour résoudre la phrase elliptique et la tra-
+duire ensuite en contexte, il faut arriver à remplacer la sous-représentation [body_part,
+neck] de la phrase complète (taggée [utterance_type, ynq]), par [body_part,
+jaw] qui se trouve dans la phrase elliptique (notée, [utterance_type, phrase]). Dans
+cet exemple, il serait sans doute préférable de faire la substitution au niveau de l’interlangue.
+Cette dernière a l’avantage de ne plus contenir l’information sur le possessif ([possessive,
+your]) — les déterminants sont en général tellement mal reconnus que nous avons décidé de
+ne pas les faire figurer dans l’interlangue et de laisser au générateur le soin de choisir l’article
+le plus approprié sur la base de corpus (Cf. (Bouillon et al., 2006)). Mais dans beaucoup de
+cas, la résolution au niveau de l’interlangue posera de nombreux problèmes, notamment quand
+elle ajoute des informations sémantiques. Par exemple, la phrase “la douleur est-elle aggravée
+par le chocolat” sera représentée au niveau de l’interlangue dans un sens paraphrasable par “la
+douleur augmente-t-elle quand vous mangez du chocolat”, ce qui rend ensuite la substitution
+impossible si l’ellipse fait appel à un autre verbe implicite. Nous proposons donc de faire la
+résolution avant le passage à l’interlangue, ce qui rend d’ailleurs compte du fait que l’ellipse est
+avant tout un phénomème syntaxique. Celle-ci se fait ainsi en deux étapes. D’abord, nous sim-
+plifions le résultat de l’analyse, en enlevant certains éléments, comme le possessif, dont nous
+57
+Pierrette BOUILLON, Manny RAYNER, Marianne STARLANDER, Marianne SANTAHOLMA
+Source1 = "does the pain radiate to your neck"
+Source Rep1 = [[body_part,neck], [possessive, your],
+[prep,to_loc], [secondary_symptom,pain],
+[state,radiate], [tense,present],
+[utterance_type,ynq]]
+Interling1 = [[body_part,neck], [state,radiate], [symptom,pain],
+[tense,present], [utterance_type,ynq]]
+Target Rep1 = [[body_part,nuque], [path_proc,irradier],
+[symptom,douleur], [tense,present],
+[utterance_type,sentence]]
+Target1 = "la douleur irradie-t-elle la nuque"
+Source2 = "the jaw"
+Source Rep2 = [[body_part,jaw], [utterance_type,phrase]]
+Interling2 = [[body_part,jaw], [utterance_type,phrase]]
+Resolved2 = [[body_part,jaw], [state,radiate], [symptom,pain],
+[tense,present], [utterance_type,ynq]]
+Target2 = "la douleur irradie-t-elle les machoires"
+FIG. 1 – Flux de traduction dans MedSLT
+venons de parler. C’est ensuite au niveau de cette seconde structure que se font les opérations
+d’ajout et de substitution. Pour déterminer les éléments substituables, nous exploitons le fait que
+les mots sont liés dans leur représentation à leur type ontologique (body_part, symptom,
+etc.) : un élément peut dès lors se substituer à un autre s’il a le même type ou un type lié (hypo-
+nyme, hyperonyme, etc.). Pour appréhender ces éléments de la manière la plus robuste possible
+et indépendamment des changements dans le lexique ou la grammaire, nous utilisons une mé-
+thode d’apprentissage élémentaire. Nous constituons d’abord un corpus qui décrit chaque type
+d’ellipse possible (lieu, temps, etc.) avec des exemples, comme dans la Figure 2. Ceux-ci sont
+ensuite analysés par la grammaire, puis généralisés, de manière à extraire les patrons les plus
+généraux possibles qui ensemble définissent la bonne formation d’une classe d’ellipses. Ici, par
+exemple, sont généralisés les patrons repris dans la Figure 3. On voit que, en général, seul le
+type ontologique est gardé, mais pour les éléments interrogatifs, comme where ou when, nous
+conservons aussi la valeur de l’attribut de manière à pouvoir distinguer ces mots entre eux.
+ellipsis_class(
+place_of_pain_np,
+[’the left angle of the ribs’, ’the right lower chest’,
+’the right chest’, ’the front of the head’,
+’both sides of the head’,
+’both arms’, ’the left side’,
+’the chest’, ’the side’]).
+FIG. 2 – Classe d’ellipses
+Sur la base de ces informations, l’algorithme de résolution peut être très simple. Pour toute
+phrase identifiée comme elliptique par l’analyseur, le système va d’abord vérifier si une sub-
+stitution est possible : chaque sous-représentation d’une phrase elliptique qui correspond à l’un
+des patrons peut se substituer à toute autre sous-représentation d’une phrase complète qui cor-
+respond à un patron de la même classe. Au cas où différentes substitutions sont possibles, le
+58
+Les ellipses dans un système de traduction automatique de la parole
+compiled_ellipsis_class(
+place_of_pain_np,
+[[[adj, _], [body_part, _], [part, _]],
+[[adj, _], [adj, _], [body_part, _]],
+[[adj, _], [body_part, _]], [[body_part, _], [part, _]],
+[[body_part, _], [part, _], [spec, _]],
+[[body_part, _], [spec, _]], [[adj, _], [part, _]],
+[[body_part, _]], [[part, _]]]).
+FIG. 3 – Généralisation des patrons à partir des exemples de la Figure 2
+système choisit toujours la plus longue. Ensuite, si la substitution est impossible, le système
+considérera qu’il s’agit d’un ajout. Si un patron manque, le système fera donc erronément un
+ajout, mais nous verrons dans l’évaluation que ce cas se produit très rarement : la méthode
+est suffisamment robuste pour apprendre a priori des patrons assez généraux pour couvrir les
+domaines contrôlés de notre application.
+4 Evaluation
+Dans un premier temps, nous avons voulu vérifier l’impact des ellipses sur la reconnaissance.
+Nous avons constitué deux ensembles de questions couvertes par le système, avec les questions
+oui-non types pour les maux de tête. Le premier ensemble ne contient que des phrases complètes
+(11) ; dans le second, nous avons remplacé les phrases complètes par des phrases elliptiques,
+quand c’est possible (12). Chaque fichier contient 111 phrases.
+(11) avez vous mal quand vous toussez ?
+avez vous mal quand vous mangez ?
+avez vous mal quand vous êtes stressé ?
+avez vous mal quand vous êtes fatigué ?
+(12) avez vous mal quand vous toussez ?
+quand vous mangez ?
+quand vous êtes stressé ?
+fatigué ?
+Nous avons ensuite demandé à sept personnes de lire successivement les deux séries de ques-
+tions, puis nous avons mesuré la qualité de la reconnaissance. Pour ce faire, nous avons com-
+paré le taux d’erreurs au niveau des mots (WER) et des phrases (SER). Comme nous savons
+ces mesures peu fiables (Wang et al., 2003; Bouillon et al., 2006), nous avons aussi calculé le
+taux d’erreurs sémantiques (SemER), c’est-à-dire le nombre de phrases où la reconnaissance ne
+préserve pas le sens. Elles correspondent aux phrases dont la rétro-traduction est correcte et qui
+seraient donc envoyées à la traduction par l’utilisateur. Les résultats sont repris dans le tableau 1.
+Ceux-ci nous semblent particulièrement intéressants. Les mesures traditionnelles (WER et SER)
+donnent l’impression que l’impact des ellipses est très négatif. Elles détérioreraient considéra-
+blement la reconnaissance : 11,5% d’erreurs au niveau des mots pour les ellipses versus 3,1%
+pour les phrases complètes. Mais si on regarde le SemER, les résultats ont tendance à s’inverser,
+dans le sens attendu : le taux d’erreurs sémantiques est légèrement moins important pour les
+59
+Pierrette BOUILLON, Manny RAYNER, Marianne STARLANDER, Marianne SANTAHOLMA
+Ellipses Phrases complètes
+Sujets WER SER SemER Secs WER SER SemER Secs
+AR 8,3% 22,4% 0,0% 2,0 1,8% 12,0% 1,3% 3,2
+BR 14,3% 32,1% 3,8% 1,6 5,4% 27,3% 3,9% 2,5
+CL 13,3% 28,2% 2,6% 2,0 2,0% 11,5% 1,3% 3,0
+LA 13,8% 37,2% 0,0% 1,7 4,3% 21,8% 1,3% 2,6
+LU 9,5% 25,6% 1,3% 1,8 2,7% 12,8% 3,8% 2,6
+PI 10,0% 26,9% 2,6% 2,0 3,5% 21,8% 7,7% 2,8
+SE 11,0% 26,9% 0,0% 2,0 2,3% 15,4% 0,0% 3,1
+Moyen 11,5% 28,5% 1,5% 1,9 3,1% 17,5% 2,8% 2,8
+TAB. 1 – Résultats de la reconnaissance avec des phrases complètes et elliptiques
+ellipses que pour les phrases complètes (1,5% versus 2,8%) et ceci pour tous les locuteurs. Un
+examen des données explique cette différence entre le WER et SemER : la plupart des fautes
+faites lors de la reconnaissance des ellipses ne sont pas importantes pour la tâche. Il s’agit par
+exemple d’erreurs au niveau du nombre : le système reconnaît “occipitales” à la place “occi-
+pal”, faute de contexte. Mais comme cette information n’apparaît pas dans la représentation,
+cette erreur n’a aucune répercussion sur la traduction.
+Nous pouvons donc tirer trois conclusions de cette évaluation : (1) Les mesures traditionnelles
+doivent être évitées, puisqu’elles peuvent conduire à de fausses conclusions ; (2) la longueur
+des phrases n’aurait finalement qu’une légère influence sur la reconnaissance (en tout cas quand
+cette dernière est basée sur des grammaires et qu’il s’agit de données lues). (3) L’impact des el-
+lipses sur la reconnaissance est donc globalement positif, puisqu’elles diminuent aussi le temps
+de traitement (Secs) : 1,9 secondes de moyenne pour les ellipses versus 2,8 pour les phrases
+complètes. Mais peut-on obtenir une traduction en contexte de qualité suffisante avec l’algo-
+rithme présenté plus haut ?
+Pour mesurer la qualité de l’algorithme de résolution, nous avons collecté pour la première fois
+des données avec le système bidirectionnel anglais-espagnol et nous avons évalué la qualité de
+la traduction des réponses elliptiques du patient en anglais. Dans cette expérience, l’un d’entre
+nous a joué le rôle du médecin. Le but était de voir si le patient souffrait ou pas d’une infec-
+tion bactérienne à la gorge. Les patients étaient au nombre de six. Ils n’avaient jamais utilisé
+le système auparavant et avaient reçu une carte décrivant leurs symptômes. Nous avons ainsi
+collecté 47 réponses elliptiques en espagnol, considérées comme bien reconnues par le patient,
+sur un total de 92 réponses. Celles-ci sont peu nombreuses, mais sont pourtant représentatives :
+comme le système est contrôlé et dans un domaine très limité, nous n’aurions probablement pas
+obtenu plus de réponses différentes bien reconnues, en augmentant le nombre de patients. Parmi
+les réponses, 36/47 ont été jugées tout-à-fait intelligibles et fidèles par deux traducteurs et 3/47,
+OK. Une seule traduction (1/47) a échoué en raison de l’algorithme de résolution (Cf. exemple
+(11)), ce qui montre que les patrons appris sont assez généraux pour la tâche. Les autres erreurs
+se situent soit au niveau de la traduction (2/47), soit au niveau de l’interaction avec le système,
+par exemple le patient accepte parfois des phrases mal reconnues, ce qui donne des résultats
+erronés (3/47).
+60
+Les ellipses dans un système de traduction automatique de la parole
+(10) M : for how long have you had your sore throat ?
+P : desde hace más de una semana
+Trad : i have had a sore throat for more than one week
+M : what were the results ?
+P : negativo
+Trad : the results were negative
+M : have you seen a doctor for your sore throat ?
+P : sí el lunes
+Trad : i visited the doctor for my sore throat monday
+(11) M : have you been with anyone recently who has a strep throat ?
+P : si más de dos semanas
+Trad : i was in contact with someone more than two weeks
+recently who had strep throat
+Une évaluation plus importante est en cours qui devrait compléter ces résultats. Il serait en effet
+intéressant de vérifier si ceux-ci restent les mêmes avec la version statistique du système et
+pour des données non-lues. Nous voudrions aussi établir quantitativement qu’une traduction en
+contexte améliore la tâche.
+5 Conclusion
+Dans cet article, nous avons montré qu’il est possible d’arriver à traiter adéquatement les el-
+lipses dans un système de TAP, basé sur les grammaires. Comme celles-ci sont très naturelles
+dans le domaine et semblent avoir un impact positif sur la reconnaissance, il est en effet essen-
+tiel de pouvoir les traduire correctement en contexte pour en tirer le meilleur parti possible dans
+l’application. Pour ce faire, l’approche contrôlée de MedSLT rend possible l’utilisation d’algo-
+rithmes de résolution très peu coûteux qui permettent une traduction en contexte intelligible et
+fidèle. Nous avons ainsi clairement contribué à intégrer le contexte dans une architecture comme
+la nôtre et, de manière plus générale, dans les systèmes de TAP.
+Références
+BOITET C., BLANCHON H. & GUILBAUD J.-P. (2002). A way to integrate context processing
+in the MT component of spoken, task-oriented translation systems. In Proc. MSC2000, p. 83–
+87, Kyoto, Japan.
+BOUILLON P., RAYNER M., CHATZICHRISAFIS N., HOCKEY B., SANTAHOLMA M., STAR-
+LANDER M., NAKAO Y., KANZAKI K. & ISAHARA H. (2005). A generic multi-lingual open
+source platform for limited-domain medical speech translation. In Proceedings of the 10th
+Conference of the European Association for Machine Translation (EAMT), p. 50–58, Buda-
+pest, Hungary.
+BOUILLON P., RAYNER M., VALL B. N., NAKAO Y., SANTAHOLMA M., STARLANDER
+M. & CHATZICHRISAFIS N. (2006). Une grammaire multilingue partagée pour la traduction
+automatique de la parole. In Proceedings of TALN 2006, Leuwen, Belgium.
+CHATZICHRISAFIS N., BOUILLON P., RAYNER M., SANTAHOLMA M., STARLANDER M.
+& HOCKEY B. (2006). Evaluating task performance for a unidirectional controlled language
+61
+Pierrette BOUILLON, Manny RAYNER, Marianne STARLANDER, Marianne SANTAHOLMA
+medical speech translation system. In Proceedings of the HLT-NAACL International Workshop
+on Medical Speech Translation, p. 9–16, New York.
+EHSANI F., KINZEY J., MASTER D., LESEA K. & PARK H. (2006). Speech to speech
+translation for medical triage in Korean. In Proceedings of the HLT-NAACL International
+Workshop on Medical Speech Translation, p. 17–23, New York.
+FERNANDEZ R. & GINZBURG J. (2002). Non-sentential utterances in dialogue : a corpus
+study. In Proc. Third SIGdial Workshop on Discourse and Dialogue, Philadelphia, PA.
+GAO Y., ZHOU B., SARIKAYA R., AFIFY M., KUO H.-K., ZHU W.-Z., DENG Y., PROSSER
+C., ZHANG W. & BESACIER L. (2006). IBM MASTOR SYSTEM : Multilingual automatic
+speech-to-speech translator. In Proceedings of the HLT-NAACL International Workshop on
+Medical Speech Translation, p. 57–60, New York.
+KIPP M., ALEXANDERSSON J., ENGEL R. & REITHINGER N. (2000). Dialog processing.
+In W. WAHLSTER, Ed., Verbmobil : Foundations of Speech-to-Speech Translation.
+RAYNER M., BOUILLON P., SANTAHOLMA M. & NAKAO Y. (2005). Representational and
+architectural issues in a limited-domain medical speech translator. In Proceedings of TALN
+2005, p. 163–172, Dourdan, France.
+RAYNER M., HOCKEY B. & BOUILLON P. (2006). Putting Linguistics into Speech Recogni-
+tion : The Regulus Grammar Compiler. Chicago : CSLI Press.
+SELIGMAN M. & DILLINGER M. (2006). Usability issues in an interactive speech-to-speech
+translation system for healthcare. In Proceedings of the HLT-NAACL International Workshop
+on Medical Speech Translation, p. 1–8, New York.
+STARLANDER M., BOUILLON P., CHATZICHRISAFIS N., SANTAHOLMA M., RAYNER M.,
+HOCKEY B., ISAHARA H., KANZAKI K. & NAKAO Y. (2005). Practising controlled lan-
+guage through a help system integrated into the medical speech translation system (MedSLT).
+In Proceedings of MT Summit X, Phuket, Thailand.
+WANG Y.-Y., ACERO A. & CHELBA C. (2003). Is Word Error Rate a good indicator for
+spoken language understanding accuracy. In Proceedings of Eurospeech 2003, p. 609–612,
+Geneva, Switzerland.
+WARD W. & ISSAR S. (1994). Recent improvements in the CMU ATIS system. In Procee-
+dings of the ARPA Human System Technology Workshop, p. 213–216.
+62

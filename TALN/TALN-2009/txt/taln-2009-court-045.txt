@@ -1,0 +1,526 @@
+TALN 2009 Ð Session posters , Senlis, 24Ð26 juin 2009
+Utilisation de PLSI en recherche dÕinformation
+ReprŽsentation des requtes 
+Jean-CŽdric Chappelier Emmanuel Eckard
+Laboratoire dÕIntelligence Artificielle
+ƒcole polytechnique fŽdŽrale de Lausanne, Suisse
+{jean-cedric.chappelier, emmanuel.eckard}@epfl.ch
+RŽsumŽ. Le modle PLSI (Ç Probabilistic Latent Semantic Indexing È) offre une approche
+de lÕindexation de documents fondŽe sur des modles probabilistes de catŽgories sŽmantiques
+latentes et a conduit ˆ des applications dans diffŽrents domaines. Toutefois, ce modle rend
+impossible le traitement de documents inconnus au moment de lÕapprentissage, problme par-
+ticulirement sensible pour la reprŽsentation des requtes dans le cadre de la recherche dÕinfor-
+mation. Une mŽthode, dite de Ç folding-in È, permet dans une certaine mesure de contourner ce
+problme, mais prŽsente des faiblesses. Cet article introduit nouvelle une mesure de similaritŽ
+document-requte pour PLSI, fondŽe sur les modles de langue, o le problme du Ç folding-in È
+ne se pose pas. Nous comparons cette nouvelle similaritŽ aux noyaux de Fisher, lÕŽtat de lÕart en
+la matire. Nous prŽsentons aussi une Žvaluation de PLSI sur un corpus de recherche dÕinfor-
+mation de prs de 7500 documents et de plus dÕun million dÕoccurrences de termes provenant
+de la collection TRECÐAP, une taille considŽrable dans le cadre de PLSI.
+Abstract. The PLSI model (ÒProbabilistic Latent Semantic IndexingÓ) offers a docu-
+ment indexing scheme based on probabilistic latent category models. It entailed applications in
+diverse fields, notably in information retrieval (IR). Nevertheless, PLSI cannot process docu-
+ments not seen during parameter inference, a major liability for queries in IR. A method known
+as Òfolding-inÓ allows to circumvent this problem up to a point, but has its own weaknesses. The
+present paper introduces a new document-query similarity measure for PLSI based on language
+models that entirely avoids the problem a query projection. We compare this similarity to Fisher
+kernels, the state of the art similarities for PLSI. Moreover, we present an evaluation of PLSI on
+a particularly large training set of almost 7500 document and over one million term occurrence
+large, created from the TRECÐAP collection.
+1 Introduction
+Depuis dix ans, le modle PLSI (Ç Probabilistic Latent Semantic Indexing È) (Hofmann, 1999;
+Hofmann, 2000; Hofmann, 2001) offre une approche de lÕindexation de documents fondŽe sur
+des modles probabilistes de catŽgories sŽmantiques latentes. Ce modle a conduit ˆ plusieurs
+applications (Ahrendt et al., 2005; Gaussier et al., 2002; Jin et al., 2004; Mei & Zhai, 2006;
+Steyvers et al., 2004; Vinokourov & Girolami, 2002), notamment dans le domaine de la recherche
+dÕinformation (RI). Toutefois, une limitation majeure de ce modle vient du fait quÕil nÕest pas
+gŽnŽratif vis ˆ vis de documents dont le modle est inconnu, et quÕil tend ˆ sur-apprendre (Blei
+  Ce travail a ŽtŽ financŽ dans le cadre du projet 200020Ð119745 du Fond National Suisse.
+Jean-CŽdric Chappelier, Emmanuel Eckard
+et al., 2003; Popescul et al., 2001). Un certain nombre dÕextensions et dÕalternatives ont ŽtŽ pro-
+posŽes pour y remŽdier : Latent Dirichlet Allocation (Blei et al., 2003), undirected PLSI (Welling
+et al., 2005), correlated topic models (Blei & Lafferty, 2007), rate adapting Poisson mod-
+els (Gehler et al., 2006) ; mais ces amŽliorations restent cožteuses en terme de complexitŽ.
+Dans le cadre de la RI, la nature non gŽnŽrative de PLSI vis-ˆ-vis des modles de document
+inconnus conduit ˆ un traitement spŽcifique des requtes, appelŽ Ç folding-in È, qui consiste
+ˆ estimer leurs paramtres spŽcifiques, non vus pendant la phase dÕapprentissage (Hofmann,
+1999; Hinneburg et al., 2007). Le but de cet article est dÕintroduire une nouvelle similaritŽ
+documentÐrequte thŽoriquement fondŽe, prŽsentŽe en section 3, qui Žvite le Ç folding-in È : on
+considre les requtes comme de nouvelles instances gŽnŽrŽes par des modles de documents
+dŽjˆ connus. Cette nouvelle approche est comparŽe ˆ lÕŽtat de lÕart pour PLSI basŽ sur les
+noyaux de Fisher (Chappelier & Eckard, 2009). Pour finir, la section 4 apporte des rŽsultats
+expŽrimentaux obtenus sur une grande collection crŽŽe ˆ partir du corpus dÕŽvaluation TRECÐ
+AP. PLSI nÕŽtant pas gŽnŽratif, ses paramtres doivent tre effectivement appris sur toute la
+collection utilisŽe, et non seulement sur un Žchantillon dÕapprentissage. Ë notre connaissance,
+il nÕavait jamais ŽtŽ tentŽ dÕappliquer PLSI ˆ une base dÕune telle envergure, plus de 7000
+documents et dÕun million dÕoccurrences de termes.
+2 Le modle PLSI
+Dans le modle PLSI, les documents sont reprŽsentŽs comme des occurrences successives de
+paires dÕindices (d, w) pour une catŽgorie z ? Z donnŽe, d Žtant lÕindice dÕun document et w,
+celui dÕun terme. De plus, w et d sont supposŽs indŽpendants sachant z, de sorte que le modle
+sÕŽcrit : P (d, w) =
+·
+z?Z P (z) P (w|z) P (d|z).
+Les paramtres de PLSI sont ? = (P (z), P (w|z), P (d|z)), pour tous les z, w et d possibles dans
+le modle. Ces paramtres sÕestiment pour une collection de documents donnŽe en utilisant une
+variante de lÕalgorithme expectation-maximisation (EM) (Hofmann, 1999; Hofmann, 2001).
+Le modle de similaritŽ document-requte utilisŽ dans PLSI repose sur les noyaux de Fisher (Hof-
+mann, 2000). Plusieurs variantes existent en fonction des approximations effectuŽes (Chappelier
+& Eckard, 2009), mais chacune se compose de deux termes additifs qui traduisent respective-
+ment la contribution directe des catŽgories latentes, notŽe Kz, et celle des termes, notŽe Kw. La
+diffŽrence la plus significative entre ces variantes rŽside dans la faon dÕapprocher la matrice
+dÕinformation de Fisher, soit pas la matrice identitŽ comme fait initialement, soit par la diago-
+nale (variantes DFIM, pour Ç Diagonal Fisher Information Matrix È). La prise en compte des
+termes DFIM pondre les composantes Kz et Kw, Žvitant une sur-reprŽsentation de Kz, dont
+les performances sont faibles (Chappelier & Eckard, 2009).
+3 ƒviter la projection des requtes
+La projection des requtes (Ç folding-in È) est une technique qui permet de contourner la na-
+ture non gŽnŽrative de PLSI en estimant les paramtres des documents inconnus tels que les
+requtes : les paramtres P (q|z) dÕune requte q sont estimŽs par un processus EM simplifiŽ
+o les valeurs des P (w|z) et P (z) sont fixŽes sur celles initialement apprises sur le corpus.
+PLSI pour la recherche dÕinformation
+Cette mŽthode a ses inconvŽnients, notamment pour lÕestimation de la vraisemblance du corpus
+dÕapprentissage (Welling et al., 2008) et la cohŽrence avec les P (d|z) connus.
+Nous prŽsentons ici une nouvelle mesure de similaritŽ documentÐrequte qui sÕinspire des mŽth-
+odes ˆ base de modles de langue (Ponte & Croft, 1998; Zhai, 2008) qui Žvite entirement la
+phase de projection pour les requtes et les problmes liŽs ˆ lÕapprentissage des paramtres
+P (q|z) : on reprŽsente les requtes non comme des nouveaux modles de documents pour
+lesquels les paramtres P (q|z) sont ˆ apprendre, mais comme de nouvelles occurrences des
+modles des documents dŽjˆ connus. On rŽduit ainsi la RI ˆ un problme dÕidentification de
+modle : pour une requte q donnŽe, quels sont les modles d dŽjˆ connus les plus reprŽsentat-
+ifs de q ?
+Une solution classique ˆ une telle question consiste ˆ maximiser la log-vraisemblance de la
+requte par rapport au modle P (d, w) (Ponte & Croft, 1998) :
+SLogL(d, q) =
+·
+w?q?d
+n(q, w) log P (d, w), (1)
+o n(q, w) est le nombre dÕoccurrences du terme w dans la requte q, et o Ç w ? q ? d È
+reprŽsente les termes qui apparaissent dans q (i.e. n(q, w) > 0) et tels que P (d, w) > 0.
+Une autre solution courante pour lÕidentification de modle est la minimisation de la divergence
+de Kullback-Leibler entre la distribution empirique (q) et la distribution du modle (d) (Lafferty
+& Zhai, 2001) :
+SKL(d, q) = ?KL
+(
+P? (w|q)
+????P (w|d)
+)
+=
+·
+w?q?d
+P? (w|q) log
+P (w|d)
+P? (w|q)
+, (2)
+avec P? (w|q) = n(q, w)/|q| le nombre dÕoccurrences du terme w dans la requte q divisŽ par sa
+longueur |q|.
+Ces deux approches, bien que liŽes, ne sont pas Žquivalentes :
+SKL(d, q) =
+1
+|q|
+(
+SLogL(d, q)? |q| log P (d)
+)
+?
+·
+w
+P? (w|q) log P? (w|q)
+? ?? ?
+f(q)
+.
+Lors de la maximisation de S(d, q) par rapport ˆ d pour une requte q donnŽe, les deux ap-
+proches se distinguent par un facteur additif |q| log P (d) : cela revient ˆ prendre ou non en
+compte la longueur des documents via |q| et P (d), qui est en pratique trs proche de |d|/|C| (o
+|C| est la taille de tout le corpus).
+On peut aussi gŽnŽraliser les dŽmarches prŽcŽdentes ˆ tout estimateur P÷ (w|q) de P? (w|q). Par
+exemple, le lissage de Jelinek-Mercer (JM) (Zhai & Lafferty, 2004) donne P÷ (w|q) = (1 ?
+?) P? (w|q) + ?PGE(w), avec une constante de lissage ? comprise entre 0 et 1, et PGE(w) la
+probabilitŽ a priori ( ÇGeneral EnglishÈ ) du terme w, typiquement estimŽe par PGE(w) =·
+d?C P? (w, d).
+Une autre faon de construire un estimateur P÷ (w|q) de P? (w|q) consiste ˆ prendre les documents
+les plus pertinents dÕune premire phase de recherche, comme il est fait dans le Modle de
+Pertinence (Lavrenko & Croft, 2001) et dans le pseudo-feedback (Zhai & Lafferty, 2001) : une
+Jean-CŽdric Chappelier, Emmanuel Eckard
+CACM CRAN TIME CISI MED AP89_01XX
+Nb. de termes 4 911 4 063 13 367 5 545 7 688 13 379
+Nb. dÕoccurrences (|C|) 90 927 120 973 114 850 87 067 76 571 1 321 482
+Nb. de documents 1 587 1 398 425 1 460 1 033 7 466
+|d| moyen 56.8 85.1 268.6 56.7 73.8 177.2
+Nb. de requtes 64 225 83 112 30 50
+|q| moyen 12.7 8.9 8.2 37.7 11.4 79.3
+TAB. 1 Ð DonnŽes des collections de documents utilisŽes pour lÕŽvaluation.
+premire recherche est effectuŽe en utilisant la similaritŽ ci-dessus (Eq. (2), avec P? (w|q) ou sa
+version lissŽe) ; on utilise alors les N documents les plus pertinents pour estimer P÷ (w|q) par
+P÷ (w|q) =
+1
+N
+N·
+i=1
+P (di(q), w) ,
+avec di(q) le ime meilleur document pour la requte q. Une deuxime phase est ensuite effec-
+tuŽe en utilisant S(d, q) = ?KL(P÷ (w|q), P (w|d)).
+On obtient donc finalement huit schŽmas de recherche sans projection de requtes : la log-
+vraisemblance (Eq. 1) ou la divergence de Kullback-Leibler (Eq. 2), avec pour chacune la pos-
+sibilitŽ dÕappliquer un lissage de Jelinek-Mercer, le pseudo-feedback, ou les deux.
+4 ExpŽriences
+Afin dÕŽvaluer lÕapproche proposŽe ici, nous considŽrons 14 mesures de similaritŽ : les huit
+basŽes sur les modles de langage (dŽcrite en section prŽcŽdente) et les 6 meilleures variantes du
+noyau de Fisher (Chappelier & Eckard, 2009) : le modle dÕorigine de Hofmann KH , sa version
+DFIM KDFIM-H, ainsi que leurs composantes Ç termes È Kw et Ç catŽgories È Kz. Les questions
+suivantes se posent alors : 1) comment se comporte la nouvelle approche sans Ç folding-in È par
+rapport aux meilleurs noyaux de Fisher ? 2) comment ces mesures se comparent-elles ˆ lÕŽtat
+de lÕart, le modle BM25 (Robertson et al., 1994) ? 3) la rŽ-estimation de P (w|q), que ce soit ˆ
+lÕaide du lissage de Jelinek-Mercer ou du pseudo-feedback, amŽliore-t-il les rŽsultats ?
+La nature non gŽnŽrative de PLSI oblige ˆ estimer les paramtres sur lÕentiretŽ de la collection
+ŽvaluŽe, et il est donc impossible dÕutiliser des collections aussi grandes que celles de TREC
+dans leur totalitŽ. En cohŽrence avec les travaux prŽcŽdemment publiŽes sur PLSI, nous util-
+isons les collections dÕŽvaluation de SMART1 : CACM, CISI, MED, CRAN et TIME pour
+rŽpondre ˆ ces questions. De plus, nous utilisons un plus grand corpus constituŽ dÕune partie de
+la collection TRECÐAP 89. Pour les mmes raisons, nous nÕavons gardŽ que les 7466 premiers
+documents de cette collection, et les requtes 1 ˆ 50.2 Les caractŽristiques de ces collections
+sont donnŽes dans le tableau 1.
+1ftp://ftp.cs.cornell.edu/pub/smart/
+2Les documents AP890101-0001 ˆ AP890131-0311. La phase dÕapprentissage de EM pour |Z| = 128 a pris
+45 heures de temps CPU, et utilisŽ 6.7 Gb de RAM, sur un serveur de calcul Intel Xenon octo-cÏur de 2 GHz avec
+32 Gb de mŽmoire.
+PLSI pour la recherche dÕinformation
+CACM CRAN TIME CISI MED AP89
+MAP de BM25 31.4 42.4 69.2 12.3 52.3 19.7
+MAP du meilleur modle PLSI 30.0 39.6 60.8 20.2 53.8 21.6
+Meilleur modle PLSI : KHw SKL KDFIM-Hw KHw KH KDFIM-Hw
+R
+Žs
+u
+lta
+ts
+Obtenu pour |Z| = 16 128 8 8 32 48
+MAP de SKL,|Z|=128 22.9 39.6 49.1 19.5 52.8 11.4
+PLSI > BM25 ? Non Non Non OUI oui oui
+Co
+n
+cl
+.
+SKL,|Z|=128 vs noyaux de Fisher < > < ? ? <
+TAB. 2 Ð Principaux rŽsultats des 14 modles sur les 6 collections.
+Pour les collections SMART, chaque expŽrience a ŽtŽ effectuŽe 6 fois avec des conditions ini-
+tiales dÕapprentissage diffŽrentes, pour chaque modle, et pour diffŽrentes quantitŽs de catŽ-
+gories latentes : |Z| ? {1, 2, 8, 16, 32, 64, 128} ; soit 2940 expŽriences en tout. Pour TREC-AP,
+les expŽriences ont ŽtŽ effectuŽes avec une seule condition initiale dÕapprentissage, pour chaque
+|Z| ? {1, 32, 48, 64, 80, 128}, soit 84 expŽriences en tout.
+Pour toutes ces expŽriences, le stemmer de Porter implŽmentŽ dans Xapian3 a ŽtŽ utilisŽ. Les
+rŽsultats de lÕŽvaluation ont ŽtŽ obtenus par lÕoutil standard trec_eval4. Nous prŽsentons ici
+les rŽsultats en termes de Mean Average Precision (MAP), mais les conclusions sont similaires
+si lÕon utilise la prŽcision ˆ 5 points ou la R-prŽcision. A lÕexception de la figure 2, les figures
+publiŽes reprŽsentent la MAP en fonction du nombre |Z| de catŽgories latentes, moyennŽe
+sur 6 expŽriences, ainsi que les barres dÕerreur correspondant ˆ un Žcart-type. Les principales
+conclusions de ces 3024 expŽriences, rŽsumŽes dans le tableau 2, sont :
+1. Figure 1 : SKL (Eq. 2) donne de meilleures performances que SLogL (Eq. 1).
+Les deux mesures (SKL et SLogL) amŽliorent leurs performances au fur et ˆ mesure que
+|Z| grandit. Nous nous sommes arrtŽs ˆ |Z| = 128 pour des raisons pratiques.
+2. Figures 3 et 4 : SKL surpasse les meilleurs noyaux de Fisher sur CRAN et obtient des
+performances similaires sur MED et CISI. Rappelons quÕil est aussi supŽrieur parce quÕil
+ne requiert de phase spŽcifique pour les requtes (Ç folding-in È).
+3. Figures 3 et 4 : le lissage de P? (q|w) nÕamŽliore pas les performances, ni par lissage JM,
+ni par le pseudo-feedback. De plus, bien que lÕimplŽmentation ait fait lÕobjet dÕun effort
+particulier pour en limiter la complexitŽ, le lissage augmente considŽrablement le temps
+dÕŽvaluation (il nÕa pas dÕeffet sur le temps dÕapprentissage) : contrairement ˆ la variante
+non lissŽe, ce ne sont pas seulement les termes prŽsents dans la requte, aussi ceux du
+document, voire de toute la collection, qui entrent en ligne de compte ; aussi lÕŽvaluation
+dÕune requte est-elle bien plus lente que sans lissage : entre 2 (CISI) et 20 (TIME, MED)
+fois plus lents pour le lissage de Jelinek-Mercer, et entre 30 (MED) et 150 (CRAN) fois
+plus lent avec la recherche en deux passes avec N = 3.
+4. Figures 3 : sur des collections Ç sŽmantiquement difficiles È, les meilleurs noyaux PLSI
+ont de meilleures performances que le modle BM25 : CISI, o les requtes et les docu-
+ments ne partagent que de rares termes (et donc particulirement utile pour mesurer dans
+quelle mesure un modle de recherche est robuste ˆ la synonymie.)5, MED (vocabulaire
+spŽcialisŽ), et TRECÐAP.
+3http://xapian.org/
+4http://trec.nist.gov/trec_eval/
+5CISI est remarquable pour avoir des requtes censŽes retourner des documents avec lesquelles elles ne parta-
+gent aucun terme significatif.
+Jean-CŽdric Chappelier, Emmanuel Eckard
+1 8 16 32 64 128
+0.
+0
+0.
+1
+0.
+2
+0.
+3
+0.
+4
+KL
+LogL
+ZDFIMH
+ZH
+FIG. 1 Ð Exemple typique (ici sur CRAN)
+qui montre comment la similaritŽ SKL basŽe
+sur P (w|d) dŽpasse SLogL basŽe sur P (d, w).
+Les composantes KHz (ZH) et KDFIM-Hz (ZD-
+FIMH) des noyaux de Fisher sont Žgalement
+reprŽsentŽes.
+Recall
+Pr
+ec
+is
+io
+n
+0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1
+0.
+2
+0.
+4
+0.
+6
+0.
+8
+BM25
+DFIMH64
+H32
+KL128
+WH32
+ZH32
+FIG. 2 Ð Courbes prŽcision-rappel sur MED
+pour BM25, KDFIM-H ˆ |Z| =64 (DFIMH64),
+KH ˆ |Z| =32 (H32), SKL ˆ |Z| =128
+(KL128), KHw ˆ |Z| =32 (WH32), et KHz ˆ
+|Z| =32 (YH32).
+Les conclusions doivent tre plus nuancŽes pour MED : les diffŽrents modles nÕont pas le
+mme comportement ˆ diffŽrentes valeurs de rappel (figure 2) ; certains sont meilleurs pour un
+rappel bas et dÕautres meilleurs ˆ un rappel haut. Des mesures de performance globales comme
+la MAP ou la R-prŽcision ne rendent pas compte de ces subtilitŽs.
+5 Conclusions
+Cet article apporte un modle de similaritŽ pour PLSI thŽoriquement fondŽe Žvitant entirement
+les Žcueils de la reprŽsentation des requtes ; par ailleurs, il fournit une Žvaluation des perfor-
+mances de PLSI sur une collection plus grande que les collections SMART sur lesquelles les
+expŽriences ont ŽtŽ faites jusquÕˆ prŽsent. Aux questions qui se posent, nous pouvons rŽpondre :
+1. que la nouvelle approche sans Ç folding-in È des requtes se compare favorablement aux
+meilleures variantes du noyau de Fisher, particulirement pour les plus grands nombres
+de catŽgories latentes ;
+2. et que ces modles se comparent favorablement avec BM25 pour les collections sŽman-
+tiquement difficiles comme CISI, MED et TRECÐAP.
+3. Figures 3 et 4 : le lissage de P? (w|q) nÕamŽliore les rŽsultats dans aucun des cas testŽs.
+Sur les huit variantes proposŽes, seule la similaritŽ de Kullback-Leibler avec P (w|d) non
+lissŽ est valable.
+Ainsi, nous confirmons expŽrimentalement que les modles ˆ catŽgories latentes comme PLSI
+pourraient sÕavŽrer intŽressants pour la recherche dÕinformation sur des collections de taille
+raisonnable, mais sŽmantiquement difficiles, o les requtes et les documents qui leur sont
+pertinents ne partagent que peu de termes. Dans ces cas, il est recommandŽ dÕutiliser KDFIM-Hw
+ou SKL (Eq. 2) sÕil est possible de faire tourner lÕapprentissage avec un nombre suffisant de
+PLSI pour la recherche dÕinformation
+CACM
+1 8 16 32 64 128
+0.
+00
+0.
+05
+0.
+10
+0.
+15
+0.
+20
+0.
+25
+0.
+30
+0.
+35
+H
+KL
+WDFIMH
+WH
+CISI
+1 8 16 32 64 128
+0.
+00
+0.
+05
+0.
+10
+0.
+15
+0.
+20
+0.
+25
+H
+KL
+WDFIMH
+WH
+CRAN
+1 8 16 32 64 128
+0.
+0
+0.
+1
+0.
+2
+0.
+3
+0.
+4
+H
+KL
+WDFIMH
+WH
+MED
+1 8 16 32 64 128
+0.
+0
+0.
+1
+0.
+2
+0.
+3
+0.
+4
+0.
+5
+H
+KL
+WDFIMH
+WH
+TIME
+1 8 16 32 64 128
+0.
+0
+0.
+1
+0.
+2
+0.
+3
+0.
+4
+0.
+5
+0.
+6
+0.
+7
+H
+KL
+WDFIMH
+WH
+TREC?AP89_01XX
+1 32 48 64 80 128
+0.
+00
+0.
+05
+0.
+10
+0.
+15
+0.
+20
+H
+KL
+WDFIMH
+WH
+ZN
+FIG. 3 Ð RŽsultats obtenus sur les 6 collections pour diffŽrents modles : KH (H), SKL (KL),
+KDFIM-Hw (WDFIMH), et KHw (WH). Les lignes horizontales reprŽsentent les performances de
+BM25, qui ne dŽpend pas de |Z|.
+Jean-CŽdric Chappelier, Emmanuel Eckard
+1 8 16 32 64 128
+0.
+1
+0.
+2
+0.
+3
+0.
+4 1e?1
+1e?2
+1e?3
+1e?4
+1e?5
+1e?6
+l0
+1 8 16 32 64 128
+0.
+1
+0.
+2
+0.
+3
+0.
+4
+1?step
+2?step, N=1
+2?step, N=2
+2?step, N=3
+FIG. 4 Ð Exemple typique montrant (ici sur TIME) comment le lissage de Jelinek-Mercer de
+P? (q|w) (ˆ gauche) ou par le pseudo-feedback (ˆ droite) dŽgradent les performances, comparŽ ˆ
+la variante non lissŽe P? (q|w) notŽe Ç l0 È ˆ gauche, et Ç 1 step È ˆ droite.
+catŽgories latentes. SKL prŽsente de plus lÕavantage de ne pas demander de rŽ-apprentissage
+pour la projection des requtes (Ç folding in È).
+Toutefois, la conclusion globale est que PLSI nÕest pas adaptŽ ˆ la recherche documentaire sur
+de grandes collections : comme il comporte en paramtre un modle des documents vus pendant
+lÕapprentissage, il est pas nature non gŽnŽratif, et ne passe tout simplement pas ˆ lÕŽchelle
+lorsque le nombre de documents atteint les dizaines de milliers. De plus, pour sophistiquŽ quÕil
+soit, PLSI surpasse ˆ peine le modle BM25, et cela au prix dÕune complexitŽ et dÕun temps de
+calcul rŽdhibitoires.
+On peut spŽculer que PLSI pourrait sÕavŽrer significativement meilleur que les modles de
+lÕŽtat de lÕart en utilisant un bien plus grand nombre de catŽgories latentes, mais les limitations
+induites par le nombre de paramtres ˆ apprendre rendent ces cas impossibles ˆ calculer en
+pratique. Il est fort probable quÕun trs grand |Z| amŽliore les performances de Kz ou de SKL,
+mais lÕapprentissage de tels modles sÕavre en pratique impossible, tout particulirement pour
+les grandes collections pour lesquelles de tels |Z| seraient justement le plus appropriŽs.
+RŽfŽrences
+AHRENDT P., GOUTTE C. & LARSEN J. (2005). Co-occurrence models in music genre classification.
+In IEEE Int. Workshop on Machine Learning for Signal Processing.
+BLEI D. & LAFFERTY J. (2007). A correlated topic model of Science. An. of App. Stat., 1(1), 17Ð35.
+BLEI D. M., NG A. Y. & JORDAN M. I. (2003). Latent Dirichlet allocation. Journal of Machine
+Learning Research, 3, 993Ð1022.
+CHAPPELIER J.-C. & ECKARD E. (2009). R™le de la matrice dÕinformation et pondŽration des com-
+posantes dans les noyaux de Fisher pour PLSI. In Actes de la Sixime ConfŽrence francophone en
+Recherche dÕInformation et Applications, p. 267Ð282 : LSIS-USTV.
+GAUSSIER E., GOUTTE C., POPAT K. & CHEN F. (2002). A hierarchical model for clustering and
+categorising documents. In Proc. of 24th BCS-IRSG European Colloquium on IR Research, p. 229Ð247.
+PLSI pour la recherche dÕinformation
+GEHLER P. V., HOLUB A. D. & WELLING M. (2006). The rate adapting Poisson model for informa-
+tion retrieval and object recognition. In Proc. of the 23rd Int. Conf. on Machine Learning, p. 337Ð344.
+HINNEBURG A., GABRIEL H.-H. & GOHR A. (2007). Bayesian folding-in with Dirichlet kernels for
+PLSI. In Proc. of the 7th IEEE Int. Conf. on Data Mining, p. 499Ð504.
+HOFMANN T. (1999). Probabilistic latent semantic indexing. In Proc. of 22th Annual Int. ACM SIGIR
+Conf. on Research and Development in Information Retrieval, p. 50Ð57.
+HOFMANN T. (2000). Learning the similarity of documents : An information-geometric approach to
+document retrieval and categorization. In Adv. in Neural Inf. Proc. Sys. (NIPS), volume 12, p. 914Ð920.
+HOFMANN T. (2001). Unsupervised learning by probabilistic latent semantic analysis. Machine Learn-
+ing, 42(1), 177Ð196.
+JIN X., ZHOU Y. & MOBASHER B. (2004). Web usage mining based on probabilistic latent semantic
+analysis. In Proc. of 10th Int. Conf. on Knowledge Discovery and Data Mining, p. 197Ð205.
+LAFFERTY J. & ZHAI C. (2001). Document language models, query models, and risk minimization
+for information retrieval. In Proc. of 24th Annual Int. Conference on Research and Development in
+Information Retrieval (SIGIR), p. 111Ð119.
+LAVRENKO V. & CROFT W. B. (2001). Relevance based language models. In Proc. of 24th Annual
+Int. ACM SIGIR Conf. on Research and Development in Information Retrieval, p. 120Ð127.
+MEI Q. & ZHAI C. (2006). A mixture model for contextual text mining. In Proc. of 12th Int. Conf. on
+Knowledge Discovery and Data Mining, p. 649Ð655.
+PONTE J. M. & CROFT W. B. (1998). A language modeling approach to information retrieval. In
+Proc. of 21st Int. Conf. on Research and Development in Information Retrieval (SIGIR), p. 275Ð281.
+POPESCUL A., UNGAR L. H., PENNOCK D. M. & LAWRENCE S. (2001). Probabilistic models for
+unified collaborative and content-based recommendation in sparse-data environments. In Proc. of the
+17th Conf. in Uncertainty in Artificial Intelligence, p. 437Ð444.
+ROBERTSON S. E., WALKER S., JONES S., HANCOCK-BEAULIEU M. & GATFORD M. (1994). Okapi
+at TRECÐ3. Proc. of the 3rd Text REtrieval Conf.
+STEYVERS M., SMYTH P., ROSEN-ZVI M. & GRIFFITHS T. (2004). Probabilistic author-topic models
+for information discovery. In 10th Int. Conf. on Knowledge Discovery and Data Mining, p. 306Ð315.
+VINOKOUROV A. & GIROLAMI M. (2002). A probabilistic framework for the hierarchic organisation
+and classification of document collections. Journ. of Intelligent Information Systems, 18(2/3), 153Ð172.
+WELLING M., CHEMUDUGUNTA C. & SUTTER N. (2008). Deterministic latent variable models and
+their pitfalls. SIAM Conference on Data Mining SDM 2008.
+WELLING M., ROSEN-ZVI M. & HINTON G. (2005). Exponential family harmoniums with an appli-
+cation to information retrieval. In Ad. in Neural Inf. Proc. Sys. (NIPS), volume 17, p. 1481Ð1488.
+ZHAI C. (2008). Statistical language models for information retrieval a critical review. Found. Trends
+Inf. Retr., 2(3), 137Ð213.
+ZHAI C. & LAFFERTY J. (2001). Model-based feedback in the language modeling approach to infor-
+mation retrieval. In Proc. of 10th Int. Conf. on Information and Knowledge Management (CIKM), p.
+403Ð410.
+ZHAI C. & LAFFERTY J. (2004). A study of smoothing methods for language models applied to
+information retrieval. ACM Trans. Inf. Syst., 22(2), 179Ð214.

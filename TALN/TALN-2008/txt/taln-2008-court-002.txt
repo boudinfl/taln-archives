@@ -1,0 +1,704 @@
+TALN 2008, Avignon, 9–13 juin 2008
+Calculs d’unification sur les arbres de dérivation TAG
+Sylvain Schmitz1 Joseph Le Roux2
+(1) LORIA, INRIA Nancy Grand Est, Nancy
+(2) LORIA, Université Nancy 2, Nancy
+Sylvain.Schmitz@loria.fr, Joseph.LeRoux@loria.fr
+Résumé. Nous définissons un formalisme, les grammaires rationnelles d’arbres avec traits,
+et une traduction des grammaires d’arbres adjoints avec traits vers ce nouveau formalisme. Cette
+traduction préserve les structures de dérivation de la grammaire d’origine en tenant compte de
+l’unification de traits. La construction peut être appliquée aux réalisateurs de surface qui se
+fondent sur les arbres de dérivation.
+Abstract. The derivation trees of a tree adjoining grammar provide a first insight into the
+sentence semantics, and are thus prime targets for generation systems. We define a formalism,
+feature based regular tree grammars, and a translation from feature based tree adjoining gram-
+mars into this new formalism. The translation preserves the derivation structures of the original
+grammar, and accounts for feature unification.
+Mots-clés : Unification, grammaire d’arbres adjoints, arbre de dérivation, grammaire
+rationnelle d’arbres.
+Keywords: Unification, tree adjoining grammar, derivation tree, regular tree grammar.
+1 Introduction
+Le processus de dérivation dans les grammaires d’arbres adjoints (Joshi & Schabes, 1997, TAG)
+produit deux arbres : l’arbre dérivé qui correspond à un arbre syntagmatique classique (voir
+figure 1b), et l’arbre de dérivation, qui présente par quelles opérations les arbres élémentaires
+de la grammaire ont été combinés pour obtenir l’arbre dérivé (voir figure 1a). Selon la tâche de
+traitement de la langue, il sera plus adéquat de considérer l’un ou l’autre, l’arbre dérivé étant en
+correspondance avec les lexèmes d’une phrase, tandis que l’arbre de dérivation donne une vue
+sémantique primitive de la phrase, comme le montrent par exemple Candito & Kahane (1998).
+De fait, l’arbre de dérivation est privilégié dans plusieurs approches pour la réalisation de
+surface (Koller & Striegnitz, 2002; Koller & Stone, 2007). Il sert aussi de pivot à partir du-
+quel représentation sémantique et arbre dérivé peuvent être générés dans les approches de de
+Groote (2002), Pogodalla (2004) et Kanazawa (2007) à base de grammaires catégorielles abs-
+traites.
+Ces travaux ne sont cependant pas immédiatement applicables à des grammaires réalistes qui
+emploient une variante des TAG à base de structures de traits (Vijay-Shanker, 1992, voir par
+exemple la figure 2). Cette variante munit les nœuds des arbres élémentaires de structures de
+traits, dont les unifications contraignent les opérations de substitution ou d’adjonction du nœud.
+Sylvain Schmitz, Joseph Le Roux
+radis
+gris
+le
+creux
+est
+subst
+adj
+adj
+subst
+(a) Arbre de dérivation.
+S
+N
+AdjN
+N
+radis gris
+D
+le
+Adj
+creuxest
+V
+VP
+[
+det : ?
+num : sg
+]
+[num : sg ]
+[
+det : ?
+num : sg
+]
+[
+det : +
+num : sg
+]
+(b) Arbre dérivé.
+FIG. 1: Dérivation de la phrase « Le radis gris est creux. » avec la grammaire de la figure 2.
+N?
+N
+r
+D?
+le
+Adj?
+gris
+N
+r
+N?radis
+N?
+VP
+S
+N?
+Adj?V?
+creux
+V?
+est
+top:
+[
+det : +
+num : x
+]
+bot:[det : ? ] bot:
+[
+det : +
+num : sg
+]
+bot:
+[
+det : ?
+num : x
+]
+bot:
+[
+det : ?
+num : x
+]
+bot:
+[
+det : ?
+num : sg
+]
+bot:[num : sg ]
+top:[num : x ]
+FIG. 2: Exemple de grammaire d’arbres adjoints avec structures de traits.
+Ces structures ne posent en théorie aucun problème, car les domaines de valeur des différents
+traits sont finis et il suffit de démultiplier le nombre de symboles non-terminaux pour émuler les
+différentes structures possibles. Mais le nombre de ces structures s’accommode mal de cette vi-
+sion naïve : par exemple, les vingt-huit traits syntaxiques utilisés dans la grammaire SEMFRAG
+du français (Gardent, 2006) décrivent un domaine, certes fini, mais comprenant plus de 214 mil-
+liards d’éléments. Enfin, l’argument du domaine fini ne tient tout simplement pas pour certains
+mécanismes de construction sémantique fondés sur l’unification de traits d’index sémantiques
+qui ont des domaines de valeur non finis (Gardent & Kallmeyer, 2003; Gardent, 2006).
+Nous étudions dans cet article la traduction d’une grammaire d’arbres adjoints avec structures
+de traits en une grammaire rationnelle d’arbres de dérivation qui en préserve les mécanismes
+d’unification de traits. Plus en détail,
+– nous rappelons comment traduire une grammaire TAG en une grammaire rationnelle d’arbres
+(RTG) qui en génère les arbres de dérivation (section 2.1),
+– puis nous définissons un formalisme de grammaires rationnelles d’arbres enrichies par des
+structures de traits et montrons comment traduire une grammaire TAG dans ce nouveau for-
+malisme (section 2.2) ;
+– enfin, nous proposons une seconde traduction qui améliore l’efficacité de la génération des
+arbres de dérivation TAG (section 3).
+Nous supposons que le lecteur est familier avec les aspects théoriques des grammaires d’arbres
+adjoints (Joshi & Schabes, 1997), des grammaires rationnelles d’arbres (Comon et al., 2007) et
+de l’unification (Robinson, 1965)1.
+1Pour éviter toute confusion avec l’opération de substitution dans les TAG, la notion de substitution que l’on
+trouve associée à l’unification sera appelée u-substitution dans la suite.
+Calculs d’unification sur les arbres de dérivation TAG
+2 Arbres de dérivation et unification
+Un arbre de dérivation d’une grammaire d’arbres adjoints a des nœuds étiquetés par des arbres
+élémentaires de la grammaire et en guise d’arêtes les relations d’adjonctions et substitutions
+permises par la grammaire entre arbres élémentaires. Dans un premier temps, nous reformulons
+la description donnée par de Groote (2002) des arbres de dérivation qu’une grammaire d’arbres
+adjoints peut engendrer, en utilisant explicitement une grammaire rationnelle d’arbres. Dans
+un second temps, nous montrons comment les calculs d’unification de l’arbre dérivé peuvent
+s’intégrer simplement dans cette grammaire rationnelle.
+2.1 Grammaire rationnelle des arbres de dérivation
+Formellement, une grammaire d’arbres adjoints ??, N, I, A, S? est constituée d’un alphabet
+terminal ?, d’un alphabet non-terminal N , d’un ensemble I d’arbres initiaux ?, d’un ensemble
+A d’arbres auxiliaires ?, et d’un non-terminal distingué S deN . Nous désignons par ?r le nœud
+racine de l’arbre élémentaire ? et par ?f le nœud pied de l’arbre auxiliaire ?.
+Les nœuds d’un arbre élémentaire ? de I ? A qui nous intéressent sont étiquetés par des non-
+terminaux, et permettent une opération de substitution ou d’adjonction ; nous considérons en
+particulier que le pied d’un arbre auxiliaire ne permet pas d’adjonction2. Nous numérotons ces
+nœuds par un parcours arbitraire depuis la racine, de sorte que ?1 = ?r. Nous notons lab(?i)
+l’étiquette dans N du nœud ?i.
+Pour construire la grammaire rationnelle ?S,N ? NA,F , R? des arbres de dérivation, nous
+définissons :
+– l’ensemble des arbres élémentaires comme notre alphabet ordonné F = I ? A ? {?}, où le
+rang n = rg(?) d’un arbre élémentaire ? est le nombre de ses nœuds où une substitution ou
+une adjonction est possible, et où ?, de rang 0, représente une feuille vide ;
+– l’alphabet non-terminal N et un duplicata NA = {XA | X ? N} comme alphabet de la
+grammaire rationnelle ; à chaque nœud non terminal ?i d’un arbre étiqueté par X = lab(?i),
+on associe un non terminal nt(?i) de forme X dans N s’il permet une substitution ou XA
+dans NA s’il permet une adjonction ;
+– l’ensemble de règles R défini comme l’union
+{X ?? ?(nt(?1), . . . , nt(?n)) | ? ? I, n = rg(?), X = lab(?r)}
+? {XA ?? ?(nt(?1), . . . , nt(?n)) | ? ? A, n = rg(?), X = lab(?r)}
+? {XA ?? ? | XA ? NA}
+(1)
+Les arbres initiaux de la grammaire TAG sont ainsi associés à des règles de la forme
+X ?? ?(Y1, . . . , Yn) et les arbres auxiliaires à des règles XA ?? ?(Y1, . . . , Yn), où X est le
+non terminal qui étiquette la racine de l’arbre élémentaire TAG. Enfin, la possibilité d’une ad-
+jonction non réalisée est simulée par les règles XA ?? ?. On peut observer que la taille de la
+grammaire RTG obtenue est équivalente à la taille de la grammaire TAG d’origine. La traduc-
+tion elle-même peut être calculée en temps linéaire.
+Puisque la grammaire TAG de la figure 2 ne propose pas d’arbre auxiliaire enraciné par S, VP ,
+Adj ouD, on peut simplifier les règles en ignorant ces nœuds d’adjonction. La figure 3a montre
+2Dans un souci de concision, nous ne traitons pas les contraintes d’adjonction sélective, qui ne posent aucune
+difficulté conceptuelle.
+Sylvain Schmitz, Joseph Le Roux
+?S, {S, V, VA, N,NA},
+{creux, est, radis, gris, le, ?},
+{S ?? creux(N, V ),
+V ?? est(VA),
+VA ?? ?,
+N ?? radis(NA),
+NA ?? gris(NA),
+NA ?? le(NA),
+NA ?? ?}?
+(a) Grammaire rationnelle d’arbres.
+gris
+gris
+?
+radis est
+creux
+radis
+?
+est
+creux
+?
+? ? ?le
+le
+le
+radis est
+creux
+(b) Exemples d’arbres générés.
+FIG. 3: Grammaire rationnelle correspondant à la grammaire TAG de la figure 2.
+la grammaire simplifiée pour les arbres de la figure 2. Il est aisé de vérifier que cette grammaire
+rationnelle génère les arbres enracinés par « creux », avec « radis » et « est » pour deux fils,
+et une combinaison arbitraire de nœuds « le » et « gris » comme descendance de « radis »
+(voir figure 3b) : la grammaire rationnelle génère les arbres de dérivation d’une version sans
+structures de traits de la grammaire TAG d’origine.
+2.2 Calculs d’unification
+Grammaire rationnelle d’arbres avec traits Afin de traduire les restrictions imposées par
+les structures de traits de la grammaire TAG, nous considérons dans notre RTG non plus de
+simples réécritures entre termes, mais des surréductions (Hanus, 1994), c’est-à-dire des réécri-
+tures assorties d’unifications, avec des variables dans (N ?NA)?D où D désigne l’ensemble
+des structures de traits possibles3.
+Definition 1. Une grammaire rationnelle d’arbres avec traits ?S,N,F ,D, R? est composée
+d’un axiome S, d’un ensemble de symboles non-terminaux N contenant S, d’un alphabet or-
+donné de terminaux F , d’un ensemble de structures de traits D, et d’un ensemble de règles
+de forme (A, d) ?? a((B1, d?1), . . . , (Bn, d?n)) avec A,B1, . . . , Bn des non-terminaux de N ,
+d, d?1, . . . , d
+?
+n des structures de traits de D, et a un terminal d’arité n de F .
+La relation de dérivation =? associée à G = ?S,N,F ,D, R? met en relation des paires asso-
+ciant un terme4 de T (F , N ? D) et une u-substitution, de telle sorte que (s, e) =? (t, e?) si et
+seulement s’il existe un contexte5 C, une règle (A, d) ?? a((B1, d?1), . . . , (Bn, d?n)) dans R avec
+des variables fraîches dans les structures d, d?1, . . . , d
+?
+n et une u-substitution ? tels que
+s = C[(A, d?)], ? = mgu(d, e(d?)), t = C[a((B1, ?(d?1)), . . . , (Bn, ?(d
+?
+n)))] et e
+? = ? ? e
+3Étant données deux structures de traits d et d? de D, on désigne par l’u-substitution ? = mgu(d, d?) leur
+unificateur le plus général s’il existe. Nous notons > l’élément le plus général de D, et id l’u-substitution identité.
+4L’ensemble des termes sur l’alphabet F et l’ensemble de variables X est noté T (F ,X ) ; en particulier
+T (F , ?) = T (F) est l’ensemble des arbres sur F .
+5Un contexte C de T (F ,X ) est un terme de T (F ,X ? {x}), x 6? X , qui ne contient qu’une seule occurrence
+de x, et le terme C[t] pour un terme t de T (F ,X ) est obtenu en remplaçant cette occurrence par t dans C.
+Calculs d’unification sur les arbres de dérivation TAG
+Le langage généré par G est L(G) = {t ? T (F) | ?e, ((S,>), id) =?? (t, e)}.
+La propagation des unifications de traits se fait hiérarchiquement par la recherche de l’unifi-
+cateur le plus général mgu à chaque étape de dérivation. L’u-substitution e globale associée
+comme environnement à notre terme sert à communiquer les résultats des unifications dans les
+différentes branches du terme.
+Traduction de TAG vers RTG avec traits Munis de cette définition opérationnelle d’une
+RTG avec unification, nous enrichissons notre traduction de TAG vers RTG pour tenir compte
+des structures de traits des nœuds des arbres TAG. Nous définissons feats(?i) comme la structure
+de traits deD associée au nœud ?i de l’arbre élémentaire ?. Cette structure est composée de deux
+ensembles hauts et bas de traits atomiques top(?i) et bot(?i).
+La traduction est établie sur la notion d’interface in(?) offerte par chaque arbre élémentaire TAG
+?, qui servira de structure de traits de la partie gauche des règles de la grammaire rationnelle
+d’arbres avec traits. Dans le cas d’un arbre initial ?, la structure [top : top(?r)] doit s’unifier
+avec celle du nœud de substitution. Dans le cas d’un arbre auxiliaire ?, la structure [top :
+top(?r), bot : bot(?f )] doit s’unifier avec celle du nœud d’adjonction. Il reste à coindexer ces
+interfaces avec les structures de la partie droite de chaque règle ; le seul cas à traiter est celui
+de la racine de l’arbre élémentaire, pour laquelle nous définissons une fonction featsr. Nous
+définissons ainsi pour tout ? dans I , ? dans A et ? dans I ? A, à l’aide d’une variable fraîche t
+in(?) =
+[
+top : t
+top : top(?r)
+]
+(2)
+in(?) =
+[
+top : t
+top : top(?r)
+bot : bot(?f )
+]
+(3)
+featsr(?1) =
+[
+top : t
+bot : bot(?1)
+]
+(4)
+Pour un nœud ?i, nous définissons tr(?i) = (nt(?i), feats(?i)) et trr(?1) = (nt(?1), featsr(?1)).
+L’ensemble de règles de notre grammaire rationnelle d’arbres avec traits pour une grammaire
+TAG ??, N, I, A, S? est alors
+{(X, in(?)) ?? ?(trr(?1), tr(?2), . . . , tr(?n)) | ? ? I, n = rg(?), X = lab(?r)}
+? {(XA, in(?)) ?? ?(trr(?1), tr(?2), . . . , tr(?n)) | ? ? A, n = rg(?), X = lab(?r)}
+? {XA
+[
+top : x
+bot : x
+] ?? ? | XA ? NA, x variable de D} (5)
+Les règles dérivant la feuille vide ? effectuent l’unification finale entre traits hauts et bas des
+nœuds de la grammaire TAG.
+Nous obtenons alors l’ensemble de règles suivant pour la grammaire rationnelle enrichie de
+structures de traits correspondant à la grammaire TAG de la figure 2 :
+(S,>) ?? creux (N [ top : » det : +num : x –] , V [ top : [num : x ] ])
+V [ top : t ] ?? est (VA [ top : tbot : [num : sg ]])
+VA
+[
+top : x
+bot : x
+] ?? ?
+N [ top : t ] ?? radis (NA [ top : tbot : [det : ? ]])
+NA
+[
+top : t
+bot :
+»
+det : ?
+num : x
+–] ?? gris(NA [ top : tbot : » det : ?
+num : x
+–])
+NA
+[
+top : t
+bot :
+»
+det : ?
+num : sg
+–] ?? le(NA [ top : tbot : » det : +
+num : sg
+–])
+NA
+[
+top : x
+bot : x
+] ?? ?
+(6)
+Sylvain Schmitz, Joseph Le Roux
+0 : ((S,?), id)
+1 :
+(
+creux(N
+[
+top :
+»
+det : +
+num : 0x
+–]
+, V [ top : [num : 0x ] ]), id
+)
+2 :
+(
+radis
+(
+NA
+[
+top :
+»
+det : +
+num : 0x
+–
+bot : [ det : ? ]
+])
+, {1t 7?
+[
+det : +
+num : 0x
+]
+}
+)
+4 :
+(
+le
+(
+NA
+[
+top :
+»
+det : +
+num : 0x
+–
+bot :
+»
+det : +
+num : sg
+–
+])
+, {111t 7?
+[
+det : +
+num : 0x
+]
+, 11x 7? sg}
+)
+5 : (?, {1111x 7?
+[
+det : +
+num : sg
+]
+, 0x 7? sg})
+6 :
+(
+est
+(
+VA
+[
+top : [num : sg ]
+bot : [num : sg ]
+])
+, {2t 7? [num : sg ]}
+)
+3 :
+(
+gris
+(
+NA
+[
+top :
+»
+det : +
+num : 0x
+–
+bot :
+»
+det : ?
+num : 11x
+–
+])
+, {11t 7?
+[
+det : +
+num : 0x
+]
+}
+)
+7 : (?, {21x 7? [num : sg ]})
+FIG. 4: Une dérivation dans la RTG enrichie pour la phrase « Le radis gris est creux. »
+Exemple de dérivation Nous reprenons dans la figure 4 le cas de la phrase « Le radis gris
+est creux. » en employant les règles enrichies de structures de traits de l’équation (6). Chaque
+nœud de l’arbre de la figure est constitué d’une étiquette et d’un couple formé d’un terme de
+T (F , (N ?NA)?D) et d’un environnement6. La création de variables fraîches utilise l’adresse
+de Gorn du nœud où la réécriture a lieu. Les étiquettes de chaque nœud indiquent l’ordre dans
+lequel s’effectuent les surréductions. Enfin, l’on remplace les variables par leur valeur associée
+dans l’environnement dès que possible.
+On ne peut pas dériver l’arbre correspondant à « * Le radis gris sont creux. ». La partie gauche
+de la tentative de dérivation aurait été similaire. En revanche, dans la partie droite, le trait bot
+associé au nœud VA de sont aurait eu pour valeur num : pl (pluriel). L’analyse aurait donc
+échoué à l’étape suivante, puisqu’en atteignant la feuille ? il aurait fallu unifier des traits top et
+bot avec respectivement sg et pl comme valeurs de num.
+Bien sûr, pour une analyse qui visite d’abord le sous-arbre droit avant le sous-arbre gauche,
+le résultat serait le même, avec encore pour étape décisive du point de vue de l’unification la
+réécriture finale à ?.
+3 Transformation par coin gauche
+Comme nous venons de le voir, la génération d’un arbre de dérivation TAG à l’aide d’une
+grammaire RTG avec traits n’est pas très prédictive, dans le sens où il est nécessaire de patienter
+jusqu’à la réécriture à ? pour vérifier si une substitution réussit. Dans l’exemple de la figure 4,
+la substitution de « radis » dans « creux » n’est véritablement entérinée qu’au moment de la
+réécriture à ?, et potentiellement toutes les opérations intermédiaires seraient à défaire si cette
+réécriture n’avait pas été possible.
+Le seul filtrage immédiatement exercé par l’arbre « radis » lors de sa substitution au nœud N
+de « creux » est l’unification de sa structure top avec la structure top de N . Or, l’arbre « radis »
+6Nous ne faisons apparaître que les parties de l’environnement calculées à ce point de la dérivation.
+Calculs d’unification sur les arbres de dérivation TAG
+suit l’usage dans les grammaires TAG, qui est que sa structure top est vide, et il n’y a en fait
+aucun filtrage par ce biais.
+Nous présentons dans cette section une transformation du langage d’arbres de dérivation qui
+permet d’inverser l’ordre des réécritures, en commençant par ?, en opérant à toutes les adjonc-
+tions à la racine, et en finissant par l’arbre initial. Comme nous avons convenu que la racine d’un
+arbre élémentaire TAG apparaissait en fils gauche dans nos arbres de dérivation, cette transfor-
+mation revient à une transformation par coin gauche (Rosenkrantz & Lewis II, 1970) appliquée
+à nos grammaires rationnelles d’arbres de dérivation. Cette transformation est simple, et nous
+semble plus naturelle que la transformation correspondante sur les arbres dérivés.
+3.1 Grammaire rationnelle transformée
+Les règles que nous souhaitons transformer sont de la formeX ?? ?(XA, . . . ),XA ?? ?(XA, . . . )
+ouXA ?? ?. À l’issue de la transformation, un appel àX devra commencer par invoquer ?, puis
+les adjonctions ? en ordre inverse, et enfin ? en dernier lieu, dont l’arité est décrémentée. Pour
+notre grammaire (figure 3a), cela revient simplement à utiliser de nouveaux non-terminaux NS
+et VS et les règles
+S ?? creux(NS, VS)
+NS ?? ?(N)
+N ?? radis | gris(N) | le(N)
+VS ?? ?(V )
+V ?? est
+(7)
+Il manque à ces règles la possibilité d’une adjonction ailleurs qu’à la racine d’un arbre initial ;
+il suffit alors de conserver les règles XA ?? ?(XA, . . . ) et XA ?? ? qui s’appliqueront comme
+auparavant.
+Nous pouvons ensuite éliminer les ?-termes ; la grammaire de la figure 3a transformée est alors :
+S ?? creux(N, V )
+N ?? radis | gris(N) | le(N)
+NA ?? gris(NA) | le(NA) | ?
+V ?? est
+(8)
+Les règles de dérivation de NA sont cependant inutiles puisqu’il n’y a jamais d’adjonction sur
+un nœud de catégorie N qui n’est pas une racine dans notre grammaire d’arbres adjoints.
+Formellement, étant donnée une grammaire d’arbres adjoints ??, N, I, A, S?, sa grammaire ra-
+tionnelle d’arbres de dérivation transformée par coin gaucheGlc = ?S,N ?NA,Flc, Rlc? utilise
+un alphabet terminal Flc = I ? A ? {?} mais où l’arité d’un arbre initial ? est rg(?)? 1, et un
+ensemble de règles Rlc défini comme l’union
+{X ?? ?(nt(?2), . . . , nt(?n)) | ? ? I, n = rg(?), X = lab(?r)}
+? {X ?? ?(X, nt(?2) . . . , nt(?n)) | ? ? A, n = rg(?), X = lab(?r)}
+? {XA ?? ?(nt(?1), . . . , nt(?n)) | ? ? A, n = rg(?), X = lab(?r)}
+(9)
+La taille de cette grammaire est au pire doublée par rapport à la grammaire rationnelle d’arbres
+de dérivation puisque chaque arbre auxiliaire apparaît maintenant deux fois. En pratique, les
+règles utiles dans la grammaire obtenue sont probablement moins nombreuses. Par exemple,
+Sylvain Schmitz, Joseph Le Roux
+dans la grammaire SEMFRAG et en se basant sur l’existence de nœuds d’adjonction ailleurs
+qu’à la racine pour chaque catégorie syntaxique, seuls un tiers des arbres auxiliaires, soit encore
+un dixième des arbres élémentaires, est concerné par cette duplication.
+Notons enfin que la transformation est aisément réversible. Nous définissons pour cela la fonc-
+tion lc?1 de T (Flc) dans T (F) par
+lc?1(t) = revlc(t, ?) (10)
+revlc(?(t1, t2, . . . , tn), t) = revlc(t1, ?(t, f?2(t2), . . . , f?n(tn))) (11)
+revlc(?(t1, . . . , tn), t) = ?(t, f?2(t1), . . . , f?n+1(tn)) (12)
+f?i(t) =
+{
+recur(t) si ?i est un nœud d’adjonction
+lc?1(t) si ?i est un nœud de substitution
+(13)
+recur(?(t1, . . . , tn)) = ?(f?1(t1), . . . , f?n(tn)) (14)
+On peut ainsi procéder à la génération d’un arbre dérivé dans L(Glc) et retrouver l’arbre corres-
+pondant de L(G) en lui appliquant lc?1.
+3.2 Unification dans la grammaire transformée
+Nous procédons maintenant à la définition d’une grammaire rationnelle d’arbres de dérivation
+transformée par coin gauche avec structures de traits. En reprenant les règles transformées (7)
+de la section 3.1, nous obtenons dans un premier temps les règles transformées avec structures
+de traits
+(S,>) ?? creux (NS [ top : » det : +num : x –] , V [ top : [num : x ] ])
+NS [ top : t ] ?? ?
+(
+N
+[
+top : t
+bot : t
+])
+N [ bot : [det : ? ] ] ?? radis
+N
+[
+top : t
+bot :
+»
+det : ?
+num : x
+–] ?? gris(N [ top : tbot : » det : ?
+num : x
+–])
+N
+[
+top : t
+bot :
+»
+det : +
+num : sg
+–] ?? le(N [ top : tbot : » det : ?
+num : sg
+–])
+VS [ top : t ] ?? ?
+(
+V
+[
+top : t
+bot : t
+])
+V [ bot : [num : sg ] ] ?? est
+(15)
+Comme la récursion au sein des arbres auxiliaires est inversée, les structures de traits de la
+partie gauche de chaque règle sont les structures de son nœud racine dans la grammaire TAG,
+et inversement (on observe ce changement pour la règle qui dérive « le »).
+Nous pouvons comme auparavant éliminer les règles dérivant ?, ce qui a pour effet de copier la
+structure de traits top des nœuds de substitution dans la structure bot . Nous obtenons l’ensemble
+de règles suivant pour la grammaire TAG de la figure 2 :
+(S,>) ?? creux
+(
+N
+[
+top :
+»
+det : +
+num : x
+–
+bot :
+»
+det : +
+num : x
+–
+]
+, V
+[
+top : [num : x ]
+bot : [num : x ]
+])
+N [ bot : [det : ? ] ] ?? radis
+N
+[
+top : t
+bot :
+»
+det : ?
+num : x
+–] ?? gris(N [ top : tbot : » det : ?
+num : x
+–])
+N
+[
+top : t
+bot :
+»
+det : +
+num : sg
+–] ?? le(N [ top : tbot : » det : ?
+num : sg
+–])
+V [ bot : [num : sg ] ] ?? est
+(16)
+Calculs d’unification sur les arbres de dérivation TAG
+Cette grammaire d’arbres avec traits est bien plus lisible que celle décrite dans l’équation (6) :
+le premier fils de « creux » ne peut être que « le » de par la présence du trait det = + dans
+la structure bot associée à N . Les seuls fils de « le » possibles sont « gris » et « radis », seuls
+compatibles avec le trait det = ?. Le filtrage dû aux unifications est maintenant immédiat.
+Construction de la grammaire rationnelle transformée Nous définissons les variantes sui-
+vantes des fonctions de calcul de structures de traits, pour tout arbre auxiliaire ? de A et pour
+tout nœud ?i d’un arbre élémentaire ? de I ? A :
+inlc(?) =
+[
+top : t
+bot : bot(?f )
+]
+(17)
+featslc(?i) =
+???????
+[
+top : top(?i)
+bot : top(?i)
+]
+si ?i est un nœud de substitution,[
+top : t
+top : top(?r)
+bot : bot(?r)
+]
+si ?i = ?r,
+feats(?i) sinon.
+(18)
+Pour un nœud ?i, nous notons trlc(?i) la paire (nt(?i), featslc(?i)).
+Formellement, l’ensemble de règles de notre grammaire rationnelle d’arbres avec traits trans-
+formée pour une grammaire TAG ??, N, I, A, S? est alors
+{(X, feats(?1)) ?? ?(trlc(?2), . . . , trlc(?n)) | ? ? I, n = rg(?), X = lab(?r)}
+? {(X, featslc(?1)) ?? ?((X, inlc(?)), trlc(?2), . . . , trlc(?n))
+| ? ? A, n = rg(?), X = lab(?r)}
+? {(XA, in(?)) ?? ?(trr(?1), trlc(?2), . . . , trlc(?n)) | ? ? A, n = rg(?), X = lab(?r)} (19)
+4 Conclusion
+Les grammaires rationnelles d’arbres avec structures de traits permettent de générer aisément les
+arbres de dérivation d’une grammaire TAG avec structures de traits. Les grammaires transfor-
+mées par coin gauche permettent de plus de filtrer plus efficacement les opérations d’adjonction
+et de substitution possibles à partir d’un arbre élémentaire.
+Si des calculs d’unification sur arbres de dérivation ont déjà été considérés par le passé de ma-
+nière spécialisée (Kallmeyer & Romero, 2004), les mécanismes que nous avons définis sont
+suffisamment généraux pour traduire fidèlement l’unification dans les grammaires d’arbres ad-
+joints.
+Parmi les perspectives ouvertes par ce traitement des structures de traits dans les arbres de
+dérivation, on pourra mentionner des calculs d’accessibilité plus fins entre les arbres élémen-
+taires, utiles par exemple pour vérifier qu’une TAG est dans la classe restreinte des grammaires
+d’arbres par insertion (Schabes & Waters, 1995, TIG) ou sous forme rationnelle (Rogers, 1994,
+RFTAG). On pourrait par ailleurs imaginer étendre notre approche à l’analyse syntaxique, pour
+peu que les informations topologiques d’ordre entre les ancres soient calculées dans nos arbres
+de dérivation (Kuhlmann, 2007).
+Sylvain Schmitz, Joseph Le Roux
+Références
+CANDITO M.-H. & KAHANE S. (1998). Une grammaire TAG vue comme une grammaire
+Sens-Texte précompilée. In P. ZWEIGENBAUM, Ed., TALN’98, p. 102–111: ATALA.
+COMON H., DAUCHET M., GILLERON R., LÖDING C., JACQUEMARD F., LUGIEZ D., TI-
+SON S. & TOMMASI M. (2007). Tree Automata Techniques and Applications.
+DE GROOTE P. (2002). Tree-adjoining grammars as abstract categorial grammars. In R.
+FRANK, Ed., TAG+6, p. 145–150.
+GARDENT C. (2006). Intégration d’une dimension sémantique dans les grammaires d’arbres
+adjoints. In P. MERTENS, C. FAIRON, A. DISTER & P. WATRIN, Eds., TALN’06, p. 149–158:
+Presses universitaires de Louvain.
+GARDENT C. & KALLMEYER L. (2003). Semantic construction in feature-based TAG. In
+EACL’03, p. 123–130: ACL Press.
+HANUS M. (1994). The integration of functions into logic programming: From theory to
+practice. Journal of Logic Programming, 19–20, 583–628.
+JOSHI A. K. & SCHABES Y. (1997). Tree-adjoining grammars. In G. ROZENBERG & A.
+SALOMAA, Eds., Handbook of Formal Languages, volume 3: Beyond Words, chapter 2, p.
+69–124. Springer.
+KALLMEYER L. & ROMERO M. (2004). LTAG semantics with semantic unification. In O.
+RAMBOW & M. STONE, Eds., TAG+7, p. 155–162.
+KANAZAWA M. (2007). Parsing and generation as Datalog queries. In ACL’07, p. 176–183:
+ACL Press.
+KOLLER A. & STONE M. (2007). Sentence generation as a planning problem. In ACL’07, p.
+336–343: ACL Press.
+KOLLER A. & STRIEGNITZ K. (2002). Generation as dependency parsing. In ACL’02, p.
+17–24: ACL Press.
+KUHLMANN M. (2007). Dependency Structures and Lexicalized Grammars. Doctoral disser-
+tation, Saarland University, Saarbrücken, Germany.
+POGODALLA S. (2004). Vers un statut de l’arbre de dérivation : exemples de construction
+de representations sémantiques pour les grammaires d’arbres adjoints. In P. BLACHE, Ed.,
+TALN’04, p. 377–386: LPL.
+ROBINSON J. A. (1965). A machine-oriented logic based on the resolution principle. Journal
+of the ACM, 12(1), 23–41.
+ROGERS J. (1994). Capturing CFLs with tree adjoining grammars. In ACL’94, p. 155–162:
+ACL Press.
+ROSENKRANTZ D. J. & LEWIS II P. M. (1970). Deterministic left corner parsing. In 11th
+Annual Symposium on Switching and Automata Theory, p. 139–152: IEEE Computer Society.
+SCHABES Y. & WATERS R. C. (1995). Tree insertion grammar: a cubic-time parsable forma-
+lism that lexicalizes context-free grammar without changing the trees produced. Computatio-
+nal Linguistics, 21(4), 479–513.
+VIJAY-SHANKER K. (1992). Using descriptions of trees in a tree adjoining grammar. Com-
+putational Linguistics, 18(4), 481–517.

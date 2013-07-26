@@ -1,6 +1,8 @@
 # taln-archives
 
 Mises à jour
+ - 26 juillet 2013, ajout des fichiers textes, extraits à partir du contenu des
+   articles au format pdf.
  - 18 juillet 2013, ajout des fichiers de génération de bibtex et du site web
  - 25 juin 2013, ajout des actes des conférences TALN 2013 et RECITAL 2013
 
@@ -38,6 +40,12 @@ La version web de l'archive a été créée avec la commande :
 
     cd tools/
     python generate_html.py
+
+Les fichiers au format texte des articles ont été extraits avec l'outil 
+[PDFBox](http://pdfbox.apache.org/).
+
+    cd tools/
+    ./generate_txt.sh
 
 
 Si vous utilisez cet ensemble de données, veuillez citer l'article :

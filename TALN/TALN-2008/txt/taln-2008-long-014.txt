@@ -1,0 +1,503 @@
+TALN 2008, Avignon, 9–13 juin 2008
+Convertir des grammaires d’arbres adjoints à composantes
+multiples avec tuples d’arbres (TT-MCTAG) en grammaires à
+concaténation d’intervalles (RCG)
+Laura Kallmeyer1 Yannick Parmentier2
+(1) SFB 441 / Université de Tübingen
+(2) SfS-CL / SFB 441 / Université de Tübingen
+Nauklerstr. 35, 72074 Tübingen, Allemagne
+lk@sfs.uni-tuebingen.de, parmenti@sfs.uni-tuebingen.de
+Résumé. Cet article étudie la relation entre les grammaires d’arbres adjoints à compo-
+santes multiples avec tuples d’arbres (TT-MCTAG), un formalisme utilisé en linguistique infor-
+matique, et les grammaires à concaténation d’intervalles (RCG). Les RCGs sont connues pour
+décrire exactement la classe PTIME, il a en outre été démontré que les RCGs « simples » sont
+même équivalentes aux systèmes de réécriture hors-contextes linéaires (LCFRS), en d’autres
+termes, elles sont légèrement sensibles au contexte. TT-MCTAG a été proposé pour modéliser
+les langages à ordre des mots libre. En général ces langages sont NP-complets. Dans cet article,
+nous définissons une contrainte additionnelle sur les dérivations autorisées par le formalisme
+TT-MCTAG. Nous montrons ensuite comment cette forme restreinte de TT-MCTAG peut être
+convertie en une RCG simple équivalente. Le résultat est intéressant pour des raisons théoriques
+(puisqu’il montre que la forme restreinte de TT-MCTAG est légèrement sensible au contexte),
+mais également pour des raisons pratiques (la transformation proposée ici a été utilisée pour
+implanter un analyseur pour TT-MCTAG).
+Abstract. This paper investigates the relation between TT-MCTAG, a formalism used in
+computational linguistics, and RCG. RCGs are known to describe exactly the class PTIME ;
+« simple » RCG even have been shown to be equivalent to linear context-free rewriting sys-
+tems, i.e., to be mildly context-sensitive. TT-MCTAG has been proposed to model free word
+order languages. In general, it is NP-complete. In this paper, we will put an additional limita-
+tion on the derivations licensed in TT-MCTAG. We show that TT-MCTAG with this additional
+limitation can be transformed into equivalent simple RCGs. This result is interesting for theo-
+retical reasons (since it shows that TT-MCTAG in this limited form is mildly context-sensitive)
+and also for practical reasons (the proposed transformation has been used for implementing a
+parser for TT-MCTAG).
+Mots-clés : Grammaires d’arbres adjoints à composantes multiples, grammaires à conca-
+ténation d’intervalles, légère sensibilité au contexte.
+Keywords: Multicomponent Tree Adjoining Grammars, Range Concatenation Gram-
+mars, mild context-sensitivity.
+Laura Kallmeyer, Yannick Parmentier
+1 Introduction
+Il a été démontré que les grammaires d’arbres adjoints (TAGs) sont d’un grand interêt pour
+le traitement automatique des langues naturelles, et pour des raisons linguistiques (domaine
+de localité étendu), et pour des raisons formelles (complexité d’analyse). Pourtant, elles sont
+trop limitées dans leur expressivité pour traiter certains phenomènes linguistiques comme par
+exemple le brouillage d’arguments dans des langues dites à ordre des mots libre.
+Cet article considère une variante des TAGs, les grammaires d’arbres adjoints à composantes
+multiples avec tuples d’arbres (TT-MCTAGs), cherchant à résoudre ce problème d’expressivité
+tout en gardant les propriétés principales des TAGs. Dans ce contexte, nous traitons les proprié-
+tés formelles de ce formalisme, en particulier sa relation avec les langages legèrement sensibles
+au contexte. En donnant la construction d’une grammaire à concaténation d’intervalles (RCG)
+simple pour une TT-MCTAG qui satisfait une certaine contrainte, nous obtenons deux résul-
+tats : d’abord nous prouvons que ces TT-MCTAGs restreintes sont en fait légèrement sensibles
+au contexte. Ensuite, en combinant cette construction avec un analyseur pour RCG, nous pou-
+vons développer un analyseur pour TT-MCTAG. Nous pensons que l’idée de passer par les
+RCGs pour analyser certains formalismes grammaticaux au lieu de développer un analyseur
+différent pour chacun d’entre eux peut être utile d’une façon générale.
+Le plan de cet article est le suivant. Dans un premier temps, nous définissons les formalismes
+sur lesquels nous nous basons, à savoir TAG (section 1.1) et RCG (section 1.2), et présentons
+brièvement un algorithme existant de conversion de TAG vers RCG (section 1.3). Ensuite, nous
+introduisons le formalisme des TT-MCTAGs (section 2), ainsi que leur forme restreinte. Fina-
+lement nous donnons l’algorithme de conversion de ces grammaires en RCG (section 3).
+1.1 Tree Adjoining Grammars (TAG)
+Les TAGs (Joshi & Schabes, 1997) sont des systèmes de réécriture d’arbres. Une TAG est un
+ensemble fini d’arbres (les arbres élémentaires) avec des étiquettes non-terminales et terminales
+(les derniers seulement pour des feuilles). Des arbres plus grands sont générés par substitu-
+tion (remplacement d’une feuille par un nouvel arbre) et adjonction (remplacement d’un nœud
+interne par un nouvel arbre). En cas d’adjonction, l’arbre que l’on adjoint a exactement une
+feuille marquée comme nœud pied (marquée par une étoile). Un tel arbre s’appelle un arbre
+auxiliaire. Si cet arbre est adjoint à un nœud n, alors dans l’arbre résultat, le sous-arbre de ra-
+cine n s’attache au nœud pied de l’arbre auxiliaire. Des arbres non-auxiliaires s’appellent des
+arbres initiaux. Chaque dérivation commence par un arbre initial. Dans un arbre dérivé terminal,
+toutes les feuilles doivent avoir des étiquettes terminales. Un exemple est donné Fig. 1.
+NP
+John
+S
+NP VP
+V
+laughs
+VP
+ADV VP?
+always
+arbre S
+dérivé : NP VP
+John ADV VP
+always V
+laughs
+arbre de :
+dérivation :
+laugh
+1 2
+john always
+FIG. 1 – Dérivation TAG pour la phrase John always laughs
+TT-MCTAGs et RCGs
+Définition 1. Une TAG est un tupleG = ?I, A,N, T ? avec (i)N et T des alphabets disjoints, les
+nonterminaux et les terminaux, et (ii) I et A des ensembles finis d’arbres initiaux et auxiliaires
+respectivement avec non-terminaux N et terminaux T . En outre, les nœuds internes dans I ?A
+peuvent être marqués OA (adjonction obligatoire) ou NA (adjonction interdite).
+Définition 2. Soient G = ?I, A,N, T ? une TAG, ? et ?? des arbres finis.
+– ? ? ?? dans G ssi il existe une adresse de nœud p et un arbre ??0 qui est soit un arbre élé-
+mentaire, soit dérivé d’un arbre élémentaire tel que ?? = ?[p, ??0]1.
+?
+? est la clôture réflexive
+et transitive de ?.
+– Le langage d’arbres de G est LT (G) = {? |?
+?
+? ? pour quelque ? ? I , toutes les feuilles
+dans ? ont une étiquette terminale et ? ne contient pas de nœud marqué OA}.
+Les dérivations en TAG sont représentées par des arbres de dérivation (des arbres non-ordonnés)
+qui décrivent comment les arbres élémentaires ont été combinés. L’arbre dérivé est alors le
+résultat de l’exécution de ces combinaisons, i.e., l’arbre de dérivation décrit de façon unique
+un seul arbre dérivé. Chaque arc dans un arbre de dérivation représente une adjonction ou une
+substitution. Les arcs sont etiquetés avec des adresses de nœud de Gorn2. L’arbre de dérivation
+de la Fig. 1 par exemple, indique que l’arbre élémentarire de John a été substitué au nœud
+d’adresse 1 et always a été adjoint à l’adresse 2 (le fait que le premier est une substitution,
+le deuxième une adjonction peut être déduit du fait que l’adresse 1 est l’adresse d’une feuille
+tandis que 2 est l’adresse d’un nœud interne).
+Définition 3. Soit G = ?I, A,N, T ? une TAG, on définit ? un arbre dérivé d’un arbre élémen-
+taire ?0 dans G comme suit : ? = ?0[p1, ?1] . . . [pk, ?k] tel que les substitutions/adjonctions des
+?1, . . . , ?k sont les seules substitutions/adjunctions à ?0 exécutées lors de la dérivation de ?.
+Dans ce cas-là, l’arbre de dérivation correspondant a une racine étiquetée ?0 qui a k fils. Les
+arcs entre ?0 et ces fils sont étiquetés p1, . . . , pk, et les fils sont les arbres de dérivation des
+dérivations de ?1, . . . , ?k.
+1.2 Range Concatenation Grammars (RCG)
+Définition 4. Une RCG positive (Boullier, 1999b; Boullier, 2000) est un tupleG = ?N, T, V, S, P ?
+tel que (i) N est un ensemble fini de prédicats, chacun d’arité fixe, S ? N (d’arité 1) le prédicat
+initial, (ii) T et V sont des alphabets disjoints de terminaux et de variables, et (iii) P est un
+ensemble fini de clauses de la forme :
+A0(x01, . . . , x0a0)? ?
+ou A0(x01, . . . , x0a0)? A1(x11, . . . , x1a1) . . .An(xn1, . . . , xnan)
+avec n ≥ 1, Ai ? N, xij ? (T ? V )
+? et ai l’arité d’Ai.
+Notons qu’une RCG avec une arité maximale n s’appelle une RCG d’arité n. Notons également
+que, dans ce papier nous n’utilisons que des RCGs positives, ainsi, dans ce qui suit, chaque
+mention des RCGs refère aux RCGs positives3. Dans un appel de clause par rapport à une
+chaîne w = t1 . . . tn, les arguments des prédicats sont instantiés par des sous-chaînes de w,
+1Pour des arbres ?, ?1, . . . , ?n et des adresses de nœuds différentes deux à deux p1, . . . , pn dans ?,
+?[p1, ?1] . . . [pn, ?n] est le résultat des substitutions/adjonctions séquentielles de ?1, . . . , ?n respectivement aux
+nœuds d’adresses p1, . . . , pn dans ?.
+2L’adresses de la racine est ?, et le n-ième fils d’un nœud avec adresse p a l’adresse p.j.
+3La variante négative permet des appels de prédicats de la forme A(?1, . . . , ?n). Un tel prédicat reconnaît le
+complément de A(?1, . . . , ?n), voir (Boullier, 2000).
+Laura Kallmeyer, Yannick Parmentier
+plus précisement par les intervalles correpondants. Un intervalle ?i, j? avec 0 ≤ i < j ≤
+n correspond à la chaîne entre les positions i et j, i.e., la chaîne ti+1 . . . tj . Si i = j, ?i, j?
+correspond à ?. Si i > j, ?i, j? n’est pas défini.
+Définition 5. Une instantiation d’une clause C par rapport à une chaîne w = t1 . . . tn est une
+fonction f : {t? | t? est l’occurrence d’un t ? T dans les arguments de C} ? V ? {?i, j? | i ≤
+j, i, j ? IN} tel que :
+a) pour chaque occurrence t? d’un t ? T dans C : f(t?) := ?i, i+ 1? pour quelque i,
+0 ≤ i < n tel que ti = t,
+b) pour chaque v ? V : f(v) = ?j, k? pour quelques 0 ≤ j ≤ k ≤ n, et
+c) si pour un argument x1 . . . xk d’un prédicat dans C, f(x1) = ?i1, j1?, . . . , f(xk) =
+?ik, jk?, alors jm = im+1 pour 1 ≤ m < k. Par définition, nous disons alors que
+f(x1 . . . xk) = ?i1, jk?.
+La relation de dérivation pour RCG est définie comme suit :
+Définition 6. Pour chaque clause C : s’il existe une instantiation de cette clause par rapport à
+un w ? T ?, on peut alors, dans un pas de dérivation (. . .? . . .), remplacer la partie gauche de
+cette instantiation par sa partie droite. ?? est la clôture reflexive et transitive de ?. Le langage
+des chaînes d’une RCG G est L(G) = {w |S(?0, |w|?) ?? ? par rapport à w}.
+Comme exemple, prenons G = ?{S,A,B}, {a, b}, {X, Y, Z}, S, P ? avec
+S(X Y Z)? A(X,Z)B(Y ), A(aX, a Y ) ? A(X, Y ), B(bX) ? B(X),
+A(?, ?) ? ?, B(?) ? ?. L(G) = {anbkan | k, n ? IN}.
+La dérivation pour w = aabaa est la suivante.
+La clause S est instantiée comme suit : S(?0, 5?)? A(?0, 2?, ?3, 5?)B(?2, 3?)
+S(X Y Z) ? A(X , Z) B(Y )
+?0, 2? ?2, 3? ?3, 5? ?0, 2? ?3, 5? ?2, 3?
+aa b aa aa aa b
+Après cela, A(?0, 2?, ?3, 5?)? A(?1, 2?, ?4, 5?)? A(?2, 2?, ?5, 5?)? ? :
+A(aXaY )? A(X,Y ) et A(aXaY )? A(X,Y ) et A(?, ?) ? ?
+?0, 1??1, 2??3, 4??4, 5??1, 2??4, 5? ?1, 2??2, 2??4, 5??5, 5??2, 2??5, 5?
+a a a a a a a ? a ? ? ?
+Pour le second prédicat, nous avons B(?2, 3?)? B(?3, 3?)? ? :
+B(b X) ? B(X)
+?2, 3? ?3, 3? ?3, 3?
+b ? ?
+et B(?) ? ?
+Définition 7. Une RCG est dite non-combinatoire si chaque argument d’un prédicat d’une
+partie droite de clause consiste en une seule variable. Elle est linéaire si aucune variable n’ap-
+parait plus d’une fois dans la partie gauche d’une clause ou plus d’une fois dans la partie
+droite d’une clause. Elle est non-effaçante si pour chaque clause, chaque variable dans la par-
+tie gauche se trouve également dans la partie droite, et vice versa. Une RCG est simple si elle
+est non-combinatoire, linéaire et non-effaçante.
+Les RCGs simples sont équivalentes aux systèmes de réécriture hors contextes linéaires (LC-
+FRS, (Weir, 1988)), c.f. (Boullier, 1998). Par conséquent, les RCGs simples sont légèrement
+sensibles au contexte (Joshi, 1985).
+TT-MCTAGs et RCGs
+1.3 De TAG à RCG
+L’idée générale de la transformation d’une TAG en RCG (positive simple) proposée par (Boul-
+lier, 1999b; Boullier, 1999a) est la suivante : la RCG contient des prédicats de deux types,
+???(X) et ???(L,R), utilisés respectivement pour encoder les arbres initiaux et auxiliaires. X
+couvre la chaîne de l’arbre ? en incluant tous les arbres ajoutés à ?, tandis que L et R couvrent
+les parties de la chaîne de ? (incluant tous les arbres ajoutés) qui se trouvent à gauche et à
+droite du nœud pied. Les clauses de la RCG réduisent les arguments de ces prédicats en identi-
+fiant la partie provenant de l’arbre ?/? lui-même et les parties provenant des arbres ajoutés par
+substitution ou adjonction. Un exemple est donné Fig. 2.
+TAG :
+?1 SNA
+a S F
+?
+?2
+F
+d
+?3
+F
+e
+? S
+b S?NA c
+RCG équivalente : S(X) ? ??1?(X) | ??2?(X) | ??3?(X) (chaque w est la chaîne d’un arbre initial)
+??1?(aF ) ? ??2?(F ) | ??3?(F ) (la chaîne de ?1 est a suivie de la chaîne de l’arbre substitué au nœud F )
+??1?(aB1B2F ) ? ???(B1, B2)??2?(F ) | ???(B1, B2)??3?(F ) (ou ? est adjoint à S dans ? ;
+la chaîne est alors a, suivie de la partie gauche de ?, la partie droite de ? et la chaîne substituée à F )
+???(B1b, cB2) ? ???(B1, B2) (? peut être adjoint à sa racine ; alors la partie gauche est la partie gauche du ? adjoint
+suivie de b ; la partie droite est c suivie par la partie droite du ? adjoint)
+??2?(d) ? ? ??3?(e) ? ? ???(b, c) ? ? (les chaînes de ?2, ?3 et ? sont d, e et la paire b (gauche) et c (droite) resp.)
+FIG. 2 – Une TAG et la RCG équivalente.
+2 TT-MCTAG
+Pour représenter un ensemble de phenomènes linguistiques, une extension des grammaires
+d’arbres adjoints a été proposée, à savoir les TAGs à composantes multiples (MCTAG, (Weir,
+1988)). Leur motivation réside dans le besoin de répartir la contribution d’un seul élément lexi-
+cal (par exemple un verbe et ses arguments) sur plusieurs arbres élémentaires. Une MCTAG
+est donc composée d’ensembles d’arbres élémentaires. Si l’un de ces ensembles est utilisé lors
+d’une dérivation, chacun de ses éléments doit être utilisé.
+Définition 8. Une MCTAG est un tuple G = ?I, A,N, T,A? tel que GTAG := ?I, A,N, T ? est
+une TAG, et A est une partition de I ? A.
+Le type de MCTAG auquel nous sommes intéressé est Tree-Tuple MCTAG with Shared Nodes
+(TT-MCTAG, (Lichte, 2007)). Les TT-MCTAGs ont été introduites afin d’analyser des phéno-
+mènes d’ordre de mots libre dans des langues comme l’allemand. Un exemple est (1) où l’argu-
+ment es de reparieren précède l’argument der Mechaniker de verspricht et n’avoisine donc pas
+le prédicat dont il dépend.
+(1) ... dass es der Mechaniker zu reparieren verspricht
+... que le le mécanicien réparer promet
+‘... que le mécanicien promet de le réparer’
+Dans une TT-MCTAG, les ensembles élémentaires contiennent (1) un arbre lexicalisé ?, l’unique
+arbre tête, et (2) plusieurs arbres auxiliaires, les arbres arguments. Une liste composée d’une
+Laura Kallmeyer, Yannick Parmentier
+tête et d’arguments s’appelle un tuple d’arbres. Lors de la dérivation, les arguments doivent soit
+s’adjoindre directement à leur tête, soit être liés par une chaîne d’adjonctions à des racines, à
+un arbre adjoint à leur tête. Autrement dit, dans l’arbre de dérivation TAG correpondant, la tête
+doit dominer ses arguments de telle manière que les adresses des nœuds sur le chemin, sauf la
+première, doivent être ? (i.e. le nœud racine). Cela traduit la notion d’adjonction avec partage
+de nœuds de (Kallmeyer, 2005).
+Définition 9. 1. Une MCTAG G = ?I, A,N, T,A? est une TT-MCTAG ssi chaque ? ? A
+a la forme {?, ?1, . . . , ?n} ou ? (la tête) a au moins une feuille avec une étiquette termi-
+nale, et ?1, . . . , ?n sont des arbres auxiliaires, les arguments. Nous écrivons un tel ensemble
+??, {?1, . . . , ?n}?. 2. Un arbre de dérivation D dans ?I, A,N, T ? est admis comme arbre de
+dérivation TAG dans G ssi
+(MC) (“multicomponent condition”) Il existe k ( k ≥ 1) instances ?1, . . . ,?k de tuples élémen-
+taires, différentes les unes des autres, tel que?ki=1 ?i est l’ensemble d’étiquettes dans D.
+(SN-TTL) (“tree-tuple locality with shared nodes”) pour tous les nœuds n0, n1, . . . , nm
+(m > 1) dansD avec l’étiquette du même tuple, tel que l’étiquette de n0 est la tête : pour chaque
+1 ≤ i ≤ m : ou bien ?n0, ni? ? PD4 ou bien il existe des ni,1, . . . , ni,k étiquettes d’arbres
+auxiliaires telles que ni = ni,k, ?n0, ni,1? ? PD et pour 1 ≤ j ≤ k ? 1 : ?ni,j, ni,j+1? ? PD
+avec ? comme étiquette d’arc.
+Sur la Fig. 3, l’arbre auxiliaire NPnom est adjoint directement à verspricht (sa tête) tandis que
+l’arbre NPacc est adjoint à la racine d’un arbre qui est adjoint à la racine d’un arbre qui est
+adjoint à reparieren.
+?
+VP
+VP? verspricht
+,
+{
+VP
+NPnom VP?
+} ? ?
+NPnom
+der Mech.
+, {}
+?
+?
+VP
+zu reparieren
+,
+{
+VP
+NPacc VP?
+} ? ?
+NPacc
+es
+, {}
+?
+arbre de dérivation :
+reparieren
+?
+verspricht
+?
+NPnom
+1 ?
+Mechaniker NPacc
+1
+es
+FIG. 3 – Dérivation en TT-MCTAG pour (1)
+Le problème de la reconnaissance pour TT-MCTAG est NP-difficile (Søgaard et al., 2007).
+Nous introduisons ici une contrainte supplémentaire pour les TT-MCTAGs, fondée sur une idée
+de (Søgaard et al., 2007) : les TT-MCTAGs sont de rang k si, à chaque moment de la dérivation,
+le nombre d’arguments qui dépendent de têtes précédemment utilisées dans la dérivation et qui
+donc attendent leur adjonction, est limité à k.5
+Définition 10. Une TT-MCTAGG = ?I, A,N, T,A? est de rang k (appelée aussi k-TT-MCTAG)
+ssi pour chaque arbre de dérivation TAG D admis dans G :
+(TT-k) Il n’existe pas de nœuds n, h0, . . . , hk, a0, . . . , ak dans D tels que l’étiquette de ai réfère
+à un argument de l’étiquette de hi et ?hi, n?, ?n, ai? ? P+D pour 0 ≤ i ≤ k.
+4PD est la relation de parenté, i.e., ?x, y? ? PD ssi y est nœud fils de x dans D.
+5Une idée similaire est utilisée dans V-TAG, (Rambow, 1994), où, lors de l’analyse, on doit connaître l’en-
+semble des liens de dominance qui restent encore à satisfaire. En limitant cet ensemble, on obtient une analyse
+polynomiale.
+TT-MCTAGs et RCGs
+3 De k-TT-MCTAG à RCG
+Nous construisons une RCG simple équivalente à une k-TT-MCTAG de manière similaire à la
+conversion en RCG pour TAG. Nous considérons des prédicats ??? référant aux contributions
+des arbres élémentaires (et non des ensembles) utilisés dans une analyse. Rappelons que chaque
+TT-MCTAG est une TAG contrainte, ainsi une dérivation TT-MCTAG est une dérivation pour
+la TAG sous-jacente. En conséquence, nous pouvons construire une RCG pour la TAG sous-
+jacente, tout en enrichissant les prédicats de façon à conserver l’information « doit être adjoint »
+pour les arbres arguments, information contraignant les clauses instantiables dans la dérivation
+RCG. Dans notre cas, la production d’un prédicat ??? contient non seulement la production
+de ? et de ses arguments, mais également celle des arguments des prédicats précédemment
+instantiés dans la dérivation, et étant adjoints par la suite6. Notre conversion mène à une RCG
+d’arité 2, et dont les noms de prédicats sont complexes. Afin de maintenir le nombre de noms
+de prédicats nécessaires finis, la limite k est cruciale. Un prédicat ??? doit encoder l’ensemble
+des arbres arguments dépendant d’arbres têtes précédemment consommés dans la dérivation.
+Cette ensemble est appelé liste des arguments en attente (List of Pending Arguments, LPA). Ces
+arbres doivent soit être adjoints à la racine de ? ou être passé à la LPA des arbres adjoints.
+Afin de réduire le nombre de clauses, nous distingons, comme le propose (Boullier, 1999b), les
+clauses d’arbres (prédicats ??...?), des clauses dites de « branchement » (prédicats ?adj . . .? and
+?sub . . .?). Nous avons ainsi trois types de prédicats :
+1. ??, LPA?. Ces prédicats ont une arité 2 si ? est un arbre auxiliare (contributions gauche et
+droite du nœud pied), une arité 1 s’il s’agit d’un arbre initial. Les clauses ??, LPA? distribuent
+les variables référant aux productions des arbres substitués ou adjoints à ? via une partie droite
+composée de prédicats adj et sub. La LPA est passée au prédicat adj du nœud racine, et les
+arguments de ? distribués à l’ensemble des prédicats d’adjonction.
+2. ?adj, ?, dot, LPA? est un prédicat de branchement d’arité 2. Ici, la LPA contient a) la liste
+des arguments des têtes précédemment consommées si dot = ? (i.e. nœud racine), et b) cer-
+tains des arguments de ? (toutes les distributions des arguments sur les nœuds d’adjonction
+ont été calculées, en tenant compte des contraintes d’étiquette du nœud dot). Les clauses
+?adj, ?, dot, LPA? adjoignent un arbre ?? sur le nœud dot de ?. Si ?? était dans la LPA, le
+prédicat d’arbre appelé reçoit LPA \ {??}, dans le cas contraire, ?? est une tête, et la LPA
+reste inchangée.
+3. ?sub, ?, dot? est une clause de branchement d’arité 1, représentant les arbres pouvant être
+substitués au nœud dot de ?.
+Plus précisément, la conversion se passe comme suit : comme dans (Boullier, 1999b), nous dé-
+finissons une chaîne de décoration ?? pour chaque arbre élémentaire ?. Les nœuds internes qui
+ne sont pas étiquetés NA recoivent deux variables L et R représentant les productions provenant
+d’une adjonction au nœud en question, les nœuds feuilles une variable X représentant la pro-
+duction provenant d’une substitution. Dans un parcours de type depth-first de ?, les variables
+sont collectées (les nœuds pieds apportant un caractère de séparation « , »), pour créer le(s)
+argument(s) du prédicat ???.
+1. Nous ajoutons un prédicat de départ S et les clauses S(X)? ??, ??(X) pour l’ensemble des
+arbres initiaux ?.
+6Notons qu’une alternative à ces prédicats enrichis serait d’augmenter l’arité des prédicats pour contenir les
+contributions des arguments restant à adjoindre. La conversion en RCG devient alors bien plus complexe.
+Laura Kallmeyer, Yannick Parmentier
+?
+?v VPOA
+v0
+, {}
+? ?
+?n1 NP1NA
+n1
+, {}
+? ?
+?n2 NP2NA
+n2
+, {}
+?
+?
+?v1 VPOA
+v1 VP?NA
+,
+??
+?
+?n1 VP
+NP1 VP?NA
+??
+?
+? ?
+?v2 VPOA
+v2 VP?NA
+,
+??
+?
+?n2 VP
+NP2 VP?NA
+??
+?
+?
+FIG. 4 – TT-MCTAG
+2. Pour chaque ? ? I ? A, soient Lp, Rp les symboles gauche et droite dans ?? pour le nœud
+d’adresse p, s’il s’agit d’un nœud d’adjonction, et Xp s’il s’agit d’un nœud de substitution.
+Soient p1, . . . , pk les nœuds d’adjonction potentiels, pk+1, . . . , pl les nœuds de substitution
+dans ?. La RCG produite contient alors toutes les clauses :
+??, LPA?(??) ? ?adj, ?, p1, LPAp1?(Lp1 , Rp1) . . . ?adj, ?, pk, LPApk?(Lpk , Rpk)
+?sub, ?, pk+1?(Xpk+1) . . . ?sub, ?, pl?(Xpl) telles que :
+– si LPA 6= ?, alors ? ? {p1, . . . , pk} et LPA ? LPA?,
+–
+?k
+i=0 LPApi = LPA ? ?(?) où ?(?) est soit l’ensemble des arguments de ? (si ? est un
+arbre tête), soit ? si ? est lui-même un argument.
+3. Pour tous les prédicats ?adj, ?, dot, LPA?, la RCG contient les clauses ?adj, ?, dot, LPA?(L,R)?
+???, LPA??(L,R) telles que ?? peut être adjoint au nœud dot de ? et :
+– soit ?? ? LPA et LPA? = LPA \ {??},
+– soit ?? /? LPA, ?? est un arbre tête, et LPA? = LPA.
+4. Pour tous les prédicats ?adj, ?, dot, ?? où le nœud dot de ? n’est pas un nœud étiqueté OA, la
+RCG contient une clause ?adj, ?, dot, ??(?, ?)? ?.
+5. Pour tous les prédicats ?sub, ?, dot? et tous les ?? qui peuvent être substitués au nœud dot de
+?, la RCG contient la clause ?sub, ?, dot?(X)? ???, ??(X).
+Prenons la TT-MCTAG de la Fig. 4. Pour celle-là, on obtient (entre autres) les clauses RCG
+– ??v, ??(L v0 R)? ?adj, ?v, ?, ??(L,R) (une seule adjonction sur la racine d’adresse ?)
+– ?adj, ?v, ?, ??(L,R)? ??v1 , ??(L,R) | ??v2 , ??(L,R) (?v1 ou ?v2 peuvent être adjoints à
+? dans ?v, LPA (ici vide) est transmise)
+– ??v1 , ??(L v1, R) ? ?adj, ?v1 , ?, {?n1}?(L,R) (dans ?v1 , il y a un unique nœud d’adjonc-
+tion d’adresse ? ; l’argument est passé à la nouvelle LPA)
+– ?adj, ?v1 , ?, {?n1}?(L,R) ? ??n1, ??(L,R) | ??v1 , {?n1}?(L,R) | ??v2 , {?n1}?(L,R)
+(soit ?n1 est adjoit et retiré de la LPA ou bien un autre arbre (?v1 ou ?v2) est adjoint)
+– ??v1 , {?n1}?(L v1, R) ? ?adj, ?v1 , ?, {?n1, ?n1}?(L,R) (ici encore, il y a un seul nœud
+d’adjonction dans ?v1 ; l’argument ?n1 est ajouté à la LPA)
+– ??n1 , ??(L X,R) ? ?adj, ?n1 , ?, ??(L,R) ?sub, ?n1, 1, ?(X) (adjonction à la racine et
+substitution au nœud 1 dans ?n1)
+– ?adj, ?n1 , ?, ??(?, ?) ? ? (l’adjonction à la racine de ?n1 n’est pas obligatoire tant que la
+LPA est vide)
+– ?sub, ?n1, 1, ?(X)? ??n1, ??(X) (substitution de ?n1 au nœud d’adresse 1)
+– ??n1, ??(n1) ? ? (aucune adjonction ou substitution dans ?n1)
+La dérivation RCG pour la chaîne d’entrée n1n2n1v2v1v1v0 procède comme suit7 :
+S(n1 n2 n1 v2 v1 v1 v0) ? ??v, ??(n1 n2 n1 v2 v1 v1 v0)
+7Nous remplaçons les intervalles par les sous-chaînes correspondantes pour rendre l’exemple plus lisible.
+TT-MCTAGs et RCGs
+? ?adj, ?v, ?, ??(n1 n2 n1 v2 v1 v1, ?) (adjonction au nœud ?, v0 est consommé)
+? ??v1 , ??(n1 n2 n1 v2 v1 v1, ?) (?v1 est adjoint)
+? ?adj, ?v1 , ?, {?n1}?(n1 n2 n1 v2 v1, ?) (adj. au nœud ?, v1 est consommé, ?n1 est placé dans la LPA)
+? ??v1 , {?n1}?(n1 n2 n1 v2 v1, ?) (?v1 est adjoint)
+? ?adj, ?v1 , ?, {?n1, ?n1}?(n1 n2 n1 v2, ?) (adj. au nœud ?, v1 est consommé, ?n1 est placé dans la LPA)
+? ??v2 , {?n1, ?n1}?(n1 n2 n1 v2, ?) (?v2 est adjoint)
+? ?adj, ?v2 , ?, {?n2, ?n1, ?n1}?(n1 n2 n1, ?) (adj. au nœud ?, v2 est consommé, ?n2 est placé dans la LPA)
+? ??n1 , {?n2, ?n1}?(n1 n2 n1, ?) (?n1 issu de la LPA est adjoint)
+? ?adj, ?n1 , ?, {?n2, ?n1}?(n1 n2, ?) ?sub, ?n1, 1, ?(n1) (adj. au nœud ?, subst. au nœud 1)
+? ?adj, ?n1 , ?, {?n2, ?n1}?(n1 n2, ?) ??n1 , ??(n1) (subst. de ?n1 )
+? ?adj, ?n1 , ?, {?n2, ?n1}?(n1 n2, ?) ?? ??n2, {?n1}?(n1 n2, ?) (n1 consommé, ?n2 adjoint)
+? ?adj, ?n2 , ?, {?n1}?(n1, ?) ?sub, ?n2, 1, ?(n2) (adj. au nœud ?, subst. au nœud 1)
+? ?adj, ?n2 , ?, {?n1}?(n1, ?) ??n2 , ??(n2) (subst. de ?n2 )
+? ?adj, ?n2 , ?, {?n1}?(n1, ?) ?? ??n1, ??(n1, ?) (n2 est consommé, ?n1 adjoint)
+?
+? ?adj, ?n1 , ?, ??(?, ?) ??n1, ??(n1)
+?
+? ? (subst. de ?n1 , n1 consommé)
+Cette exemple nécessite une LPA de capacité maximale 3, i.e. une 3-TT-MCTAG. Notons
+qu’avec cette construction, le groupement des arbres en tuples est perdu. Ainsi, dans notre
+exemple, nous ne savons plus quel arbre n1 provient de quel ensemble. Cependant, en pratique,
+nous créons une RCG pour une sous-grammaire TT-MCTAG sélectionnée à partir de la chaîne
+d’entrée. Si plusieurs occurrences d’un tuple donné sont sélectionnées, celles-ci se voient affec-
+tées un identifiant unique.
+Avec cette construction, on peut démontrer le théorème suivant (voir (Kallmeyer & Parmentier,
+2008)). Comme corollaire, les k-TT-MCTAGs sont légèrement sensibles au contexte.
+Théorème 1. Pour chaque k-TT-MCTAG G, il existe une RCG G? simple telle que
+L(G) = L(G?)8.
+Conclusion
+Cet article a mis en relation deux formalismes grammaticaux, à savoir les grammaires TT-
+MCTAG et grammaires RCG. TT-MCTAG est un formalisme de réécriture d’arbres qui permet
+de modéliser des phénomènes d’ordre des mots libre (existant par exemple en allemand). Les
+RCG, quant à elles, sont connues pour leur propriétés formelles avantageuses : les RCG sont
+analysables en un temps polynomial, et les RCG simples sont légèrement sensibles au contexte.
+De plus, des algorithmes d’analyse pour RCGs simples sont connus.
+8Nous suspectons que l’inverse ne soit pas toujours vrai. Autrement dit, nous suspectons que les langages k-TT-
+MCTAG soient strictement contenus dans l’ensemble des langages RCG simples. Un exemple de langage qui n’est
+probablement pas dans k-TT-MCTAG est le langage de double copie {www |w ? {a, b}?}. Si les trois copies d’un
+terminal appartiennent à un même tuple, deux d’entre elles doivent être adjointes par partage de nœud, comment
+contraindre alors toutes les dépendances pour n’avoir que celles attendues ?
+Laura Kallmeyer, Yannick Parmentier
+Nous avons montré comment convertir une TT-MCTAG restreinte (appelée k-TT-MCTAG) en
+une RCG simple équivalente. Le résultat formel de cette conversion est que la classe des lan-
+gages de chaînes générés par une k-TT-MCTAG est contenue dans la classe des langages géné-
+rés par les RCGs simples. En particulier, k-TT-MCTAG est légèrement sensible au contexte.
+Le résultat pratique de cette conversion réside dans l’implantation d’un analyseur syntaxique
+pour TT-MCTAG utilisant un analyseur RCG comme noyau. Plus précisément, la TT-MCTAG
+est d’abord convertie en une RCG équivalente, utilisée alors pour l’analyse. Le résultat de l’ana-
+lyse RCG est alors converti en analyse TT-MCTAG par interprétation des noms de prédicats
+des clauses instanciées. L’analyseur en question est utilisé pour développer une grammaire TT-
+MCTAG de l’allemand, et est disponible librement sous licence GPL9.
+Références
+BOULLIER P. (1998). A Proposal for a Natural Language Processing Syntactic Backbone.
+Rapport interne 3342, INRIA.
+BOULLIER P. (1999a). On TAG and Multicomponent TAG Parsing. Rapport interne 3668,
+Institut National de Recherche en Informatique et en Automatique (INRIA).
+BOULLIER P. (1999b). On TAG Parsing. In TALN 99, 6e conférence annuelle sur le Traitement
+Automatique des Langues Naturelles, p. 75–84, Cargèse, Corse.
+BOULLIER P. (2000). Range Concatenation Grammars. In Proceedings of the Sixth Interna-
+tional Workshop on Parsing Technologies (IWPT2000), p. 53–64, Trento, Italy.
+JOSHI A. K. (1985). Tree adjoining grammars : How much contextsensitivity is required ro
+provide reasonable structural descriptions ? In D. DOWTY, L. KARTTUNEN & A. ZWICKY,
+Eds., Natural Language Parsing, p. 206–250. Cambridge University Press.
+JOSHI A. K. & SCHABES Y. (1997). Tree-Adjoning Grammars. In G. ROZENBERG & A.
+SALOMAA, Eds., Handbook of Formal Languages, p. 69–123. Berlin : Springer.
+KALLMEYER L. (2005). Tree-local multicomponent tree adjoining grammars with shared
+nodes. Computational Linguistics, 31(2), 187–225.
+KALLMEYER L. & PARMENTIER Y. (2008). On the relation between Multicomponent Tree
+Adjoining Grammars with Tree Tuples (TT-MCTAG) and Range Concatenation Grammars
+(RCG). In Proceedings of the 2nd International Conference on Language and Automata
+Theory and Applications LATA, Tarragona, Spain.
+LICHTE T. (2007). An MCTAG with Tuples for Coherent Constructions in German. In
+Proceedings of the 12th Conference on Formal Grammar 2007, Dublin, Ireland.
+RAMBOW O. (1994). Formal and Computational Aspects of Natural Language Syntax. PhD
+thesis, University of Pennsylvania.
+SØGAARD A., LICHTE T. & MAIER W. (2007). The complexity of linguistically motivated
+extensions of tree-adjoining grammar. In Recent Advances in Natural Language Processing
+2007, Borovets, Bulgaria.
+WEIR D. J. (1988). Characterizing mildly context-sensitive grammar formalisms. PhD thesis,
+University of Pennsylvania.
+9Voir http://www.sfb441.uni-tuebingen.de/emmy/tulipa
