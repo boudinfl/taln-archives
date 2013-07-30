@@ -36,16 +36,16 @@ partir du fichier de méta-données avec la commande :
     cd tools/
     python generate_bib.py
 
-La version web de l'archive a été créée avec la commande :
-
-    cd tools/
-    python generate_html.py
-
 Les fichiers au format texte des articles ont été extraits avec l'outil 
 [PDFBox](http://pdfbox.apache.org/).
 
     cd tools/
     ./generate_txt.sh
+
+Une version web de l'archive peut être créée avec la commande :
+
+    cd tools/
+    python generate_html.py
 
 
 Si vous utilisez cet ensemble de données, veuillez citer l'article :
