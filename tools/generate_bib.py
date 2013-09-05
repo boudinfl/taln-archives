@@ -83,6 +83,8 @@ for path in paths:
         if not os.path.exists(bib_rep):
             os.makedirs(bib_rep)
 
+        print fichier
+        
         current_conf = parser.content_handler(fichier)
 
         # Annee de la conférence
