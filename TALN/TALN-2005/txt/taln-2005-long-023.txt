@@ -1,0 +1,517 @@
+TALN 2005, Dourdan, 6-10 juin 2005
+
+Paradocs : un systeme d’identiﬁcati0n automatique de
+documents paralleles
+
+Alexandre Patry et Philippe Langlais
+Laboratoire de Recherche Appliquee en Linguistique Informatique
+Departement d’Informatique et de Recherche Operationnelle
+Universite de Montreal
+C.P. 6128, succursale Centre—ville
+H3C 3J7, Montreal, Quebec, Canada
+{patryale,felipe}@iro.umontreal.ca
+
+Mots-clefs :
+
+Corpus paralleles, apprentissage automatique, traduction automatique
+
+K€yWOFdS2 Parallel documents, machine learning, machine translation
+
+Resume Les corpus paralleles sont d’une importance capitale pour les applications mul-
+tilingues de traitement automatique des langues. Malheureusement, leur rarete est le maillon
+faible de plusieurs applications d’interét. Extraire de tels corpus du Web est une solution viable,
+mais elle introduit une nouvelle problematique : il n’est pas toujours trivial d’identiﬁer les do-
+cuments paralleles parmi tous ceux qui ont ete extraits. Dans cet article, nous nous interessons
+a l’identiﬁcation automatique des paires de documents paralleles contenues dans un corpus
+bilingue. Nous montrons que cette tache peut étre accomplie avec precision en utilisant un en-
+semble restreint d’invariants lexicaux. Nous evaluons egalement notre approche sur une tache
+de traduction automatique et montrons qu’elle obtient des resultats superieurs a un systeme de
+reference faisant usage d’un lexique bilingue.
+
+Abstract Parallel corpora are playing a crucial role in multilingual natural language pro-
+cessing. Unfortunately, the availability of such a resource is the bottleneck in most applications
+of interest. Mining the web for such a resource is a viable solution that comes at a price : it is
+not always easy to identify parallel documents among the crawled material. In this study we
+address the problem of automatically identifying the pairs of texts that are translation of each
+other in a set of documents. We show that it is possible to automatically build particularly ef-
+ﬁcient content—based methods that make use of very little lexical knowledge. We also evaluate
+our approach toward a front—end translation task and demonstrate that our parallel text classiﬁer
+yields better performances than another approach based on a rich lexicon.
+
+223
+
+224
+
+Alexandre Patry et Philippe Langlais
+
+1 Introduction
+
+De nos jours, les corpus de documents paralléles (ensemble de documents exprimant le meme
+contenu dans le meme ordre) jouent un rele crucial dans les applications multilingues de traite—
+ment automatique des langues (Veronis, 2000). Aligne au niveau des phrases, une tache pouvant
+etre accomplie avec ﬁabilite (Langlais er al., 1998), un corpus parallele s’aVere tres utile aux
+concordanciers bilingues (Macklovitch er al., 2000) et est la pierre angulaire de la plupart des
+systemes commerciaux de memoire de traduction. Aligne au niveau des mots, une tache mainte-
+nant bien maitrisee (Brown et al., 1993), un corpus parallele peut servir a plusieurs applications
+telles que la traduction automatique, la desambiguisation de mots ou l’extraction d’information
+translinguistique.
+
+Malheureusement, il existe assez peu de corpus paralléles (ensemble de documents paralleles)
+riches et bien organises comme le sont par exemple les Hansards canadiens (anglais/frangais),
+les debats parlementaires de Hongkong (anglais/chinois), les transcriptions des debats du par-
+lement europeenl (EUROPARL, disponibles en onze langues) ou encore les transcriptions des
+debats parlementaires du Nunavut (anglais/inuktitut)2.
+
+S’il existe egalement des ressources telles que la Bible qui sont traduites dans de nombreuses
+langues (mais pas necessairement organisees en corpus parallele), il n’en reste pas moins que
+la rarete des corpus paralleles demeure le goulot d’etranglement pour plusieurs applications
+d’interet. Plusieurs solutions ont ete proposees pour palier leur absence. Il est par exemple pos-
+sible d’extraire automatiquement des corpus paralleles a partir du Web (Ma & Liberman, 1999;
+Kraaij er al., 2003; Resnik & Smith, 2003). Il est egalement possible de tirer proﬁt de corpus
+comparables (corpus traitant du meme sujet sans necessairement etre paralleles) (Munteanu
+er al., 2004), Voire meme d’utiliser des corpus n’ayant aucune afﬁnite (Rapp, 1999). D’autres
+misent a plus long terme sur des outils informatiques simpliﬁant la gestion des donnees paral-
+leles (Hajlaoui & Boitet, 2004).
+
+Dans cet article, nous nous interessons a la detection des documents paralleles dans un corpus
+bilingue (par exemple extrait d’un site Web) a l’aide d’inVa1iants lexicaux (par exemple donnees
+chiffrees, entites r1ommees, ponctuations). Cette idee etait a la base d’un algorithme d’aligne—
+ment bilingue de phrases decrit par Simard er al. (1993) ; nous montrons ici qu’elle s’applique
+a notre probleme.
+
+Nous decrivons en section 2 notre methodologie et presentons les differentes metriques utili-
+sees. Nous montrons en section 3 que notre approche permet d’identiﬁer sans faute les paires
+paralleles d’une partie du corpus EUROPARL. Nous evaluons egalement notre approche a travers
+une tache de traduction automatique et mesurons des performances superieures a celles d’une
+approche faisant usage d’un lexique bilingue riche (section 4). Nous discutons en section 5 de
+travaux connexes et presentons en section 6 nos conclusions.
+
+2 Méthodologie
+
+Nous considerons dans cette etude que nous disposons de deux ensembles de documents: un
+ensemble 8 contenant les documents d’une langue source et un ensemble T contenant ceux
+
+lhttpz//www.europarl.eu.int/home/default_fr.htm
+Zhttp://www.inuktitutcomputing.ca/NunavutHansards/
+
+Paradocs: un systeme d’identiﬁcation automatique de documents paralleles
+
+d’une langue cible. Ces documents peuvent par exemple provenir du Web (Kraaij er al., 2003) et
+leur langue peut avoir ete identiﬁee automatiquement, comme ce sera le cas dans les experiences
+de la section 4.
+
+Le probleme que nous resolvons consiste a determiner le sous—ensemble du produit Cartesien
+S x T qui contient les paires de documents paralleles. Nous ne faisons pas usage dans cette
+etude d’informations extemes aux documents comme leur nom ou leurs balises structurelles,
+ce qui exclut l’usage d’heuristiques basees sur les noms de ﬁchiers comme celles decrites dans
+(Resnik & Smith, 2003). Cette contrainte ne decoule pas d’une pensee puriste, mais correspond
+a notre Volonte d’eValuer objectivement differentes metriques n’utilisant que le contenu des
+documents. Ces caracteristiques extemes pourraient cependant étre incorporees facilement a
+notre approche.
+
+L’ identiﬁcation des paires de documents paralleles est realisee en deux etapes: le pointage de
+toutes les paires du produit Cartesien S x T et la classiﬁcation de chacune d’elles comme
+parallele ou non. Les differents pointages utilises sont decrits dans la section 2.1 et l’algorithme
+de classiﬁcation dans la section 2.2.
+
+2.1 Métriques
+
+Trois differentes familles de metriques sont utilisees pour mesurer le parallelisme de deux do-
+cuments. La mesure de cosinus et la distance d’édition normalisee utilisent certaines des unites
+lexicales des documents: les sequences de chiffres (NOMBRE), certaines ponctuations (PUNCT)
+et les entites nommees (ENTITE). Les ponctuations que nous avons considerees sont les paren-
+theses, les crochets et les guillemets. De plus, nous avons considere comme une entite nommee
+tout mot commencant par une lettre majuscule mais ne debutant pas une phrase. Ces types
+d’unites lexicales sont relativement independants des langues considerees. La troisieme famille
+de metriques utilise la sortie d’un aligneur de textes au niveau des phrases pour juger du paral-
+lelisme de deux documents.
+
+Mesure de cosinus (COS) Nous avons repris l’idee proposee par Nadeau et Foster (2004) et
+represente un document par differents Vecteurs ou chaque dimension correspond a une unite
+lexicale et chaque coordonnee a la frequence de cette unite dans le document. Dans nos ex-
+periences, chaque document est represente par trois Vecteurs: un pour les nombres, un pour les
+ponctuations et un pour les entites nommees. Un exemple d’une telle representation est presente
+en ﬁgure 1. La similarite entre deux documents est mesuree par la mesure de cosinus entre leur
+representation Vectorielle, mesure populaire en extraction d’information.
+
+Distance d’édition normalisée (EDIT) La representation Vectorielle ne tient pas compte de
+l’ ordre des unites lexicales dans le document, information qui peut étre pertinente ici. Nous pro-
+posons de representer un document par trois sequences d’unites lexicales (NOMBRE, PUNCT,
+ENTITE). Le parallelisme de deux documents peut ainsi étre mesure en comparant leurs se-
+quences (Voir la ﬁgure 1).
+
+Pour mesurer la similarite de deux sequences, nous utilisons la distance d’édition (Levenshtein,
+1966), qui compte le nombre minimal d’operations necessaires pour transformer la premiere se-
+quence en la seconde (les operations permises sont l’insertion, la suppression ou la substitution
+
+225
+
+226
+
+Alexandre Patry et Philippe Langlais
+
+d’une unite lexicale). Nous la normalisons ensuite par la longueur de la plus longue des deux
+sequences.
+
+Approximately 60% Very roughly, 60% to 40%, when the 60% is paid by the
+tenant and 40% is approximately paid by the Government subsidy.
+
+apiqqutiqaqqaujunga akunialuk, angiqqaugaluarakku $60 milian kaivainnaqtuq
+kiinaujaqarvingmut, kisianittauq tusaqtitauvalliaqqaugama, takuvallialiqtugu $39
+milian 807 tausan ammalu taanna angiqtauguni taikkuali amiakkujut $60 milianut
+tikillugu kisumut atuqtaugaj aqpat ?
+
+FIG. 1 — Si nous devions comparer les nombres dans les deux documents ci—haut (extraits an-
+glais et inuktitut tires des debats parlementaires du Nunavut), les representations Vectorielles
+utilisees pour la mesure de cosinus seraient (039,240,350,0807) et (139,04(],250,1807). Alors
+que les representations sequentielles pour mesurer la distance d’edition normalisee seraient
+< 60, 60, 40, 60, 40 > et < 60, 39, 807, 60 >.
+
+Scores d’alignements Une autre source d’information permettant de mesurer le parallelisme
+de deux documents est la sortie d’un aligneur de textes au niveau des phrases. Nous avons
+utilise l’aligneur JAPA (Langlais er al., 1998) qui produit une sequence d’alignements et un
+score global mesurant le com de l’alignement produit. Les alignements qu’il produit sont de
+type m—n (m, n E {0, 1, 2}) ou m et 71 sont respectivement le nombre de phrases sources et le
+nombre de phrases cibles impliquees dans l’alignement.
+
+Nous retenons cinq pointages: le ratio d’alignements I -0 ou 0-], le ratio d’alignements 1-], le
+ratio d’alignements I -2 ou 2-], le ratio d’alignements 2-2 et le score global d’alignement. Nous
+nommerons dorenavant les quatre ratios M—N et le score global COUT. Intuitivement, le resultat
+de l’aligneur sur deux documents paralleles devrait contenir plusieurs alignements de type I -1
+et devrait étre de faible coﬁt.
+
+2.2 Identiﬁcation des paires paralleles
+
+Chaque paire de documents est decrite par un ensemble de pointages. Une premiere approche
+pour identiﬁer celles qui sont paralleles consiste a ajuster manuellement des seuils sur ces poin-
+tages, une tache delicate ne se generalisant pas necessairement bien. Nous avons plutot utilise
+AdaBoost (Y.Freund & Schapire, 1999), un algorithme d’apprentissage. Cet algorithme prend
+en entree un ensemble de paires de documents, leurs pointages et leur étiquette (parallele ou
+non) et produit a partir de cet ensemble d’entrainement une fonction classant une paire comme
+parallele ou non a partir de ses pointages.
+
+AdaBoost est un algorithme d’apprentissage iteratif combinant plusieurs classiﬁcateurs faibles
+(classiﬁcateur juste plus d’une fois sur deux) en un classiﬁcateur plus robuste. A chaque ite-
+ration, un classiﬁcateur faible est entraine a reconnaitre l’etiquette de toutes les paires de do-
+cuments (a partir des pointages) en accordant plus d’importance a celles qui ont ete moins
+bien etiquetees par les classiﬁcateurs faibles precedents. Les iterations se poursuivent jusqu’a
+ce qu’un classiﬁcateur faible ait un ratio d’erreur superieur ou egal a 50% ou jusqu’a ce qu’un
+nombre maximal (ﬁxe a l’aVance) d’iterations ait ete atteint. Le classiﬁcateur retoume par Ada-
+Boost fait Voter les differents classiﬁcateurs faibles aﬁn de determiner si une paire est parallele
+
+Paradocs: un systeme d’identiﬁcation automatique de documents paralleles
+
+011 11011.
+
+Dans nos experiences, nos classiﬁcateurs faibles etaient des reseaux neuronaux (Bishop, 1996)
+a une couche cachee de cinq neurones et apres quelques experiences informelles, nous avons
+decide de borner le nombre d’iterations d’AdaBoost a 75. L’entrainement et les tests ont ete
+realises a l’aide du logiciel PLEARN 3.
+
+3 Experience contrﬁlee
+
+EUROPARL est un corpus parallele tire de la transcription des debats parlementaires europeens
+s’etant tenus entre avril 1996 et septembre 2003 (Koehn, 2002). Les debats parlementaires eu-
+ropeens sont traduits en onze langues, mais nous nous sommes concentres sur les traductions
+anglaises et espagnoles. Notre corpus etait compose de 487 textes anglais et de 487 textes espa—
+gnols ayant en moyenne environ 2800 phrases chacun.
+
+3.1 Protocole d’evaluati0n
+
+Parce que les paires de documents paralleles sont bien identiﬁees dans EUROPARL, les diffe-
+rentes conﬁgurations ont ete comparees sur la base de leur précision, de leur rappel et de leur
+f—mesure (moyenne harmonique de la precision et du rappel). La precision (resp. rappel) est le
+ratio du nombre de paires Vraiment paralleles que le classiﬁcateur a identiﬁees sur le nombre
+total de paires que le classiﬁcateur a identiﬁees (resp. sur le nombre total de paires paralleles
+dans le corpus). La precision indique la qualite de l’ensemble des paires trouvees et le rappel sa
+couVerture.
+
+Les differentes conﬁgurations ont ete evaluees a l’aide d’une validation croisée en cinq étapes.
+Le produit cartesien S x T a ete partitionne aleatoirement en cinq sous—ensembles de meme
+taille. Ensuite, cinq experiences ont ete lancees en testant chaque fois sur un sous—ensemble
+different et en entrainant avec les paires ne faisant pas partie de ce sous—ensemble de test.
+
+3.2 Systeme de reference (LEXIQUE)
+
+Pour mettre en contexte les performances de nos differents classiﬁcateurs, un systeme de re-
+ference utilisant un lexique bilingue a ete mis au point. Le lexique bilingue qui a ete utilise
+contient plus de 70 000 entrees et provient du projet PYTHONOL4, qui Vise a aider les locuteurs
+anglais a apprendre l’espagnol.
+
+Un document est represente par l’ensemble de ses mots rares (dans le cadre de ce projet, les
+mots rares sont ceux n’apparaissant qu’une seule fois dans le document) presents dans le lexique
+bilingue. Chaque document source est ensuite apparie avec le document cible partageant avec
+lui le plus grand nombre de mots rares.
+
+3http://plearn.sourceforge.net
+4http://sourceforge.net/projects/pythonol/
+
+227
+
+228
+
+Alexandre Patry et Philippe Langlais
+
+Conﬁguration Performances (%)
+COS EDIT NOMB RE PUNCT ENTITE COUT M—N precision rappel f—mesure
+
+\/ \/ \/ \/ 100 100 100
+
+\/ \/ \/ \/ \/ \/ \/ 99.8 99.8 99.8
+\/ \/ 98.3 99.8 99.0
+
+\/ \/ \/ 96.6 99.8 98.1
+
+\/ 85.8 99.8 92.1
+
+\/ 65.6 99.4 77.1
+
+\/ \/ 49.3 99.4 62.7
+
+\/ \/ \/ \/ 24.6 99.2 38.7
+\/ \/ 12.4 98.9 21.8
+
+TAB. 1 — Precision, rappel et f—mesure de differentes conﬁgurations d’entrainement du classi-
+ﬁcateur. Notez que Valeurs rapportees sont des moyennes sur les cinq etapes de la Validation
+croisee.
+
+3.3 Résultats
+
+Nous avons entraine des classiﬁcateurs sur plusieurs combinaisons des pointages decrits dans
+la section 2.1. Leurs performances sont presentees dans la Table 1. La meilleure de nos conﬁ-
+gurations et le systeme de reference ont tous deux obtenus des resultats parfaits.
+
+Les meilleurs performances des metriques basees sur la distance d’edition semblent conﬁrmer
+l’hypothese selon laquelle l’ordre des unites lexicales est importante pour l’identiﬁcation des
+documents paralleles. Il est a noter que le seul usage de la distance d’edition sur les nombres
+amene une f—mesure de 99%, ce qui suggere que les nombres sont de tres bons indices de
+parallelisme pour ce genre de corpus. En effet, les debats parlementaires contiennent plusieurs
+nombres stables comme des dates, des numeros de lois ou encore les comptes de Votes.
+
+On observe egalement que les conﬁgurations utilisant les pointages d’alignements n’amenent
+pas de bons resultats. L’usage des ratios de types d’alignements donne en particulier une f-
+mesure moyenne inferieure d’au moins 20% aux meilleures conﬁgurations et ont ete instables
+dans les differentes etapes de la Validation croisee.
+
+4 Tﬁche réelle
+
+Nous avons montre dans la section precedente qu’il etait possible d’identiﬁer parfaitement les
+paires paralleles d’un corpus bilingue comme EUROPARL. Nous Voulons maintenant mesurer
+si des performances satisfaisantes peuvent étre obtenues dans un contexte d’utilisation plus
+representatif. Nous avons pour cela aspire le site Web de la Pan American Health Organiza-
+ti0n5. Bien qu’en principe simple, cette tache s’est averee particulierement delicate (nombreux
+formats proprietaires, absence d’une nomenclature pour r1ommer et identiﬁer les differentes
+ressources bilingues).
+
+Le corpus resultant, PAHO, totalise 6878 documents dont 2523 ont ete identiﬁes comme etant
+anglais (et 4355 comme espagnols) par SILC6, l’outil que nous avons utilise pour identiﬁer la
+
+Shttp://www.paho.org.
+éhttpz//rali.iro.umontreal.ca
+
+Paradocs: un systeme d’identiﬁcation automatique de documents paralleles
+
+langue de chaque document. Au total, ce corpus compte plus de 10 millions de paires poten-
+tielles. Chaque document contient en moyenne environ 180 phrases. Une inspection informelle
+du corpus a revele que plusieurs de ces documents sont identiques ou tres similaires et que
+certains sont bilingues.
+
+4.1 Protocole d’évaluati0n
+
+Pour cette experience, nous avons mesure l’impact de nos differents extracteurs de paires pa-
+ralleles sur une tache de traduction automatique (TA) de l’espagnol Vers l’anglais. Deux rai-
+sons majeures ont mene a ce choix. Premierement, l’identiﬁcation de documents paralleles n’a
+d’interét que dans un cadre applicatif donne; la traduction etant l’application bilingue par ex-
+cellence. Deuxiemement, nous ne connaissons pas les documents paralleles du corpus PAHO ce
+qui complique les calculs de precision et de rappel.
+
+Le moteur de traduction que nous utilisons ici est un moteur probabiliste etat de l’art (Koehn
+er al., 2003). L’ avantage d’un tel choix reside dans le fait que l’obtention d’un tel systeme est
+entierement automatique une fois un corpus parallele identiﬁe.
+
+Aﬁn d’eValuer les traductions produites, nous avons telecharge 520 nouvelles phrases du site
+de la Pan American Health Organization avec leur traduction. Pour les memes raisons d’auto—
+maticite, nous mesurons la qualite de nos traductions a l’aide de quatre metriques couramment
+utilisees en TA: deux taux d’erreurs au niveau des phrases (SER) et des mots (WER) et deux
+mesures de precision n—grammes (BLEU etN1ST) calculees par le script mt eva 17.
+
+Les deux premieres metriques Varient entre O et 100 ou O represente une traduction parfaite.
+SER (pour Sentence—Err0r—Rate) est le ratio des phrases produites par le moteur de TA qui sont
+differentes de la reference. WER (pour W0rd—Err0r—Rate) calcule la distance d’edition normali-
+see entre les mots de la traduction produite et ceux de la traduction de reference. BLEU et NIST
+comptent le nombre de sequences partagees entre la traduction automatique et la traduction de
+reference en donnant plus d’importance aux sequences plus longues. Le score BLEU Varie entre
+O et 1 (ou 1 est le score de la reference) alors que le score NIST n’est pas normalise’8.
+
+En plus de l’eValuation a l’aide d’un moteur de TA, la precision (Voir la section 3.1) de chaque
+conﬁguration a ete calculee manuellement.
+
+4.2 Résultats
+
+Nous avons compare les performances de notre moteur de TA lorsqu’il est entraine sur quatre
+corpus paralleles differents. Le corpus COS—TOUS a ete genere a l’aide de la mesure de cosi-
+nus sur les nombres, sur les ponctuations et sur les entites nommees (ligne 8 de la Table 1).
+Le corpus EDIT—TOUS a ete obtenu a l’aide de la conﬁguration ayant obtenue les meilleurs re-
+sultats sur EUROPARL, la distance d’edition normalisee sur les nombres, sur les ponctuations
+et sur les entites nommees (ligne 1 de la Table 1). Le corpus LEXIQUE a ete produit a l’aide
+du systeme de reference (base sur l’utilisation d’un lexique bilingue). Finalement, le corpus
+COS—TOUS U EDIT—TOUS est l’union de COS—TOUS et de ED1T—TOUS. Une inspection de ces
+deux corpus nous a en effet revele qu’ils ne partagent que 229 paires de documents.
+
+7Disp0nible a1’adresse http : / /www . ni st . gov/speech/tests/mt/mt2 0 O1 /resource.
+8Son calcul sur la référence produit dans notre cas une Valeur de 13.11.
+
+229
+
+230
+
+Alexandre Patry et Philippe Langlais
+
+Corpus parallele N SER WER NIST BLEU precision
+COS—TOUS U ED1T—TOUS 494 99.42 60.02 5.3125 0.2435 99.0
+LEXIQUE 529 99.42 61.67 5.1989 0.2304 89.2
+EDIT—TOUS 390 99.42 61.53 5.1342 0.2290 99.0
+COS—TOUS 333 99.23 62.23 5.1629 0.2256 99.7
+
+TAB. 2 — Performances de notre moteur de TA lorsque entraine sur les corpus paralleles re-
+tournees par differentes conﬁgurations ou N est le nombre de paires identiﬁees comme etant
+paralleles.
+
+Les classiﬁcateurs identiﬁant les paires paralleles ont ete entraines sur les paires du corpus
+EU ROPARL. Pour chaque conﬁguration, les paires partageant un document ont ete rejetees (ce
+sont les paires les plus incertaines). Les performances de traduction des moteurs probabilistes
+correspondant sont presentees en Table 2.
+
+Contrairement a nos experiences sur EUROPARL, la mesure de cosinus et la distance d’edition
+ont des performances comparables. Cela pourrait s’expliquer par la plus petite taille des do-
+cuments de PAHO (rendant l’ordre des caracteristiques moins important) et par l’etape de sup-
+pression des paires partageant un document. Nous observons que les performances du moteur
+entraine sur le corpus COS—TOUS U ED1T—TOUS sont meilleures que celles du moteur entraine
+sur le corpus LEXIQUE, et ce meme si ce dernier contient plus de paires. Ce resultat est particu-
+lierement interessant puisqu’il montre qu’il n’est pas necessaire de reunir un lexique bilingue.
+Un autre resultat encourageant est la forte precision de tous nos classiﬁcateurs (99% ou plus).
+
+5 Travaux connexes
+
+Ce travail a ete inspire de celui de Nadeau et Foster (2004). Les auteurs ont propose l’utilisation
+de la mesure de cosinus sur les nombres, les ponctuations, les entites r1ommees et le nombre de
+paragraphes pour detecter les paires de documents paralleles d’un corpus bilingue de commu-
+niques. Ils ont montre qu’a l’aide d’un ﬁltre sur les dates de publication, ils pouvaient identiﬁer
+les documents paralleles du Groupe Canada NewsWire9 avec une grande precision.
+
+Nous avons etendu cette idee de trois facons. Premierement nous avons Valide l’utilisation d’uni—
+tes lexicales invariantes sur des corpus de natures differentes. Deuxiemement, nous avons mon-
+tre que l’ordre de ces caracteristiques est porteur d’information. Finalement, nous avons teste
+l’impact de cette approche sur une tache concrete: la traduction automatique.
+
+Notre travail, meme si mene de facon independante, partage des points communs avec celui de
+Munteanu er al. (2004). Les auteurs ont montre qu’un moteur de traduction pouvait beneﬁcier
+d’un corpus parallele extrait automatiquement de corpus comparables. L’approche qu’ils ont
+proposee est analogue a la notrez ils entrainent un classiﬁcateur (dans leur cas par une approche
+de maximum emropie) pour identiﬁer les paires de phrases en relation de traduction (alors que
+nous travaillons au niveau du document). Ils font cependant l’hypothese qu’un corpus parallele
+est disponible aﬁn d’entrainer un modele de traduction qu’ils utiliseront ensuite pour aligner les
+phrases au niveau des mots. Nous pensons que cette approche est complementaire a la notre.
+Notre approche serait plus adaptee pour les corpus ou nous savons a priori qu’ils contiennent
+
+9http://www.newswire.ca
+
+Paradocs: un systeme d’identiﬁcation automatique de documents paralleles
+
+plusieurs documents paralleles.
+
+6 Conclusions et travaux futurs
+
+Nous avons presente une approche completement automatique permettant d’identiﬁer les paires
+de documents paralleles d’un corpus bilingue et ce, a l’aide d’un nombre restreint d’infor—
+mations lexicales. Nous avons plus precisement etudie l’usage de certains invariants lexicaux
+comme les nombres, certaines ponctuations et les entites nommees. Nous avons montre que
+cette approche amenait des resultats comparables (voire superieurs) a une approche de refe-
+rence faisant usage d’un lexique bilingue riche.
+
+L’un des avantages majeurs de notre approche est sa souplesse que nous devons a l’utilisation
+d’un algorithme d’apprentissage a la fois simple a mettre en place et efﬁcace. Il est donc tout a
+fait possible d’etendre la liste des traits (pointages) que nous avons utilises pour representer nos
+documents. Ajouter comme trait le nombre d’entrees d’un lexique bilingue que partagent deux
+documents serait par exemple particulierement aise.
+
+Nous travaillons actuellement sur l’amelioration de deux limitations du systeme propose. Pre-
+mierement, nous avons considere systematiquement dans cette etude toutes les paires du produit
+cartesien entre l’ensemble des documents sources et cibles. Cela impose des temps de traitement
+qui peuvent Vite devenir prohibitifs. Certaines heuristiques conservatrices peuvent étre appli-
+quees pour limiter l’espace de recherche des paires de documents paralleles. Nous pouvons par
+exemple e’liminer les paires de documents dont le rapport de longueur est anormalement grand
+ou faible (Kraaij et al., 2003).
+
+Deuxiemement, nous aimerions veriﬁer l’efﬁcacite de l’approche si seulement une partie de
+chaque document est inspectee (par exemple les premieres phrases). Cela diminuerait le temps
+de calcul des pointages et par le fait meme accelererait le processus au complet.
+
+Remerciements
+
+Nous voudrions remercier Leila Arras et Marie Ouimet pour avoir mis a notre disposition le
+corpus PAHO.
+
+Références
+
+BISHOP C. M. (1996). Neural networks for pattern recognition. Oxford University Press.
+BROWN P. F., PIETRA S. A. D., PIETRA V. J. D. & MERCER R. L. (1993). The mathematics of
+statistical machine translation: Parameter estimation. Computational Linguistics, 19(2), 263-311.
+
+HAJLAOUI N. & BOITET C. (2004). PolyphraZ : a tool for the quantitative and subjective evaluation of
+parallel corpora. In Proc. of the International Workshop on Spoken LanguageTranslation, p. 123-129,
+Kyoto, Japan.
+
+KOEHN P. (2002). Europarl: A multilingual corpus for evaluation of machine translation. Draft.
+
+KOEHN P., OCH F. J. & MARCU D. (2003). Statistical phrase—based translation. In Proceedings of the
+Second Conference on Human Language Technology Reasearch (HLT), p. 127-133, Edmonton, Alberta,
+
+231
+
+232
+
+Alexandre Patry et Philippe Langlais
+
+Canada.
+
+KRAAIJ W., NIE J .—Y. & SIMARD M. (2003). Embedding web—based statistical translation models in
+cross—language information retrieval. Computational Linguistics, 29(3), 381-419.
+
+LANGLAIS P., SIMARD M. & VERONIS J . (1998). Methods and practical issues in evaluating alignment
+techniques. In Proceedings of the 36th Annual Meeting of the Association for Computational Linguistics
+(ACL), p. 711-717, Montreal, Quebec, Canada.
+
+LEVENSHTEIN V. I. (1966). Binary codes capable of correcting deletions, insertions and reversals. Sov.
+Phys. Dokl., 6, 707-710.
+
+MA X. & LIBERMAN M. (1999). Bits: A method for bilingual text search over the web. In Machine
+Translation Summit VII, Kent Ridge Digital Labs, National University of Singapore.
+
+MACKLOVITCH E., SIMARD M. & LANGLAIS P. (2000). Transsearch: A free translation memory
+on the world wide web. In Second International Conference On Language Resources and Evaluation
+(LREC), volume 3, p. 1201-1208, Athens Greece.
+
+MUNTEANU D. S., FRASER A. & MARCU D. (2004). Improved machine translation performance via
+parallel sentence extraction from comparable corpora. In HLT—NAACL, p. 265-272.
+
+NADEAU D. & FOSTER G. (2004). Real—time identiﬁcation of parallel texts from bilingual news feed.
+In CLINE 2004, p. 21-36: Computational Linguistics in the North East.
+
+RAPP R. (1999). Automatic identiﬁcation of word translations from unrelated english and german cor-
+pora. In Proceedings of the 3 7th conference on Association for Computational Linguistics, p. 519-526:
+Association for Computational Linguistics.
+
+RESNIK P. & SMITH N. A. (2003). The web as a parallel corpus. Computational Linguistics, 29,
+349-380. Special Issue on the Web as a Corpus.
+
+SIMARD M., FOSTER G. F. & ISABELLE P. (1993). Using cognates to align sentences in bilingual
+corpora. In CASCON ’93.' Proceedings of the 1993 conference of the Centre for Advanced Studies on
+Collaborative research, p. 1071-1082: IBM Press.
+
+J . VERONIS, Ed. (2000). Parallel Text Processing, Alignment and Use of Translation Corpora. Kluwer
+Academic.
+
+Y.FREUND & SCHAPIRE R. (1999). A short introduction to boosting. Journal of Japanese Society for
+Artiﬁcial Intelligence, 14(5), 771-780. Appearing in Japanese, translation by Naoki Abe.
+

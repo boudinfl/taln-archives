@@ -1,602 +1,762 @@
-Un cadre d’apprentissage intégralement discriminant pour la
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+Un cadre d‚Äôapprentissage int√©gralement discriminant pour la
 traduction statistique
-Thomas Lavergne1, 2 Alexandre Allauzen1, 2 François Yvon1, 2
-(1) Université Paris Sud 91 405 Orsay
+
+Thomas Lavergne1‚Äô2 Alexandre Allauzen1:2 Francois Yvon1‚Äô2
+(1) Universit√© Paris Sud 91 405 Orsay
 (2) LIMSI/CNRS rue John von Neuman 91 405 Orsay
-{lavergne,allauzen,yvon}@limsi.fr
-RÉSUMÉ
-Une faiblesse des systèmes de traduction statistiques est le caractère ad hoc du processus d’ap-
-prentissage, qui repose sur un empilement d’heuristiques et conduit à apprendre des paramètres
-dont la valeur est sous-optimale. Dans ce travail, nous reformulons la traduction automatique
-sous la forme familière de l’apprentissage d’un modèle probabiliste structuré utilisant une pa-
-ramétrisation log-linéaire. Cette entreprise est rendue possible par le développement d’une
-implantation efficace qui permet en particulier de prendre en compte la présence de variables
-latentes dans le modèle. Notre approche est comparée, avec succès, avec une approche de l’état
-de l’art sur la tâche de traduction de données du BTEC pour le couple Français-Anglais.
+{lavergne , allauzen , yvon}<01imsi . fr
+
+RESUME
+Une faiblesse des syst√©mes de traduction statistiques est le caract√©re ad hoc du processus d‚Äôap-
+prentissage, qui repose sur un empilement d‚Äôheuristiques et conduit a apprendre des param√©tres
+dont la Valeur est sous‚Äîoptimale. Dans ce travail, nous reformulons la traduction automatique
+sous la forme famili√©re de l‚Äôapprentissage d‚Äôun modele probabiliste structur√© utilisant une pa-
+ram√©trisation log‚Äîlin√©aire. Cette entreprise est rendue possible par le d√©veloppement d‚Äôune
+implantation efÔ¨Åcace qui permet en particulier de prendre en compte la pr√©sence de Variables
+latentes dans le mod√©le. Notre approche est compar√©e, avec succ√©s, avec une approche de l‚Äô√©tat
+de l‚Äôart sur la tache de traduction de donn√©es du BTEC pour le couple Francais-Anglais.
+
 ABSTRACT
 A fully discriminative training framework for Statistical Machine Translation
+
 A major pitfall of existing statistical machine translation systems is their lack of a proper training
 procedure. In fact, the phrase extraction and scoring processes that underlie the construction of
 the translation model typically rely on a chain of crude heuristics, a situation deemed problematic
 by many. In this paper, we recast machine translation in the familiar terms of a probabilistic
 structure learning problem, using a standard log-linear parameterization. The tractability of
-this enterprise is achieved through an efficient implementation that can take into account all
+this enterprise is achieved through an efÔ¨Åcient implementation that can take into account all
 the aspects of the underlying translation process through latent variables. We also address the
 reference reachability issue by using oracle decoding techniques. This approach is experimentally
 contrasted with a state-of-the-art system on the French-English BTEC translation task.
-MOTS-CLÉS : Traduction Automatique, Apprentissage Discriminant.
+
+MOTS-CLES : Traduction Automatique, Apprentissage Discriminant.
+
 KEYWORDS: Machine Translation, Discriminative Learning.
+
 1 Introduction
-L’objectif d’un système de traduction statistique (STS) consiste à calculer, pour toute phrase
-en langue source s, la traduction t? qui lui est la plus probablement associée. Ce résultat est
-typiquement obtenu en maximisant une fonction de score ?? (s, t), paramétrisée par le vecteur
-? , sur l’ensemble de toutes les traductions possibles de s. Un choix raisonnable pour ? est la
-probabilité conditionnelle de t sachant s p? (t | s).
-Étant donnée la taille des espaces d’entrée et de sortie sur lesquels de tels modèles probabilistes
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-450 c? ATALA
-doivent être définis, un modèle pour t sachant s doit être décomposé en modélisant la traduction
-par une séquence d’étapes de dérivation. Dans les systèmes à base de segments (phrase-based
-systems) (Zens et al., 2002; Koehn et al., 2003), qui seront considérés dans cette étude, ces
-étapes de dérivation correspondent à des décisions qui portent (a) sur la délimitation des unités
-de traduction en langue source, (b) sur le choix d’un équivalent de traduction pour chaque unité
-définie en (a) ; enfin sur l’ordre relatif dans lequel sont réarrangées (on dira réordonnées) les
-unités cibles sélectionnées en (b). Dans la mesure où l’apprentissage se fonde uniquement sur
-l’observation des paires (s, t), ces dérivations ne sont pas observées pendant l’apprentissage et
-doivent être incorporées sous la forme de variables latentes.
-Chacune de ces étapes de dérivation doit être modélisée et associée à un paramètre numé-
-rique, qui est réglé de façon à ce que le système résultant engendre les meilleures traductions
-possibles. Ainsi, dans les systèmes à base de segments, chaque unité de traduction source est
-nantie d’un ensemble de paramètres qui valuent les différentes alternatives de traduction et de
-réordonnancement pour ce segment.
-Dans la plupart des systèmes de traduction (voir (Koehn, 2010) pour un état de l’art récent, ou, en
-français (Allauzen et Yvon, 2011)), l’apprentissage de ces paramètres s’effectue en deux temps :
-(i) en premier lieu, plusieurs modèles probabilistes sont estimés de manière indépendante, en
-utilisant de très gros corpus monolingues ou bilingues parallèles. Une étape supplémentaire (ii)
-d’apprentissage (souvent désignée sous le nom de tuning) est ensuite nécessaire pour équilibrer
-la contribution de chacun de ces modèles à la fonction de score. Cette seconde étape, réalisée
-sur des corpus de développement de taille réduite, conduit au calcul de paramètres globaux (un
-pour chaque modèle estimé en (i)), qui sont réglés de manière discriminante, c’est-à-dire en
-cherchant à maximiser explicitement une mesure de qualité de la traduction, sous l’hypothèse
-que les scores se combinent linéairement. Ceci implique, par exemple, que le paramètre ? (s,t) qui
-évalue la plausibilité que le segment 1 source s se traduise t est calculé comme le produit d’un
-poids global, réglé de manière discriminante sur un ensemble de développement, avec un score
-local, calculé de manière heuristique sur de larges corpus. Comme souligné dans de nombreuses
-études, ce processus à deux étages conduit à des paramètres sous-optimaux ; pour obtenir des
-résultats stables, il est également nécessaire de limiter le nombre de modèles combinés en (ii)
-à quelques dizaines d’unités (voir cependant (Liang et al., 2006; Chiang et al., 2009; Blunsom
+
+L‚Äôobjectif d‚Äôun syst√©me de traduction statistique (STS) consiste a calculer, pour toute phrase
+en langue source s, la traduction t* qui lui est la plus probablement associ√©e. Ce r√©sultat est
+typiquement obtenu en maximisant une fonction de score <I>9(s, t), param√©tris√©e par le Vecteur
+0, sur l‚Äôensemble de toutes les traductions possibles de s. Un choix raisonnable pour <I> est la
+probabilit√© conditionnelle de t sachant s p9(t I s).
+
+Etant donn√©e la taille des espaces d‚Äôentr√©e et de sortie sur lesquels de tels mod√©les probabilistes
+450 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+doivent √©tre d√©Ô¨Ånis, un mod√©le pour t sachant s doit √©tre d√©compos√© en mod√©lisant la traduction
+par une s√©quence d‚Äô√©tapes de d√©rivation. Dans les systemes a base de segments (phrase‚Äîbased
+systems) (Zens et al., 2002; Koehn et al., 2003), qui seront consid√©r√©s dans cette √©tude, ces
+√©tapes de d√©rivation correspondent a des d√©cisions qui portent (a) sur la d√©limitation des unit√©s
+de traduction en langue source, (b) sur le choix d‚Äôun √©quivalent de traduction pour chaque unit√©
+d√©Ô¨Ånie en (a) ; enÔ¨Ån sur l‚Äôordre relatif dans lequel sont r√©arrang√©es (on dira r√©ordonn√©es) les
+unit√©s cibles s√©lectionn√©es en (b). Dans la mesure ou l‚Äôapprentissage se fonde uniquement sur
+l‚Äôobservation des paires (s, t), ces d√©rivations ne sont pas observ√©es pendant l‚Äôapprentissage et
+doivent √©tre incorpor√©es sous la forme de variables latentes.
+
+Chacune de ces √©tapes de d√©rivation doit √©tre mod√©lis√©e et associ√©e a un param√©tre num√©‚Äî
+rique, qui est r√©gl√© de facon a ce que le syst√©me r√©sultant engendre les meilleures traductions
+possibles. Ainsi, dans les syst√©mes a base de segments, chaque unit√© de traduction source est
+nantie d‚Äôun ensemble de parametres qui valuent les diff√©rentes alternatives de traduction et de
+r√©ordonnancement pour ce segment.
+
+Dans la plupart des syst√©mes de traduction (voir (Koehn, 2010) pour un √©tat de l‚Äôart r√©cent, ou, en
+francais (Allauzen et Yvon, 2011)), l‚Äôapprentissage de ces param√©tres s‚Äôeffectue en deux temps :
+(i) en premier lieu, plusieurs modeles probabilistes sont estim√©s de maniere ind√©pendante, en
+utjlisant de tres gros corpus monolingues ou bilingues parall√©les. Une √©tape suppl√©mentaire (ii)
+d‚Äôapprentissage (souvent d√©sign√©e sous le nom de tuning) est ensuite n√©cessaire pour √©quilibrer
+la contribution de chacun de ces mod√©les a la fonction de score. Cette seconde √©tape, r√©alis√©e
+sur des corpus de d√©veloppement de taille r√©duite, conduit au calcul de param√©tres globaux (un
+pour chaque mod√©le estim√© en (i)), qui sont r√©gl√©s de maniere discriminante, c‚Äôest‚Äîa‚Äîdire en
+cherchant a maximiser explicitement une mesure de qualit√© de la traduction, sous l‚Äôhypothese
+que les scores se combinent lin√©airement. Ceci implique, par exemple, que le param√©tre 05;) qui
+√©value la plausibilit√© que le segment 1 source 3 se traduise ? est calcul√© comme le produit d‚Äôun
+poids global, r√©gl√© de mani√©re discriminante sur un ensemble de d√©veloppement, avec un score
+local, calcul√© de mani√©re heuristique sur de larges corpus. Comme soulign√© dans de nombreuses
+√©tudes, ce processus a deux √©tages conduit a des parametres sous‚Äîoptimaux; pour obtenir des
+r√©sultats stables, il est √©galement n√©cessaire de limiter le nombre de modeles combin√©s en (ii)
+a quelques dizaines d‚Äôunit√©s (voir cependant (Liang et al., 2006; Chiang et al., 2009; Blunsom
 et al., 2008; Simianer et al., 2012) pour des tentatives de contourner cette limitation).
-Dans ce travail, à la suite de (Liang et al., 2006; Blunsom et al., 2008; Dyer et Resnik, 2010), nous
-explorons une approche alternative, dans laquelle tous les paramètres du modèle sont appris
-simultanément (plutôt qu’indépendamment) et de manière discriminante (plutôt qu’heuristique) ;
-cet apprentissage est réalisé en optimisant une fonction objectif bien connue sur l’intégralité des
-données d’entraînement (plutôt qu’un petit ensemble de développement). Notre architecture
-permet de se dispenser presqu’entièrement du besoin d’estimer des modèles séparés puis de
-régler les paramètres pour les recombiner : ces deux étapes sont ici réalisées simultanément.
-Dans cette approche, l’apprentissage ne demande que (a) un corpus parallèle, (b) un inventaire
-des unités de traductions et (c) un mécanisme pour produire des hypothèses de réordonnance-
-ment. Il est important de noter que (b) peut être obtenu de plusieurs manières, par exemple
+
+Dans ce travail, a la suite de (Liang et al., 2006; Blunsom et al., 2008; Dyer et Resnik, 2010), nous
+explorons une approche alternative, dans laquelle tous les param√©tres du mod√©le sont appris
+simultan√©ment (plutot qu‚Äôind√©pendamment) et de mani√©re discriminante (plutot qu‚Äôheuristique) ;
+cet apprentissage est r√©alis√© en optimisant une fonction objectif bien connue sur Pint√©gralit√© des
+donn√©es d‚ÄôentrÔ¨Ånement (plut√©t qu‚Äôun petit ensemble de d√©veloppement). Notre architecture
+permet de se dispenser presqu‚Äôenti√©rement du besoin d‚Äôestimer des mod√©les s√©par√©s puis de
+r√©gler les param√©tres pour les recombiner : ces deux √©tapes sont ici r√©alis√©es simultan√©ment.
+
+Dans cette approche, l‚Äôapprentissage ne demande que (a) un corpus parall√©le, (b) un inventaire
+des unit√©s de traductions et (c) un m√©canisme pour produire des hypotheses de r√©ordonnance-
+ment. Il est important de noter que (b) peut √©tre obtenu de plusieurs mani√©res, par exemple
 en fouillant des corpus comparables, et/ou en exploitant des dictionnaires et des terminologies
-bilingues. De même, plusieurs options existent pour (c), comme d’utiliser des modèles de réor-
-donnancement simples tels que IBM-n (Tillmann et Ney, 2003) et WJ-n (Kumar et Byrne, 2005)
-1. La situation est un peu plus complexe car les systèmes standard comprennent plusieurs modèles de traduction.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-451 c? ATALA
-ou encore d’apprendre les règles de réordonnancement, comme nous le ferons ici.
-L’implantation d’un cadre discriminant intégré pour la traduction statistique implique toutefois
-de résoudre plusieurs problèmes pratiques et théoriques liés à la présence de variables latentes
-dans le modèle et à l’impossibilité de disposer de données de supervision pour certaines paires
-de phrases lorsque la traduction de référence ne peut être produite par le modèle (on dit alors
-que la référence est non atteignable). Ces problèmes sont résolus respectivement en sommant
-(marginalisant) sur toutes les dérivations possibles et en recourant à des traductions oracles.
-Les contributions de ce travail, qui développe et étend la proposition présentée dans (Lavergne
-et al., 2011) en s’affranchissant du besoin de disposer d’alignements de référence, sont multiples :
-la conception d’un modèle intégré pour la traduction automatique, qui rend possible l’utilisation
-d’un grand nombre de traits linguistiques ; une implémentation modulaire qui, en s’appuyant
-sur le formalisme des transducteurs finis pondérés (WFST), bénéficie d’algorithmes efficaces
-aussi bien pour l’apprentissage que pour l’inférence ; et l’étude de plusieurs manières de traiter le
-problème des références non atteignables. Notre contribution est aussi expérimentale, puisque
-nous montrons que le système ainsi construit s’avère capable de surpasser un système très
-performant sur une tâche de complexité moyenne.
-Le reste de cet article est organisé comme suit. Nous commençons par clarifier, à la section 2, les
-concepts nécessaires à la formulation de notre cadre discriminant et comparons notre approche
-avec d’autres implantations de l’apprentissage discriminant en traduction automatique. Nous
-introduisons ensuite plus précisément (section 3), notre modèle de traduction et discutons
-plusieurs détails d’implantation. Les sections ultérieures sont consacrées respectivement à deux
-aspects pratiques : le problème des références non atteignables (Section 4), puis la conception
-d’un ensemble performant de descripteurs (section 5). Nous décrivons à la section 6 les principaux
-résultats expérimentaux obtenus sur la tâche de traduction français-anglais utilisant les données
-du corpus BTEC. Les sections conclusives permettent finalement de positionner notre travail par
-rapport à l’état de l’art (section 7), puis de présenter brièvement diverses extensions de cette
-approche.
-2 Apprentissage discriminant en traduction statistique
-2.1 Inférence
-Comme expliqué supra, les STS modélisent le processus de génération d’une traduction sous
-la forme d’une successions d’étapes de dérivation. Ainsi, dans l’approche à base de n-gramme
-(Mariño et al., 2006; Crego et Mariño, 2007), sur laquelle nous nous appuyons principalement
-dans cet article, les traductions sont engendrées de la manière suivante 2 :
-1. la phrase source est réordonnée de manière non-déterministe et transformée en un graphe
-de réordonnancement ;
-2. ce graphe est ensuite étendu en considérant toutes les décompositions possibles de la
-phrase source en segments ;
-2. Les dérivations des systèmes à base de segment telles que formulées dans (Koehn et al., 2007) ou dans (Kumar
-et al., 2006) utilisent essentiellement le même ensemble de variables latentes, alors que le modèle hiérarchique de Chiang
-(2005) utilise les dérivations d’une grammaire hors-contexte synchrone.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-452 c? ATALA
-3. un modèle de traduction est alors appliqué sur cette entrée étendue, de manière à générer
-le graphe de recherche de toutes les traductions possibles ;
-4. ce graphe est finalement parcouru pour rechercher la traduction de meilleur score.
-Chaque hypothèse de traduction t d’une phrase source s est ainsi associée à une ou plusieurs
-dérivations latentes a, où a représente toutes les variables qui sont impliquées dans les étapes de
-dérivation (1–3). Chaque triplet (s,a, t) est représenté comme un vecteur de caractéristiques G
-et son score est calculé par le produit scalaire (? est le vecteur de paramètres) :
-?(s,a, t) = ? TG(s,a, t) (1)
-Il est aisé de transformer ces scores en probabilités en définissant p? (t,a | s) comme suit :
-p? (t,a | s) = exp
-?
-??G(t,a, s)
-??
-a??? (s)
-t??? (a? ,s)
-exp
-?
-??G(t?,a?, s)
-? , (2)
-où? (s) est l’ensemble de toutes les assignations possibles des variables latentes et où ? (a, s)
-représente l’ensemble de toutes les traductions possibles de s sachant une assignation particulière
-de a. La probabilité conditionnelle de t sachant s s’en déduit par sommation selon :
-p? (t | s) =
-?
-a?? (s)
-p? (t,a | s) (3)
-La règle d’inférence optimale consiste à choisir la meilleure traduction t? pour s selon :
-t? = argmax
-t
-p? (t | s) = argmax
-t
-?
-a?? (s)
-p? (t,a | s), (4)
-La somme (4) devant être réalisée pour chaque traduction possible t, il s’avère toutefois que
-l’inférence ainsi définie donne lieu à un problème combinatoire NP-difficile. C’est pourquoi la
-plupart des systèmes de traduction se contentent d’utiliser une approximation, dite de Viterbi, qui
-correspond à l’utilisation de la règle d’inférence plus simple suivante :
-t? = h? (s) = argmax
-t,a
-p? (t,a | s), (5)
-On notera que cette règle permet également de recouvrer la dérivation latente optimale a?.
-2.2 Apprentissage discriminant (version standard)
-Le modèle introduit ci-dessus est suffisamment général pour rendre compte de la plupart des
-systèmes à base de segments et peut être instancié de multiples manières. Comme mentionné plus
-haut, l’architecture la plus utilisée (Koehn, 2010) s’appuie sur plusieurs couches de modélisation
-statistique. La première couche correspond à l’estimation, sur des corpus monolingues et/ou
-parallèles, d’un ensemble de modèles probabilistes, les plus importants étant le modèle de langue,
-le modèle de traduction et le modèle de réordonnancement, qui sont usuellement estimés au
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-453 c? ATALA
-maximum de vraisemblance 3. Chaque modèle ainsi calculé correspond à une composante du
-vecteur G introduit en (1) : Gk(t,a, s) est le score, pour le kème modèle, de la dérivation a qui
-produit t à partir de s.
-Le seconde couche d’apprentissage est effectuée de manière discriminante : son implantation la
-plus utilisée, Minimum Error Rate Training (MERT) (Och, 2003), consiste à résoudre le problème
-d’optimisation suivant : étant donné un ensemble de couples entrée/sortie {(sn, tn),n = 1 . . .N},
-trouver les paramètres optimaux satisfaisant :
-? ? = argmax
-BLEU
-?{(sn,h? (sn), tn),n= 1 . . .N}?, (6)
-où BLEU (Papineni et al., 2002) est une mesure automatique de la qualité de traduction. La
-résolution de ce problème n’est en pratique faisable que lorsque ? est de dimension réduite. On
-retiendra également que sa résolution requiert d’identifier une dérivation optimale, par exemple
-celle qui conduit au meilleur score BLEU parmi une liste de n meilleurs candidats.
-3 Apprentissage discriminant (version intégrée)
-Dans cette section, nous proposons une autre instanciation du cadre d’apprentissage décrit
-ci-dessus, dans lequel l’estimation de tous les paramètres du modèle est réalisée de manière
-intégrée et discriminante, ce qui constitue une différence fondamentale avec la plupart des
-autres approches discriminantes en traduction statistique (voir également la discussion de la
-section 7). Comme on le verra, notre modèle s’inspire largement du modèle des champs aléatoires
-conditionnels (CRF, voir (Lafferty et al., 2001)) qu’il étend de plusieurs manières.
-3.1 Apprentissage du modèle
-L’apprentissage est réalisé en maximisant la (log) vraisemblance conditionnelle définie par :
-? (? ) =?
-n
-????log ?
-a?? (sn)
-exp
-?
-??G(tn,a, sn)
-?? log ?
-a?? (sn)
-t?? (a,sn)
-exp
-?
-??G(t,a, sn)
-????? (7)
-Comme expliqué ci-dessus, nous ne considérons que des dérivations a qui sont rationnelles et
-correspondent à la série d’étapes (1-3) introduites à la section 2.
-L’introduction de variables latentes fait que la fonction objectif (7) n’est pas convexe, contraire-
-ment au cas des CRF standard (Sutton et McCallum, 2006). En pratique, son optimisation reste
-possible, et, si elle ne conduit qu’à des optimums locaux, les résultats obtenus ne semblent pas
-trop dépendants des conditions initiales. Comme détaillé à la section 3.3, l’optimisation repose
-3. L’estimation du modèle de traduction est en fait plus complexe et implique un empilement d’étapes heuristiques :
-calcul d’alignements de mots asymétriques, symétrisation des alignements, extraction et évaluation des couples bilingues
-de segments, etc.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-454 c? ATALA
-sur un algorithme de descente de gradient qui demande de calculer le gradient suivant :
-∂? (? )
-∂ ? k
-=
-?
-n
-???? ?
-a?? (sn)
-Gk(tn,a, sn)?
-?
-a?? (sn)
-t?? (a,sn)
-? kGk(t,a, sn)p? (t,a | sn),
-???? (8)
-Dans cette équation, les deux termes représentent respectivement l’espérance empirique et
-l’espérance pour le modèle calculées sur l’ensemble des données d’apprentissage.
-En théorie, dans cette approche, les composants de G peuvent tester des propriétés arbitraires
-du triplet (tn,a, sn) ; en pratique, toutefois, le choix des caractéristiques a un impact sur la
-complexité computationnelle des algorithmes d’inférence et d’apprentissage. Dans cette étude,
-nous nous limitons à des caractéristiques de portée locale, reproduisant les dépendances locales
-qui sont modélisées dans un CRF linéaire standard (Lafferty et al., 2001) : la portée d’une
-caractéristique ne peut excéder un bigramme de segments cibles. Cette restriction permet de
-calculer efficacement les deux termes de l’équation (8) en utilisant une variante de l’algorithme
-forward-backward (voir, par exemple, (Dreyer et al., 2008) pour une présentation détaillée de
-l’apprentissage de modèles globalement normalisés avec des variables latentes).
-La fonction objectif est usuellement augmentée d’un terme de régularisation pour limiter les
-problèmes de sur-apprentissage. Dans cette étude, nous utilisons une régularisation ?1 (Tibshirani,
-1996), qui permet d’aboutir à des ensembles de paramètres « creux » et donc implicitement de
-sélectionner les caractéristiques les plus importantes.
-3.2 Inférence
-L’inférence est définie par l’équation (4), qui exige en principe de sommer sur toutes les variables
-latentes pour calculer l’hypothèse de traduction optimale. Cette tâche correspond à un problème
-NP-difficile ; en pratique, il est possible de l’approximer de manière efficace en élaguant et
-déterminisant l’espace de recherche, comme expliqué section 3.3.
-Il est important de noter que les dépendances qui sont modélisées se limitent à des bigrammes
-de segments cibles qui ne fournissent qu’une très mauvaise approximation des contraintes
-syntaxiques à respecter en langue cible. Pour compenser cette faiblesse, nous utilisons durant
-l’inférence un modèle de langue n-gramme d’un ordre supérieur à deux, ce qui permet d’améliorer
-sensiblement les performances du seul modèle CRF.
-3.3 Détails d’implantation
-Transducteurs finis Toutes les opérations nécessaires pour réaliser l’apprentissage et l’inférence
-sont implantées comme des opérations standard sur des transducteurs pondérés. Pour l’essentiel,
-nous nous reposons sur les fonctionnalités génériques de la bibliothèque OpenFst (Allauzen et al.,
-2007) ; pour des raisons d’efficacité, nous avons toutefois réimplanté une version optimisée de
-l’algorithme forward-backward et des interactions avec le modèle de traduction.
-Pour l’essentiel, notre décodeur est donc implanté comme une cascade de transducteurs finis,
-impliquant les étapes suivantes : (i) réordonnancement et segmentation de la phrase source ;
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-455 c? ATALA
-(ii) application du modèle de traduction et (optionnellement) (iii) composition avec un modèle
-de langue cible, une architecture très similaire à celle proposée par (Kumar et al., 2006). Plus
-précisément, étant donnés un modèle de réordonnancement et un inventaire d’unités, nous
-dérivons les transducteurs suivants :
-– I , un accepteur pour la phrase source s ;
-– R, qui implémente les règles de réordonnancement ;
-– C , qui regroupe des séquences de mots sources en segments de taille variable ;
-– T , qui réalise l’association entre segments sources et toutes leurs traductions possibles.
-Si l’on note ? l’opération de composition entre transducteurs, alors S = I ?R?C ?T définit l’espace
-de recherche qui est utilisé pour l’apprentissage et pour l’inférence.
-Apprentissage du modèle L’optimisation de la log-vraisemblance (équation (7)) est effectuée
-en utilisant l’algorithme R-Prop (Riedmiller et Braun, 1993) qui implémente une stratégie de
-descente de gradient adaptée à l’optimisation des modèles log-linéaires à grande échelle. Cet
-algorithme demande de calculer les espérances définies par l’équation (8). Le premier terme est
-obtenu en collectant les statistiques pour les caractéristiques actives dans le transducteur défini
-par S ?O, où O est l’accepteur représentant la traduction de référence. La seconde espérance
-demande de collecter ces mêmes statistiques sur l’intégralité de l’espace de recherche S, de
-nouveau par application de l’algorithme forward-backward.
-Inférence des traductions Dans notre implantation, l’inférence est réalisée en quatre temps :
-S est tout d’abord reparcouru pour calculer la probabilité a posteriori de chaque arc ; nous
-déterminisons ensuite le transducteur ainsi repondéré, ce qui a pour effet de réaliser la somme
-impliquée par l’équation (4) ; le score du modèle de langue est ensuite ajouté simplement par une
-opération de composition pondérée (le poids du modèle de langue est obtenu par une recherche
-sur un corpus de développement) ; finalement, le meilleur chemin dans le transducteur est extrait.
-Dans la mesure où l’opération de déterminisation est la plus exigeante en temps, nous la réalisons
-de manière approchée en ne considérant à ce stade que les n-meilleures hypothèses de l’espace
-de recherche. La somme (4) est donc seulement calculée sur ces n meilleures hypothèses, ce qui
-ne semble pas trop limitant en pratique.
-4 Les références non atteignables
-Un problème spécifique qui se pose dans le cadre de l’apprentissage discriminant pour la traduc-
-tion est celui de la non atteignabilité des références, correspondant aux situations où la traduction
-de référence ne peut pas être dérivée dans le modèle (Liang et al., 2006) . Cela arrive, par
-exemple, quand on utilise un inventaire d’unités bilingues trop restreint, ou que l’on considère
-des réordonnancements trop limités. Il est alors possible qu’une traduction de référence contienne
-une traduction inconnue d’un mot source connu, ou bien des déplacements de groupes qui vont
-au-delà de ceux qu’explore le décodeur. Un remède radical consiste alors à supprimer ces cas pro-
-blématiques du corpus d’apprentissage (Blunsom et al., 2008; Dyer et Resnik, 2010) – conduisant
-ainsi à abandonner de nombreux exemples potentiellement utiles.
-Une autre solution simple, utilisée dans plusieurs études, consiste à utiliser des pseudo-références
-oracles, qui sont les meilleures hypothèses (au sens de la métrique d’évaluation) réellement
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-456 c? ATALA
- swi-1: le nobel de la paix 
- twi-1: the nobel peace 
- spi-1: DET ADJ PRP DET NN 
- sri-1: 1 3 4 5 6 
- tpi-1: DET ADJ NN 
- swi: prix
- twi: prize 
- spi: NN  
- sri: 2 
- tpi: NN  
-FIGURE 1 – Deux arcs consécutifs dans l’espace de recherche : informations dont sont dérivées les
-caractéristiques.
-présentes dans l’espace de recherche. Comme le soulignent les auteurs de (Liang et al., 2006),
-une bonne traduction (au sens de la métrique) peut toutefois s’appuyer localement sur des étapes
-de dérivation qui ont une très faible probabilité, et ne devraient pas être utilisées comme exemple.
-Cette observation suggère des stratégies plus prudentes, selon lesquelles l’oracle est choisi parmi
-les n hypothèses les plus probables (au sens du modèle). Des stratégies hybrides sont également
-envisageables, selon lesquelles les oracles sont choisis parmi les hypothèses qui sont à la fois
-proches de la référence et bien évaluées par le modèle.
-Diverses stratégies ont été implantées et évaluées dans nos expériences. La première consiste
-à supprimer tous les exemples non atteignables. Une seconde alternative consiste à augmenter
-le modèle localement de façon à compenser les lacunes du modèle : dans notre architecture,
-cela revient par exemple à simuler l’existence d’unités de traduction qui seraient manquantes. La
-troisième alternative, qui s’est avérée la meilleure, consiste à utiliser des pseudo-référence oracles
-calculées non pas sur des listes de n-meilleures hypothèses, mais sur l’intégralité de l’espace
-de recherche (voir (Sokolov et al., 2012) pour une description des algorithmes permettant de
-calculer ces oracles lorsque la métrique mesurant la qualité des traductions est le score BLEU).
-5 Caractéristiques
-Pour présenter les principales caractéristiques utilisées dans notre modèle, reportons nous à
-la Figure 1 qui donne à voir deux arcs consécutifs dans l’espace de recherche S. Chaque arc
-porte toutes les informations nécessaires au calcul des caractéristiques : les segments source et
-cible (sw et tw), les séquences de parties du discours (POS) associées (sp et t p ), ainsi que les
-positions originales (avant réordonnancement) des mots sources (sr). Les indices i et i?1 servent
-seulement à noter le fait que l’arc i ? 1 précède l’arc i et constitue le contexte gauche de l’arc
-courant. Étant donnée cette représentation, il est possible de définir des caractéristiques binaires
-qui chacune teste une propriété particulière du couple d’arcs (i ? 1, i). La liste de descripteurs de
-base est dans le tableau 1.
-La forme des caractéristiques de base simule les dépendances d’un modèle de langue bigramme
-en cible : ainsi, les caractéristiques notées LM :* correspondent à des modèles unigrammes
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-457 c? ATALA
-LM :uni-tphr ??twi = tw?
-LM :uni-tpos ??t pi = t p?
-LM :big-tphr ??twi = tw ? twi?1 = tw??
-LM :big-tpos ??t pi = t p ? t pi?1 = t p??
-TM :ci-phrp ??twi = tw ? swi = sw?
-TM :ci-posp ??t pi = t p ? spi = sp?
-TM :ci-mixp ??twi = tw ? spi = sp?
-TM :cd-phrs ??twi = tw ? swi = sw ? swi?1 = sw??
-TM :cd-poss ??t pi = t p ? spi = sp ? spi?1 = sp??
-TM :cd-phrt ??twi = tw ? twi?1 = tw? ? swi = sw?
-TM :cd-post ??t pi = t p ? t pi?1 = t p? ? spi = sp?
-TABLE 1 – Caractéristiques de base avec les notations de la Figure 1.
-et bigrammes respectivement de segments de mots et de POS. L’autre groupe principal de
-caractéristiques, noté TM :* modélise les relations de traduction. Il comprend des caractéristiques
-indépendantes du contexte (qui ne regardent que le segment courant) TM :ci-phrp et TM :ci-
-posp qui testent respectivement l’association d’un segment source avec un segment cible au
-niveau lexical et au niveau des étiquettes grammaticales ; les caractéristiques dépendantes du
-contexte gauche (TM :cd*) sont plus spécifiques et prennent en compte le segment précédent.
-Les réordonnancements sont évalués par un autre ensemble de caractéristiques intégrant des tests
-qui simulent les modèles de réordonnancement lexicalisés standard (Tillman, 2004; Crego et al.,
-2011). Dans notre approche, cinq classes de déplacements sont considérées : ’monotone’, ’swap’,
-’left discontinuous’, ’right discontinuous’ and ’other’. Pour chaque catégorie, deux caractéristiques
-testent respectivement l’association avec le segment cible et la séquence de POS correspondante.
-Nous utilisons finalement deux caractéristiques supplémentaires : la première est toujours active
-et permet d’ « encourager » l’insertion de nouveaux segments dans la phrase en construction. La
-seconde est relative aux recopies, et est active quand les mots source et cibles sont identiques, ce
-qui permet de « récompenser » la recopie d’un mot source inconnu dans la cible, une stratégie
-qui s’avère souvent gagnante. (pour les noms propres, les dates, etc)
-6 Expériences
-6.1 Corpus et système de base
-La tâche de traduction considérée utilise les données parallèles français/anglais du Basic Traveling
-Expression Corpus (BTEC), tel qu’il a été utilisé dans les évaluations internationales de l’atelier
-IWSLT. Ce corpus contient des phrases semblables à ce que l’on peut trouver dans des guides
-touristiques, en plusieurs langues (Takezawa et al., 2002). Le corpus de développement est
-devel03, qui contient 506 lignes et 16 références par lignes ; nous utilisons comme jeu de test les
-corpus test09 et test10 qui contiennent respectivement 469 lignes et 464 lignes, avec 7 traductions
-de référence. Notre mesure principale de la qualité des traductions est le score BLEU calculé
-en utilisant le maximum de références disponibles. Cette tâche est souvent considérée comme
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-458 c? ATALA
-relativement simple, au vu de la longueur moyenne des phrases, et du relativement faible nombre
-de données d’apprentissage : l’utilisation de notre cadre intégré d’apprentissage discriminant
-implique toutefois d’entrainer le système sur environ 20K phrases, soit 10 fois plus que ce qui est
-usuellement utilisé pour entrainer discrimininativement (avec MERT) des systèmes standard sur
-des « grosses » tâches.
-Notre système de base est n-code 4 (Crego et al., 2011), une implantation domaine public
-de l’approche à base de n-gram introduite dans (Mariño et al., 2006). Selon cette approche,
-le modèle de traduction est représenté par un transducteur stochastique correspondant à un
-modèle n-gramme de couples de segments (n= 3 dans nos expériences). L’entraînement d’un tel
-modèle demande au préalable de réordonner les phrases sources pour reproduire l’ordre des
-mots en langue cible. Ce réordonnancement est également effectué par un transducteur fini
-non-déterministe, qui utilise des informations morpho-syntaxiques (calculées par le TreeTagger 5)
-pour généraliser les règles de reordonnancement au niveau des POS.
-Le modèle complet utilise quatorze caractéristiques : le modèle de traduction, un modèle
-(trigramme) de langue cible, quatre modèles d’alignement lexicalisés 6, six modèles de réordon-
-nancement lexicalisés (Tillman, 2004; Crego et al., 2011) ; un modèle de distortion ainsi que deux
-modèles supplémentaires qui encouragent respectivement la génération de mots et de segments
-cibles. Les poids des différents modèles sont estimés en utilisant la procédure MERT (Och, 2003).
-Pour toutes nos expériences, le modèle de langue cible est estimé en utilisant un lissage de Kneser-
-Ney modifié (Chen et Goodman, 1996). Notons également que tous les systèmes évalués ci-desous
-utilisent le même inventaire d’unités de traduction et le même mécanisme de réordonnancement,
-qui sont ceux construits pour le système de base, ce qui permet une comparaison équitable entre
-systèmes. Tous nos résultats respectent les contraintes de la tâche spécifiée pour la campagne
-IWSLT 2010, et peuvent être directement comparés avec les résultats de (Paul et al., 2010).
-6.2 Résultats
-Le tableau 2 récapitule nos principaux résultats en termes de scores BLEU. Première observation :
-le système de base est légèrement meilleur que le meilleur système ayant participé à la campagne
-IWSLT 2010 ((Paul et al., 2010, p.20) mentionne un score de 52,69 pour le meilleur système).
-Trois configurations différentes du système discriminant sont comparées : la première réalise
-l’inférence en utilisant l’approximation dite de Viterbi (équation (5)) et obtient des performances
-très inférieures au système n-code ; la seconde configuration implante la procédure de margi-
-nalisation approximative décrite à la section 3.3, ce qui permet une légère amélioration des
-performances. La troisième configuration (+LM cible) intègre également, comme c’est le cas pour
-les systèmes n-code, un modèle trigramme en langue cible et permet de surpasser légèrement le
-système de base sur les deux jeux de test.
-À l’initialisation de l’apprentissage, le modèle de traduction contient environ 13 millions de
-caractéristiques. Au terme de l’apprentissage, seulement 4% sont sélectionnées, les autres étant
-éliminées du modèle sous l’action de la pénalité ?1. Au total, apprendre un tel modèle prend une
-dizaine de minutes sur un gros serveur de calcul et la traduction du jeu de test ne demande que
-4. Accessible depuis ncode.limsi.fr/.
-5. Accessible depuis www.ims.uni-stuttgart.de/projekte/corplex/TreeTagger/.
-6. Ces modèles sont similaires à ceux qui sont utilisés dans les systèmes standard.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-459 c? ATALA
-Configuration devel03 test09 test10
-Système n-code
-Modèle de traduction 2g 68,7 61,1 –
-Modèle de traduction 3g 68,0 61,6 53,4
-Système entraîné discriminativement
-Inférence Viterbi 64,0 58,8 51,5
+bilingues. De m√©me, plusieurs options existent pour (c), comme d‚Äôutiliser des mod√©les de r√©or-
+donnancement simples tels que IBM-n (Tillmann et Ney, 2003) et WJ‚Äîn (Kumar et Byrne, 2005)
+
+1. La situation est un peu plus complexe car les syst√©mes standard comprennent plusieurs mod√©les de traduction.
+
+451 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+ConÔ¨Åguration | devel03 | test09 | test10
+Systeme n-code |
+Modele de traduction 2g 68,7 61,1 ‚Äî
+Modele de traduction 3g 68,0 61,6 53,4
+| Systeme entrain√© discriminativement |
+
+Inf√©rence Viterbi 64,0 58,8 51,5
 + marginalisation 64,7 59,3 52,0
 + LM cible 67,7 61,7 53,9
-TABLE 2 – Performance des systèmes de traduction (scores BLEU).
+
+TABLE 2 ‚Äî Performance des syst√©mes de traduction (scores BLEU).
+
 deux ou trois minutes.
-Le tableau 3 compare les différentes manière de gérer les références non atteignables (voir
-section 4) 7. Il apparait clairement que supprimer les exemples pour laquelle la référence est
-non atteignable est la pire, puisque dans notre cas elle conduit à abandonner environ 8% des
-exemples. Augmenter localement le modèle de traduction permet d’améliorer très nettement les
-résultats ; la stratégie la plus efficace consiste toutefois à utiliser des pseudo-références oracles.
-Configuration devel03 test09
+
+Le tableau 3 compare les diff√©rentes mani√©re de g√©rer les r√©f√©rences non atteignables (voir
+section 4) 7. I1 apparait clairement que supprimer les exemples pour laquelle la r√©f√©rence est
+non atteignable est la pire, puisque dans notre cas elle conduit a abandonner environ 8% des
+exemples. Augmenter localement le modele de traduction permet d‚Äôam√©1iorer tr√©s nettement les
+r√©sultats; la strat√©gie la plus efÔ¨Åcace consiste toutefois a utiliser des pseudo‚Äîr√©f√©rences oracles.
+
+ConÔ¨Åguration devel03 test09
 Suppression 59,2 52,6
 Augmentation locale 62,4 56,4
-Pseudo-références 64,0 58,8
-TABLE 3 – Différentes manières de gérer les références non atteignables
+Pseudo‚Äîr√©f√©rences 64,0 58,8
+
+TABLE 3 ‚Äî Diff√©rentes manieres de g√©rer les r√©f√©rences non atteignables
+
 7 Discussion
-L’approche standard en traduction statistique, rappelée à la section 2, réalise l’apprentissage
-des modèles en deux étapes successives et repose grandement sur une procédure d’optimisation
-ad hoc, connue sous le nom de MERT (Och, 2003). De nombreux travaux récents ont tenté de
-reformuler MERT comme un problème d’apprentissage standard, afin de le rendre plus robuste
-à des situations où le nombre de caractéristiques est grand. MERT a ainsi été reformulé par
-exemple comme un problème d’apprentissage structuré (Tillmann et Zhang, 2006; Watanabe
-et al., 2007; Cherry et Foster, 2012) ou encore comme un problème d’apprentissage de fonc-
-tion d’ordonnancement (Hopkins et May, 2011). Ces approches visent à améliorer la seconde
-étape de l’apprentissage, sans remettre toutefois en cause l’architecture globale du système. Par
-comparaison, les travaux cherchant à définir des cadres d’apprentissage intégrés sont plus rares.
-Un pas important dans cette direction est le modèle de Liang et al. (2006), qui utilise un
-perceptron structuré pour apprendre les paramètres du modèle. Cette approche requiert toutefois
-de fixer la valeur des variables latentes impliquées dans une dérivation aussi bien à l’apprentissage
-que lors de l’inférence, là où nous utilisons une procédure de marginalisation. Une autre différence
-avec notre travail est l’utilisation d’un modèle de réordonnancement plus simple. Une autre source
-7. Ces résultats sont obtenus pour la stratégie d’inférence dite de Viterbi.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-460 c? ATALA
-d’inspiration est le travail décrit dans (Blunsom et al., 2008), qui décrit une version discriminante
-du modèle hiérarchique de Chiang (2005). Comme dans notre approche, l’apprentissage repose
-sur l’optimisation de la log-vraisemblance conditionnelle, impliquant de sommer sur toutes les
-dérivations (hors-contexte) d’une traduction. La complexité de l’algorithme de parsage sous-
-jacent au calcul du gradient O(|t|3|s|3) semble toutefois limiter l’approche à des phrases courtes 8.
-Une différence significative avec notre travail est la gestion des références non-atteignables, qui
-sont purement et simplement supprimées du corpus d’apprentissage. Le travail plus récent de
-Dyer et Resnik (2010) mérite enfin mention, puisqu’il utilise la même architecture que la nôtre, à
-la différence près que le modèle de réordonnancement est un modèle hors-contexte plutôt que
-rationnel. Ce travail est toutefois focalisé sur l’apprentissage du modèle de réordonnancement et
-conserve le besoin d’entraîner séparément le modèle de traduction.
-En résumé, notre approche se distingue de la plupart des approches discriminantes en traduction
-statistique en ceci que nous réalisons l’apprentissage simultané de tous les paramètres du mo-
-dèle de manière intégrée, par optimisation d’une fonction objectif bien fondée théoriquement
-(la log-vraisemblance conditionnelle régularisée).
+
+L‚Äôapproche standard en traduction statistique, rappel√©e a la section 2, r√©alise l‚Äôapprentissage
+des modeles en deux √©tapes successives et repose grandement sur une proc√©dure d‚Äôoptimisation
+ad hoc, connue sous le nom de MERT (Och, 2003). De nombreux travaux r√©cents ont tent√© de
+reformuler MERT comme un probleme d‚Äôapprentissage standard, aÔ¨Ån de le rendre plus robuste
+a des situations ou le nombre de caract√©ristiques est grand. MERT a ainsi √©t√© reformul√© par
+exemple comme un probl√©me d‚Äôapprentissage structur√© (Tillmann et Zhang, 2006; Watanabe
+et al., 2007; Cherry et Foster, 2012) cu encore comme un probl√©me d‚Äôapprentissage de fonc-
+tion d‚Äôordonnancement (Hopkins et May, 2011). Ces approches visent a am√©liorer la seconde
+√©tape de l‚Äôapprentissage, sans remettre toutefois en cause 1‚Äôarchitecture globale du systeme. Par
+comparaison, les travaux cherchant a d√©Ô¨Ånir des cadres d‚Äôapprentissage int√©gr√©s sont plus rares.
+
+Un pas important dans cette direction est le mod√©le de Liang et al. (2006), qui utilise un
+perceptron structur√© pour apprendre les param√©tres du mod√©le. Cette approche requiert toutefois
+de Ô¨Åxer la valeur des variables latentes impliqu√©es dans une d√©rivation aussi bien a l‚Äôapprentissage
+que lors de l‚Äôinf√©rence, la ou nous utilisons une proc√©dure de marginalisation. Une autre diff√©rence
+avec notre travail est 1‚Äôuu'1isation d‚Äôun mod√©le de r√©ordonnancement plus simple. Une autre source
+
+7. Ces r√©sultats sont obtenus pour la strat√©gie d‚Äôinf√©rence dite de Viterbi.
+
+460 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+d‚Äôinspirau'on est le travail d√©crit dans (Blunsom et al., 2008), qui d√©crit une version discriminante
+du mod√©le hi√©rarchique de Chiang (2005). Comme dans notre approche, 1‚Äôapprentissage repose
+sur 1‚Äôoptimisation de la log‚Äîvraisemblance conditionnelle, impliquant de sommer sur toutes les
+d√©rivations (hors‚Äîcontexte) d‚Äôune traduction. La complexit√© de l‚Äôalgorithme de parsage sous-
+jacent au calcul du gradient O(|t|3|s|3) semble toutefois limiter l‚Äôapproche a des phrases courtes 8.
+Une diff√©rence signiÔ¨Åcative avec notre travail est la gestion des r√©f√©rences non‚Äîatteignables, qui
+sont purement et simplement supprim√©es du corpus d‚Äôapprentissage. Le travail plus r√©cent de
+Dyer et Resnik (2010) m√©rite enÔ¨Ån mention, puisqu‚Äôil utilise la m√©me architecture que la n6tre, a
+la diff√©rence pres que le mod√©le de r√©ordonnancement est un modele hors‚Äîcontexte p1ut6t que
+rationnel. Ce travail est toutefois focalis√© sur1‚Äôapprentissage du mod√©le de r√©ordonnancement et
+conserve le besoin d‚Äôentrainer s√©par√©ment le modele de traduction.
+
+En r√©sum√©, notre approche se distingue de la plupart des approches discriminantes en traduction
+statistique en ceci que nous r√©alisons 1‚Äôapprenu'ssage simultan√© de tous les param√©tres du mo-
+d√©le de mani√©re int√©gr√©e, par optimisation d‚Äôune fonction objectif bien fond√©e th√©oriquement
+(la log-vraisemblance conditionnelle r√©gularis√©e).
+
 Conclusion
-Nous avons présenté une architecture intégrée pour réaliser en une seule étape l’apprentissage
-discriminant de tous les paramètres des systèmes de traduction. Cette architecture, qui emprunte
-beaucoup à des techniques d’apprentissage bien connues, permet d’introduire dans le modèle un
-très grand nombre de caractéristiques. En utilisant cette architecture, nous avons développé un
-système qui surpasse un système de base très performant sur la tâche de traduction du BTEC.
-Notons en particulier que notre approche conduit à des meilleurs scores BLEU que n-code, qui
-est pourtant spécifiquement entraîné pour optimiser cette métrique. Une propriété importante de
-notre approche est son caractère modulaire, puisqu’elle s’accomode d’inventaires d’unités et de
-modèles de réordonnancement variés.
-Dans le futur, la priorité principale sera de réaliser des expériences sur des tâches plus complexes,
-impliquant à la fois de plus gros corpus d’apprentissage et des langues plus éloignées. Diverses
-améliorations du modèle présenté ici sont également à l’étude : ainsi l’utilisation de modèles de
-réordonnancement plus puissants, à la manière de Dyer et Resnik (2010) ; l’utilisation d’unités
+
+Nous avons pr√©sent√© une architecture int√©gr√©e pour r√©aliser en une seule √©tape l‚Äôapprentissage
+discriminant de tous les parametres des systemes de traduction. Cette architecture, qui emprunte
+beaucoup a des techniques d‚Äôapprenu'ssage bien connues, permet d‚Äôintroduire dans le mod√©le un
+tres grand nombre de caract√©ristiques. En utilisant cette architecture, nous avons d√©velopp√© un
+syst√©me qui surpasse un syst√©me de base tr√©s performant sur la tache de traduction du BTEC.
+Notons en particulier que notre approche conduit a des meilleurs scores BLEU que n‚Äîcode, qui
+est pourtant sp√©ciÔ¨Åquement entrain√© pour optimiser cette m√©trique. Une propri√©t√© importante de
+notre approche est son caractere modulaire, puisqu‚Äôe11e s‚Äôaccomode d‚Äôinventaires d‚Äôunit√©s et de
+modeles de r√©ordonnancement vari√©s.
+
+Dans le futur, la priorit√© principale sera de r√©aliser des exp√©riences sur des taches plus complexes,
+impliquant a la fois de plus gros corpus d‚Äôapprentissage et des langues plus √©loign√©es. Diverses
+am√©liorations du mod√©le pr√©sent√© ici sont √©galement a 1‚Äô√©tude : ainsi l‚Äôutilisation de mod√©les de
+r√©ordonnancement plus puissants, a la maniere de Dyer et Resnik (2010) ; l‚Äôutilisation d‚Äôunit√©s
 de traduction avec trous, poursuivant les propositions de (Simard et al., 2005; Crego et Yvon,
-2009) ; ou l’utilisation d’une fonction objectif intégrant une mesure plus directe de la qualité de
-traduction, à l’instar par exemple de (Gimpel et Smith, 2010).
+2009) ; ou l‚Äôutilisation d‚Äôune fonction objectif int√©grant une mesure plus directe de la qualit√© de
+traduction, a l‚Äôinstar par exemple de (Gimpel et Smith, 2010).
+
 Remerciements
-Ce travail a été partiellement financé par OSEO dans le cadre du programme Quaero.
-8. Les résultats de (Blunsom et al., 2008) utilisent des phrases de moins de 15 mots.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-461 c? ATALA
-Références
-ALLAUZEN, A. et YVON, F. (2011). Méthodes statistiques pour la traduction automatique. In
-GAUSSIER, E. et YVON, F., éditeurs : Modèles statistiques pour l’accès à l’information textuelle,
-chapitre 7, pages 271–356. Hermès, Paris.
-ALLAUZEN, C., RILEY, M., SCHALKWYK, J., SKUT, W. et MOHRI, M. (2007). OpenFst : A general and
-efficient weighted finite-state transducer library. In Proc. of CIAA, pages 11–23.
-BLUNSOM, P., COHN, T. et OSBORNE, M. (2008). A discriminative latent variable model for
-statistical machine translation. In Proc. ACL/HLT, pages 200–208.
-CHEN, S. F. et GOODMAN, J. T. (1996). An empirical study of smoothing techniques for language
-modeling. In Proc. ACL, pages 310–318.
-CHERRY, C. et FOSTER, G. (2012). Batch tuning strategies for statistical machine translation. In
-Proc. of the 2012 Conf. HLT-NAACL, pages 427–436.
-CHIANG, D. (2005). A hierarchical phrase-based model for statistical machine translation. In
-Proc. ACL, pages 263–270.
+
+Ce travail a √©t√© partjellement Ô¨Ånanc√© par OSEO dans le cadre du programme Quaero.
+
+8. Les r√©sultats de (Blunsom et aL, 2008) utilisent des phrases de moins de 15 mots.
+461 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+R√©f√©rences
+
+ALLAUZEN, A. et YvoN, F. (2011). M√©thodes statistiques pour la traduction automatique. In
+GAUssIER, E. et YvoN, E, √©diteurs : Mode‚Äòles statistiques pour l‚Äôacc√©s c‚ÄòI l‚Äôinforrnation textuelle,
+chapitre 7, pages 271-356. Hermes, Paris.
+
+ALLAUZEN, C., RILEY, M., ScHALI<wYI<, J., SKUT, W. et MOHRI, M. (2007). OpenFst : A general and
+efficient weighted Ô¨Ånite‚Äîstate transducer library. In Proc. of CIAA, pages 11-23.
+
+BLUNSOM, R, COHN, T. et OSBORNE, M. (2008). A discriminative latent variable model for
+statistical machine translation. In Proc. ACL/HLT, pages 200-208.
+
+CHEN, S. E et GOODMAN, J. T. (1996). An empirical study of smoothing techniques for language
+modeling. In Proc. ACL, pages 310-318.
+
+CHERRY, C. et F0sTER, G. (2012). Batch tuning strategies for statistical machine translation. In
+Proc. of the 2012 Conf HLT‚ÄîNAACL, pages 427-436.
+
+CHIANG, D. (2005). A hierarchical phrase‚Äîbased model for statistical machine translation. In
+Proc. ACL, pages 263-270.
+
 CHIANG, D., KNIGHT, K. et WANG, W. (2009). 11,001 new features for statistical machine
-translation. In Proc. NAACL/HLT, pages 218–226.
-CREGO, J. M. et MARIÑO, J. B. (2007). Improving SMT by coupling reordering and decoding.
-Machine Translation, 20(3):199–215.
-CREGO, J. M. et YVON, F. (2009). Gappy translation units under left-to-right SMT decoding. In
-Proc. of the conf. EAMT, pages 66–73.
-CREGO, J. M., YVON, F. et MARIÑO, J. B. (2011). N-code : an open-source Bilingual N-gram SMT
-Toolkit. Prague Bulletin of Mathematical Linguistics, 96:49–58.
-DREYER, M., SMITH, J. et EISNER, J. (2008). Latent-variable modeling of string transductions
-with finite-state methods. In Proc. EMNLP, pages 1080–1089.
-DYER, C. et RESNIK, P. (2010). Context-free reordering, finite-state translation. In Proc
-NAACL/HLT, pages 858–866, Los Angeles.
+translation. In Proc. NAACL/HLT, pages 218-226.
+
+CREGO, J. M. et MARINO, J. B. (2007). Improving SMT by coupling reordering and decoding.
+Machine Translation, 20(3):199-215.
+
+CREGO, J. M. et YvoN, E (2009). Gappy translation units under left‚Äîto‚Äîright SMT decoding. In
+Proc. of the conf EAMT, pages 66-73.
+
+CREGO, J. M., YvoN, E et MARINO, J. B. (2011). N‚Äîcode : an open-source Bilingual N‚Äîgram SMT
+Toolkit. Prague Bulletin of Mathematical Linguistics, 96:49-58.
+
+DREYER, M., SMITH, J. et EIsNER, J. (2008). Latent‚Äîvariable modeling of string transductions
+with Ô¨Ånite‚Äîstate methods. In Proc. EMNLP, pages 1080-1089.
+
+DYER, C. et RESNIK, P. (2010). Context-free reordering, Ô¨Ånite-state translation. In Proc
+NAACL/HLT, pages 858-866, Los Angeles.
+
 GIMPEL, K. et SMITH, N. A. (2010). Softmax-margin CRFs : training log-linear models with cost
-functions. In Proc. HLT-NAACL, HLT ’10, pages 733–736.
-HOPKINS, M. et MAY, J. (2011). Tuning as ranking. In Proc. EMNLP, pages 1352–1362.
-KOEHN, P. (2010). Statistical Machine Translation. Cambridge University Press.
-KOEHN, P., HOANG, H., BIRCH, A., CALLISON-BURCH, C., FEDERICO, M., BERTOLDI, N., COWAN, B.,
-SHEN, W., MORAN, C., ZENS, R., DYER, C., BOJAR, O., CONSTANTIN, A. et HERBST, E. (2007). Moses :
-Open source toolkit for statistical machine translation. In Proc. ACL, pages 177–180.
-KOEHN, P., OCH, F. J. et MARCU, D. (2003). Statistical phrase-based translation. In Proc of the
-conf. HLT-NAACL, pages 127–133.
+functions. In Proc. HL'11NAACL, HLT ‚Äô10, pages 733-736.
+
+HOPKINS, M. et MAY, J. (2011). Tuning as ranking. In Proc. EMNLP, pages 1352-1362.
+KOEHN, R (2010). Statistical Machine Translation. Cambridge University Press.
+
+KoEHN, R, HOANG, H., BIRCH, A., CALLIsoN‚ÄîBURcH, C., FEDERICO, M., BERTOLDI, N., CowAN, B.,
+SHEN, W, MORAN, C., ZENs, R., DYER, C., BOJAR, 0., CONSTANTIN, A. et HERBST, E. (2007). Moses :
+Open source toolkit for statistical machine translation. In Proc. ACL, pages 177-180.
+
+KoEHN, R, OCH, E J. et MARCU, D. (2003). Statistical phrase‚Äîbased translation. In Proc of the
+conÔ¨Å HLT‚ÄîNAACL, pages 127-133.
+
 KUMAR, S. et BYRNE, W. (2005). Local phrase reordering models for statistical machine translation.
-In Proc. HLT-EMNLP, pages 161–168.
-KUMAR, S., DENG, Y. et BYRNE, W. (2006). A weighted finite state transducer translation template
-model for statistical machine translation. Natural Language Engineering, 12(1):35–75.
-LAFFERTY, J., MCCALLUM, A. et PEREIRA, F. (2001). Conditional random fields : probabilistic
-models for segmenting and labeling sequence data. In Proc. ICML, pages 282–289.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-462 c? ATALA
-LAVERGNE, T., ALLAUZEN, A., CREGO, J. M. et YVON, F. (2011). From n-gram-based to CRF-based
-translation models. In Proc. WMT, pages 542–553.
-LIANG, P., BOUCHARD-CÔTÉ, A., KLEIN, D. et TASKAR, B. (2006). An end-to-end discriminative
-approach to machine translation. In Proc. ACL, pages 761–768.
-MARIÑO, J. B., BANCHS, R. E., CREGO, J. M., de GISPERT, A., LAMBERT, P., FONOLLOSA, J. A. et
-COSTA-JUSSÀ, M. R. (2006). N-gram-based machine translation. Comp. Ling., 32(4):527–549.
-OCH, F. J. (2003). Minimum error rate training in statistical machine translation. In Proc. ACL,
-pages 160–167.
-PAPINENI, K., ROUKOS, S., WARD, T. et ZHU, W.-J. (2002). BLEU : a method for automatic
-evaluation of machine translation. In Proc. ACL, pages 311–318.
-PAUL, M., FEDERICO, M. et STÜCKER, S. (2010). Overview of the IWSLT 2010 Evaluation Campaign.
-In FEDERICO, M., LANE, I., PAUL, M. et YVON, F., éditeurs : Proc. IWSLT, pages 3–27.
+In Proc. HLT-EMNLP, pages 161-168.
+
+KUMAR, S., DENG, Y. et BYRNE, W. (2006). A weighted Ô¨Ånite state transducer translation template
+model for statistical machine translation. Natural Language Engineering, 12(1):35‚Äî75.
+LAFFERTY, J., MCCALLUM, A. et PEREIRA, F. (2001). Conditional random Ô¨Åelds : probabilistic
+models for segmenting and labeling sequence data. In Proc. ICML, pages 282-289.
+
+462 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+LAVERGNE, 'I‚Äò., ALLAUZEN, A., CREGO, J. M. et Yv0N, E (2011). From n‚Äîgram‚Äîbased to CRF‚Äîbased
+translation models. In Proc. WMT, pages 542-553.
+
+LIANG, P, BoUcHARD‚ÄîCc‚Äò>T11:, A., KLEIN, D. et TASKAR, B. (2006). An end‚Äîto‚Äîend discriminative
+approach to machine translation. In Proc. ACL, pages 761-768.
+
+MARINO, J. B., BANCHS, R. E., CREGO, J. M., de GISPERT, A., LAMBERT, P, FoNoLLosA, J. A. et
+C0sTA‚ÄîJUssA, M. R. (2006). N-gram‚Äîbased machine translation. Comp. Ling., 32(4):527‚Äî549.
+
+OCH, E J. (2003). Minimum error rate training in statistical machine translation. In Proc. ACL,
+pages 160-167.
+
+PAPINENI, K., RoUKos, S., WARD, T. et ZHU, W.-J. (2002). BLEU : a method for automatic
+evaluation of machine translation. In Proc. ACL, pages 311-318.
+
+PAUL, M., FEDERICO, M. et STUCKER, S. (2010). Overview of the IWSLT 2010 Evaluation Campaign.
+In FEDERICO, M., LANE, 1., PAUL, M. et Yv0N, E, √©diteurs : Proc. IWSLT, pages 3-27.
+
 RIEDMILLER, M. et BRAUN, H. (1993). A direct adaptive method for faster backpropagation
-learning : The RPROP algorithm. In Proc. ICNN, pages 586–591.
+learning : The RPROP algorithm. In Proc. ICNN, pages 586-591.
+
 SIMARD, M., CANCEDDA, N., CAVESTRO, B., DYMETMAN, M., GAUSSIER, E., GOUTTE, C., YAMADA, K.,
 LANGLAIS, P. et MAUSER, A. (2005). Translating with non-contiguous phrases. In Proc. HLT-EMNLP,
-pages 755–762.
-SIMIANER, P., RIEZLER, S. et DYER, C. (2012). Joint feature selection in distributed stochastic
-learning for large-scale discriminative training in SMT. In Proc. ACL, pages 11–21.
-SOKOLOV, A., WISNIEWSKI, G. et YVON, F. (2012). Computing lattice BLEU oracle scores for
-machine translation. In Proc. EACL, pages 120–129.
-SUTTON, C. et MCCALLUM, A. (2006). An introduction to conditional random fields for relational
-learning. In GETOOR, L. et TASKAR, B., éditeurs : Introduction to Statistical Relational Learning.
+pages 755-762.
+
+SIMIANER, P, RIEZLER, S. et DYER, C. (2012). Joint feature selection in distributed stochastic
+learning for large-scale discriminative training in SMT. In Proc. ACL, pages 11-21.
+
+SOKOLOV, A., WISNIEWSKI, G. et YvoN, F. (2012). Computing lattice BLEU oracle scores for
+machine translation. In Proc. EACL, pages 120-129.
+
+SUTTON, C. et MCCALLUM, A. (2006). An introduction to conditional random Ô¨Åelds for relational
+learning. In GETOOR, L. et TASKAR, B., √©diteurs : Introduction to Statistical Relational Learning.
 The MIT Press.
-TAKEZAWA, T., SUMITA, E., SUGAYA, F., YAMAMOTO, H. et YAMAMOTO, S. (2002). Toward a broad-
+
+TAKEZAWA, 'I‚Äò., SUMITA, E., SUGAYA, E, YAMAMOTO, H. et YAMAMOT0, S. (2002). Toward a broad-
 coverage bilingual corpus for speech translation of travel conversations in the real world. In
-Proc. of LREC, volume 1, pages 147–152.
+Proc. of LREC, volume 1, pages 147-152.
+
 TIBSHIRANI, R. (1996). Regression shrinkage and selection via the Lasso. J.R.Statist.Soc.B,
-58(1):267–288.
-TILLMAN, C. (2004). A unigram orientation model for statistical machine translation. In DUMAIS,
-S., MARCU, D. et ROUKOS, S., éditeurs : HLT-NAACL 2004 : Short Papers, pages 101–104.
+58(1):267-288.
+
+TILLMAN, C. (2004). A unigram orientation model for statistical machine translation. In DUMA1s,
+S., MARCU, D. et RoUKos, S., √©diteurs : HLT-NAACL 2004 : Short Papers, pages 101-104.
 TILLMANN, C. et NEY, H. (2003). Word reordering and a dynamic programming beam search
-algorithm for statistical machine translation. Comp. Ling., 29(1):97–133.
+algorithm for statistical machine translation. Comp. Ling., 29(1):97-133.
+
 TILLMANN, C. et ZHANG, T. (2006). A discriminative global training algorithm for statistical mt.
-In Proc. of the conf. of the ACL, pages 721–728.
-WATANABE, T., SUZUKI, J., TSUKADA, H. et ISOZAKI, H. (2007). Online large-margin training for
-statistical machine translation. In Proc. of EMNLP-CoNLL, pages 764–773.
-ZENS, R., OCH, F. J. et NEY, H. (2002). Phrase-based statistical machine translation. In JARKE,
-M., KOEHLER, J. et LAKEMEYER, G., éditeurs : KI-2002 : Advances in AI, volume 2479 de LNAI,
-pages 18–32. Springer.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-463 c? ATALA
+In Proc. of the can)‚Äò. of the ACL, pages 721-728.
+
+WATANABE, T., SUZUKI, J ., TSUKADA, H. etIsozA1<1, H. (2007). Online 1arge‚Äîmargin training for
+statistical machine translation. In Proc. of EMNLP-CoNLL, pages 764-773.
+
+ZENS, R., OCH, F. J . et NEY, H. (2002). Phrase‚Äîbased statistical machine translation. In JARKE,
+M., KOEHLER, J. et LAKEMEYER, G., √©diteurs : KI‚Äî2002 : Advances in AI, volume 2479 de LNAI,
+pages 18-32. Springer.
+
+463 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+ou encore d‚Äôapprendre les regles de r√©ordonnancement, comme nous le ferons ici.
+
+L‚Äôim lantation d‚Äôun cadre discriminant int√© re‚Äô our la traduction statisti ue im li ue toutefois
+P 8 P q P
+
+de r√©soudre plusieurs problemes pratiques et th√©oriques lie‚Äôs a la pre‚Äôsence de variables latentes
+dans le modele et a l‚Äôimpossibilit√© de disposer de donn√©es de supervision pour certaines paires
+de phrases lorsque la traduction de r√©f√©rence ne peut √©tre produite par le mod√©le (on dit alors
+que la r√©f√©rence est non atteignable). Ces probl√©mes sont r√©solus respectivement en sommant
+(marginalisant) sur toutes les d√©rivations possibles et en recourant a des traductions oracles.
+
+Les contributions de ce travail, qui d√©veloppe et √©tend la proposition pr√©sent√©e dans (Lavergne
+et al., 2011) en s‚Äôaffranchissant du besoin de disposer d‚Äôalignements de r√©f√©rence, sont multiples :
+la conception d‚Äôun modele int√©gr√© pour la traduction automatique, qui rend possible l‚Äôutilisation
+d‚Äôun grand nombre de traits linguistiques; une impl√©mentation modulaire qui, en s‚Äôappuyant
+sur le formalisme des transducteurs Ô¨Ånis pond√©r√©s (WFST), b√©n√©Ô¨Åcie d‚Äôalgorithmes efÔ¨Åcaces
+aussi bien pour l‚Äôapprentissage que pour l‚Äôinf√©rence; et l‚Äô√©tude de plusieurs manieres de traiter le
+probleme des r√©f√©rences non atteignables. Notre contribution est aussi exp√©rimentale, puisque
+nous montrons que le syst√©me ainsi construit s‚Äôav√©re capable de surpasser un syst√©me tr√©s
+performant sur une tache de complexit√© moyenne.
+
+Le reste de cet article est organis√© comme suit. Nous commencons par clariÔ¨Åer, a la section 2, les
+concepts n√©cessaires a la formulation de notre cadre discriminant et comparons notre approche
+avec d‚Äôautres implantations de l‚Äôapprentissage discriminant en traduction automatique. Nous
+introduisons ensuite plus pr√©cis√©ment (section 3), notre mod√©le de traduction et discutons
+plusieurs d√©tails d‚Äôimplantation. Les sections ult√©rieures sont consacr√©es respectivement a deux
+aspects pratiques : le probl√©me des r√©f√©rences non atteignables (Section 4), puis la conception
+d‚Äôun ensemble performant de descripteurs (section 5). Nous d√©crivons a la section 6 les principaux
+r√©sultats exp√©rimentaux obtenus sur la tache de traduction francais‚Äîanglais utilisant les donn√©es
+du corpus B'I'EC. Les sections conclusives permettent Ô¨Ånalement de positionner notre travail par
+rapport a l‚Äô√©tat de l‚Äôart (section 7), puis de pr√©senter bri√©vement diverses extensions de cette
+approche.
+
+2 Apprentissage discriminant en traduction statistique
+
+2. 1 Inf√©rence
+
+Comme expliqu√© supra, les STS mod√©lisent le processus de g√©n√©ration d‚Äôune traduction sous
+la forme d‚Äôune successions d‚Äô√©tapes de d√©rivation. Ainsi, dans l‚Äôapproche a base de n‚Äîgramme
+(MariÔ¨Åo et al., 2006; Crego et MariÔ¨Åo, 2007), sur laquelle nous nous appuyons principalement
+dans cet article, les traductions sont engendr√©es de la maniere suivante 2 :
+
+1. la phrase source est r√©ordonn√©e de maniere non-d√©terministe et transform√©e en un graphe
+de r√©ordonnancement;
+
+2. ce graphe est ensuite √©tendu en consid√©rant toutes les d√©compositions possibles de la
+phrase source en segments;
+
+2. Les d√©rivations des syst√©mes a base de segment telles que formul√©es dans (Koehn et al., 2007) ou dans (Kumar
+et aL, 2006) utilisent essentiellement le m√©me ensemble de variables latentes, alors que le modele hi√©rarchique de Chiang
+(2005) utilise les d√©rivations d‚Äôune grammaire hors-contexte synchrone.
+
+452 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+3. un mod√©le de traduction est alors appliqu√© sur cette entr√©e √©tendue, de maniere a g√©n√©rer
+le graphe de recherche de toutes les traductions possibles;
+
+4. ce graphe est Ô¨Ånalement parcouru pour rechercher la traduction de meilleur score.
+
+Chaque hypoth√©se de traduction t d‚Äôune phrase source s est ainsi associ√©e a une ou plusieurs
+d√©rivations latentes a, on a repr√©sente toutes les variables qui sont impliqu√©es dans les √©tapes de
+d√©rivation (1-3). Chaque triplet (s, a, t) est repr√©sente‚Äô comme un vecteur de caract√©ristiques G
+et son score est calcul√© par le produit scalaire (0 est le vecteur de parametres) :
+
+<I>(s, a, t) = 0 TG(s, a, t) (1)
+Il est ais√© de transformer ces scores en probabilit√©s en d√©Ô¨Ånissant p9(t, a | s) comme suit :
+
+exp (0TG(t, a, s))
+2 exp (0TG(t‚Äô, a‚Äô, s)) ‚Äô
+
+a‚Äôe.d(s)
+t‚Äô e:?(a‚Äô,s)
+
+pa(t,a I S) = (2)
+
+ou .21 (s) est l‚Äôensemble de toutes les assignations possibles des variables latentes et oil .9 (a, s)
+repr√©sente l‚Äôensemble de toutes les traductions possibles de s sachant une assignation particuliere
+de a. La probabilit√© conditionnelle de t sachant s s‚Äôen d√©duit par sommation selon :
+
+Pa(t|s)= Z pacnals) can
+
+aeazi (s)
+
+La regle d‚Äôinf√©rence optimale consiste a choisir la meilleure traduction t* pour s selon :
+
+t*=af8maXPa(t|S)=ar8II1aX Z Pa(t,a|s), (4)
+t ae.vzi(s)
+
+La somme (4) devant √©tre r√©alis√©e pour chaque traduction possible t, il s‚Äôav√©re toutefois que
+l‚Äôinf√©rence ainsi d√©Ô¨Ånie donne lieu a un probl√©me combinatoire NP-difÔ¨Åcile. C‚Äôest pourquoi la
+plupart des systemes de traduction se contentent d‚Äôutiliser une approximation, dite de Viterbi, qui
+correspond a l‚Äôutilisation de la regle d‚Äôinf√©rence plus simple suivante :
+
+t* = he (s) = arg maxpg (t, a | s), (5)
+La
+
+On notera que cette regle permet √©galement de recouvrer la d√©rivation latente optimale a*.
+
+2.2 Apprentissage discriminant (version standard)
+
+Le mod√©le introduit ci‚Äîdessus est sufÔ¨Åsamment g√©n√©ral pour rendre compte de la plupart des
+systemes a base de segments et peut √©tre instanci√© de multiples manieres. Comme mentionn√© plus
+haut, l‚Äôarchitecture la plus utilis√©e (Koehn, 2010) s‚Äôappuie sur plusieurs couches de mod√©lisaÔ¨Åon
+statistique. La premiere couche correspond a l‚Äôestimation, sur des corpus monolingues et/ou
+paralleles, d‚Äôun ensemble de modeles probabilistes, les plus importants √©tant le modele de langue,
+le mod√©le de traduction et le mod√©le de r√©ordonnancement, qui sont usuellement estim√©s au
+
+453 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+maximum de vraisemblance 3. Cha ue mod√©le ainsi calcul√© corres ond a une com osante du
+
+q P P
+vecteur G introduit en (1) : Gk(t, a, s) est le score, pour le k√©me mod√©le, de la d√©rivation a qui
+produit t a partir de s.
+
+Le seconde couche d‚Äôapprentissage est effectue‚Äôe de mani√©re discriminante : son implantation la
+plus utilis√©e, Minimum Error Rate Training (MERT) (Och, 2003), consiste a r√©soudre le probl√©me
+d‚Äôopu'misau'on suivant : √©tant donn√© un ensemble de couples entr√©e/ sortie {(s", t"), n = 1 . . .N},
+trouver les parametres optimaux satisfaisant :
+
+0*=argmax ({(s",h9(s"),t"),n= 1...N}), (6)
+BLEU
+
+ou BLEU (Papineni et al., 2002) est une mesure automatique de la qualit√© de traduction. La
+r√©solution de ce probleme n‚Äôest en pratique faisable que lorsque 0 est de dimension r√©duite. On
+retiendra √©galement que sa r√©solution requiert d‚ÄôidentiÔ¨Åer une d√©rivation optimale, par exemple
+celle qui conduit au meilleur score BLEU parmi une liste de n meilleurs candidats.
+
+3 Apprentissage discriminant (version int√©gr√©e)
+
+Dans cette section, nous proposons une autre instanciation du cadre d‚Äôapprentissage d√©crit
+ci‚Äîdessus, dans lequel l‚Äôestimation de tous les param√©tres du mod√©le est r√©alis√©e de mani√©re
+int√©gr√©e et discriminante, ce qui constitue une diff√©rence fondamentale avec la plupart des
+autres approches discriminantes en traduction statistique (voir √©galement la discussion de la
+section 7). Comme on le verra, notre mod√©le s‚Äôinspire largement du mod√©le des champs al√©atoires
+conditionnels (CRF, voir (Lafferty et al., 2001)) qu‚Äôil √©tend de plusieurs manieres.
+
+3.1 Apprentissage du mod√©le
+
+L‚Äôapprentissage est r√©alis√© en maximisant la (log) vraisemblance conditionnelle d√©Ô¨Ånie par :
+
+$(0)=Z log 2 exp (0TG(t",a,s"))‚Äîlog 2 exp (0TG(t,a,s")) (7)
+
+ae_;zi(s") aed(s")
+te:?(a,s")
+
+Comme expliqu√© ci‚Äîdessus, nous ne consid√©rons que des d√©rivations a qui sont rationnelles et
+correspondent a la s√©rie d‚Äô√©tapes (1-3) introduites a la section 2.
+
+L‚Äôintroduction de variables latentes fait que la fonction objectif (7) n‚Äôest pas convexe, contraire‚Äî
+ment au cas des CRF standard (Sutton et McCallum, 2006). En pratique, son optimisation reste
+possible, et, si elle ne conduit qu‚Äôa des optimums locaux, les r√©sultats obtenus ne semblent pas
+trop de‚Äôpendants des conditions initiales. Comme d√©taill√© a la section 3.3, l‚Äôoptimisation repose
+
+3. L‚Äôestimation du mod√©le de traduction est en fait plus complexe et implique un empilement d‚Äô√©tapes heuristiques :
+calcul d‚Äôalignements de mots asym√©triques, sym√©trisation des alignements, extraction et √©valuation des couples bilingues
+de segments, etc.
+
+454 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+sur un algorithme de descente de gradient qui demande de calculer le gradient suivant :
+
+8.2‚Äô 0
+i = Z] Z Gk<t",a,s") ‚Äî Z 0kGk(t:a;5n)P0(t:a I s"), (8)
+8 0 k T1 ae.:zi(s‚Äú) a::(s‚Äô;))
+
+Dans cette √© uation les deux termes re r√©sentent res ectivement l‚Äôes √©rance em iri ue et
+1
+l‚Äôesp√©rance pour le modele calcul√©es sur1‚Äôensemble des donn√©es d‚Äôapprentissage.
+
+En th√©orie, dans cette approche, les composants de G peuvent tester des propri√©t√©s arbitraires
+du triplet (t",a,s") ; en pratique, toutefois, le choix des caract√©ristiques a un impact sur la
+complexit√© computationnelle des algorithmes d‚Äôinf√©rence et d‚Äôapprentissage. Dans cette √©tude,
+nous nous limitons a des caract√©ristiques de port√©e locale, reproduisant les d√©pendances locales
+qui sont mod√©lis√©es dans un CRF lin√©aire standard (Lafferty et al., 2001) : la port√©e d‚Äôune
+caract√©ristique ne peut exc√©der un bigramme de segments cibles. Cette restriction permet de
+calculer efÔ¨Åcacement les deux termes de l‚Äô√©quation (8) en utilisant une variante de l‚Äôalgorithme
+forward-backward (voir, par exemple, (Dreyer et al., 2008) pour une pr√©sentation d√©taill√©e de
+l‚Äôapprentissage de modeles globalement normalis√©s avec des variables latentes).
+
+La fonction objectif est usuellement augment√©e d‚Äôun terme de r√©gularisation pour limiter les
+probl√©mes de sur‚Äîapprenu'ssage. Dans cette √©tude, nous utilisons une r√©gularisation (1 (Tibshirani,
+1996), qui permet d‚Äôaboutir a des ensembles de param√©tres ¬´ creux ¬ª et donc implicitement de
+s√©lectionner les caract√©ristiques les plus importantes.
+
+3.2 Inf√©rence
+
+L‚Äôinf√©rence est d√©Ô¨Ånie par l‚Äô√©quation (4), qui exige en principe de sommer sur toutes les variables
+latentes pour calcu1er1‚Äôhypoth√©se de traduction optimale. Cette tache correspond a un probl√©me
+NP‚ÄîdifÔ¨Åcile ; en pratique, il est possible de 1‚Äôapproximer de mani√©re efÔ¨Åcace en √©laguant et
+d√©terminisant l‚Äôespace de recherche, comme expliqu√© section 3.3.
+
+11 est important de noter que les d√©pendances qui sont mod√©lis√©es se limitent a des bigrammes
+de segments cibles qui ne fournissent qu‚Äôune tr√©s mauvaise approximation des contraintes
+syntaxiques a respecter en langue cible. Pour compenser cette faiblesse, nous utilisons durant
+l‚Äôinf√©rence un modele de langue n-gramme d‚Äôun ordre sup√©rieur a deux, ce qui permet d‚Äôam√©liorer
+sensiblement les performances du seul modele CRF.
+
+3.3 D√©tails d‚Äôimplantation
+
+Transducteurs finis Toutes les op√©rations n√©cessaires pour r√©aliser l‚Äôapprentissage et l‚Äôinf√©rence
+sont implant√©es comme des op√©rations standard sur des transducteurs pond√©r√©s. Pour l‚Äôessentiel,
+nous nous reposons sur les fonctionnalit√©s g√©n√©riques de la bibliotheque OpenFst (Allauzen et al.,
+2007) ; pour des raisons d‚ÄôefÔ¨Åcacit√©, nous avons toutefois r√©implant√© une version optimis√©e de
+l‚Äôalgorithme forward‚Äîbackward et des interactions avec le modele de traduction.
+
+Pour l‚Äôessentiel, notre d√©codeur est donc implant√© comme une cascade de transducteurs Ô¨Ånis,
+impliquant les √©tapes suivantes : (i) r√©ordonnancement et segmentation de la phrase source;
+
+455 ¬© ATALA
+
+TALN‚ÄîRECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+(ii) application du modele de traduction et (optionnellement) (iii) composition avec un modele
+de langue cible, une architecture tres similaire a celle propos√©e par (Kumar et al., 2006). Plus
+pr√©cis√©ment, √©tant donn√©s un modele de r√©ordonnancement et un inventaire d‚Äôunit√©s, nous
+d√©rivons les transducteurs suivants :
+
+‚Äî 1, un accepteur pour la phrase source s;
+
+‚Äî R, qui impl√©mente les regles de r√©ordonnancement ;
+
+‚Äî C, qui regroupe des s√©quences de mots sources en segments de taille variable;
+
+‚Äî T, qui r√©alise 1‚Äôassociation entre segments sources et toutes leurs traductions possibles.
+
+Si l‚Äôon note 0 l‚Äôop√©ration de composition entre transducteurs, alors S = I oRoC o T d√©Ô¨Ånit l‚Äôespace
+de recherche qui est utilis√© pour l‚Äôapprentissage et pour 1‚Äôinf√©rence.
+
+Apprentissage du modele L‚Äôoptimisation de la log‚Äîvraisemblance (√©quation (7)) est effectu√©e
+en utilisant l‚Äôalgorithme R‚ÄîProp (Riedmiller et Braun, 1993) qui impl√©mente une strat√©gie de
+descente de gradient adapt√©e a l‚Äôoptimisation des modeles log‚Äîlin√©aires a grande √©chelle. Cet
+algorithme demande de calculer les esp√©rances d√©Ô¨Ånies par l‚Äô√©quation (8). Le premier terme est
+obtenu en collectant les statistiques pour les caract√©ristiques actives dans le transducteur d√©Ô¨Åni
+par S o 0, cu O est l‚Äôaccepteur repr√©sentant la traduction de r√©f√©rence. La seconde esp√©rance
+demande de collecter ces memes statistiques sur l‚Äôint√©gralit√© de l‚Äôespace de recherche S, de
+nouveau par application de l‚Äôalgorithme forward‚Äîbackward.
+
+Inf√©rence des traductions Dans notre implantation, l‚Äôinf√©rence est r√©alis√©e en quatre temps :
+S est tout d‚Äôabord reparcouru pour calculer la probabilit√© a posteriori de chaque arc; nous
+d√©terminisons ensuite le transducteur ainsi repond√©re‚Äô, ce qui a pour effet de r√©aliser la somme
+impliqu√©e par l‚Äô√©quation (4) ; le score du modele de langue est ensuite ajout√© simplement par une
+op√©ration de composition pond√©r√©e (le poids du modele de langue est obtenu par une recherche
+sur un corpus de d√©veloppement) ; Ô¨Ånalement, le meilleur chemin dans le transducteur est extrait.
+Dans la mesure ou l‚Äôop√©ration de d√©terminisation est la plus exigeante en temps, nous la r√©alisons
+de maniere approch√©e en ne consid√©rant a ce stade que les n-meilleures hypotheses de l‚Äôespace
+de recherche. La somme (4) est donc seulement calcul√©e sur ces n meilleures hypotheses, ce qui
+ne semble pas trop limitant en pratique.
+
+4 Les r√©f√©rences non atteignables
+
+Un probleme sp√©ciÔ¨Åque qui se pose dans le cadre de l‚Äôapprentissage discriminant pour la traduc-
+tion est celui de la non atteignabilit√© des r√©f√©rences, correspondant aux situations ou la traduction
+de r√©f√©rence ne peut pas √©tre d√©riv√©e dans le modele (Liang et al., 2006) . Cela arrive, par
+exemple, quand on utilise un inventaire d‚Äôunit√©s bilingues trop restreint, ou que l‚Äôon considere
+des r√©ordonnancements trop limit√©s. Il est alors possible qu‚Äôune traduction de r√©f√©rence contienne
+une traduction inconnue d‚Äôun mot source connu, ou bien des d√©placements de groupes qui vont
+au‚Äîdela de ceux qu‚Äôexplore le d√©codeur. Un remede radical consiste alors a supprimer ces cas pro-
+bl√©matiques du corpus d‚Äôapprenu'ssage (Blunsom et al., 2008; Dyer et Resnik, 2010) ‚Äî conduisant
+ainsi a abandonner de nombreux exemples potentiellement utiles.
+
+Une autre solution simple, utilis√©e dans plusieurs √©tudes, consiste a utiliser des pseudo-r√©f√©rences
+oracles, qui sont les meilleures hypotheses (au sens de la m√©trique d‚Äô√©valuation) r√©ellement
+
+456 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+SWi_1: 1e nobel de la paix
+
+Spi_1: DET ADJ PRP DET NN
+
+sri_1:134-56
+
+O
+
+tw. : the nobel peace
+1-]
+tpi_1: DETADJ NN
+
+ 
+
+FIGURE 1 ‚Äî Deux arcs cons√©cutifs dans l‚Äôespace de recherche : informations dont sont d√©riv√©es les
+caract√©ristiques.
+
+pr√©sentes dans l‚Äôespace de recherche. Comme le soulignent les auteurs de (Liang et al., 2006),
+une bonne traduction (au sens de la m√©trique) peut toutefois s‚Äôappuyer localement sur des √©tapes
+de d√©rivation qui ont une tres faible probabilit√©, et ne devraient pas √©tre utilis√©es comme exemple.
+Cette observation suggere des strat√©gies plus prudentes, selon lesquelles l‚Äôoracle est choisi parmi
+les 11 hypotheses les plus probables (au sens du modele). Des strat√©gies hybrides sont √©galement
+envisageables, selon lesquelles les oracles sont choisis parmi les hypotheses qui sont a la fois
+proches de la r√©f√©rence et bien √©valu√©es par le modele.
+
+Diverses strat√©gies ont √©t√© implant√©es et √©valu√©es dans nos exp√©riences. La premiere consiste
+a supprimer tous les exemples non atteignables. Une seconde alternative consiste a augmenter
+le modele localement de facon a compenser les lacunes du modele : dans notre architecture,
+cela revient par exemple a simuler l‚Äôexistence d‚Äôunit√©s de traduction qui seraient manquantes. La
+troisieme alternative, qui s‚Äôest av√©r√©e la meilleure, consiste a utiliser des pseudo-r√©f√©rence oracles
+calcul√©es non pas sur des listes de n-meilleures hypotheses, mais sur l‚Äôint√©gralit√© de l‚Äôespace
+de recherche (Voir (Sokolov et al., 2012) pour une description des algorithmes permettant de
+calculer ces oracles lorsque la m√©trique mesurant la qualit√© des traductions est le score BLEU).
+
+5 Caract√©ristiques
+
+Pour pr√©senter les principales caract√©ristiques utilis√©es dans notre modele, reportons nous a
+la Figure 1 qui donne a Voir deux arcs cons√©cutifs dans l‚Äôespace de recherche S. Chaque arc
+porte toutes les informations n√©cessaires au calcul des caract√©ristiques : les segments source et
+cible (sw et tw), les s√©quences de parties du discours (POS) associ√©es (s p et tp ), ainsi que les
+positions originales (avant r√©ordonnancement) des mots sources (sr). Les indices i et i‚Äî 1 servent
+seulement a noter le fait que l‚Äôarc i ‚Äî 1 pr√©cede l‚Äôarc i et constitue le contexte gauche de l‚Äôarc
+courant. Etant donn√©e cette repr√©sentation, il est possible de d√©Ô¨Ånir des caract√©ristiques binaires
+qui chacune teste une propri√©t√© particuliere du couple d‚Äôarcs (i ‚Äî 1, i). La liste de descripteurs de
+base est dans le tableau 1.
+
+La forme des caract√©ristiques de base simule les d√©pendances d‚Äôun modele de langue bigramme
+en cible : ainsi, les caract√©ristiques not√©es LM :* correspondent a des modeles unigrammes
+
+457 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+LM zuni-tphr ]I(tw,- = tw)
+
+LM zuni-tpos ]I(tp,- = tp)
+
+LM zbig-tphr ]I(tw,- = tw A tw,-_1 = tw‚Äô)
+
+LM zbig-tpos ]I(tp,- = tp A tp,-_1 = tp‚Äô)
+
+TM :ci-phrp ]I(tw,- = tw A sw,- = sw
+
+TM :ci-posp ]I(tp,- = tp A spi =sp)
+
+TM :ci-mixp ]I(tw,- = tw A spi =sp)
+
+TM :cd-phrs ]I(tw,- = tw A swi = sw A sw,-_1 = sw‚Äô)
+TM :cd-poss ]I(tp,- = tp A spi =sp A sp,-_1 =sp‚Äô)
+TM :cd-phrt ]I(tw,- = tw A tw,-_1 = tw‚Äô A swi = sw)
+TM zcd-post ]I(tp,- = tp A tp,-_1 = tp‚Äô A sp,- =sp)
+
+TABLE 1 ‚Äî Caract√©ristiques de base avec les notations de la Figure 1.
+
+et bigrammes respectivement de segments de mots et de POS. L‚Äôautre groupe principal de
+caract√©ristiques, not√© TM :* mod√©lise les relations de traduction. Il comprend des caract√©ristiques
+ind√©pendantes du contexte (qui ne regardent que le segment courant) TM :ci-phrp et TM :ci-
+posp qui testent respectivement l‚Äôassociation d‚Äôun segment source avec un segment cible au
+niveau lexical et au niveau des √©tiquettes grammaticales; les caract√©ristiques d√©pendantes du
+contexte gauche (TM :cd*) sont plus sp√©ciÔ¨Åques et prennent en compte le segment pr√©c√©dent.
+
+Les r√©ordonnancements sont √©valu√©s par un autre ensemble de caract√©ristiques int√©grant des tests
+qui simulent les modeles de r√©ordonnancement lexicalis√©s standard (Tillman, 2004; Crego et al.,
+2011). Dans notre approche, cinq classes de d√©placements sont consid√©r√©es : ‚Äômonotone‚Äô, ‚Äôswap‚Äô,
+‚Äô1eft discontinuous‚Äô, ‚Äôright discontinuous‚Äô and ‚Äôothe1‚Äô. Pour chaque cat√©gorie, deux caract√©ristiques
+testent respectivement l‚Äôassociation avec le segment cible et la s√©quence de POS correspondante.
+
+Nous utilisons Ô¨Ånalement deux caract√©ristiques suppl√©mentaires : la premiere est toujours active
+et permet d‚Äô ¬´ encourager >> l‚Äôinsertion de nouveaux segments dans la phrase en construction. La
+seconde est relative aux recopies, et est active quand les mots source et cibles sont identiques, ce
+qui permet de << r√©compenser >> la recopie d‚Äôun mot source inconnu dans la cible, une strat√©gie
+qui s‚Äôavere souvent gagnante. (pour les noms propres, les dates, etc)
+
+6 Exp√©riences
+
+6.1 Corpus et syst√©me de base
+
+La tache de traduction consid√©r√©e utilise les donn√©es parall√©les francais/anglais du Basic Traveling
+Expression Corpus (BTEC), tel qu‚Äôil a √©t√© utilis√© dans les √©valuations internationales de l‚Äôatelier
+IWSL'I‚Äò. Ce corpus contient des phrases semblables a ce que l‚Äôon peut trouver dans des guides
+touristiques, en plusieurs langues (Takezawa et al., 2002). Le corpus de d√©veloppement est
+devel03, qui contient 506 lignes et 16 r√©f√©rences par lignes; nous utilisons comme jeu de test les
+corpus test09 et test10 qui contiennent respectivement 469 lignes et 464 lignes, avec 7 traductions
+de r√©f√©rence. Notre mesure principale de la qualit√© des traductions est le score BLEU calcul√©
+en utilisant le maximum de r√©f√©rences disponibles. Cette tache est souvent consid√©r√©e comme
+
+458 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+relativement simple, au vu de la longueur moyenne des phrases, et du relativement faible nombre
+de donn√©es d‚Äôapprentissage : l‚Äôutilisation de notre cadre int√©gr√© d‚Äôapprentissage discriminant
+implique toutefois d‚Äôentrainer le systeme sur environ 20K phrases, soit 10 fois plus que ce qui est
+usuellement utilis√© pour entrainer discrimininativement (avec MERT) des syst√©mes standard sur
+des ¬´ grosses ¬ª taches.
+
+Notre systeme de base est n‚Äîcode4 (Crego et al., 2011), une implantation domaine public
+de l‚Äôapproche a base de n‚Äîgram introduite dans (MariÔ¨Åo et al., 2006). Selon cette approche,
+le modele de traduction est repr√©sent√© par un transducteur stochastique correspondant a un
+mod√©le n‚Äîgramme de couples de segments (n = 3 dans nos exp√©riences). L‚Äôentrainement d‚Äôun tel
+modele demande au pr√©alable de r√©ordonner les phrases sources pour reproduire l‚Äôordre des
+mots en langue cible. Ce r√©ordonnancement est √©galement effectu√© par un transducteur Ô¨Åni
+non‚Äîd√©terrniniste, qui utilise des informations morpho‚Äîsyntaxiques (calcul√©es par le TreeTagger5)
+pour g√©n√©raliser les r√©gles de reordonnancement au niveau des POS.
+
+Le modele complet utilise quatorze caract√©ristiques : le modele de traduction, un modele
+(trigramme) de langue cible, quatre mod√©les d‚Äôa1ignementlexicalis√©s 6, six mod√©les de r√©ordon-
+nancement lexicalis√©s (Tillman, 2004; Crego et al., 2011) ; un modele de distortion ainsi que deux
+mod√©les suppl√©mentaires qui encouragent respectivement la g√©n√©ration de mots et de segments
+cibles. Les poids des diff√©rents modeles sont estim√©s en utilisant la proc√©dure MERT (Och, 2003).
+
+Pour toutes nos exp√©riences, le modele de langue cible est estim√© en utilisant un lissage de Kneser‚Äî
+Ney modiÔ¨Å√© (Chen et Goodman, 1996). Notons √©galement que tous les systemes √©valu√©s ci‚Äîdesous
+utilisent le meme inventaire d‚Äôunit√©s de traduction et le meme m√©canisme de r√©ordonnancement,
+qui sont ceux construits pour le syst√©me de base, ce qui permet une comparaison √©quitable entre
+systemes. Tous nos r√©sultats respectent les contraintes de la tache sp√©ciÔ¨Å√©e pour la campagne
+IWSLT 2010, et peuvent √©tre directement compar√©s avec les r√©sultats de (Paul et al., 2010).
+
+6.2 R√©sultats
+
+Le tableau 2 r√©capitule nos principaux r√©sultats en termes de scores BLEU. Premiere observation :
+le systeme de base est l√©gerement meilleur que le meilleur systeme ayant particip√© a la campagne
+IWSLT 2010 ((Paul et al., 2010, p.20) mentionne un score de 52, 69 pour le meilleur syst√©me).
+Trois conÔ¨Ågurations diff√©rentes du systeme discriminant sont compar√©es : la premiere r√©alise
+l‚Äôinf√©rence en ut1'lisantl‚Äôapproximation dite de Viterbi (√©quation (5)) et obtient des performances
+tres inf√©rieures au systeme n-code; la seconde conÔ¨Åguration implante la proc√©dure de margi-
+nalisation approximative d√©crite a la section 3.3, ce qui permet une l√©gere am√©lioration des
+performances. La troisieme conÔ¨Åguration (+LM cible) integre √©galement, comme c‚Äôest le cas pour
+les syst√©mes n‚Äîcode, un mod√©le trigramme en langue cible et permet de surpasser l√©g√©rement le
+syst√©me de base sur les deux jeux de test.
+
+A l‚Äôinitialisation de l‚Äôapprentissage, le modele de traduction contient environ 13 millions de
+caract√©ristiques. Au terme de l‚Äôapprentissage, seulement 4% sont s√©lectionn√©es, les autres √©tant
+√©limin√©es du modele sous l‚Äôaction de la p√©nalit√© ¬£1. Au total, apprendre un tel modele prend une
+dizaine de minutes sur un gros serveur de calcul et la traduction du jeu de test ne demande que
+
+4. Accessible depuis ncode . limsi . f r/ .
+5. Accessible depuis www . ims . uni‚Äî stuttgart . de/ pro j ekte/ corp1ex/ TreeTagger/ .
+6. Ces mod√©les sont similaires a ceux qui sont utilis√©s dans les syst√©mes standard.
+
+459 ¬© ATALA
+

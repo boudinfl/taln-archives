@@ -1,603 +1,720 @@
-TALN 2011, Montpellier, 27 juin – 1er juillet 2011
-Modèles génératif et discriminant en analyse syntaxique :
-expériences sur le corpus arboré de Paris 7
-Joseph Le Roux Benoît Favre Seyed Abolghasem Mirroshandel Alexis Nasr
-LIF - CNRS UMR 6166 - Université Aix Marseille
-{joseph.le-roux, benoit.favre, alexis.nasr}@lif.univ-mrs.fr
-Résumé. Nous présentons une architecture pour l’analyse syntaxique en deux étapes. Dans un premier
-temps un analyseur syntagmatique construit, pour chaque phrase, une liste d’analyses qui sont converties en arbres
-de dépendances. Ces arbres sont ensuite réévalués par un réordonnanceur discriminant. Cette méthode permet de
-prendre en compte des informations auxquelles l’analyseur n’a pas accès, en particulier des annotations fonction-
-nelles. Nous validons notre approche par une évaluation sur le corpus arboré de Paris 7. La seconde étape permet
-d’améliorer significativement la qualité des analyses retournées, quelle que soit la métrique utilisée.
-Abstract. We present an architecture for parsing in two steps. First, a phrase-structure parser builds for
-each sentence an n-best list of analyses which are converted to dependency trees. Then these trees are rescored by
+TALN 2011, Montpellier, 27juin ‚Äî 1"'ju1'11et 2011
+
+Mod√©les g√©n√©ratif et discriminant en analyse syntaxique :
+exp√©riences sur le corpus arbor√© de Paris 7
+
+Joseph Le Roux Benoit Favre Seyed Abolghasem Mirroshandel Alexis Nasr
+LIF - CNRS UMR 6166 - Universit√© Aix Marseille
+{joseph.le-roux, benoit.favre, alexis.nasr} @lif.univ-mrs.fr
+
+R√©sum√©. Nous pr√©sentons une architecture pour l‚Äôanalyse syntaxique en deux √©tapes. Dans un premier
+temps un analyseur syntagmatique constr11it, pour chaque phrase, une liste d‚Äô analyses qui sont converties en arbres
+de d√©pendances. Ces arbres sont ensuite r√©√©valu√©s par un r√©ordonnanceur discriminant. Cette m√©thode permet de
+prendre en compte des informations auxquelles l‚Äôanalyseur n‚Äôa pas acces, en particulier des annotations fonction‚Äî
+nelles. Nous validons notre approche par une evaluation sur le corpus arbor√© de Paris 7. La seconde √©tape permet
+d‚Äôam√©liorer signiÔ¨Åcativement la qualit√© des analyses retoum√©es, quelle que soit la m√©trique utilis√©e.
+
+Abstract. We present an architecture for parsing in two steps. First, a phrase‚Äîstructure parser builds for
+each sentence an n‚Äîbest list of analyses which are converted to dependency trees. Then these trees are rescored by
 a discriminative reranker. This method enables the incorporation of additional linguistic information, more preci-
-sely functional annotations. We test our approach on the French Treebank. The evaluation shows a significative
+sely functional annotations. We test our approach on the French Treebank. The evaluation shows a signiÔ¨Åcative
 improvement on different parse metrics.
-Mots-clés : analyse syntaxique, corpus arboré, apprentissage automatique, réordonnancement discrimi-
+
+M0tS-Cl√©S 3 analyse syntaxique, corpus arbor√©, apprentissage automatique, r√©ordonnancement discri1ni‚Äî
 nant.
+
 Keywords: parsing, treebank, machine learning, discriminative reranking.
+
 LE ROUX, FAVRE, MIRROSHANDEL, NASR
+
 1 Introduction
-On peut observer l’existence de deux approches en analyse syntaxique automatique. La première, dite générative,
-se fonde sur la tradition des langages formels et des systèmes de réécriture. L’analyse syntaxique est envisagée ici
-comme un processus permettant de passer d’une structure initiale (une chaîne d’entrée) à une structure finale (un
-arbre ou une forêt d’analyses). On utilise le plus couramment les grammaires algébriques qui peuvent s’analyser
-en temps polynomial. Malheureusement, l’hypothèse d’indépendance des réécritures qui sous-tend ce formalisme
-ne permet pas une analyse très fine de certains phénomènes, en particulier les dépendances à longue distance et
-les dépendances lexicales.
-La seconde approche, dite discriminante, se fonde sur la « syntaxe comme théorie des modèles » (en anglais
-model-theoretic syntax, (Pullum & Scholz, 2001)) et a connu un regain d’intérêt grâce aux progrès réalisés dans le
-domaine de l’apprentissage automatique, plus précisément en classification automatique. Dans cette approche, la
-grammaire est vue comme un système de contraintes sur les structures syntaxiques correctes. Les mots de la phrase
-d’entrée sont eux-mêmes vus comme des contraintes sur les positions qu’ils occupent et l’analyse syntaxique
-revient à résoudre ces contraintes. Le problème majeur de cette seconde approche tient à sa complexité. Les
-contraintes pouvant en théorie porter sur divers aspects des structures finales, il n’est pas possible d’utiliser des
-techniques de programmation dynamique efficaces et il faut, dans le pire des cas, énumérer tous les arbres pour
-ensuite évaluer leur pertinence. Dans certains développements de cette approche, utilisés dans le présent travail,
-les contraintes sont uniquement d’ordre numérique. Une analyse y est représentée par un vecteur de traits et sa
-qualité se mesure par la distance entre ce dernier et l’analyse de référence.
-Une manière de tirer profit des deux approches consiste, comme l’a proposé (Collins, 2000), à les combiner de
-façon séquentielle. Un analyseur de type génératif produit alors un ensemble de structures candidates pour un
-second module, discriminant, de façon à contraindre son espace de recherche. Cette approche par analyse puis
-réordonnancement (en anglais, parsing/reranking) est utilisée dans l’analyseur de Brown (Charniak & Johnson,
-2005), adapté pour le français dans (Seddah et al., 2009). Il est même intéressant de fournir au module de réordon-
-nancement des analyses provenant de différents analyseurs, comme le montrent les résultats obtenus par (Johnson
+
+On peut observer l‚Äôexistence de deux approches en analyse syntaxique automatique. La premiere, dite generative,
+se fonde sur la tradition des langages formels et des systemes de re√©criture. L‚Äô analyse syntaxique est envisagee ici
+comme un processus permettant de passer d‚Äôune structure initiale (une chaine d‚Äôentree) a une structure Ô¨Ånale (un
+arbre ou une foret d‚Äôanalyses). On utilise le plus couramment les grammaires algebriques qui peuvent s‚Äôanalyser
+en temps polynomial. Malheureusement, l‚Äôhypothese d‚Äôind√©pendance des r√©√©critures qui sous‚Äîtend ce formalisme
+ne permet pas une analyse tres Ô¨Åne de certains ph√©nomenes, en particulier les d√©pendances a longue distance et
+les d√©pendances lexicales.
+
+La seconde approche, dite discriminante, se fonde sur la << syntaxe comme th√©orie des modeles ¬ª (en anglais
+model‚Äîtheoretic syntax, (Pullum & Scholz, 2001)) eta connu un regain d‚Äôinteret grace aux progres realises dans le
+domaine de l‚Äôapprentissage automatique, plus pr√©cis√©ment en classiÔ¨Åcation automatique. Dans cette approche, la
+grammaire est vue comme un systeme de contraintes sur les structures syntaxiques correctes. Les mots de la phrase
+d‚Äôentree sont eux‚Äîmemes vus comme des contraintes sur les positions qu‚Äôils occupent et l‚Äôanalyse syntaxique
+revient a r√©soudre ces contraintes. Le probleme majeur de cette seconde approche tient a sa complexite. Les
+contraintes pouvant en th√©orie porter sur divers aspects des structures Ô¨Ånales, il n‚Äôest pas possible d‚Äôutiliser des
+techniques de programmation dynamique efÔ¨Åcaces et il faut, dans le pire des cas, enumerer tous les arbres pour
+ensuite evaluer leur pertinence. Dans certains developpements de cette approche, utilises dans le present travail,
+les contraintes sont uniquement d‚Äôordre num√©rique. Une analyse y est represent√©e par un vecteur de traits et sa
+qualite se mesure par la distance entre ce demier et l‚Äôanalyse de reference.
+
+Une maniere de tirer proÔ¨Åt des deux approches consiste, comme l‚Äôa propose (Collins, 2000), a les combiner de
+fagon s√©quentielle. Un analyseur de type gen√©ratif produit alors un ensemble de structures candidates pour un
+second module, discriminant, de fagon a contraindre son espace de recherche. Cette approche par analyse puis
+r√©ordonnancement (en anglais, parsing/reranking) est utilisee dans l‚Äôanalyseur de Brown (Chamiak & Johnson,
+2005), adapt√© pour le frangais dans (Seddah et al., 2009). Il est meme int√©ressant de foumir au module de reordon‚Äî
+nancement des analyses provenant de diff√©rents analyseurs, comme le montrent les resultats obtenus par (Johnson
 & Ural, 2010).
-Notre architecture, représentée sur la figure 1, reprend ces deux étapes. Lors de la première étape, un analyseur
-syntagmatique traite chaque phrase d’entrée et produit la liste des n analyses les plus probables munies de leur pro-
-babilité. Elles sont ensuite annotées par un étiqueteur fonctionnel avec des fonctions syntaxiques classiques sujet,
-objet, objet indirect. . . Les analyses syntagmatiques enrichies d’annotations fonctionnelles sont alors converties
-en structures de dépendances. À l’issue de cette conversion, on dispose donc de candidats qui sont des struc-
-tures de dépendances munies du score donné par le premier analyseur. Cette étape est réalisée par un analyseur
-syntagmatique PCFG-LA (Petrov et al., 2006) couplé à l’étiqueteur et au convertisseur BONSAÏ 1.
-Chaque structure de dépendances munie d’un score est ensuite traduite en un vecteur de traits. Ces traits repré-
-sentent des configurations structurelles qui peuvent être absentes ou présentes dans l’arbre de dépendances et le
-vecteur indique leur nombre d’occurrences pour ce candidat. Le score attribué par l’analyseur syntagmatique est
-lui-même vu comme un trait. Les différents candidats sont finalement évalués par le réordonnanceur et le système
-retourne le meilleur candidat. Ce module est réalisé par notre implantation de l’algorithme MIRA (Crammer et al.,
-2006).
-Il nous paraît important de revenir ici sur deux aspects de notre architecture. Le premier est la réalisation de l’étape
-de réordonnancement sur des structures de dépendances et non pas sur des structures syntagmatiques, à l’image
-de (Charniak & Johnson, 2005). Notre analyseur produisant des structures syntagmatiques, il aurait en effet été
-plus naturel de réaliser le réordonnancement sur des structures syntagmatiques et de s’épargner ainsi leur conver-
-sion en structures de dépendances. Deux raisons sont à l’origine de ce choix. D’une part, il nous a semblé que de
-nombreuses contraintes se modélisent plus naturellement sous la forme de structures de dépendances que sous la
-forme de structures syntagmatiques. On pense en particulier à des contraintes sur les cadres de sous-catégorisation
-ou à des contraintes de sélection, qui font explicitement appel à la notion de fonction syntaxique. D’autre part, un
-certain nombre de travaux récents en analyse syntaxique (McDonald, 2006; Nivre et al., 2007) reposent sur les
-structures de dépendances et il nous a semblé intéressant de proposer un système de réordonnancement pour ce
-type d’analyses.
-1. disponibles sur le site http://alpage.inria.fr/statgram/frdep/fr_stat_dep_parsing.html.
-MODÈLES GÉNÉRATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
-La raison pour laquelle nous n’avons pas utilisé directement un analyseur en dépendances, qui aurait été sans
-doute un choix plus naturel, est qu’il n’existe pas à notre connaissance d’analyseur en dépendances qui génère les
-n analyses les plus probables. Les analyseurs de (McDonald, 2006), ou de (Nivre et al., 2007), par exemple, ne
-permettent pas de les produire, même si le premier peut les approximer. C’est donc une raison pragmatique qui
-nous a poussés à faire ce choix. Enfin, il était intéressant de vérifier si, comme pour l’anglais, les structures de
-dépendances obtenues par conversions de structures syntagmatiques sont de meilleure qualité que celles renvoyées
-par les analyseurs en dépendances directement.
-Le réordonnanceur proposé dans ce travail, qui sera décrit en détail dans la section 3, partage plusieurs de ses
-caractéristiques avec l’analyseur de (McDonald, 2006), évoqué ci-dessus. Les deux reposent sur l’algorithme
-d’apprentissage MIRA (Crammer et al., 2006) décrit dans la section 3. De plus, les contraintes considérées dans
-notre modèle sont inspirées de (McDonald, 2006). La différence fondamentale provient du fait que les seules
-analyses prises en comptes sont celles produites par le modèle génératif (il s’agit d’un réordonnanceur et non d’un
-analyseur). L’avantage de cette solution par rapport à (McDonald, 2006) est que nous ne sommes pas restreints à
-un ensemble de traits locaux. En effet la prise en compte de traits non prévus, de domaine de localité arbitraire,
-dans l’algorithme de (McDonald, 2006) suppose des modifications de l’algorithme d’analyse alors qu’ils peuvent
-être ajoutés facilement dans notre modèle de réordonnancement.
- Score
- Score
-il/Cl fait/Vle/Cl
-SUJ
-OBJ
-Analyse de meilleur
-score
-il le fait
-Entrée
-il/Cl-S fait/Vle/Cl-O
-VN
-SENT
-fait/Vle/Dil/Cl-S
-SENT
-VN
-le/D fait/Nil/Cl
-NP NP
-SENT
-(1) Analyse syntagmatique
-+ étiquetage fonctionnel
-le/D fait/Nil/Cl
-MOD
-MOD
-fait/Vle/Dil/Cl
-SUJ
-MOD
-il/Cl fait/Vle/Cl
-SUJ
-OBJ
-(2) Conversion
-vers dépendances
-Extraction
-de traits
-(3) Réordonnancement
-Modèle
-linéaire
- Score
-FIGURE 1 – Architecture de notre analyseur : (1) génération de n arbres syntagmatiques annotés en fonctions, (2)
-conversion vers une représentation en dépendances et extraction de vecteurs de traits, (3) calcul des scores à l’aide
-d’un modèle linéaire. L’analyse de meilleur score est considérée comme l’analyse finale.
-La suite de l’article se présente de la façon suivante : nous décrivons en 2 les détails du modèle utilisé dans notre
-analyseur génératif puis en 3 le modèle de réordonnancement discriminant et les patrons de traits utilisés. La
-section 4 présente les résultats obtenus sur le corpus arboré développé à l’université Paris 7 (Abeillé et al., 2003)
-et la section 5 présente les conclusions.
-2 Modèle génératif
-La première partie de notre système, l’analyse syntaxique classique, produit des structures en dépendances de
-surface grâce à un système séquentiel, à l’image de (Candito et al., 2009, 2010b). Un analyseur, fondé sur les
-PCFG-LA, produit des structures syntagmatiques qui sont ensuite transformées en arbres de dépendances. Deux
-points nous distinguent des travaux précédents : (1) la liste d’analyses candidates est produite par un nouvel
-analyseur et (2) ces analyses ne sont pas considérées comme les structures finales mais seront traitées dans le
-réordonnanceur.
+
+Notre architecture, repr√©sent√©e sur la Ô¨Ågure 1, reprend ces deux √©tapes. Lors de la premiere etape, un analyseur
+syntagmatique traite chaque phrase d‚Äô entree et produit la liste des 11 analyses les plus probables munies de leur pro-
+babilit√©. Elles sont ensuite annot√©es par un √©tiqueteur fonctionnel avec des fonctions syntaxiques classiques sujet,
+objet, objet indirect. . . Les analyses syntagmatiques enrichies d‚Äôannotations fonctionnelles sont alors converties
+en structures de d√©pendances. A l‚Äôissue de cette conversion, on dispose donc de candidats qui sont des struc-
+tures de d√©pendances munies du score donne par le premier analyseur. Cette etape est realis√©e par un analyseur
+syntagmatique PCFG‚ÄîLA (Petrov et al., 2006) couple a l‚Äô√©tiqueteur et au convertisseur BONSAI 1.
+
+Chaque structure de d√©pendances munie d‚Äôun score est ensuite traduite en un vecteur de traits. Ces traits repre-
+sentent des conÔ¨Ågurations structurelles qui peuvent etre absentes ou presentes dans l‚Äôarbre de d√©pendances et le
+vecteur indique leur nombre d‚Äôoccurrences pour ce candidat. Le score attribu√© par l‚Äôanalyseur syntagmatique est
+lui‚Äîmeme vu comme un trait. Les diff√©rents candidats sont Ô¨Ånalement evalu√©s par le r√©ordonnanceur et le systeme
+retoume le meilleur candidat. Ce module est realise par notre implantation de l‚Äôalgorithme MIRA (Crammer et al.,
+2006)
+
+ll nous parait important de revenir ici sur deux aspects de notre architecture. Le premier est la realisation de l‚Äô etape
+de reordonnancement sur des structures de d√©pendances et non pas sur des structures syntagmatiques, a l‚Äôimage
+de (Chamiak & Johnson, 2005). Notre analyseur produisant des structures syntagmatiques, il aurait en effet et√©
+plus naturel de realiser le r√©ordonnancement sur des structures syntagmatiques et de s‚Äôepargner ainsi leur conver-
+sion en structures de dependances. Deux raisons sont a l‚Äôorigine de ce choix. D‚Äôune part, il nous a semble que de
+nombreuses contraintes se mod√©lisent plus naturellement sous la forme de structures de d√©pendances que sous la
+forme de structures syntagmatiques. On pense en particulier a des contraintes sur les cadres de sous-categorisation
+ou a des contraintes de selection, qui font explicitement appel a la notion de fonction syntaxique. D‚Äôautre part, un
+certain nombre de travaux recents en analyse syntaxique (McDonald, 2006; Nivre et al., 2007) reposent sur les
+structures de d√©pendances et il nous a sembl√© int√©ressant de proposer un systeme de reordonnancement pour ce
+type d‚Äôanalyses.
+
+l. disponibles sur le site http : //alpage . inria . fr/statgram/frdep/fr_stat_dep_parsing. html.
+
+MODELES GENERATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
+Cette analyse fait apparaitre que les traits issus du repli13 sont utiles pour caract√©riser de mauvaises analyses
+(63% des 1000 poids les plus n√©gatifs). De plus, les traits negatifs font souvent reference a un indicateur d‚Äô√©chec
+de la lemmatisation. Comme cette lemmatisation est produite a partir d‚Äôun lexique et de la paire forme / partie
+du discours, et sous l‚Äôhypothese que notre lexique est sufÔ¨Åsamment riche, une erreur signiÔ¨Åe que l‚Äô√©tiquetage en
+partie du discours est mauvais.
+
+Le trait positif le plus discriminant est, sans surprise, le score donne par l‚Äôanalyseur. Les autres traits positifs
+importants pennettent d‚Äôavantager des √©tiquetages de parties du discours en fonction du contexte lineaire. On
+remarque aussi l‚Äôexistence de traits qui incitent les conj oints a avoir la meme cat√©gorie dans les coordinations.
+
+On voit donc que le r√©ordonnancement peut remettre en question l‚Äôetiquetage de l‚Äôanalyseur mais aussi qu‚Äôil peut
+inÔ¨Çuencer le traitement de phenomenes plus complexes comme la coordination. La Ô¨Ågure 2 donne un exemple de
+phrase dont la meilleure analyse a et√© corrig√©e par le modele discriminant.
+
+Les patrons les plus representes en positif sont unigramme, bigramme, contexte lin√©aire, chaines, et leurs
+versions relachees, et en negatif unigramme, bigramme, chaines, nmuds fr√©res. Une analyse des resultats par
+type de dependance montre que le reordonnanceur fait moins d‚Äôerreurs unifonnement sur l‚Äôensemble des types.
+La Ô¨Ågure 2 donne un exemple de phrase dont l‚Äôanalyse a ete corrigee par le modele discriminant.
+
+5 Conclusion
+
+Nous avons montre que l‚Äôajout d‚Äôun module discriminant permet d‚Äôam√©liorer la qualit√© des analyses, comme nous
+avons pu le veriÔ¨Åer exp√©rimentalement sur le corpus FTB a l‚Äôaide de trois m√©triques (F‚Äîscore Parseval, LAS,
+UAS). Cependant, le gain est moins important que celui observe pour l‚Äôanglais (Charniak & Johnson, 2005). Sans
+proceder a une analyse d‚Äôerreurs exhaustive, on peut toutefois evoquer plusieurs points pouvant etre am√©lior√©s.
+
+En premier lieu, l‚Äôapproche sequentielle est vulnerable aux erreurs en cascade. Bien que l‚Äôanalyseur generatif
+foumisse plusieurs candidats, ce n‚Äôest pas le cas de l‚Äô√©tiqueteur fonctionnel. Les erreurs d‚Äôetiquetage ne sont donc
+pas r√©cuperables. On peut envisager deux solutions ici : (1) pennettre a l‚Äô √©tiqueteur de renvoyer une sortie ambigue
+et laisser le r√©ordonnanceur decider du meilleur √©tiquetage, et (2) utiliser des techniques plus sophistiqu√©es dans
+la phase discriminante comme la prediction structur√©e. On pourra ainsi se passer de l‚Äôetiqueteur.
+
+Ensuite, cette approche a deux niveaux ne permet pas d‚Äôatteindre l‚Äôoracle, ce qui a d√©ja √©t√© observe sur l‚Äôanglais.
+11 est difÔ¨Åcile de trouver un jeu de traits sufÔ¨Åsamment general et qui soit utile pour une phrase particuliere. Il
+y a encore des investigations a mener pour trouver un jeu de traits optimal, par exemple sur l‚Äôutilisation plus
+syst√©matique de traits sur les structures de d√©pendances (par exemple en passant par des noyaux d‚Äôarbres), ou
+celle de connaissances extemes, linguistiques ou collect√©es sur corpus (preferences lexicales, cadres de sous-
+categorisation, verbes copulatifs, sym√©trie de la coordination. . . ).
+
+EnÔ¨Ån, notre systeme doit encore etre amelior√© pour une utilisation en situation r√©elle (par exemple, l‚Äôanalyse de
+gros volumes de donn√©es provenant de la toile). L‚Äô extraction des traits pour le reordonnanceur, et vraisemblable‚Äî
+ment pour l‚Äô√©tiqueteur fonctionnel, est clairement le goulot d‚Äô√©tranglement. A titre d‚Äôexemple, pour analyser les
+1235 phrases du corpus de test, les temps d‚Äôanalyse en constituants, d‚Äô√©tiquetage fonctionnel et de conversion en
+structures de dependances, d‚Äô extraction de traits et Ô¨Ånalement de r√©ordonnancement, sont respectivement : 9 min
+55 s, 25min43 s, 51 min 12set4min03 s.
+
+Ce travail ouvre la voie a l‚Äôutilisation de donnees non √©tiquet√©es en plus d‚Äôun corpus arbore pour apprendre une
+meilleure grammaire generative (self training comme (McClosky et al., 2008)) ou le reordonnanceur √©vite au
+systeme d‚Äôapprendre sur les erreurs commises par l‚Äôanalyseur g√©n√©ratif.
+
+Remerciements
+
+Ces travaux sont en partie Ô¨Ånances par le projet ANR Sequoia ANR‚Äî08‚ÄîEMER‚Äî0l3. Nous tenons a remercier
+Marie Candito qui nous a aides a maitriser BONSAL Djam√© Seddah qui nous a sugg√©re de tester notre architecture
+sur les grammaires d‚Äôagr√©gats, ainsi que les relecteurs anonymes.
+
+13. C‚Äôest-5-dire qu‚Äôune partie de l‚Äôinformation est masqu√©e (cf. section 3.2).
+
 LE ROUX, FAVRE, MIRROSHANDEL, NASR
-2.1 Les grammaires algébriques à annotations latentes
-Les grammaires algébriques probabilistes à annotations latentes (PCFG-LA), introduites par (Matsuzaki et al.,
-2005), peuvent être vues comme une façon de spécialiser automatiquement le jeu d’étiquettes d’une grammaire
-algébrique (PCFG) à partir d’un corpus de manière à en améliorer la précision.
-Chaque symbole de la grammaire est enrichi d’annotations se comportant comme des sous-classes de ce symbole,
-et les probabilités des règles qui manipulent les symboles augmentés sont estimées par la méthode EM d’appren-
-tissage non-supervisé, à partir des fréquences relatives observées sur le corpus. (Petrov et al., 2006) proposent
-d’apprendre ces grammaires en plusieurs rondes : à chaque itération on divise une annotation d’un symbole en
-deux si l’apport des nouvelles annotations augmente la vraisemblance du corpus d’entraînement. Cette méthode
-permet d’obtenir une grammaire dans laquelle le nombre d’annotations est adapté au symbole et beaucoup plus
+
+R√©f√©rences
+
+AB EILLE A., CLEMENT L. & FRANCOIS T. (2003). Treebanks, chapter Building a treebank for French. Kluwer,
+Dordrecht.
+
+ATTIA M., FOSTER J ., HOGAN D., LE Roux J ., TOUNSI L. & VAN GENABITH J . (2010). Handling Unknown
+Words in Statistical Latent‚ÄîVariable Parsing Models for Arabic, English and French. In Proceedings of SPMRL.
+BOHNET B. (2010). Top Accuracy and Fast Dependency Parsing is not a Contradiction. In Proceedings of
+COLING.
+
+CANDITO M., CRABBE B. & DENIS P. (2010a). Statistical French Dependency Parsing : Treebank Conversion
+and First Results. In Proceedings of LREC20l 0.
+
+CANDITO M.‚ÄîH. & CRABBE B. (2009). Improving Generative Statistical Parsing with Semi‚ÄîSupervised Word
+Clustering. In Proceedings of IWPT 2009.
+
+CANDITO M.‚ÄîH., CRABBE B., DENIS P. & GUERIN F. (2009). Analyse syntaxique du francais : des consti-
+tuants aux d√©pendances. In Actes de TALN.
+
+CANDITO  NIVRE J ., DENIS P. & HENESTROZA ANGUIANO E. (2010b). Benchmarking of Statistical
+Dependency Parsers for French. In Proceedings of COLING‚Äô20l 0.
+
+CHARNIAK E. & JOHNSON M. (2005). Coarse‚Äîto‚ÄîFine n‚ÄîBest Parsing and MaxEnt Discriminative Reranking.
+In Proceedings of ACL.
+
+COLLINS M. (1997). Three Generative, Lexicalised Models for Statistical Parsing. In Proceedings of the 35th
+Annual Meeting of the ACL.
+
+COLLINS M. (2000). Discriminative Reranking for Natural Language Parsing. In Proceedings of ICML.
+CRABBE B. & CANDITO M. (2008). Experiences d‚Äôanalyse syntaxique du francais. In Actes de TALN.
+CRAMMER K., DEKEL 0., KESHET J ., SHALEVSHWARTZ S. & SINGER Y. (2006). Online Passive-Aggressive
+Algorithm. Journal of Machine Learning Research.
+
+DENIS P. & SAGOT B. (2010). Exploitation d‚Äôune ressource lexicale pour la construction d‚Äôun √©tiqueteur mor-
+phosyntaxique √©tat‚Äîde‚Äîl‚Äôart du francais. In Actes de TALN.
+
+JOHNSON M. & URAL A. E. (2010). Reranking the Berkeley and Brown Parsers. In Human Language Tech-
+nologies : The 2010 Annual Conference of the North American Chapter of the Association for Computational
+Linguistics, p. 665-668, Los Angeles, California : Association for Computational Linguistics.
+
+MATSUZAKI T., MIYAO Y. & ICHI TSUJII J . (2005). Probabilistic CFG with Latent Annotations. In Proceedings
+of ACL.
+
+MCCLOSKY D., CHARNIAK E. & JOHNSON M. (2008). When is Self‚ÄîTraining Effective for Parsing ? In D.
+SCOTT & H. USZKOREIT, Eds., COLING, p. 561-568.
+
+MCDONALD R. (2006). Discriminative Training and Spanning Tree Algorithms for Dependency Parsing. PhD
+thesis, University of Pennsylvania.
+
+MCDONALD R., CRAMMER K. & PEREIRA F. (2005). Online Large‚ÄîMargin Training of Dependency Parsers.
+In Association for Computational Linguistics (ACL).
+
+NIVRE J ., HALL J ., NILSSON J ., CHANEV A., ERYIGIT G., KUBLER S., MARINOV S. & MARSI E. (2007).
+Maltparser : A language‚Äîindependent system for data‚Äîdriven dependency parsing. Natural language Enginee-
+ring, 13(2), 95-135.
+
+PETROV S., BARRETT L., THIBAUX R. & KLEIN D. (2006). Learning Accurate, Compact, and Interpretable
+Tree Annotation. In ACL.
+
+PETROV S. & KLEIN D. (2007). Improved Inference for Unlexicalized Parsing. In HLT‚ÄîNAACL, p. 404-411.
+PULLUM G. K. & SCHOLZ B. C. (2001). On the distinction between model‚Äîtheoretic and generative-
+enumerative syntactic frameworks. In Logical Aspects of Computational Linguistics.
+
+RAMBOW O. (2010). The Simple Truth about Dependency and Phrase Structure Representations : An Opinion
+Piece. In NAACL HLT.
+
+ROSENBLATT F. (1958). The Perceptron : A Probabilistic Model for Information Storage and Organization in
+the Brain. Psychological Review.
+
+SEDDAH D., CANDITO M. & CRABBE B. (2009). Adaptation de parsers statistiques lexicalis√©s pour le francais :
+Une evaluation complete sur corpus arbor√©s. In TALN.
+
+MODELES GENERATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
+La raison pour laquelle nous n‚Äôavons pas utilise directement un analyseur en dependances, qui aurait et√© sans
+doute un choix plus naturel, est qu‚Äôil n‚Äôexiste pas a notre connaissance d‚Äôanalyseur en dependances qui genere les
+11 analyses les plus probables. Les analyseurs de (McDonald, 2006), ou de (Nivre et al., 2007), par exemple, ne
+permettent pas de les produire, meme si le premier peut les approximer. C‚Äôest donc une raison pragmatique qui
+nous a pouss√©s a faire ce choix. EnÔ¨Ån, il etait interessant de veriÔ¨Åer si, comme pour l‚Äôanglais, les structures de
+d√©pendances obtenues par conversions de structures syntagmatiques sont de meilleure qualite que celles renvoyees
+par les analyseurs en d√©pendances directement.
+
+Le reordonnanceur propose dans ce travail, qui sera decrit en detail dans la section 3, partage plusieurs de ses
+caracteristiques avec l‚Äôanalyseur de (McDonald, 2006), √©voque ci‚Äîdessus. Les deux reposent sur l‚Äôalgorithme
+d‚Äô apprentissage MIRA (Crammer et al., 2006) decrit dans la section 3. De plus, les contraintes consid√©r√©es dans
+notre modele sont inspirees de (McDonald, 2006). La diÔ¨Å"√©rence fondamentale provient du fait que les seules
+analyses prises en comptes sont celles produites par le modele g√©n√©ratif (il s‚Äôagit d‚Äôun r√©ordonnanceur et non d‚Äô un
+analyseur). L‚Äô avantage de cette solution par rapport a (McDonald, 2006) est que nous ne sommes pas restreints a
+un ensemble de traits locaux. En effet la prise en compte de traits non prevus, de domaine de localit√© arbitraire,
+dans l‚Äôalgorith1ne de (McDonald, 2006) suppose des modiÔ¨Åcations de l‚Äôalgorithme d‚Äôanalyse alors qu‚Äôils peuvent
+etre ajoutes facilement dans notre modele de r√©ordonnancement.
+
+   
+
+SENT
+4/l MOD
+11? NP
+i]/C1 1e/D fait/N i]/C1 le/D fair/N
+MOD
+SENT
+SUJ
+/ --
+i]/C1-S le/C1‚Äî0 fait/V M . WC! 16/0 faiW
+3‚Äò . \/
+Entm√©e H OBJ
+SENT
+SUI Analyse de meilleur
+$ score
+1'1/c1-s 1e/D fait/V i]/C1 le/D fait/V ‚ÄòM 69 ‚Äô S¬∞¬∞‚Äô¬∞
+L/'
+MOD
+(1) Analyse syntagmatique (2) Conversion (3) R√©ordonnanoement
++ √©tiquetage fonctionnel veis d√©pendances
+
+FIGURE 1 ‚Äî Architecture de notre analyseur : (1) generation de 11 arbres syntagmatiques armotes en fonctions, (2)
+conversion vers une representation en d√©pendances et extraction de vecteurs de traits, (3) calcul des scores a l‚Äôaide
+d‚Äô un modele lin√©aire. L‚Äô analyse de meilleur score est consid√©ree comme l‚Äôanalyse Ô¨Ånale.
+
+La suite de l‚Äôarticle se presente de la fagon suivante : nous decrivons en 2 les details du modele utilise dans notre
+analyseur g√©n√©ratif puis en 3 le modele de r√©ordonnancement discriminant et les patrons de traits utilises. La
+section 4 presente les resultats obtenus sur le corpus arbore developpe a l‚Äôuniversit√© Paris 7 (Abeille et al., 2003)
+et la section 5 pr√©sente les conclusions.
+
+2 Mod√©le g√©n√©ratif
+
+La premiere partie de notre systeme, l‚Äôanalyse syntaxique classique, produit des structures en d√©pendances de
+surface grace a un systeme s√©quentiel, a l‚Äôi1nage de (Candito et al., 2009, 2010b). Un analyseur, fond√© sur les
+PCFG‚ÄîLA, produit des structures syntagmatiques qui sont ensuite transform√©es en arbres de dependances. Deux
+points nous distinguent des travaux precedents : (1) la liste d‚Äôanalyses candidates est produite par un nouvel
+analyseur et (2) ces analyses ne sont pas considerees comme les structures Ô¨Ånales mais seront trait√©es dans le
+r√©ordonnanceur.
+
+LE ROUX, FAVRE, MIRROSHANDEL, NASR
+
+2.1 Les grammaires alg√©briques ¬£1 annotations latentes
+
+Les grammaires algebriques probabilistes a armotations latentes (PCFG‚ÄîLA), introduites par (Matsuzaki et al.,
+2005), peuvent etre Vues comme une fagon de specialiser automatiquement le jeu d‚Äôetiquettes d‚Äôune grammaire
+algebrique (PCFG) a partir d‚Äôun corpus de maniere a en ameliorer la precision.
+
+Chaque symbole de la grammaire est enrichi d‚Äô armotations se comportant comme des sous‚Äîclasses de ce symbole,
+et les probabilites des regles qui manipulent les symboles augmentes sont estimees par la methode EM d‚Äôappren-
+tissage non‚Äîsupervise, a partir des frequences relatives observees sur le corpus. (Petrov et al., 2006) proposent
+d‚Äô apprendre ces grammaires en plusieurs rondes : a chaque iteration on divise une annotation d‚Äôun symbole en
+deux si l‚Äôapport des nouvelles armotations augmente la Vraisemblance du corpus d‚Äôentrainement. Cette methode
+permet d‚Äôobtenir une grammaire dans laquelle le nombre d‚Äôannotations est adapte au symbole et beaucoup plus
 compacte que celles obtenues par (Matsuzaki et al., 2005).
-On peut reprendre l’illustration des spécialisations d’étiquettes de parties du discours de (Petrov et al., 2006) pour
-le français. Par exemple l’étiquette DET est divisée en quinze sous-étiquettes après cinq rondes d’apprentissage.
-Nous montrons dans la table 1 les trois mots les plus fréquents pour chaque annotation 2. Même si la spécialisation
-est difficile à interpréter complètement, on note que les articles définis et indéfinis sont séparés des démonstratifs
-et possessifs d’une part et des cardinaux d’autre part. Il est important de noter que cette distinction est apprise par
-une méthode qui dépend largement des paramètres d’initialisation et qui ne garantit pas de trouver la spécialisation
+
+On peut reprendre l‚Äôillustration des specialisations d‚Äôetiquettes de parties du discours de (Petrov et al., 2006) pour
+le frangais. Par exemple l‚Äôetiquette DET est divisee en quinze sous‚Äîetiquettes apres cinq rondes d‚Äôapprentissage.
+Nous montrons dans la table 1 les trois mots les plus frequents pour chaque armotation 2. Meme si la specialisation
+est difÔ¨Åcile a interpreter completement, on note que les articles deÔ¨Ånis et indeÔ¨Ånis sont separes des demonstratifs
+et possessifs d‚Äôune part et des cardinaux d‚Äô autre part. 11 est important de noter que cette distinction est apprise par
+une methode qui depend largement des parametres d‚Äôinitialisation et qui ne garantit pas de trouver la specialisation
 optimale.
+
 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
-1 une la l’ un les les ses le cette son NB deux NB NB NB
-2 la La la son des Les ces Le Cette ce 10 trois 7 40 1
-3 La L’ les Un Les de leurs un Ce leur 3 quelques trois 20 30
-TABLE 1 – Division du symbole DET en annotations
-Dans ce formalisme, le problèmes de l’analyse exacte devient NP-difficile mais (Petrov & Klein, 2007) décrivent
-comment l’approximer efficacement, en tirant également profit de la structure hiérarchique des annotations créées
-lors des rondes successives. Une forêt d’analyses est produite avec la PCFG d’origine et est ensuite élaguée avec
-les grammaires intermédiaires produites lors des rondes successives d’apprentissage 3, c’est-à-dire qu’on ne garde
-qu’un sous-ensemble a priori intéressant des analyses, de manière à restreindre au maximum l’espace de recherche
-lors du décodage avec la grammaire finale.
-Nous utilisons notre propre analyseur de PCFG-LA 4. La grammaire est apprise en cinq rondes sur le corpus d’en-
-traînement : c’est le nombre de rondes optimal sur notre corpus. Pour pouvoir traiter les mots inconnus, les mots
-rares sont remplacés par des chaînes contenant des informations positionnelles et typographiques, en particulier
-leur suffixe. La liste des suffixes intéressants est collectée sur ce corpus en fonction du gain d’information pour
-l’étiquetage et permet de mieux traiter les mots inconnus (Attia et al., 2010).
-Ce type de grammaire a déjà été utilisé pour le français à partir du même corpus (Crabbé & Candito, 2008). Il a
-donné des résultats du niveau de l’état de l’art en matière d’analyse en constituants. (Candito & Crabbé, 2009)
-montrent que si l’on sait catégoriser les mots en classes lexicales (agrégats ou clusters), ces grammaires offrent
-les meilleures analyses en syntagmes pour le français. Nous reprendrons cette classification pour nos expériences
-(cf. section 4). Cependant, les structures en dépendances extraites des meilleures analyses en constituants ne sont
-pas aussi bonnes que celles obtenues directement par un analyseur en dépendances (Candito et al., 2010b).
-2.2 Structures de dépendances
-Bien qu’une théorie syntaxique puisse se représenter à partir de syntagmes et de dépendances (Rambow, 2010),
-certains types d’informations sont plus ou moins faciles à décrire selon la représentation choisie. L’analyseur géné-
-ratif étant appris sur des structures syntagmatiques, il est vraisemblable qu’une partie de l’information linguistique
-lui échappe parce qu’elle est implicite ou difficile à retrouver dans cette représentation.
-2. Le symbole terminal NB est une chaîne générique qui remplace les nombres qui apparaissent peu de fois dans le corpus d’entraînement.
-3. En réalité ces grammaires sont recalculées à la volée à partir de la grammaire finale et de la structure hiérarchique des annotations.
-4. Cet analyseur est disponible pour les travaux académiques. Les lecteurs intéressés peuvent contacter le premier auteur.
-MODÈLES GÉNÉRATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
-Cette équivalence n’est de toute façon vraie que si les deux représentations offrent réellement les mêmes infor-
-mations. Or, comme cela sera décrit dans la section 4, nous avons fait disparaître les fonctions du corpus d’ap-
-prentissage de l’analyseur syntagmatique pour aider lutter à contre l’effet de dispersion des données et améliorer
-l’apprentissage des relations de sous-constituance. Mais pour obtenir les relations de dépendances typées, il est
-nécessaire de disposer de l’information fonctionnelle.
-Pour passer des structures en constituants aux structures en dépendances, nous utilisons le convertisseur développé
-par (Candito et al., 2010a) et disponible dans la boîte à outils BONSAÏ. La conversion se décompose en deux
-étapes :
-1. Les nœuds internes sont réannotés avec des étiquettes fonctionnelles, en utilisant un classifieur multiclasse
-par maximum d’entropie.
-2. Les arbres ainsi décorés sont convertis en structures de dépendances par un ensemble de règles de propaga-
-tions de têtes fonctionnelles et d’heuristiques.
-Cette conversion effectuée, les analyses sont prêtes à être réordonnancées.
-3 Modèle discriminant
-Le modèle discriminant que nous proposons repose sur l’algorithme Margin-infused Relaxed Algorithm (MIRA) (Cram-
-mer et al., 2006). Selon ce modèle, le score d’une analyse est calculé comme la combinaison linéaire des traits
-extraits à partir de cette analyse, pondérés par un vecteur de poids représentant les paramètres du modèle. MIRA,
-l’algorithme d’apprentissage des paramètres du modèle, est très similaire au Perceptron (Rosenblatt, 1958), et est
+1 une la 1‚Äô un les les ses 1e cette son NB deux NB NB NB
+la La la son des Les ces Le Cette ce 10 trois 7 40 1
+
+3 La L‚Äô les Un Les de leurs un Ce leur 3 quelques trois 20 30
+
+TABLE 1 ‚Äî Division du symbole DET en armotations
+
+Dans ce formalisme, le problemes de l‚Äôanalyse exacte devient NP‚ÄîdjfÔ¨Åcile mais (Petrov & Klein, 2007) decrivent
+comment l‚Äôapproximer efÔ¨Åcacement, en tirant egalement proÔ¨Åt de la structure hierarchique des annotations creees
+lors des rondes successives. Une foret d‚Äô analyses est produite avec la PCFG d‚Äôorigine et est ensuite elaguee avec
+les grammaires intermediaires produites lors des rondes successives d‚Äô apprentissage 3, c‚Äôest-a-dire qu‚Äôon ne garde
+qu‚Äôun sous‚Äîensemble a priori interessant des analyses, de maniere a restreindre au maximum 1‚Äô espace de recherche
+lors du decodage avec la grammaire Ô¨Ånale.
+
+Nous utilisons notre propre analyseur de PCFG‚ÄîLA 4. La grammaire est apprise en cinq rondes sur le corpus d‚Äôen-
+trainement : c‚Äôest le nombre de rondes optimal sur notre corpus. Pour pouvoir traiter les mots inconnus, les mots
+rares sont remplaces par des chaines contenant des informations positionnelles et typographiques, en particulier
+leur sufÔ¨Åxe. La liste des sufÔ¨Åxes int√©ressants est collectee sur ce corpus en fonction du gain d‚Äôinformation pour
+l‚Äôetiquetage et permet de mieux traiter les mots inconnus (Attia et al., 2010).
+
+Ce type de grammaire a deja ete utilise pour le frangais a partir du meme corpus (Crabbe & Candito, 2008). 11 a
+donne des resultats du niveau de l‚Äôetat de l‚Äôart en matiere d‚Äôanalyse en constituants. (Candito & Crabbe, 2009)
+montrent que si l‚Äôon sait categoriser les mots en classes lexicales (agregats ou clusters), ces grammaires offrent
+les meilleures analyses en syntagmes pour le frangais. Nous reprendrons cette classiÔ¨Åcation pour nos experiences
+(cf. section 4). Cependant, les structures en dependances extraites des meilleures analyses en constituants ne sont
+pas aussi bonnes que celles obtenues directement par un analyseur en dependances (Candito et al., 2010b).
+
+2.2 Structures de dependances
+
+Bien qu‚Äôune theorie syntaxique puisse se representer a partir de syntagmes et de dependances (Rambow, 2010),
+certains types d‚Äôinformations sont plus ou moins faciles a decrire selon la representation choisie. L‚Äô analyseur gene-
+ratif etant appris sur des structures syntagmatiques, il est Vraisemblable qu‚Äôune partie de l‚Äôinformation linguistique
+lui echappe parce qu‚Äôelle est implicite ou difÔ¨Åcile a retrouver dans cette representation.
+
+2. Le symbole terminal NB est une chaine g√©n√©rique qui remplace les nombres qui apparaissent peu de fois dans le corpus d‚Äôentrainement.
+3. En r√©alit√© ces grammaires sont recalcul√©es a la vol√©e a partir de la grammaire Ô¨Ånale et de la structure hierarchique des annotations.
+4. Cet analyseur est disponible pour les travaux acad√©miques. Les lecteurs int√©ress√©s peuvent contacter le premier auteur.
+
+MODELES GENERATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
+Cette equivalence n‚Äôest de toute fagon Vraie que si les deux representations offrent reellement les memes infor-
+mations. Or, comme cela sera d√©crit dans la section 4, nous avons fait disparaitre les fonctions du corpus d‚Äôap‚Äî
+prentissage de l‚Äôanalyseur syntagmatique pour aider lutter a contre l‚Äôeffet de dispersion des donn√©es et am√©liorer
+l‚Äôapprentissage des relations de sous‚Äîconstituance. Mais pour obtenir les relations de dependances typees, il est
+necessaire de disposer de l‚Äôinformation fonctionnelle.
+
+Pour passer des structures en constituants aux structures en d√©pendances, nous utilisons le convertisseur d√©veloppe
+par (Candito et al., 2010a) et disponible dans la boite a outils BONSAI. La conversion se decompose en deux
+√©tapes :
+1. Les noeuds internes sont reannotes avec des etiquettes fonctionnelles, en utilisant un classiÔ¨Åeur multiclasse
+par maximum d‚Äô entropie.
+2. Les arbres ainsi decores sont convertis en structures de d√©pendances par un ensemble de regles de propaga-
+tions de tetes fonctionnelles et d‚Äôheuristiques.
+
+Cette conversion effectuee, les analyses sont pretes a etre r√©ordonnancees.
+
+3 Mod√©le discriminant
+
+Le modele discriminant que nous proposons repose sur 1‚Äô algorithme Margin‚Äîinfused Relaxed Algorithm (MIRA) (Cram-
+mer et al., 2006). Selon ce modele, le score d‚Äôune analyse est calcule comme la combinaison lin√©aire des traits
+extraits a partir de cette analyse, pond√©res par un Vecteur de poids representant les parametres du modele. MIRA,
+l‚Äôalgorithme d‚Äôapprentissage des parametres du modele, est tres similaire au Perceptron (Rosenblatt, 1958), et est
 donc rapide et peu gourmand en ressources, tout en offrant de meilleures performances.
-Le réordonnancement discriminant des analyses se déroule selon deux étapes : apprentissage des paramètres du
-modèle et prédiction. L’étape de prédiction consiste à produire les n meilleures analyses du modèle génératif,
-extraire des traits pour caractériser ces analyses et attribuer un score à chaque analyse en fonction de ses traits
-et du modèle discriminant. L’analyse de meilleur score est alors sélectionnée comme sortie finale du système.
-L’étape d’entraînement consiste à utiliser des exemples de phrases avec leurs analyses de référence (ensemble
-d’apprentissage) pour déterminer les paramètres du modèle. Alors que la plupart des modèles discriminants tentent
-de minimiser le taux d’erreur global sur l’ensemble des exemples d’apprentissage, MIRA se contente de traiter les
-exemples un par un, ajustant son modèle pour que l’analyse sélectionnée pour la phrase courante soit celle qui est
-la plus proche de l’analyse de référence. Une telle approche, appelée « en ligne », limite les ressources nécessaires,
-processeur et mémoire, rendant possible l’apprentissage de modèles qui prennent en compte un très grand nombre
+
+Le reordonnancement discriminant des analyses se deroule selon deux √©tapes : apprentissage des parametres du
+modele et prediction. L‚Äô etape de prediction consiste a produire les n meilleures analyses du modele g√©n√©ratif,
+extraire des traits pour caract√©riser ces analyses et attribuer un score a chaque analyse en fonction de ses traits
+et du modele discriminant. L‚Äôanalyse de meilleur score est alors selectionn√©e comme sortie Ô¨Ånale du systeme.
+L‚Äô etape d‚Äôentrainement consiste a utiliser des exemples de phrases avec leurs analyses de reference (ensemble
+d‚Äô apprentissage) pour determiner les parametres du modele. Alors que la plupart des modeles discriminants tentent
+de minimiser le taux d‚Äôerreur global sur l‚Äôensemble des exemples d‚Äôapprentissage, MIRA se contente de traiter les
+exemples un par un, ajustant son modele pour que l‚Äôanalyse selectionn√©e pour la phrase courante soit celle qui est
+la plus proche de l‚Äôanalyse de reference. Une telle approche, appel√©e << en ligne ¬ª, limite les ressources necessaires,
+processeur et m√©moire, rendant possible l‚Äôapprentissage de modeles qui prennent en compte un tres grand nombre
 de traits.
-3.1 Définitions
-On se place dans un espace vectoriel de dimensionm où chaque dimension correspond à un trait. Certaines dimen-
-sions représentent la présence ou l’absence d’un trait (valeur booléenne), son nombre d’occurrence dans l’analyse
-(entier naturel), ou une valeur réelle quelconque (par exemple la probabilité de l’analyse, ou son logarithme, selon
-le modèle génératif). Une analyse p est alors représentée sous la forme d’un vecteur de réels ?(p). Dans le cas
-d’un indicateur de présence, la ie coordonnée de ?(p) vaut 1 si p possède le ie trait et 0 sinon. Un tel vecteur
-est généralement creux (une analyse ne possède en moyenne qu’une petite partie des différents traits possibles).
-Un modèle est un vecteur de poids w de dimension m dont la ie coordonnée est le poids associé au ie trait. Plus
-ce poids est important, plus le trait correspondant aura été jugé discriminant. Le score d’une analyse p n’est rien
-d’autre que le produit scalaire du vecteur ?(p) et du vecteur w :
-score(p) =
-m∑
-i=1
-wi ? ?i(p) (1)
-Soit L la liste des nmeilleures analyses produites par l’analyseur syntaxique génératif pour une phrase. On calcule
-le score de chaque analyse et l’analyse de score maximum pˆ est choisie comme sortie finale du système :
-pˆ = argmax
-p?L
-score(p) (2)
+
+3.1 D√©Ô¨Ånitions
+
+On se place dans un espace Vectoriel de dimension m ou chaque dimension correspond a un trait. Certaines dimen-
+sions repr√©sentent la presence ou l‚Äôabsence d‚Äôun trait (Valeur bool√©enne), son nombre d‚Äô occurrence dans l‚Äôanalyse
+(entier naturel), ou une Valeur reelle quelconque (par exemple la probabilit√© de l‚Äôanalyse, ou son logarithme, selon
+le modele g√©n√©ratif). Une analyse p est alors repr√©sent√©e sous la forme d‚Äôun Vecteur de reels <;$(p). Dans le cas
+d‚Äôun indicateur de presence, la 2'‚Äú coordonn√©e de <;$(p) Vaut 1 si p possede le 2'‚Äú trait et 0 sinon. Un tel Vecteur
+est g√©n√©ralement creux (une analyse ne possede en moyenne qu‚Äôune petite partie des djff√©rents traits possibles).
+Un modele est un Vecteur de poids w de dimension m dont la 1'‚Äú coordonnee est le poids associe au 1'‚Äú trait. Plus
+ce poids est important, plus le trait correspondant aura ete jug√© discriminant. Le score d‚Äôune analyse p n‚Äôest rien
+d‚Äôautre que le produit scalaire du Vecteur ¬¢(p) et du Vecteur w :
+
+score(p) = Zwi >< ¬¢.-(p) (1)
+72:1
+
+Soit L la liste des 12 meilleures analyses produites par l‚Äôanalyseur syntaxique generatif pour une phrase. On calcule
+le score de chaque analyse et l‚Äôanalyse de score maximum 13 est choisie comme sortie Ô¨Ånale du systeme :
+
+1") = argmax sco1"e(p) (2)
+peL
+
 LE ROUX, FAVRE, MIRROSHANDEL, NASR
-La phase d’apprentissage consiste à utiliser les phrases d’entraînement et leurs analyses de référence pour déter-
-miner le vecteur de poids w. Le classifieur MIRA commence avec un vecteur de poids nul (c’est-à-dire que toutes
-les analyses ont un score de zéro), et essaie de modifier ce vecteur de façon à ce que les bonnes analyses ait un
-score plus élevé que les mauvaises analyses. L’analyse la plus proche de la référence est nommée oracle (notée o).
-Il serait souhaîtable que l’oracle ait le meilleur score parmi les analyses proposée pour une phrase. Soit error(p)
-le nombre de mauvaises dépendences (étiquette, position, direction) dans l’analyse p. L’oracle o est l’analyse pour
-laquelle erreur() est minimale.
-Les phrases de l’ensemble d’entraînement sont traitées séquentiellement. Pour chacune d’entre elles, on détermine
-la liste des n meilleures analyses candidates, puis l’analyse candidate de meilleur score, notée pˆ. Si cette analyse
-est différente de l’oracle (pˆ 6= o), cela signifie que le vecteur de poids w peut être amélioré. Dans ce cas, on
-recherche une modification de w qui assure que o ait un score plus élevé que l’analyse qui avait le meilleur score.
-Plus précisément, on souhaite que la différence entre leurs scores soit proportionnelle à la différence entre leur
-distance à la référence. Ainsi, une très mauvaise analyse aura un score bien plus faible qu’une analyse de qualité
-moyenne. Trouver une amélioration de w peut être formulé comme un problème d’optimisation sous la contrainte
-que la différence des scores de l’oracle et de l’hypothèse de plus haut score soit supérieure à la différence entre
-leurs distances à la référence. Comme il existe une infinité de vecteurs w satisfaisant cette contrainte, on recherche
-celui de plus petite norme. Ce problème s’écrit sous la forme suivante :
-minimiser : ||w|| tel que : score(o)? score(pˆ) ≥ error(o)? error(pˆ) (3)
-Des méthodes classiques d’optimisation quadratique sous contrainte sont utilisées : tout d’abord la contrainte est
-introduite dans la fonction objective grâce à des multiplicateurs de Lagrange. De cette façon, les solutions qui
-violent le plus la contrainte sont pénalisées par rapport aux autres solutions. Enfin, la méthode de Hildreth donne
-la solution analytique suivante au problème quadratique non contraint :
-w? = w + ? [?(o)? ?(pˆ)] (4)
-? = max
-[
-0,
-error(o)? error(pˆ)? (score(o)? score(pˆ))
-||?(o)? ?(pˆ)||2
-]
-(5)
-Ici, w? est le nouveau vecteur de poids, ? est un taux de modification et [?(o)? ?(pˆ)] est la différence entre le
-vecteur de traits de l’oracle et celui de l’analyse de plus haut score. Concrètement, cette mise à jour attire le vecteur
-de poids en direction de l’oracle et l’éloigne de pˆ. Cet algorithme d’apprentissage est très proche de l’algorithme
-du perceptron, et tout comme pour le perceptron, il est recommandé (1) de faire de multiples passes sur l’ensemble
-d’apprentissage et (2) de sauvegarder le vecteur de poids après chaque mise à jour et d’en faire la moyenne pour
-produire le vecteur de poids final 5. L’algorithme 1 présente l’apprentissage MIRA.
-3.2 Traits utilisés
-La qualité d’un réordonnanceur dépend de la capacité de l’algorithme d’apprentissage à attribuer un bon poids aux
-traits discriminants, mais aussi, de manière cruciale, à la qualité des traits qui lui sont fournis. Ces traits peuvent
-porter sur n’importe quelle configuration lexico-syntaxique d’une analyse. L’ensemble des traits potentiels est par
-conséquent gigantesque. Pour être pertinent, un trait doit d’une part être assez général pour apparaître souvent et,
-d’autre part, permettre de discriminer les bonnes analyses des mauvaises. Il n’existe pas de méthode générale de
-sélection des traits pertinents, du fait de leur nombre et de leur caractère non monotone : un trait simple peut se
-révéler non pertinent mais l’extension de ce trait simple en un trait plus complexe peut l’être. L’espace des traits
-est par conséquent difficile à explorer systématiquement et la sélection des traits pertinents est une activité qui
-relève de l’art, pour reprendre un bon mot de (Charniak & Johnson, 2005).
-Nous nous sommes inspirés de traits utilisés dans l’analyseur (McDonald, 2006) qui a montré de bonnes perfor-
-mances dans de nombreuses langues. Ils se divisent en cinq familles, chaque famille correspondant à un type de
-configuration. L’instanciation de ces patrons sur les sorties de l’analyseur a généré plus de 70 millions de traits.
-Nous décrivons ci-dessous les cinq familles de traits que nous illustrons sur la phrase Les enfants mangent des
-glaces avec appétit dans laquelle on s’intéressera en particulier à la dépendance objet (mangent, glaces).
-5. Dans la pratique, il n’est pas nécessaire de sauvegarder tous les vecteurs de poids, mais seulement deux vecteurs.
-MODÈLES GÉNÉRATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
-Algorithme 1 Entraînement MIRA
-pour i = 1 à t faire
-pour chaque phrase de l’ensemble d’entraînement faire
-Générer les n meilleures hypothèses de l’analyseur en constituants.
-pour chaque hypothèse faire
-Extraire un vecteur de traits à partir de l’hypothèse.
-Calculer son score comme le produit scalaire entre ce vecteur et le vecteur de poids (éq. 1)
-fin pour
-Soit l’oracle, l’hypothèse la plus proche de la référence pour cette phrase.
-si l’hypothèse de meilleur score n’est pas l’oracle alors
-Calculer la différence entre le vecteur de traits de l’oracle et le vecteur de traits de l’hypothèse.
-Calculer le facteur ? qui assure que l’oracle ait un meilleur score la prochaine fois (éq. 5)
-Ajouter au vecteur de poids ce facteur fois la différence entre les deux vecteurs (éq. 4)
-fin si
-fin pour
-fin pour
-Retourner un vecteur de poids moyen consituté à partir de l’état du vecteur de poids après chaque phrase
-d’entraînement.
-Unigramme Les traits unigrammes sont les plus simples, ils ne mettent en jeu qu’une seule dépendance. Étant
-donné une dépendance entre les positions i et j de type l, gouvernée par xi, notée xi
-l? xj , on crée deux
-traits, l’un pour le gouverneur xi , l’autre pour le dépendant xj qui prennent la forme de sextuplets (mot,
-lemme, partie du discours, statut dans la dépendance (gouverneur (G) ou dépendant (D)) , direction de la
-dépendance (droite (D) ou gauche (G)), type de la dépendance). On ajoute aussi tous les tuples avec une
-partie de l’information masquée pour lutter contre la dispersion des données lors de l’apprentissage.
-Ainsi, la présence de la dépendance objet dans notre exemple donnera naissance aux deux traits :
+
+La phase d‚Äôapprentissage consiste a utiliser les phrases d‚Äôentrainement et leurs analyses de reference pour deter-
+miner le Vecteur de poids w. Le classiÔ¨Åeur MIRA commence avec un Vecteur de poids 11ul (c‚Äôest‚Äîa‚Äîdire que toutes
+les analyses ont un score de zero), et essaie de modiÔ¨Åer ce Vecteur de fagon a ce que les bonnes analyses ait un
+score plus √©lev√© que les mauvaises analyses. L‚Äô analyse la plus proche de la reference est nommee oracle (not√©e 0).
+ll serait souhaitable que l‚Äôoracle ait le meilleur score parmi les analyses proposee pour une phrase. Soit e1"1"o1"(p)
+le nombre de mauvaises dependences (etiquette, position, direction) dans l‚Äôanalyse p. L‚Äô oracle o est l‚Äôanalyse pour
+laquelle errem"() est minimale.
+
+Les phrases de l‚Äôensemble d‚Äôentrainement sont trait√©es s√©quentiellement. Pour chacune d‚Äôentre elles, on determine
+la liste des 11 meilleures analyses candidates, puis l‚Äôanalyse candidate de meilleur score, not√©e 13. Si cette analyse
+est diff√©rente de l‚Äôoracle (13 ;√© o), cela signiÔ¨Åe que le Vecteur de poids w peut etre am√©lior√©. Dans ce cas, on
+recherche une modiÔ¨Åcation de 11) qui assure que o ait un score plus √©lev√© que l‚Äôanalyse qui avait le meilleur score.
+Plus precisement, on souhaite que la difference entre leurs scores soit proportionnelle a la difference e11tre leur
+distance a la reference. Ainsi, une tres mauvaise analyse aura un score bien plus faible qu‚Äôune analyse de qualit√©
+moyenne. Trouver une amelioration de w peut etre formul√© comme un probleme d‚Äôopti1nisation sous la contrainte
+que la difference des scores de l‚Äôoracle et de l‚Äôhypothese de plus haut score soit superieure a la difference e11tre
+leurs distances a la reference. Comme il existe une inÔ¨Ånite de Vecteurs w satisfaisant cette contrainte, on recherche
+celui de plus petite norme. Ce probleme s‚Äô√©crit sous la forme suivante :
+
+minimiser:  tel que: score(o) ‚Äî sco1"e(;r3) 2 erro1"(o) ‚Äî e1"1"o1"(;6) (3)
+
+Des m√©thodes classiques d‚Äôopti1nisation quadratique sous contrainte sont utilis√©es : tout d‚Äôabord la contrainte est
+introduite dans la fonction objective grace a des multiplicateurs de Lagrange. De cette fagon, les solutions qui
+Violent le plus la contrainte sont penalis√©es par rapport aux autres solutions. EnÔ¨Ån, la m√©thode de Hildreth donne
+la solution analytique suivante au probleme quadratique non contraint :
+
+w* = w + 04 [¬¢(0) ‚Äî ¬¢(I3)] (4)
+er1"o1"(o) ‚Äî e1"1"o1"(f)) ‚Äî (sco1"e(o) ‚Äî score(;6)) (5)
+
+||¬¢(0) ‚Äî ¬¢(:5)||2
+
+a=maa: 0,
+
+Ici, w* est le nouveau Vecteur de poids, 04 est un taux de modiÔ¨Åcation et [<;$(o) ‚Äî <;$(f))] est la difference entre le
+Vecteur de traits de l‚Äô oracle et celui de l‚Äôanalyse de plus haut score. Concretement, cette mise a jour attire le Vecteur
+de poids en direction de l‚Äôoracle et l‚Äô√©loigne de 13. Cet algorithme d‚Äôapprentissage est tres proche de l‚Äôalgorithme
+du perceptron, et tout comme pour le perceptron, il est recommand√© (1) de faire de multiples passes sur 1‚Äô ensemble
+d‚Äôapprentissage et (2) de sauvegarder le Vecteur de poids apres chaque mise a jour et d‚Äôen faire la moyenne pour
+produire le Vecteur de poids Ô¨Ånal 5. L‚Äô algorithme 1 presente l‚Äôapprentissage MIRA.
+
+3.2 Traits utilis√©s
+
+La qualit√© d‚Äôun r√©ordonnanceur depend de la capacite de l‚Äôalgorith1ne d‚Äôapprentissage a attribuer un bon poids aux
+traits discriminants, mais aussi, de maniere cruciale, a la qualit√© des traits qui lui sont foumis. Ces traits peuvent
+porter sur n‚Äôi1nporte quelle conÔ¨Åguration lexico‚Äîsyntaxique d‚Äôune analyse. L‚Äô ensemble des traits potentiels est par
+consequent gigantesque. Pour etre pertinent, un trait doit d‚Äôune part etre assez general pour apparaitre souvent et,
+d‚Äô autre part, permettre de discriminer les bonnes analyses des mauvaises. Il n‚Äôexiste pas de methode gen√©rale de
+selection des traits pertinents, du fait de leur nombre et de leur caractere non monotone : un trait simple peut se
+rev√©ler non pertinent mais l‚Äôextension de ce trait simple en un trait plus complexe peut l‚Äôetre. L‚Äô espace des traits
+est par consequent difÔ¨Åcile a explorer syst√©matiquement et la selection des traits pertinents est une activit√© qui
+releve de l‚Äôart, pour reprendre un bon mot de (Charniak & Johnson, 2005).
+
+Nous nous sommes inspires de traits utilis√©s dans l‚Äôanalyseur (McDonald, 2006) qui a montre de bonnes perfor-
+mances dans de nombreuses langues. Ils se divisent en cinq familles, chaque famille correspondant a un type de
+conÔ¨Åguration. L‚Äôinstanciation de ces patrons sur les sorties de l‚Äôanalyseur a g√©n√©r√© plus de 70 millions de traits.
+Nous decrivons ci-dessous les cinq familles de traits que nous illustrons sur la phrase Les enfants mangent des
+glaces avec app√©tit dans laquelle on s‚Äôint√©ressera en particulier a la dependance objet (mangent, glaces).
+
+5. Dans la pratique, il n‚Äôest pas n√©cessaire dc sauvegarder tous les Vecteurs dc poids, mais seulement dcux Vecteurs.
+
+MODELES GENERATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
+Algorithme 1 Entrainement MIRA
+pour z‚Äô = 1 a t faire
+pour chaque phrase de l‚Äôensemble d‚Äôentrainement faire
+Generer les 11 meilleures hypotheses de l‚Äôanalyseur en constituants.
+pour chaque hypothese faire
+Extraire un Vecteur de traits a partir de l‚Äôhypothese.
+Calculer son score comme le produit scalaire entre ce Vecteur et le Vecteur de poids (eq. 1)
+Ô¨Ån pour
+Soit l‚Äôoracle, l‚Äôhypothese la plus proche de la reference pour cette phrase.
+si l‚Äôhypothese de meilleur score n‚Äôest pas l‚Äôoracle alors
+Calculer la difference entre le Vecteur de traits de l‚Äôoracle et le Vecteur de traits de l‚Äôhypothese.
+Calculer le facteur ct qui assure que l‚Äôoracle ait un meilleur score la prochaine fois (eq. 5)
+Ajouter au Vecteur de poids ce facteur fois la difference entre les deux Vecteurs (eq. 4)
+Ô¨Ån si
+Ô¨Ån pour
+Ô¨Ån pour
+Retoumer un Vecteur de poids moyen consitute a partir de l‚Äôetat du Vecteur de poids apres chaque phrase
+d‚Äô entrainement.
+
+Unigramme Les traits unigrammes sont les plus simples, ils ne mettent en jeu qu‚Äôune seule dependance. Etant
+donne une dependance entre les positions 1' et j de type I, gouvemee par w,-, notee w,- ‚Äîl> wj, on cree deux
+traits, l‚Äôun pour le gouvemeur w,- , l‚Äôautre pour le dependant wj qui prennent la forme de sextuplets (mot,
+lemme, partie du discours, statut dans la dependance (gouvemeur (G) ou dependant (D)) , direction de la
+dependance (droite (D) ou gauche (G)), type de la dependance). On ajoute aussi tous les tuples avec une
+partie de l‚Äôinformation masquee pour lutter contre la dispersion des donnees lors de l‚Äôapprentissage.
+
+Ainsi, la presence de la dependance objet dans notre exemple donnera naissance aux deux traits :
 [mangent, manger, V, G, D, objet] et [glaces, glace, N, D, D, objet]
-mais aussi à tous les traits que l’on peut construire à partir des deux premiers par sous-spécification :
-[-, manger, V, G, D, objet], [mangent, -, V, G, D, objet] ...
-[mangent, -,-,-,-,objet]
-Ce processus de sous-spécification des traits s’applique à toutes les familles de traits, on omettra de le
-répéter ci-dessous.
-Bigramme Contrairement à la famille précédente qui ne prenait en compte qu’un des deux membres d’une dé-
-pendance, les traits bigrammes modélisent la cooccurrence des deux membres de la dépendance, à l’image
-des dépendances bi-lexicales de (Collins, 1997). Étant donné la dépendance xi
-l? xj , on crée un trait (mot
-xi, lemme xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , distance 6 de i à j, direction
-de la dépendance, type de la dépendance).
-L’exemple ci-dessus donnera donc naissance au trait suivant :
+
+mais aussi a tous les traits que l‚Äôon peut constr11ire a partir des deux premiers par sous‚ÄîspeciÔ¨Åcation :
+
+[‚Äî, manger, V, G, D, objet] , [mangent, ‚Äî, V, G, D, objet]
+
+[mangent, ‚Äî, ‚Äî, ‚Äî, ‚Äî, objet]
+
+Ce processus de sous‚ÄîspeciÔ¨Åcation des traits s‚Äôapplique a toutes les familles de traits, on omettra de le
+repeter ci-dessous.
+
+Bigramme Contrairement a la famille precedente qui ne prenait en compte qu‚Äôun des deux membres d‚Äô une de-
+pendance, les traits bigrammes modelisent la cooccurrence des deux membres de la dependance, a l‚Äôimage
+des dependances bi‚Äîlexicales de (Collins, 1997). Etant donne la dependance w,- ‚Äîl> wj, on cree un trait (mot
+w,-, lemme w,-, partie du discours w,-, mot wj, lemme wj, partie du discours wj, distance 5 de 1' a j, direction
+de la dependance, type de la dependance).
+
+L‚Äô exemple ci‚Äîdessus donnera donc naissance au trait suivant :
 [mangent, manger, V, glaces, glace, N, 2, D, objet]
-où 2 est la distance séparant mangent et glaces dans la chaîne linéaire.
-Contexte linéaire Contrairement aux deux familles précédentes qui s’intéressaient à une dépendance indépen-
-damment de sa réalisation dans la chaîne, on regarde ici les éléments qui séparent un gouverneur de son
-dépendant dans cette dernière. Étant donné la dépendance xi
-l? xj On crée un trait avec les partie de dis-
-cours de xi, de xj et de chaque mot entre les positions i et j. On crée également un trait comportant les
-parties de discours aux positions i ? 1, i, i + 1, j ? 1, j, j + 1. La dépendance objet de notre exemple
+ou 2 est la distance separant mangent et glaces dans la chaine lineaire.
+
+Contexte lineaire Contrairement aux deux familles precedentes qui s‚Äôinteressaient a une dependance indepen-
+damment de sa realisation dans la chaine, on regarde ici les elements qui separent un gouvemeur de son
+dependant dans cette demiere. Etant donne la dependance w,- ‚Äîl> wj On cree un trait avec les partie de dis-
+cours de w,-, de wj et de chaque mot entre les positions 1' et j . On cree egalement un trait comportant les
+parties de discours aux positions 1' ‚Äî 1, i, i + 1, j ‚Äî 1, j , j + 1. La dependance objet de notre exemple
 donnera naissance aux deux traits :
-[V, D, N] et [N, V, D, N, P]
-Contexte syntaxique, nœuds frères Cette famille de traits ainsi que la suivante mettent en jeu deux dépen-
-dances dans deux configurations particulières. Étant donné deux dépendances xi
-l? xj et xi m? xk, on
-crée un trait (mot xi, lemme xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , mot xk,
-lemme xk, partie du discours xk, distance de i à j, distance de i à k, direction de la première dépendance,
-6. Cette distance est réduite à sept classes selon qu’elle est égale à 1, 2, 3, 4, 5, comprise entre 5 et 10, ou supérieure à 10.
+
+[V, D, N] 6t [N, V, D, N, P]
+
+Contexte syntaxique, nmuds fr√©res Cette famille de traits ainsi que la suivante mettent en jeu deux depen-
+dances dans deux conÔ¨Ågurations particulieres. Etant donne deux dependances w,- ‚Äîl> wj et w,- 2) wk, on
+cree un trait (mot w,-, lemme w,-, partie du discours w,-, mot wj, lemme wj, partie du discours wj, mot wk,
+lemme wk, partie du discours wk, distance de 2' a j , distance de 1' a k, direction de la premiere dependance,
+
+6. Cette distance est r√©duite a sept classes selon qu‚Äôelle est √©gale 5. 1, 2, 3, 4, 5, comprise entre 5 et 10, ou sup√©rieure 51 10.
+
 LE ROUX, FAVRE, MIRROSHANDEL, NASR
-type de la première dépendance, direction de la seconde dépendance, type de la seconde dépendance). Ce
-qui donne, dans notre exemple : [mangent, manger, V, glaces, glace, avec, avec, P,
+
+type de la premiere dependance, direction de la seconde dependance, type de la seconde d√©pendance). Ce
+qui donne, dans notre exemple: [mangent, manger, V, glaces, glace, avec, avec, P,
 2, 3, D, objet, D, mod]
-Contexte syntaxique, chaînes Étant donné deux dépendances xi
-l? xj m? xk, on crée un trait (mot xi, lemme
-xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , mot xk, lemme xk, partie du discours xk,
-distance de i à j, distance de i à k, direction de la première dépendance, type de la première dépendance,
-direction de la seconde dépendance, type de la seconde dépendance). Dans notre exemple : [mangent,
-manger, V, avec, avec, P, appétit, appétit, N, 3, 4, D, mod, D, objet]
-On peut noter que les patrons de traits ne reposent que sur des connaissances présentes dans les données d’appren-
-tissage. Nous n’avons pas ajouté de traits qui proviennent de connaissances linguistiques externes.
-4 Expériences
-Dans cette section, nous évaluons les performances de notre analyseur. Nous présentons d’abord le module géné-
+
+Contexte syntaxique, chaines Etant donn√© deux d√©pendances w,- ‚Äîl> w j 3) wk, on cree un trait (mot w,-, lemme
+w,-, partie du discours w,-, mot wj, lemme wj, partie du discours wj, mot wk, lemme wk, partie du discours wk,
+distance de 1' a j , distance de 1' a k, direction de la premiere dependance, type de la premiere dependance,
+direction de la seconde dependance, type de la seconde d√©pendance). Dans notre exemple : [mangent ,
+manger, V, avec, avec, P, app√©tit, app√©tit, N, 3, 4, D, mod, D, objet]
+
+On peut noter que les patrons de traits ne reposent que sur des connaissances pr√©sentes dans les donn√©es d‚Äôappren-
+tissage. Nous n‚Äôavons pas ajout√© de traits qui proviennent de connaissances linguistiques extemes.
+
+4 Exp√©riences
+
+Dans cette section, nous √©valuons les performances de notre analyseur. Nous presentons d‚Äôabord le module g√©n√©-
 ratif seul, puis les deux modules ensemble.
-Nous utilisons dans nos expériences le corpus arboré de Paris 7 (Abeillé et al., 2003) (dans la suite, FTB). Il
-contient 12 350 phrases annotées syntaxiquement en constituants, et en étiquettes fonctionnelles. Ce n’est pas
+
+Nous utilisons dans nos experiences le corpus arbor√© de Paris 7 (Abeill√© et al., 2003) (dans la suite, FTB). Il
+contient 12 350 phrases armot√©es syntaxiquement en constituants, et en etiquettes fonctionnelles. Ce n‚Äôest pas
 directement ce corpus que nous manipulons mais deux transformations de celui-ci.
-1. La première, FTB-UC, mise au point par (Crabbé & Candito, 2008), garde la structure en constituants mais
-simplifie le jeu d’étiquettes. En particulier, les fonctions disparaissent et les informations morphologiques
-sont réduites. C’est sur ce corpus que nous apprendrons la grammaire syntagmatique.
-2. La seconde, FTB-UC-DEP, présentée dans (Candito et al., 2009), est une conversion du FTB en dépendances.
-Cette conversion est réalisée à l’aide de règles de propagation de têtes et d’heuristiques. C’est sur ce second
-corpus que l’on apprendra l’analyseur discriminant.
-Pour entraîner et évaluer notre système, nous divisons ces corpus en 3 : une partie pour l’entraînement (80%), une
-partie pour le développement (10%) et le reste pour l’évaluation finale.
-Nous employons deux types de grammaires syntagmatiques, le premier appris directement sur FTB-UC (modèle
-simple), le second appris sur une version modifiée de FTB-UC dans laquelle les mots sont remplacés par leur classe
-d’équivalence (modèle agrégats), comme dans (Candito & Crabbé, 2009).
-4.1 Évaluation du modèle génératif seul
-Les performances de notre analyseur syntagmatique sur le corpus de développement sont résumées dans le ta-
-bleau 2. Le F-score 7 est la moyenne harmonique du rappel (ici, les constituants de la référence retrouvés par
-l’analyseur) et de la précision (ici, les constituants prédits présents dans la référence). Nous donnons les scores
-oracles de notre analyseur quand il renvoie les 1, 10, 50 et 100 analyses les plus probables d’une phrase, pour
-donner une idée de la marge de progression possible.
-Les résultats quantitatifs de la conversion en structures de dépendances sont également présentés dans la table 2.
-Le score d’attachement étiqueté (LAS) est le taux de dépendances typées correctement reconnues 8 par l’analy-
-seur. Le score non-étiqueté (UAS) est ce même taux lorsque l’on ne tient pas compte du type des dépendances.
-Nous avons représenté sur la dernière colonne (GOLD) l’évaluation de la conversion en dépendances de l’ana-
-lyse syntagmatique de référence. Ces résultats nous permettent d’évaluer la qualité de l’étiquetage fonctionnel, ils
-montrent que l’étiqueteur effectue à peu près 4% d’erreurs dans l’attribution de ces étiquettes. Comme précédem-
+
+1. La premiere, FTB‚ÄîUC, mise au point par (Crabbe & Candito, 2008), garde la structure en constituants mais
+simpliÔ¨Åe le jeu d‚Äôetiquettes. En particulier, les fonctions disparaissent et les informations morphologiques
+sont r√©duites. C‚Äôest sur ce corpus que nous apprendrons la grammaire syntagmatique.
+
+2. La seconde, FTB-UC‚ÄîDEP, pr√©sent√©e dans (Candito et al., 2009), est une conversion du FTB en dependances.
+Cette conversion est realis√©e a l‚Äôaide de regles de propagation de tetes et d‚Äôheuristiques. C‚Äôest sur ce second
+corpus que l‚Äôon apprendra l‚Äôanalyseur discriminant.
+
+Pour entrainer et √©valuer notre systeme, nous divisons ces corpus en 3 : une partie pour l‚Äôentrainement (80%), une
+partie pour le d√©veloppement (10%) et le reste pour l‚Äô√©valuation Ô¨Ånale.
+
+Nous employons deux types de grammaires syntagmatiques, le premier appris directement sur FTB ‚ÄîUC (modele
+simple), le second appris sur une version modiÔ¨Å√©e de FTB-UC dans laquelle les mots sont remplac√©s par leur classe
+d‚Äôequivalence (modele agr√©gats), comme dans (Candito & Crabbe, 2009).
+
+4.1 Evaluation du mod√©le g√©n√©ratif seul
+
+Les performances de notre analyseur syntagmatique sur le corpus de d√©veloppement sont r√©sum√©es dans le ta-
+bleau 2. Le F-score7 est la moyenne harmonique du rappel (ici, les constituants de la reference retrouv√©s par
+l‚Äôanalyseur) et de la precision (ici, les constituants pr√©dits presents dans la reference). Nous donnons les scores
+oracles de notre analyseur quand il renvoie les 1, 10, 50 et 100 analyses les plus probables d‚Äôune phrase, pour
+donner une id√©e de la marge de progression possible.
+
+Les r√©sultats quantitatifs de la conversion en structures de d√©pendances sont √©galement presentes dans la table 2.
+Le score d‚Äôattachement etiquet√© (LAS) est le taux de d√©pendances typees correctement reconnues 8 par l‚Äôanaly-
+seur. Le score non‚Äî√©tiquet√© (UAS) est ce meme taux lorsque l‚Äôon ne tient pas compte du type des dependances.
+Nous avons represent√© sur la demiere colonne (GOLD) l‚Äô√©valuation de la conversion en dependances de l‚Äôana-
+lyse syntagmatique de reference. Ces resultats nous permettent d‚Äô√©valuer la qualit√© de l‚Äôetiquetage fonctionnel, ils
+montrent que l‚Äô√©tiqueteur effectue a peu pres 4% d‚Äôerreurs dans l‚Äôattribution de ces etiquettes. Comme prec√©dem‚Äî
 ment, nous donnons aussi le score oracle quand notre analyseur renvoie plusieurs analyses.
-7. Nous utilisons le logiciel evalb que nous avons modifié pour qu’il donne également le score oracle quand l’analyseur fournit une liste
-d’arbres.
-8. La ponctuation n’est pas prise en compte.
-MODÈLES GÉNÉRATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
+7. Nous utilisons le logiciel evalb que nous avons modiÔ¨Å√© pour qu‚Äôil donne √©galement le score oracle quand l‚Äôanalyseur fournit une liste
+d‚Äô arbres.
+8. La ponctuation n‚Äôest pas prise en compte.
+
+MoDELEs GENERATIE ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+
 DEV-1 DEV-10 DEV-50 DEV-100 GOLD
+
 F 84,41 89,35 91,71 92,56 100
 LAS 86,01 89,25 90,86 91,48 96,04
 UAS 89,60 92,70 94,23 94,80 100
-F agrégats 85,02 89,98 92,33 93,27 100
-LAS agrégats 86,99 89,93 91,61 92,25 96,04
-UAS agrégats 90,72 93,48 95,05 95,68 100
-TABLE 2 – Scores de l’analyseur génératif sur la partie de développement
-Les résultats donnés ci-dessus nous permettent de tirer deux conclusions importantes. D’une part les résultats de
-l’analyseur sont du niveau de l’état de l’art pour l’analyse syntagmatique du français (84, 41% de F-score). D’autre
-part, la marge de progression du réordonnanceur est importante puisque le score oracle LAS sur les 100 analyses
-les plus probables est de 91, 48% alors que le score de l’analyse la plus probable est de 86, 01% soit une marge
+F agr√©gats 85,02 89,98 92,33 93,27 100
+LAS agr√©gats 86,99 89,93 91,61 92,25 96,04
+UAS agr√©gats 90,72 93,48 95,05 95,68 100
+
+TAB LE 2 ‚Äî Scores de l‚Äôanalyseur gen√©ratif sur la partie de developpement
+
+Les resultats donnes ci‚Äîdessus nous permettent de tirer deux conclusions importantes. D‚Äôune part les r√©sultats de
+l‚Äôanalyseur sont du niveau de l‚Äô√©tat de l‚Äôart pour l‚Äôanalyse syntagmatique du francais (84, 41% de F‚Äîscore). D‚Äôautre
+part, la marge de progression du r√©ordonnanceur est importante puisque le score oracle LAS sur les 100 analyses
+les plus probables est de 91, 48% alors que le score de l‚Äôanalyse la plus probable est de 86, 01% soit une marge
 possible de progression de 5, 47%.
-4.2 Ajout du réordonnanceur
+
+4.2 Ajout du r√©ordonnanceur
 4.2.1 Apprentissage
-Le modèle discriminant, c’est-à-dire les instances des patrons de traits et leur poids, est appris sur le corpus
-d’entraînement. L’analyseur génératif produit 100 analyses par phrase 9 pour ce corpus qui servent d’exemples
-d’apprentissage au réordonnanceur. Le modèle donne 71 millions de traits pour la grammaire simple et 75 millions
-pour la grammaire d’agrégats. Notez qu’un tel nombre de traits n’est pas pénalisant car l’algorhtme discriminant
-ne donne un poids non nul qu’aux traits utiles.
-4.2.2 Évaluation
-base 10 20 50 100
-F 84,41 85,38 85,58 85,55 85,32
-LAS 86,01 87,06 87,31 87,39 87,28
-UAS 89,60 90,57 90,77 90,83 90,69
-base 10 20 50 100
-F 85,00 85,94 86,12 86,20 86,15
-LAS 86,99 88,00 88,06 88,10 88,17
-UAS 90,78 91,54 91,57 91,58 91,62
-grammaire simple grammaire apprise sur agrégats
-TABLE 3 – scores du réordonnanceur en fonction du nombre de candidats
-Pour notre évaluation, nous avons testé plusieurs configurations sur le corpus de développement en faisant varier le
-nombre de candidats fourni au réordonnanceur lors de la phase de prédiction 10. Les résultats sont présentés dans
-la table 3. Pour la métrique LAS, les meilleurs résultats sont obtenus en donnant 50 candidats au réordonnanceur
-dans le cas de la grammaire simple et 100 dans le cas de la grammaire d’agrégats. Mais la différence avec les
-autres configurations n’est pas significative.
-Puisque la meilleure configuration pour les différentes grammaires n’est pas la même selon la métrique utilisée
-mais que la configuration à 50 candidats est toujours la meilleure selon l’une d’entre elles, c’est cette configuration
-qui est utilisée sur le corpus de test pour l’évaluation finale avec la grammaire simple et la grammaire d’agrégats.
-Les résultats, dans la table 4, sont du même ordre de grandeur 11. Pour la grammaire simple, le réordonnanceur
-de notre système permet de passer d’un F-score de 85,09% à 86,02%, pour le LAS de 86,68% à 87,91% et pour
-le UAS de 90,22% à 91,31%. Sur les 3 métriques le réordonnanceur montre une amélioration significative 12. Il
-est intéressant de noter que nos traits portent uniquement sur les structures en dépendances (mis à part le score
-9. Pour certaines phrases, les phrases courtes en particulier, notre système renvoie moins de 100 analyses.
+
+Le modele discriminant, c‚Äôest‚Äîa‚Äîdire les instances des patrons de traits et leur poids, est appris sur le corpus
+d‚Äôentrainement. L‚Äô analyseur g√©n√©ratif produit 100 analyses par phrase9 pour ce corpus qui servent d‚Äôexemples
+d‚Äôapprentissage au r√©ordonnanceur. Le modele donne 71 millions de traits pour la grammaire simple et 75 millions
+pour la grammaire d‚Äôagregats. Notez qu‚Äôun tel nombre de traits n‚Äôest pas penalisant car l‚Äôalgorhtme discriminant
+ne donne un poids non r1ul qu‚Äôaux traits utiles.
+
+4.2.2 Evaluation
+
+base 10 20 50 100 base 10 20 50 100
+F 84,41 85,38 85,58 85,55 85,32 F 85,00 85,94 86,12 86,20 86,15
+LAS 86,01 87,06 87,31 87,39 87,28 LAS 86,99 88,00 88,06 88,10 88,17
+UAS 89,60 90,57 90,77 90,83 90,69 UAS 90,78 91,54 91,57 91,58 91,62
+grammaire simple grammaire apprise sur agregats
+
+TABLE 3 ‚Äî scores du r√©ordonnanceur en fonction du nombre de candidats
+
+Pour notre evaluation, nous avons teste plusieurs conÔ¨Ågurations sur le corpus de developpement en faisant Varier le
+nombre de candidats foumi au r√©ordonnanceur lors de la phase de prediction 10. Les resultats sont presentes dans
+la table 3. Pour la m√©trique LAS, les meilleurs resultats sont obtenus en donnant 50 candidats au r√©ordonnanceur
+dans le cas de la grammaire simple et 100 dans le cas de la grammaire d‚Äôagregats. Mais la difference avec les
+autres conÔ¨Ågurations n‚Äôest pas signiÔ¨Åcative.
+
+Puisque la meilleure conÔ¨Åguration pour les differentes grammaires n‚Äôest pas la meme selon la m√©trique utilisee
+mais que la conÔ¨Åguration a 50 candidats est touj ours la meilleure selon l‚Äôune d‚Äôentre elles, c‚Äôest cette conÔ¨Åguration
+qui est utilisee sur le corpus de test pour l‚Äô√©Valuation Ô¨Ånale avec la grammaire simple et la grammaire d‚Äôagregats.
+Les resultats, dans la table 4, sont du meme ordre de grandeur 11. Pour la grammaire simple, le r√©ordonnanceur
+de notre systeme permet de passer d‚Äôun F‚Äîscore de 85,09% a 86,02%, pour le LAS de 86,68% a 87,91% et pour
+le UAS de 90,22% a 91,31%. Sur les 3 m√©triques le r√©ordonnanceur montre une amelioration signiÔ¨Åcative 12. Il
+est int√©ressant de noter que nos traits portent uniquement sur les structures en dependances (mis a part le score
+
+9. Pour certaines phrases, les phrases courtes en particulier, notre systeme renvoie moins de 100 analyses.
 10. Les poids des traits sont toujours appris avec 100 candidats par phrase.
-11. F < 40 est le F-score en constituants pour les phrases de moins de 40 mots.
-12. Les différences de scores entre le système de base et les nouveaux systèmes incorporant le module discriminant sont statistiquement
-significatives avec une valeur p < 0.01. Les différences entre les nouveaux systèmes ne le sont pas.
+11. F < 40 est le F‚Äîscore en constituants pour les phrases de moins de 40 mots.
+12. Les differences de scores entre le systeme de base et les nouveaux systemes incorporant le module discriminant sont statistiquement
+signiÔ¨Åcatives avec une valeur p < 0.01. Les differences entre les nouveaux systemes ne le sont pas.
+
 LE ROUX, FAVRE, MIRROSHANDEL, NASR
-attribué par l’analyseur PCFG-LA) et que le F-score qui mesure la qualité des arbres syntagmatiques est tout de
-même améliorée.
-base réord.
-F 85,09 86,02
-F < 40 87,10 87,82
-LAS 86,68 87,91
-UAS 90,22 91,31
-base réord.
-F 86,35 86,89
-F < 40 88,45 88,74
-LAS 87,37 88,45
-UAS 91,08 91,91
-grammaire simple grammaire apprise sur agrégats
-TABLE 4 – Scores du système sur le corpus de test
+
+attribu√© par l‚Äôanalyseur PCFG‚ÄîLA) et que le F‚Äîscore qui mesure la qualit√© des arbres syntagmatiques est tout de
+meme amelioree.
+
+base r√©ord. base reord.
+F 85,09 86,02 F 86,35 86,89
+F < 40 87,10 87,82 F < 40 88,45 88,74
+LAS 86,68 87,91 LAS 87,37 88,45
+UAS 90,22 91,31 UAS 91,08 91,91
+
+grammaire simple grammaire apprise sur agr√©gats
+
+TABLE 4 ‚Äî Scores du systeme sur le corpus detest
+
 4.2.3 Comparaisons
+
 F < 40 LAS UAS
+
 Ce travail 87,82 87,91 91,31
-Ce travail + agrégats 88,74 88,45 91,91
-MATE + MELT – 88,17 90,15
+Ce travail + agr√©gats 88,74 88,45 91,91
+MATE + MELT ‚Äî 88,17 90,15
 BKY 88,2 86,8 91,0
-MST – 88,2 90,9
-TABLE 5 – Comparaisons des différents résultats d’analyse syntaxique
-Nous donnons un tableau récapitulatif de différents résultats d’analyseurs sur le FTB dans la table 5. Nous compa-
-rons notre système (nous avons choisi les configurations qui donnaient les meilleurs scores LAS sur le corpus de
-développement) avec l’analyseur en dépendances MATE (Bohnet, 2010), entraîné et évalué avec MELT (Denis &
-Sagot, 2010) pour l’étiquetage en parties du discours. Nous citons aussi les travaux de comparaisons de (Candito
-et al., 2010b), avec un premier système (BKY dans la table) proche du nôtre avec un analyseur syntagmatique
-qui fournit une sortie convertie en arbre de dépendances. Le second système (MST dans la table) est l’analyseur
-MSTParser de (McDonald et al., 2005). Ces deux systèmes utilisent aussi les agrégats et non directement les mots
+MST ‚Äî 88,2 90,9
+
+TAB LE 5 ‚Äî Comparaisons des diff√©rents r√©sultats d‚Äô analyse syntaxique
+
+Nous donnons un tableau r√©capitulatif de diff√©rents r√©sultats d‚Äôanalyseurs sur le FTB dans la table 5. Nous compa-
+rons notre systeme (nous avons choisi les conÔ¨Ågurations qui donnaient les meilleurs scores LAS sur le corpus de
+d√©veloppement) avec l‚Äôanalyseur en d√©pendances MATE (Bohnet, 2010), entraine et evalu√© avec MELT (Denis &
+Sagot, 2010) pour l‚Äôetiquetage en parties du discours. Nous citons aussi les travaux de comparaisons de (Candito
+et al., 2010b), avec un premier systeme (B KY dans la table) proche du notre avec un analyseur syntagmatique
+qui fournit une sortie convertie en arbre de dependances. Le second systeme (MST dans la table) est l‚Äôanalyseur
+
+MSTParser de (McDonald et al., 2005). Ces deux systemes utilisent aussi les agr√©gats et non directement les mots
 du texte.
+
 4.2.4 Analyse
-Une analyse du vecteur de poids produit par le modèle discriminant montre que seuls 27% des 75 millions de
-traits observés dans les données d’entraînement correspondent à des poids non nuls (modèle avec agrégats). Les
-autres traits ont donc été jugés non discriminants. Nous avons analysé les 1000 traits de plus grand poids positif,
-représentant les caractéristiques jugées les plus pertinentes pour discriminer les bonnes analyses et les 1000 traits
-de poids négatifs de plus grande valeur absolue, symptomatiques des mauvaises analyses.
-SENT
-NP VN
-PP
-PONCT
-NP
-PONCTNPP NPP V VPP P
-AP
-DET ADJ PONCT P ADJADJ
-SENT
-NP VN
-PP
-PONCT
-NP
-PONCTNPP NPP V VPP P
-AP
-P NC PONCT P ADJADJ
-NP
-PP PP
-Avant le réordonnement Après le réordonnement
+
+Une analyse du vecteur de poids produit par le modele discriminant montre que seuls 27% des 75 millions de
+traits observes dans les donnees d‚Äôentrainement correspondent a des poids non nuls (modele avec agr√©gats). Les
+autres traits ont donc et√© jug√©s non discriminants. Nous avons analyse les 1000 traits de plus grand poids positif,
+repr√©sentant les caracteristiques jugees les plus pertinentes pour discrirniner les bonnes analyses et les 1000 traits
+de poids negatifs de plus grande valeur absolue, symptomatiques des mauvaises analyses.
+
+Avant Ie r√©ordonnement Apr√©s Ie r√©ordonnement
 arbres
-syntagmatiques
+‚Äô7‚Äù‚Äú¬∞9""‚Äú"‚Äò7‚Äùe5 SENT SENT
+PP PP PP PP
+"P V" (\AP "P NP V" /\AI> /\NP /\NP
+/\ /\ I //7% /\ /\ I I I
+NPP NPP V VPP P AD] PONCF DEF AD] PONCF P AD] PONCF NPP NPP V VPP P AD] PONCF P NC PONCF P AD] PONCT
+Francois Mariel: fut qualiÔ¨Å√© de laxiste , d' irresponsable , d' irr√©aliste . Francois Mariel: fut qualiÔ¨Å√© de laxiste , d' irresponsable , d' irr√©aliste .
+
 arbres en
-dépendances
-NPP NPP V VPP P ADJ PONCT DET ADJ PONCT P ADJ PONCT NPP NPP V VPP P ADJ PONCT P NC PONCT P ADJ PONCT
-FIGURE 2 – Exemple de réordonnancement bénéfique (163e phrase de développement) : la meilleure analyse selon
-le modèle génératif est à gauche, la meilleure selon le modèle discriminant, la 35e hypothèse du modèle génératif,
-est à droite. Les erreurs, indiquées par des pointillés, sont propagées lors de la conversion en dépendances.
-MODÈLES GÉNÉRATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
-Cette analyse fait apparaître que les traits issus du repli 13 sont utiles pour caractériser de mauvaises analyses
-(63% des 1000 poids les plus négatifs). De plus, les traits négatifs font souvent référence à un indicateur d’échec
-de la lemmatisation. Comme cette lemmatisation est produite à partir d’un lexique et de la paire forme / partie
-du discours, et sous l’hypothèse que notre lexique est suffisamment riche, une erreur signifie que l’étiquetage en
-partie du discours est mauvais.
-Le trait positif le plus discriminant est, sans surprise, le score donné par l’analyseur. Les autres traits positifs
-importants permettent d’avantager des étiquetages de parties du discours en fonction du contexte linéaire. On
-remarque aussi l’existence de traits qui incitent les conjoints à avoir la même catégorie dans les coordinations.
-On voit donc que le réordonnancement peut remettre en question l’étiquetage de l’analyseur mais aussi qu’il peut
-influencer le traitement de phénomènes plus complexes comme la coordination. La figure 2 donne un exemple de
-phrase dont la meilleure analyse a été corrigée par le modèle discriminant.
-Les patrons les plus représentés en positif sont unigramme, bigramme, contexte linéaire, chaînes, et leurs
-versions relachées, et en négatif unigramme, bigramme, chaînes, nœuds frères. Une analyse des résultats par
-type de dépendance montre que le réordonnanceur fait moins d’erreurs uniformément sur l’ensemble des types.
-La figure 2 donne un exemple de phrase dont l’analyse a été corrigée par le modèle discriminant.
-5 Conclusion
-Nous avons montré que l’ajout d’un module discriminant permet d’améliorer la qualité des analyses, comme nous
-avons pu le vérifier expérimentalement sur le corpus FTB à l’aide de trois métriques (F-score Parseval, LAS,
-UAS). Cependant, le gain est moins important que celui observé pour l’anglais (Charniak & Johnson, 2005). Sans
-procéder à une analyse d’erreurs exhaustive, on peut toutefois évoquer plusieurs points pouvant être améliorés.
-En premier lieu, l’approche séquentielle est vulnérable aux erreurs en cascade. Bien que l’analyseur génératif
-fournisse plusieurs candidats, ce n’est pas le cas de l’étiqueteur fonctionnel. Les erreurs d’étiquetage ne sont donc
-pas récupérables. On peut envisager deux solutions ici : (1) permettre à l’étiqueteur de renvoyer une sortie ambiguë
-et laisser le réordonnanceur décider du meilleur étiquetage, et (2) utiliser des techniques plus sophistiquées dans
-la phase discriminante comme la prédiction structurée. On pourra ainsi se passer de l’étiqueteur.
-Ensuite, cette approche à deux niveaux ne permet pas d’atteindre l’oracle, ce qui a déjà été observé sur l’anglais.
-Il est difficile de trouver un jeu de traits suffisamment général et qui soit utile pour une phrase particulière. Il
-y a encore des investigations à mener pour trouver un jeu de traits optimal, par exemple sur l’utilisation plus
-systématique de traits sur les structures de dépendances (par exemple en passant par des noyaux d’arbres), ou
-celle de connaissances externes, linguistiques ou collectées sur corpus (préférences lexicales, cadres de sous-
-catégorisation, verbes copulatifs, symétrie de la coordination. . . ).
-Enfin, notre système doit encore être amélioré pour une utilisation en situation réelle (par exemple, l’analyse de
-gros volumes de données provenant de la toile). L’extraction des traits pour le réordonnanceur, et vraisemblable-
-ment pour l’étiqueteur fonctionnel, est clairement le goulot d’étranglement. À titre d’exemple, pour analyser les
-1235 phrases du corpus de test, les temps d’analyse en constituants, d’étiquetage fonctionnel et de conversion en
-structures de dépendances, d’extraction de traits et finalement de réordonnancement, sont respectivement : 9 min
-55 s, 25 min 43 s, 51 min 12 s et 4 min 03 s.
-Ce travail ouvre la voie à l’utilisation de données non étiquetées en plus d’un corpus arboré pour apprendre une
-meilleure grammaire générative (self training comme (McClosky et al., 2008)) où le réordonnanceur évite au
-système d’apprendre sur les erreurs commises par l’analyseur génératif.
-Remerciements
-Ces travaux sont en partie financés par le projet ANR Sequoia ANR-08-EMER-013. Nous tenons à remercier
-Marie Candito qui nous a aidés à maîtriser BONSAÏ, Djamé Seddah qui nous a suggéré de tester notre architecture
-sur les grammaires d’agrégats, ainsi que les relecteurs anonymes.
-13. C’est-à-dire qu’une partie de l’information est masquée (cf. section 3.2).
-LE ROUX, FAVRE, MIRROSHANDEL, NASR
-Références
-ABEILLÉ A., CLÉMENT L. & FRANÇOIS T. (2003). Treebanks, chapter Building a treebank for French. Kluwer,
-Dordrecht.
-ATTIA M., FOSTER J., HOGAN D., LE ROUX J., TOUNSI L. & VAN GENABITH J. (2010). Handling Unknown
-Words in Statistical Latent-Variable Parsing Models for Arabic, English and French. In Proceedings of SPMRL.
-BOHNET B. (2010). Top Accuracy and Fast Dependency Parsing is not a Contradiction. In Proceedings of
-COLING.
-CANDITO M., CRABBÉ B. & DENIS P. (2010a). Statistical French Dependency Parsing : Treebank Conversion
-and First Results. In Proceedings of LREC2010.
-CANDITO M.-H. & CRABBÉ B. (2009). Improving Generative Statistical Parsing with Semi-Supervised Word
-Clustering. In Proceedings of IWPT 2009.
-CANDITO M.-H., CRABBÉ B., DENIS P. & GUÉRIN F. (2009). Analyse syntaxique du français : des consti-
-tuants aux dépendances. In Actes de TALN.
-CANDITO M.-H., NIVRE J., DENIS P. & HENESTROZA ANGUIANO E. (2010b). Benchmarking of Statistical
-Dependency Parsers for French. In Proceedings of COLING’2010.
-CHARNIAK E. & JOHNSON M. (2005). Coarse-to-Fine n-Best Parsing and MaxEnt Discriminative Reranking.
-In Proceedings of ACL.
-COLLINS M. (1997). Three Generative, Lexicalised Models for Statistical Parsing. In Proceedings of the 35th
-Annual Meeting of the ACL.
-COLLINS M. (2000). Discriminative Reranking for Natural Language Parsing. In Proceedings of ICML.
-CRABBÉ B. & CANDITO M. (2008). Expériences d’analyse syntaxique du français. In Actes de TALN.
-CRAMMER K., DEKEL O., KESHET J., SHALEVSHWARTZ S. & SINGER Y. (2006). Online Passive-Aggressive
-Algorithm. Journal of Machine Learning Research.
-DENIS P. & SAGOT B. (2010). Exploitation d’une ressource lexicale pour la construction d’un étiqueteur mor-
-phosyntaxique état-de-l’art du français. In Actes de TALN.
-JOHNSON M. & URAL A. E. (2010). Reranking the Berkeley and Brown Parsers. In Human Language Tech-
-nologies : The 2010 Annual Conference of the North American Chapter of the Association for Computational
-Linguistics, p. 665–668, Los Angeles, California : Association for Computational Linguistics.
-MATSUZAKI T., MIYAO Y. & ICHI TSUJII J. (2005). Probabilistic CFG with Latent Annotations. In Proceedings
-of ACL.
-MCCLOSKY D., CHARNIAK E. & JOHNSON M. (2008). When is Self-Training Effective for Parsing ? In D.
-SCOTT & H. USZKOREIT, Eds., COLING, p. 561–568.
-MCDONALD R. (2006). Discriminative Training and Spanning Tree Algorithms for Dependency Parsing. PhD
-thesis, University of Pennsylvania.
-MCDONALD R., CRAMMER K. & PEREIRA F. (2005). Online Large-Margin Training of Dependency Parsers.
-In Association for Computational Linguistics (ACL).
-NIVRE J., HALL J., NILSSON J., CHANEV A., ERYIGIT G., KÜBLER S., MARINOV S. & MARSI E. (2007).
-Maltparser : A language-independent system for data-driven dependency parsing. Natural Language Enginee-
-ring, 13(2), 95–135.
-PETROV S., BARRETT L., THIBAUX R. & KLEIN D. (2006). Learning Accurate, Compact, and Interpretable
-Tree Annotation. In ACL.
-PETROV S. & KLEIN D. (2007). Improved Inference for Unlexicalized Parsing. In HLT-NAACL, p. 404–411.
-PULLUM G. K. & SCHOLZ B. C. (2001). On the distinction between model-theoretic and generative-
-enumerative syntactic frameworks. In Logical Aspects of Computational Linguistics.
-RAMBOW O. (2010). The Simple Truth about Dependency and Phrase Structure Representations : An Opinion
-Piece. In NAACL HLT.
-ROSENBLATT F. (1958). The Perceptron : A Probabilistic Model for Information Storage and Organization in
-the Brain. Psychological Review.
-SEDDAH D., CANDITO M. & CRABBÉ B. (2009). Adaptation de parsers statistiques lexicalisés pour le français :
-Une évaluation complète sur corpus arborés. In TALN.
+
+d√©pendance Wm
+
+ 
+
+ram mod
+DOIICK
+sul aux. 5 ] ‚Äòl‚Äò| suJ mix. 5 sub mango‚Äú
+rmnu] F} ['1 v 51. HI fmod} E2] fiÔ¨Çunj] f on; j ram]
+Francois Mariet fut qualiÔ¨Å√© de laxisle , d' inesponsahle , d' irr√©aliste . Francois Mariet fut qualiÔ¨Å√© de laxiste , d‚Äò irresponsable , d' irr√©aliste .
+NPP NPP V VFF F AD] PONCF DET AD] FONCF F AD] PONCF NPP NFF V VFF F AD] PONCF F NC FONCF F AD] PONCF
+
+FIGURE 2 ‚Äî Exemple de r√©ordonnancement b√©n√©Ô¨Åque (163¬∞ phrase de developpement) : la meilleure analyse selon
+le modele gen√©ratif est a gauche, la meilleure selon le modele discriminant, la 35¬∞ hypothese du modele gen√©ratif,
+est a droite. Les erreurs, indiquees par des pointill√©s, sont propag√©es lors de la conversion en dependances.
+

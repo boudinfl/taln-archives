@@ -1,393 +1,523 @@
-TALN 2009, Senlis, 24–26 juin 2009
-Intégration de l’alignement de mots dans
+TALN 2009, Senlis, 24-26 juin 2009
+
+Int√©gration de l‚Äôalignement de mots dans
 le concordancier bilingue TransSearch
-Stéphane Huet Julien Bourdaillet Philippe Langlais
-DIRO - Université de Montréal
+
+St√©phane Huet Julien Bourdaillet Philippe Langlais
+DIRO - Universit√© de Montr√©al
 C.P. 6128, succursale centre-ville
-H3C 3J7, Montréal, Québec, Canada
+
+H3C 3J7, Montr√©al, Qu√©bec, Canada
 {huetstep,bourdaij,felipe}@iro.umontreal.ca
-Résumé. Malgré les nombreuses études visant à améliorer la traduction automatique, la
-traduction assistée par ordinateur reste la solution préférée des traducteurs lorsqu’une sortie de
-qualité est recherchée. Dans cet article, nous présentons nos travaux menés dans le but d’amé-
-liorer le concordancier bilingue TransSearch. Ce service, accessible sur le Web, repose
-principalement sur un alignement au niveau des phrases. Dans cette étude, nous discutons et
-évaluons l’intégration d’un alignement statistique au niveau des mots. Nous présentons deux
-nouvelles problématiques essentielles au succès de notre nouveau prototype : la détection des
-traductions erronées et le regroupement des variantes de traduction similaires.
+
+R√©sum√©. Malgr√© les nombreuses √©tudes visant a am√©liorer la traduction automatique, la
+traduction assist√©e par ordinateur reste la solution pr√©f√©r√©e des traducteurs lorsqu‚Äôune sortie de
+qualit√© est recherch√©e. Dans cet article, nous pr√©sentons nos travaux men√©s dans le but d‚Äôam√©-
+liorer le concordancier bilingue Transsearch. Ce service, accessible sur le Web, repose
+principalement sur un alignement au niveau des phrases. Dans cette √©tude, nous discutons et
+√©valuons l‚Äôint√©gration d‚Äôun alignement statistique au niveau des mots. Nous pr√©sentons deux
+nouvelles probl√©matiques essentielles au succes de notre nouveau prototype : la d√©tection des
+traductions erron√©es et le regroupement des variantes de traduction similaires.
+
 Abstract. Despite the impressive amount of recent studies devoted to improving the state
 of the art of machine translation, computer assisted translation tools remain the preferred solu-
 tion of human translators when publication quality is of concern. In this paper, we present our
 ongoing efforts conducted within a project which aims at improving the commercial bilingual
-concordancer TransSearch. The core technology of this Web-based service mainly relies
+concordancer Transsearch. The core technology of this Web-based service mainly relies
 on sentence-level alignment. In this study, we discuss and evaluate the embedding of statistical
 word-level alignment. Two novel issues that are essential to the success of our new prototype
 are tackled: detecting erroneous translations and grouping together similar translations.
-Mots-clés : alignement au niveau des mots, concordancier bilingue, traduction automa-
+
+M0tS-Cl√©S I alignement au niveau des mots, concordancier bilingue, traduction automa-
 tique.
+
 Keywords: word-level alignment, bilingual concordancer, machine translation.
-Stéphane Huet, Julien Bourdaillet, Philippe Langlais
+
+St√©phane Huet, J ulien Bourdaillet, Philippe Langlais
+
 1 Introduction
-Bien qu’un effort soutenu ait été consacré cette dernière décennie à l’amélioration des systèmes
-de traduction automatique, les traducteurs professionnels préfèrent encore aujourd’hui se tour-
-ner vers les outils de la traduction assistée par ordinateur (TAO), parmi lesquels figurent les
-systèmes à mémoire de traduction (MT) et les concordanciers bilingues. Ces deux types de sys-
-tèmes exploitent une mémoire de traduction constituée d’un bitexte, i.e. un ensemble de paires
-d’unités (typiquement des phrases) qui sont la traduction l’une de l’autre. Alors qu’un système
-à MT est un dispositif de traduction (Planas & Furuse, 1999), un concordancier bilingue est
-conceptuellement plus simple puisque son objectif principal est de trouver au sein d’un bitexte
-les paires d’unités qui contiennent une requête (en général une séquence de mots) soumise par
-un utilisateur. C’est ensuite à l’utilisateur de localiser lui-même les parties intéressantes dans
-les réponses obtenues. Bien que ce type de système paraisse très simple, les concordanciers
-bilingues restent un outil très populaire en TAO. Macklovitch et al. (2008), indiquent ainsi que
-TransSearch1, le concordancier commercial mis en ligne sur le Web et faisant l’objet de cet
-article, a reçu en moyenne 177 000 requêtes par mois sur une période d’un an (2006–2007).
-La figure 1(a) présente une capture d’écran du concordancier TransSearch dans sa version
-actuelle. Dans cet exemple, suite à la requête in keeping with soumise par un utilisateur,
-le système retourne une page contenant les 25 premières paires de phrases de la mémoire de
-traduction qui contiennent une occurrence de la requête. Comme on peut le constater, rien n’est
-mis en valeur dans les phrases cibles retournées, ce qui contraint l’utilisateur à rechercher la
-traduction à l’intérieur de chaque phrase cible proposée.
-(a) Version actuelle. (b) Version en développement.
-FIG. 1 – Résultats affichés par TransSearch pour la requête in keeping with.
-L’objectif du projet TS3 est d’identifier automatiquement dans les phrases retournées les dif-
-férentes traductions d’une requête utilisateur. Bien que l’aspect du nouveau prototype ne soit
-pas encore définitif, la figure 1(b) montre une interface où l’utilisateur peut consulter les traduc-
-tions automatiquement identifiées et considérées comme les plus pertinentes. S’il reste toujours
-possible de consulter les paires de phrases contenant la requête, l’utilisateur peut dorénavant
-cliquer sur une traduction donnée et visualiser son contexte d’emploi.
-1http://www.tsrali.com
-Intégration de l’alignement de mots dans le concordancier bilingue TransSearch
-Dans la suite, nous présentons tout d’abord la technique mise en œuvre pour repérer les tra-
-ductions au sein des phrases. Nous décrivons ensuite deux nouveaux problèmes importants que
-nous avons rencontrés: l’identification des alignements erronés (section 3) et le regroupement
-de variantes de traduction (section 4). Nous décrivons les données utilisées en section 5 et pré-
-sentons nos résultats expérimentaux en section 6.
-2 Repérage de traduction
-Le repérage de traduction ou transpotting (diminutif de translation spotting), une partie es-
-sentielle du projet TS3, consiste à identifier dans du texte cible la traduction d’une requête en
-langue source (Véronis & Langlais, 2000). Nous appelons transpot l’ensemble des mots cibles
-automatiquement associés à une requête dans une paire de phrases. Dans l’exemple de la fi-
-gure 1(b), conformément à et va dans le sens de sont deux des six transpots présentés
-à l’utilisateur pour la requête in keeping with.
-2.1 Algorithme de transpotting
-Le transpotting peut être vu comme un sous-problème de l’alignement au niveau des mots,
-comme suggéré dans (Simard, 2003). La traduction statistique est encore fortement basée sur
-des modèles d’alignement de mots (Brown et al., 1993) que nous utilisons dans cette étude.
-Formellement, à partir d’une phrase S = s1...sn exprimée dans une langue dite source et de sa
-traduction T = t1...tm, un alignement a = a1...am de type IBM revient à connecter chaque mot
-de T à un mot de S (aj ? {1, ..., n}) ou au mot vide (aj = 0), ce dernier rendant compte des
-mots cibles non traduits. Plusieurs modèles proposés par Brown et al. (1993) décomposent la
-probabilité conjointe d’une phrase cible et de son alignement, étant donnée la phrase source.
-Pour des raisons calculatoires, nous nous concentrons dans cette étude sur la forme la plus
-simple, correspondant aux modèles IBM 1 et 2 :
-p(tm1 , a
-m
-1 |sn1 ) =
-m∏
-j=1
-∑
-i?[0,n]
-p(tj|si)? p(i|j,m, n)
-où le premier terme de la somme est la probabilité de transfert et le second la probabilité d’ali-
-gnement. Avec cette décomposition, il est facile et efficace de calculer l’alignement le plus
-probable entre deux phrases, argmaxam1 p(a
-m
-1 |tm1 , sn1 ), ce que nous appelons l’alignement de Vi-
-terbi par la suite. Toutefois, cette approche produit souvent des alignments discontinus, alors
-que ce type d’alignement n’est généralement pas nécessaire pour retrouver les bons transpots.
-Afin de produire des transpots contigus, nous avons implémenté un algorithme de transpotting
-proposé initialement par Simard (2003). Pour chaque paire ?j1, j2? ? [1,m] ? [1,m], nous
-calculons deux alignements de Viterbi : l’un entre la suite de mots tj2j1 et la requête s
-i2
-i1
-, et l’autre
-entre les mots restants des phrases source et cible s¯i2i1 ? si1?11 sni2+1 et t¯j2j1 ? tj1?11 tmj2+1. Nous
-calculons alors :
-tˆjˆ2
-jˆ1
-= argmax
-(j1,j2)
-{
-max
+
+Bien qu‚Äôun effort soutenu ait √©t√© consacr√© cette derniere d√©cennie a l‚Äôam√©lioration des systemes
+de traduction automatique, les traducteurs professionnels pr√©ferent encore aujourd‚Äôhui se tour-
+ner vers les outils de la traduction assist√©e par ordinateur (TAO), parini lesquels Ô¨Ågurent les
+systemes a m√©moire de traduction (MT) et les concordanciers bilingues. Ces deux types de sys-
+temes exploitent une m√©moire de traduction constitu√©e d‚Äôun bitexte, i. e. un ensemble de paires
+d‚Äôunit√©s (typiquement des phrases) qui sont la traduction l‚Äôune de l‚Äôautre. Alors qu‚Äôun systeme
+a MT est un dispositif de traduction (Planas & Furuse, 1999), un concordancier bilingue est
+conceptuellement plus simple puisque son objectif principal est de trouver au sein d‚Äôun bitexte
+les paires d‚Äôunit√©s qui contiennent une requ√©te (en g√©n√©ral une sequence de mots) soumise par
+un utilisateur. C‚Äôest ensuite a l‚Äôuti1isateur de localiser lui-m√©me les parties int√©ressantes dans
+les r√©ponses obtenues. Bien que ce type de systeme paraisse tres simple, les concordanciers
+bilingues restent un outil tres populaire en TAO. Macklovitch et al. (2008), indiquent ainsi que
+Trans Searchl, le concordancier commercial mis en ligne sur le Web et faisant l‚Äôobjet de cet
+article, a regu en moyenne 177 000 requ√©tes par mois sur une p√©riode d‚Äôun an (2006-2007).
+
+La Ô¨Ågure 1(a) pr√©sente une capture d‚Äô√©cran du concordancier Transsearch dans sa version
+actuelle. Dans cet exemple, suite a la requ√©te in keeping with soumise par un utilisateur,
+le systeme retoume une page contenant les 25 premieres paires de phrases de la m√©moire de
+traduction qui contiennent une occurrence de la requ√©te. Come on peut le constater, rien n‚Äôest
+mis en valeur dans les phrases cibles retoum√©es, ce qui contraint l‚Äôutilisateur a rechercher la
+traduction a l‚Äôint√©rieur de chaque phrase cible propos√©e.
+
+R 0 0 Ttanssearrn '8 9 8 Tl-inssearcni nurture
+EC] ¬´T CE W
+Transsearch in Katerina W ‚Äòfen ‚Äò r
+Transsearch _ _ :
+Results 6 possible translations for in keeping with (phrase
+nsquaue i Muuwmpte i iaeeimm i Aide i Quilter -* in in sentences)
+Signet Tr:irisS:iirv:h , _ ‚Äò
+I U‚Äú E: ‚ÄúC :.mi_i conlormement a ‚Äî [130 sentences matched] [3] ‚Äò
+Collection de documents : Hansard rariadien 4i9sa‚Äî2na7i Q conlnrme a ‚Äî [24 sentences matched, 2 shown] [1] [:1 ‚Äò
+
+That certainly is our policy C'√©mit  notre politique.
+
+Expression 1 ll'\ keeping with ‚Äô Etierther ‚Äò ‚Äô Reuu√©te iiiiingue ‚Äò
+T T l ask myseu, his  the .19 me pose la uuestiun suivante: esme que
+charter ot rig and treedoms ? c‚Äò%t  la charte des dmis at
+En vettu ties regimes di: reglementation Under the eurrent regulatory regimes and libeit√©s '2 rr:
+aetuels et dans le eatire ties ‚Äòcompetences in keeping with the federal constitutional "me 59,.;e,,.,s5 )>
+eonferees au gouvetnemmt federal par la jIll'LS(l1CIiDn. Health Canada has legislative
+Constitution, Saute Canada est deja investi authorities in place to regulate the safety
+
+lid√©les ‚Äòa ‚Äî [18 sentences , [:1
+
+do lautorii√© legislative rieeessaitc: pour anti effectiveness of medical devices and
+teglementer la seeunte et l'effieaeiie' des their manuÔ¨Åeturers under the Food and VB dans '9 SENS lie ‚Äî [19 Sentences matched. 2 SNOWFII [1] [:1
+1n5]'fÔ¨ÇÔ¨ÇÔ¨Çg1|]¬ß ' ;;[ [gm-5 fab]-[(;an|g my Dmgg Am and [he mgdical dgviggg in our opinion this amend merit clariÔ¨Åes the A nc_:tre avis. cetamendement izlariÔ¨Åe Ia
+vetlu de la Loi sur les alitrienis et drogucs et regulations. ""¬∞"¬∞" a"d '5. ' ‚Äò "‚Äò¬∞"¬∞" E‚Äò '3
+. . . recommendation 73 iecemmandatinn 73. Sr:
+des reglemeriis telaltfs aux instruments ‚Äî
+rriedicaux. This is DIIIEEIEI-‚ÄòDE the northwest Cela |‚Äôapi>n=I=he de
+' ' ' ‚Äô to appiya ' justice ' que ' ' du nam-
+_ _ justice approach. Guests: sont engag√©gs pplique-r. Ô¨Ç
+Sort adoption Strtall oonuaite au Jugetrient To pass it would go against the very ) L
+ de la majonte dos Canadiens. eonuaire 51 ee sensibility of the majority of Canadians,  
+qui. scion eux, est larehose 3: faire et 51 ee against whatthey know is right and what Salon '25 buts _ [1 Sentence manned] [:1 l
+qui repond aux besoiris qui existent au they know is in keeping with the needs in .
+Canada auinurd‚Äòhui. Canada today. en toute Iogique aver: ‚Äî [1 sentence matched] [3] :
 a
-j2
-j1
-p(aj2j1|si2i1 , tj2j1)?max
-a¯
-j2
-j1
-p(a¯j2j1|s¯i2i1 , t¯j2j1)
-}
-Stéphane Huet, Julien Bourdaillet, Philippe Langlais
-Cette méthode, ayant une complexité en O(nm3), s’est avérée la plus performante de celles que
-nous avons testées (Bourdaillet et al., 2009).
-2.2 Intérêt du post-traitement
-Avec la démarche précédemment décrite, les requêtes fréquentes dans la mémoire reçoivent un
-grand nombre de traductions. La figure 2 illustre ce phénomène en montrant 12 des nombreuses
-séquences de mots retournées par l’algorithme de transpotting pour la requête in keeping
-with. Dans cet exemple, certains transpots annotés d’une étoile sont clairement mauvais (e.g.
-à), tandis que d’autres en italique sont partiellement corrects (e.g. conformément). Il apparaît
-en outre que de nombreux transpots sont très proches (e.g. conforme à et conformes à).
-conforme à (45) conformément à (29) à? (21) dans? (20) . . .
-conforme au (12) conformes à (11) avec? (9) conformément (9) . . .
-correspond à (1) respectent (1) d’actualité? (1) gestes en? (1)
-FIG. 2 – Sous-ensemble des 273 transpots différents retournés pour la requête in keeping
-with, leur fréquence étant indiquée entre parenthèses.
-Afin d’améliorer les performances du système et d’augmenter la diversité des traductions af-
-fichées, il est donc nécessaire d’identifier les erreurs d’alignement et de détecter les transpots
-similaires. Ce sont les deux problèmes que nous étudions dans les sections suivantes.
+. . ,
+(a) Version actuelle. 0)) Version en developpement.
+
+FIG. 1 ‚Äî R√©sultats afÔ¨Åch√©s par Transsearch pour la requ√©te in keeping with.
+
+L‚Äô objectif du projet TS3 est d‚ÄôidentiÔ¨Åer automatiquement dans les phrases retoum√©es les dif-
+f√©rentes traductions d‚Äôune requ√©te utilisateur. Bien que l‚Äôaspect du nouveau prototype ne soit
+pas encore d√©Ô¨Ånitif, la Ô¨Ågure 1(b) montre une interface o1‚Äò1l‚Äôutilisateur peut consulter les traduc-
+tions automatiquement identiÔ¨Å√©es et consid√©r√©es comme les plus pertinentes. S‚Äôil reste toujours
+possible de consulter les paires de phrases contenant la requ√©te, l‚Äôuti1isateur peut dor√©navant
+cliquer sur une traduction donn√©e et Visualiser son contexte d‚Äôemploi.
+
+lhttpz//www.tsrali.com
+
+Integration de l‚Äôalignement de mots dans le concordancier bilingue TransSearch
+
+Dans la suite, nous pr√©sentons tout d‚Äôabord la technique Inise en oeuvre pour rep√©rer les tra-
+ductions au sein des phrases. Nous d√©crivons ensuite deux nouveaux problemes importants que
+nous avons rencontr√©s: l‚ÄôidentiÔ¨Åcation des alignements erron√©s (section 3) et le regroupement
+de variantes de traduction (section 4). Nous d√©crivons les donn√©es utilis√©es en section 5 et pr√©-
+sentons nos r√©sultats exp√©rimentaux en section 6.
+
+2 Rep√©rage de traduction
+
+Le rep√©rage de traduction ou transpotting (diminutif de translation spotting), une partie es-
+sentielle du projet TS3, consiste a identiÔ¨Åer dans du texte cible la traduction d‚Äôune requ√©te en
+langue source (V√©ronis & Langlais, 2000). Nous appelons transpot l‚Äôensemble des mots cibles
+automatiquement associ√©s a une requ√©te dans une paire de phrases. Dans l‚Äôexemple de la Ô¨Å-
+gure 1(b), conform√©ment a et va dans le sens de sont deux des six transpots pr√©sent√©s
+a l‚Äôutilisateur pour la requ√©te in keeping with.
+
+2.1 Algorithme de transpotting
+
+Le transpotting peut √©tre vu comme un sous-probleme de l‚Äôalignement au niveau des mots,
+comme sugg√©r√© dans (Simard, 2003). La traduction statistique est encore fortement bas√©e sur
+des modeles d‚Äôalignement de mots (Brown et al., 1993) que nous utilisons dans cette √©tude.
+
+Formellement, a partir d‚Äôune phrase S = s1...sn exprim√©e dans une langue dite source et de sa
+traduction T = t1...tm, un alignement a = a1...am de type IBM revient a connecter chaque mot
+de T a un mot de S (aj E ¬´[1, ..., n}) ou au mot vide (aj = 0), ce dernier rendant compte des
+mots cibles non traduits. Plusieurs modeles propos√©s par Brown et al. (1993) d√©composent la
+probabilit√© conjointe d‚Äôune phrase cible et de son alignement, √©tant donn√©e la phrase source.
+Pour des raisons calculatoires, nous nous concentrons dans cette √©tude sur la forme la plus
+simple, correspondant aux modeles [BM 1 et 2 :
+
+m
+p(t‚Äô{‚Äò,a'{‚Äò|s¬ß‚Äò) = H 2 p(t,-ls.) >< p(m‚Äò,m,n)
+
+j=1 iE[0,n]
+
+ou le premier terme de la somme est la probabilit√© de transfert et le second la probabilit√© d‚Äôali-
+gnement. Avec cette d√©composition, il est facile et efÔ¨Åcace de calculer l‚Äôalignement le plus
+probable entre deux phrases, argmaxain p(a¬ß‚Äù |t¬ß‚Äù, 3}‚Äò), ce que nous appelons l‚Äôalignement de Vi-
+terbi par la suite. Toutefois, cette approche produit souvent des alignments discontinus, alors
+que ce type d‚Äôalignement n‚Äôest g√©n√©ralement pas n√©cessaire pour retrouver les bons transpots.
+
+AÔ¨Ån de produire des transpots contigus, nous avons impl√©ment√© un algorithme de transpotting
+propos√© initialement par Simard (2003). Pour chaque paire (j1,j2) E [1, m] X [_1, m], nous
+calculons deux alignements de Viterbi : l‚Äôun entre la suite de mots  et la requ√©te 3:3, et l‚Äôautre
+entre les mots restants des phrases source et cible  E s‚Äôf"1s¬ß; +1 et  E t‚Äô11_1t;-Z +1. Nous
+calculons alors :
+
+"12 _ j2 1' j2 ‚Äîj2 -1‚Äò ‚ÄòJ2
+ti ‚Äî argmax mgXp(aj1|s,-it]-1) X Ir_1gXp(aj1|s,-f,tj1)
+(31:92) ajl ajl
+
+St√©phane Huet, J ulien Bourdaillet, Philippe Langlais
+
+Cette m√©thode, ayant une complexit√© en O(nm3), s‚Äôest av√©r√©e la plus performante de celles que
+nous avons test√©es (Bourdaillet et al., 2009).
+
+2.2 Int√©r√©t du post-traitement
+
+Avec la d√©marche pr√©c√©demment d√©crite, les requ√©tes fr√©quentes dans la m√©moire recoivent un
+grand nombre de traductions. La Ô¨Ågure 2 illustre ce ph√©nomene en montrant 12 des nombreuses
+s√©quences de mots retoum√©es par l‚Äôalgorithme de transpotting pour la requ√©te in keeping
+with. Dans cet exemple, certains transpots annot√©s d‚Äôune √©toile sont clairement mauvais (e. g.
+a), tandis que d‚Äôautres en italique sont partiellement corrects (e. g. conform√©ment). I1 apparait
+en outre que de nombreux transpots sont tres proches (e. g. con f orme a et conformes a).
+
+conforme a (45) conform√©ment a (29) a* (21) dans* (20)
+conforme au (12) conformes a (11) avec* (9) conform√©ment (9)
+correspond a (1) respectent (1) d‚Äô actualit√©* (1) gestes en* (1)
+
+FIG. 2 ‚Äî Sous-ensemble des 273 transpots diff√©rents retoum√©s pour la requ√©te in keeping
+with, leur fr√©quence √©tant indiqu√©e entre parentheses.
+
+AÔ¨Ån d‚Äôam√©1iorer les performances du systeme et d‚Äôaugmenter la diversit√© des traductions af-
+Ô¨Åch√©es, il est donc n√©cessaire d‚ÄôidentiÔ¨Åer les erreurs d‚Äôa1ignement et de d√©tecter les transpots
+similaires. Ce sont les deux problemes que nous √©tudions dans les sections suivantes.
+
 3 Filtrage des transpots
-Distinguer les bons transpots des mauvais peut être vu comme un problème de classification.
-Nous avons considéré plusieurs classificateurs classiques2 : l’algorithme du voted-perceptron
-(VP) (Freund & Schapire, 1999) qui s’est déjà montré performant dans plusieurs tâches de
-TALN (Collins, 2002), un séparateur à vaste marge (SVM) qui est souvent employé en ap-
-prentissage supervisé, un arbre de décision à un niveau (decision stump) pour sa simplicité,
-AdaBoost qui utilise un decision stump comme classificateur faible et un classificateur à vote
+
+Distinguer les bons transpots des mauvais peut √©tre vu comme un probleme de classiÔ¨Åcation.
+Nous avons consid√©r√© plusieurs classiÔ¨Åcateurs classiquesz : l‚Äôalgorithme du voted-perceptron
+(VP) (Freund & Schapire, 1999) qui s‚Äôest d√©ja montr√© performant dans plusieurs taches de
+TALN (Collins, 2002), un s√©parateur ¬£1 vaste marge (SVM) qui est souvent employ√© en ap-
+prentissage supervis√©, un arbre de decision 61 un niveau (decision stump) pour sa simplicit√©,
+AdaBoost qui utilise un decision stump comme classiÔ¨Åcateur faible et un classiÔ¨Åcateur 61 vote
 majoritaire combinant un voted-perceptron, un SVM et AdaBoost.
-Chaque classificateur a été entraîné de manière supervisée à partir d’un corpus annoté (cf. sec-
-tion 5). Nous avons calculé trois ensembles de caractéristiques pour chaque exemple, i.e. chaque
-paire requête/transpot (q, t). Le premier ensemble est constitué de caractéristiques relatives à la
-taille (comptée en nombre de mots) de q et t, avec l’intuition que les deux tailles sont corré-
-lées. Le second ensemble regroupe plusieurs scores d’alignement obtenus avec des modèles
-IBM d’alignement de mots. Le dernier regroupe des indices plus linguistiques, parmi lesquels
-le pourcentage de mots grammaticaux dans q et t, ou le nombre de prépositions et d’articles. Au
-total, chaque exemple est associé au maximum à 40 caractéristiques numériques.
-2Nous avons employé WEKA dans nos expériences http://www.cs.waikato.ac.nz/ml/weka.
-Intégration de l’alignement de mots dans le concordancier bilingue TransSearch
+
+Chaque classiÔ¨Åcateur a √©t√© entrain√© de maniere supervis√©e a partir d‚Äôun corpus annot√© (cf sec-
+tion 5). Nous avons calcul√© trois ensembles de caract√©ristiques pour chaque exemple, i. e. chaque
+paire requ√©te/transpot (q, t). Le premier ensemble est constitu√© de caract√©ristiques relatives a la
+taille (compt√©e en nombre de mots) de q et t, avec l‚Äôintuition que les deux tailles sont corre-
+l√©es. Le second ensemble regroupe plusieurs scores d‚Äôalignement obtenus avec des modeles
+IBM d‚Äôalignement de mots. Le demier regroupe des indices plus linguistiques, parmi lesquels
+le pourcentage de mots grammaticaux dans q et t, ou le nombre de pr√©positions et d‚Äôarticles. Au
+total, chaque exemple est associ√© au maximum a 40 caract√©ristiques num√©riques.
+
+2Nous avons employ√© WEKA dans nos exp√©riences http : //www . cs . waikato . ac . nz/ml/weka.
+
+Integration de l‚Äôalignement de mots dans le concordancier bilingue TransSearch
+
 4 Regroupement de variantes
-Même après avoir identifié les transpots erronés, il reste souvent de nombreuses traductions
-pour une requête donnée. Par exemple, notre meilleur classificateur (voir la section 6.2) identifie
-91 mauvais transpots parmi les 273 initialement proposés pour la requête in keeping with.
-Parmi les transpots restants, certains sont très similaires et sont donc redondants pour l’utilisa-
-teur (voir la figure 2)3. Nous estimons que parmi les 182 transpots restants, pas moins de 37
-traductions canoniques sont intéressantes. Regrouper les transpots proches permet d’identifier
+
+Meme apres avoir identiÔ¨Åe les transpots errones, il reste souvent de nombreuses traductions
+pour une requete donnee. Par exemple, notre meilleur classiÔ¨Åcateur (voir la section 6.2) identiÔ¨Åe
+91 mauvais transpots parmi les 273 initialement proposes pour la requete in keeping with.
+Parmi les transpots restants, certains sont tres similaires et sont donc redondants pour l‚Äôutilisa-
+teur (voir la Ô¨Ågure 2)3. Nous estimons que parmi les 182 transpots restants, pas moins de 37
+traductions canoniques sont interessantes. Regrouper les transpots proches permet d‚ÄôidentiÔ¨Åer
 plus facilement un sous-ensemble des traductions pertinentes.
-Distance d’édition basée sur les mots. Nous avons développé une distance d’édition spé-
-cifique au niveau des mots pour regrouper les variantes. Différents coûts de substitution, de
-suppression et d’insertion ont été définis empiriquement selon les classes grammaticales ou les
-flexions possibles des mots ; ce paramétrage est donc dépendant de la langue. Nous avons uti-
-lisé un lexique développé au RALI, qui liste, pour le français et l’anglais, les lemmes de chaque
-forme fléchie et leurs différentes parties du discours.
-Un coût minimal de substitution a été attribué empiriquement entre des formes fléchies d’un
-même lemme. De plus, un score a été fixé afin de pénaliser de manière croissante et dans
-l’ordre suivant les opérations d’édition impliquant des signes de ponctuation, des articles, des
-mots grammaticaux (prépositions, conjonctions et pronoms), des verbes auxiliaires et des mots
+
+Distance d‚Äô√©dition bas√©e sur les mots. Nous avons developpe une distance d‚Äôedition spe-
+ciÔ¨Åque au niveau des mots pour regrouper les variantes. Differents coÔ¨Åts de substitution, de
+suppression et d‚Äôinsertion ont ete deÔ¨Ånis empiriquement selon les classes grammaticales ou les
+Ô¨Çexions possibles des mots; ce parametrage est donc dependant de la langue. Nous avons uti-
+lise un lexique developpe au RALI, qui liste, pour le francais et l‚Äôanglais, les lemmes de chaque
+forme Ô¨Çechie et leurs differentes parties du discours.
+
+Un coÔ¨Åt minimal de substitution a ete attribue empiriquement entre des formes Ô¨Çechies d‚Äôun
+meme lemme. De plus, un score a ete Ô¨Åxe aÔ¨Ån de penaliser de maniere croissante et dans
+l‚Äôordre suivant les operations d‚Äôedition impliquant des signes de ponctuation, des articles, des
+mots grammaticaux (prepositions, conjonctions et pronoms), des verbes auxiliaires et des mots
 lexicaux (verbes, noms, adjectifs et adverbes).
+
 Regroupement des transpots. La comparaison de paires de transpots avec notre distance
-d’édition peut être vue comme un cas particulier de l’alignement multiple de séquences, un
-problème classique en bio-informatique (Chenna et al., 2003). Nous avons adopté l’approche
-de construction progressive de l’alignement. Cette méthode commence par calculer les distances
-d’édition au niveau des mots entre chaque paire de transpots et sauvegarde les résultats dans une
-matrice de distances. Un algorithme de clustering ascendant appelé neighbor-joining (Saiou &
-Nei, 1987) est ensuite appliqué ; celui-ci construit un arbre en regroupant soit deux transpots,
-qui sont des feuilles de l’arbre, soit un transpot et un nœud de l’arbre représentant déjà plusieurs
-traductions, soit encore, deux nœuds. À chaque étape, la paire la plus similaire est regroupée et
-ajoutée à l’arbre, jusqu’à ce que tous les transpots soient alignés.
-Au final, l’algorithme neighbor-joining fournit un arbre dont les feuilles sont les transpots ;
+d‚Äôedition peut etre vue comme un cas particulier de l‚Äôalignement multiple de sequences, un
+probleme classique en bio-informatique (Chenna et al., 2003). Nous avons adopte l‚Äôapproche
+de construction progressive de l‚Äôalignement. Cette methode commence par calculer les distances
+d‚Äôedition au niveau des mots entre chaque paire de transpots et sauvegarde les resultats dans une
+matrice de distances. Un algorithme de clustering ascendant appele neighbor-joining (Saiou &
+Nei, 1987) est ensuite applique; celui-ci construit un arbre en regroupant soit deux transpots,
+qui sont des feuilles de l‚Äôarbre, soit un transpot et un noeud de l‚Äôarbre representant deja plusieurs
+traductions, soit encore, deux noeuds. A chaque etape, la paire la plus similaire est regroupee et
+ajoutee a l‚Äôarbre, jusqu‚Äôa ce que tous les transpots soient alignes.
+
+Au Ô¨Ånal, l‚Äôalgorithme neighbor-joining foumit un arbre dont les feuilles sont les transpots;
 les feuilles les plus proches dans cet arbre correspondent aux variantes les plus similaires, ce
-qui permet de construire des clusters de variantes en traversant l’arbre selon un parcours en
-profondeur. Les transpots associés à deux feuilles voisines et qui diffèrent uniquement selon
-des mots grammaticaux ou des flexions des mêmes formes simples, se retrouvent ainsi réunis
-dans un même cluster. Ce processus est répété jusqu’à ce qu’aucune variante ne soit identifiée
-comme similaire aux autres. Ce principe est illustré par la figure 3. Les deux transpots voisins
-conforme à et conformes à sont tout d’abord regroupés, de même que conforme au et
-conforme aux. Ces deux groupes sont ensuite fusionnés au sein d’un même cluster, le transpot
-correspondant à, jugé trop différent des autres, n’étant pas inclus dans le nouvel ensemble
-ainsi formé.
-3Ce phénomème est particulièrement important en français du fait notamment des nombreuses formes conju-
-guées pour les verbes. De nombreux transpots diffèrent seulement par des signes de ponctuation ou des mots
+qui permet de construire des clusters de variantes en traversant l‚Äôarbre selon un parcours en
+profondeur. Les transpots associes a deux feuilles voisines et qui different uniquement selon
+des mots grammaticaux ou des Ô¨Çexions des memes formes simples, se retrouvent ainsi reunis
+dans un meme cluster. Ce processus est repete jusqu‚Äôa ce qu‚Äôaucune variante ne soit identiÔ¨Åee
+comme similaire aux autres. Ce principe est illustre par la Ô¨Ågure 3. Les deux transpots voisins
+conforme a et conformes a sont tout d‚Äôabord regroupes, de meme que conforme au et
+conf o rme aux. Ces deux groupes sont ensuite fusionnes au sein d‚Äôun meme cluster, le transpot
+correspondant a, juge trop different des autres, n‚Äôetant pas inclus dans le nouvel ensemble
+ainsi forme.
+
+3Ce phenomeme est particulierement important en frangais du fait notamment des nombreuses formes conju-
+guees pour les verbes. De nombreux transpots different seulement par des signes dc ponctuation ou des mots
 grammaticaux.
-Stéphane Huet, Julien Bourdaillet, Philippe Langlais
-FIG. 3 – Regroupement de transpots proches.
+
+St√©phane Huet, J ulien Bourdaillet, Philippe Langlais
+
+correspondant ¬£1 conforme ,5 correspondant 5
+conformes ‚Äòa
+‚Äò /
+conforme au
+
+. . conforme aux
+conforme a. conformes a conforme au conforme aux
+
+FIG. 3 ‚Äî Regroupement de transpots proches.
 5 Corpus
-Mémoire de traduction. La mémoire de traduction sur laquelle s’appuie TransSearch
-est composée principalement du Hansard canadien, constitué de textes parallèles, en français
-et en anglais, issus des enregistrements officiels des sessions du parlement canadien. Pour les
-expériences détaillées ci-dessous, nous avons indexé avec Lucene4 une mémoire comprenant
-8,3 millions de paires de phrases français-anglais.
-Corpus de référence automatique. Nous avons développé de façon automatisée un corpus
-de référence (REF) en croisant notre mémoire de traduction avec un lexique bilingue du RALI
-composé de près de 60 000 expressions (mots ou séquences de mots) ainsi qu’avec les 5 000
-requêtes les plus fréquemment soumises au système par les utilisateurs. Notre référence est
-constituée de plus d’1,4 million de paires de phrases qui contiennent toutes une requête et une
-traduction validée par notre lexique.
-Référence humaine. Afin d’entraîner les classificateurs décrits dans la section 3, quatre anno-
-tateurs humains ont été chargés d’identifier les mauvais transpots résultant de notre algorithme
-de transpotting. Nous avons décidé d’annoter hors-contexte un peu plus de 12 000 paires re-
-quête/traduction, ce qui permet une annotation rapide5 mais laisse des cas difficiles à juger.
-Par exemple, dans notre exemple, conforme à est un transpot pouvant être facilement classé
-comme correct, mais d’autres ne sont pas aussi évidents, comme dans le sens de ou tenir
-compte de qui peuvent être valides en fonction du contexte. Un score kappa de 0,76 témoigne
-d’un haut degré d’accord inter-annotateurs.
-6 Expériences
+
+M√©moire de traduction. La m√©moire de traduction sur laquelle s‚Äôappuie Transsearch
+est compos√©e piincipalement du Hansard canadien, constitu√© de textes paralleles, en francais
+et en anglais, issus des enregistrements ofÔ¨Åciels des sessions du parlement canadien. Pour les
+exp√©riences d√©taill√©es ci-dessous, nous avons index√© avec Lucene4 une m√©moire comprenant
+8,3 millions de paires de phrases francais-anglais.
+
+Corpus de r√©f√©rence automatique. Nous avons d√©velopp√© de facon automatis√©e un corpus
+de r√©f√©rence (REF) en croisant notre m√©moire de traduction avec un lexique bilingue du RALI
+compos√© de pres de 60000 expressions (mots ou s√©quences de mots) ainsi qu‚Äôavec les 5 000
+requ√©tes les plus fr√©quemment soumises au systeme par les utilisateurs. Notre r√©f√©rence est
+constitu√©e de plus d‚Äô 1,4 million de paires de phrases qui contiennent toutes une requ√©te et une
+traduction valid√©e par notre lexique.
+
+R√©f√©rence humaine. AÔ¨Ån d‚Äôentrainer les classiÔ¨Åcateurs d√©ciits dans la section 3, quatre anno-
+tateurs humains ont √©t√© charges d‚ÄôidentiÔ¨Åer les mauvais transpots r√©sultant de notre algoiithme
+de transpotting. Nous avons d√©cid√© d‚Äôannoter hors-contexte un peu plus de 12 000 paires re-
+qu√©te/traduction, ce qui permet une annotation rapide5 mais laisse des cas difÔ¨Åciles a juger.
+Par exemple, dans notre exemple, con f orme a est un transpot pouvant √©tre facilement class√©
+comme correct, mais d‚Äôautres ne sont pas aussi √©vidents, comme dans le sens de ou tenir
+compte de qui peuvent √©tre valides en fonction du contexte. Un score kappa de 0,76 t√©moigne
+d‚Äôun haut degr√© d‚Äôaccord inter-annotateurs.
+
+6 Exp√©riences
+
 6.1 Transpotting
-Pour chacune des 1 416 000 paires de phrases du corpus REF, nous avons évalué la capacité de
-notre algorithme de transpotting décrit dans la section 2.1 à identifier la traduction de référence
-tˆ pour une requête q suivant les mesures de précision et rappel calculées comme suit :
-rappel = |t ? tˆ| / |tˆ| précision = |t ? tˆ| / |t| (1)
-où t est le transpot identifié par l’algorithme et l’intersection retourne la plus longue séquence
-de mots commune à t et tˆ. De façon à calculer ces métriques sur l’intégralité du corpus de
-référence, nous moyennons dans un premier temps le rappel et la précision sur l’ensemble des
+
+Pour chacune des 1416 000 paires de phrases du corpus REF, nous avons √©valu√© la capacit√© de
+notre algorithme de transpotting d√©crit dans la section 2.1 a identiÔ¨Åer la traduction de r√©f√©rence
+t pour une requ√©te q suivant les mesures de pr√©cision et rappel calcul√©es comme suit :
+
+rappel = |tÔ¨Çf| / |f| pr√©cision = |tÔ¨Çf| / |t| (1)
+
+ou t est le transpot identiÔ¨Å√© par l‚Äôalgorithme et l‚Äôintersection retourne la plus longue s√©quence
+de mots commune a t et t. De facon a calculer ces m√©triques sur l‚Äôint√©gralit√© du corpus de
+r√©f√©rence, nous moyennons dans un premier temps le rappel et la pr√©cision sur l‚Äôensemble des
+
 4http://lucene.apache.org
-5De l’ordre de 40 secondes par requête.
-Intégration de l’alignement de mots dans le concordancier bilingue TransSearch
-paires correspondant à chaque requête q. Dans un second temps, nous moyennons les scores
-ainsi obtenus en accordant le même poids à chaque requête. La F-mesure est ensuite déduite de
-la précision et du rappel calculés sur l’ensemble du corpus.
-précision rappel F-mesure
+5De1‚Äôordre de 40 secondes par requ√©te.
+
+Integration de l‚Äôalignement de mots dans le concordancier bilingue TransSearch
+
+paires correspondant a chaque requete q. Dans un second temps, nous moyennons les scores
+ainsi obtenus en accordant le meme poids a chaque requ√©te. La F-mesure est ensuite deduite de
+la precision et du rappel calcules sur l‚Äôensemble du corpus.
+
+‚Äò |precision rappel F-mesure |
+
 transpotting 0,79 0,84 0,81
-transpotting + filtrage 0,82 0,90 0,86
-TAB. 1 – Résultat du transpotting avant et après le filtrage du classificateur sur le corpus REF.
-Voir la section 6.2 pour l’explication de la ligne 2.
-Notre algorithme de transpotting (ligne 1 du tableau 1) obtient une précision de 0, 79 et un rappel
-de 0, 84, qui sont des résultats satisfaisants. La raison pour laquelle la précision est moins bonne
-que le rappel est liée au fait qu’assez souvent, la traduction de référence est une sous-séquence
-du transpot identifié, comme par exemple dans la figure 4.
-Je crois qu’il est tout à fait conforme à l’esprit du projet de loi.
-FIG. 4 – Transpot (souligné) et traduction de référence (en gras) pour la requête in keeping
+transpotting + Ô¨Åltrage 0,82 0,90 0,86
+
+TAB. 1 ‚Äî Resultat du transpotting avant et apres le Ô¨Åltrage du classiÔ¨Åcateur sur le corpus REF.
+Voir la section 6.2 pour l‚Äôexplication de la ligne 2.
+
+Notre algorithme de transpotting (ligne 1 du tableau 1) obtient une precision de 0, 79 et un rappel
+de 0, 84, qui sont des resultats satisfaisants. La raison pour laquelle la precision est moins bonne
+que le rappel est liee au fait qu‚Äôassez souvent, la traduction de reference est une sous-sequence
+du transpot identiÔ¨Åe, comme par exemple dans la Ô¨Ågure 4.
+
+Je crois qu‚Äôil est tout a fait conforme √© l‚Äôesprit du projet de loi.
+
+FIG. 4 ‚Äî Transpot (souligne) et traduction de reference (en gras) pour la requ√©te in keeping
 with.
-6.2 Entraînement des classificateurs
-Comme indiqué dans la section 3, nous avons entraîné plusieurs classificateurs à reconnaître les
-mauvais transpots. Ces classificateurs et plusieurs approches naïves (mais très compétitives)
-sont évalués suivant le taux d’exemples correctement classifiés (TECC). Puisque la tâche qui
-nous intéresse est celle de filtrer les mauvais transpots, nous présentons également les taux de
-précision et rappel relatifs à cette classe.
-Le tableau 2 présente les résultats obtenus avec une validation croisée à 10 blocs. La première
-approche naïve utilisée (ligne 1) classifie tous les exemples comme bons. Elle obtient ainsi un
-TECC de 0, 62, mais n’est d’aucune utilité pour le filtrage. Une approche plus sensée — que
-nous avons découverte après avoir exploré l’utilité des différents ensembles de caractéristiques
-— classifie comme mauvais transpots ceux dont le taux de mots grammaticaux est supérieur à
-0, 75. Cette approche obtient un bon TECC de 0, 78.
-Nous avons commencé les expériences en étudiant la contribution de chaque ensemble de ca-
-ractéristiques avec le voted-perceptron6. Quand le voted-perceptron est entraîné en utilisant un
-seul ensemble de caractéristiques, celui utilisant uniquement les caractéristiques grammaticales
-obtient le meilleur TECC de 0, 79 et une F-mesure de 0, 65. Bien que la configuration basée
-uniquement sur les caractéristiques issues des modèles d’alignement de mots IBM 2 obtienne
-un TECC légèrement inférieur (0, 78), nous la considérons comme meilleure en raison de sa
-F-mesure de 0, 73 qui est plus élevée. La configuration utilisant toutes les caractéristiques pour
-représenter un exemple améliore clairement les résultats de l’approche naïve avec un TECC de
-0, 83 et une F-mesure de 0, 77. On peut également remarquer qu’alors que la meilleure approche
-6Des résultats similaires ont été observés pour les différents ensembles de caractéristiques avec les autres clas-
-sificateurs et ne sont pas présentés ici.
-Stéphane Huet, Julien Bourdaillet, Philippe Langlais
+
+6.2 Entrainement des classiÔ¨Åcateurs
+
+Comme indique dans la section 3, nous avons entraine plusieurs classiÔ¨Åcateurs a reconnaitre les
+mauvais transpots. Ces classiÔ¨Åcateurs et plusieurs approches na'1'ves (mais tres competitives)
+sont evalues suivant le taux d‚Äôexemples correctement classiÔ¨Åes (TECC). Puisque la tache qui
+nous interesse est celle de Ô¨Åltrer les mauvais transpots, nous presentons egalement les taux de
+precision et rappel relatifs a cette classe.
+
+Le tableau 2 presente les resultats obtenus avec une validation croisee a 10 blocs. La premiere
+approche na'1've utilisee (ligne 1) classiÔ¨Åe tous les exemples comme bons. Elle obtient ainsi un
+TECC de 0,62, mais n‚Äôest d‚Äôaucune utilite pour le Ô¨Åltrage. Une approche plus sensee ‚Äî que
+nous avons decouverte apres avoir explore l‚Äôutilite des differents ensembles de caracteristiques
+‚Äî classiÔ¨Åe comme mauvais transpots ceux dont le taux de mots grammaticaux est superieur a
+0,75. Cette approche obtient un bon TECC de 0,78.
+
+Nous avons commence les experiences en etudiant la contribution de chaque ensemble de ca-
+racteristiques avec le voted-perceptron6. Quand le voted-perceptron est entraine en utilisant un
+seul ensemble de caracteristiques, celui utilisant uniquement les caracteristiques grammaticales
+obtient le meilleur TECC de 0, 79 et une F-mesure de 0,65. Bien que la conÔ¨Åguration basee
+uniquement sur les caracteristiques issues des modeles d‚Äôalignement de mots IBM 2 obtienne
+un TECC legerement inferieur (0, 78), nous la considerons comme meilleure en raison de sa
+F-mesure de 0,73 qui est plus elevee. La conÔ¨Åguration utilisant toutes les caracteristiques pour
+representer un exemple ameliore clairement les resultats de l‚Äôapproche na'1've avec un TECC de
+0, 83 et une F-mesure de 0, 77. On peut egalement remarquer qu‚Äôalors que la meilleure approche
+
+5Des resultats similaires ont ete observes pour les djfferents ensembles de caracteristiques avec les autres clas-
+siÔ¨Åcateurs et ne sont pas presentes ici.
+
+St√©phane Huet, J ulien Bourdaillet, Philippe Langlais
+
 mauvais transpots
-Approche Caractéristiques TECC préc. rappel F-mes.
-naïve: tous bons 0,62 0,00 0,00 0,00
-naïve: taux mots gram. > 0, 75 0,78 0,88 0,49 0,63
-Voted-Perceptron
+
+| Approche l Caract√©ristiques l TECC pr√©c. rappel F-mes.
+na'1've: tous bons 0,62 0,00 0,00 0,00
+na'1've: taux mots gram. > 0, 75 0,78 0,88 0,49 0,63
 taille 0,73 0,75 0,47 0,58
-IBM 0,78 0,69 0,78 0,73
-grammaticales 0,79 0,88 0,52 0,65
+Votedyerceptron Ig]:.a1\I/innaticales    
 toutes 0,83 0,81 0,73 0,77
-Vote majoritaire 0,84 0,84 0,71 0,77
-TAB. 2 – Performance des algorithmes de classification pour identifier les mauvais transpots.
-naïve obtient une précision plus élevée que celle du meilleur voted-perceptron, ce dernier ob-
-tient un rappel et une précision plus équilibrés. Dans la mesure où il est difficile de savoir s’il
-vaut mieux privilégier la précision ou le rappel dans notre cas, nous préférons maximiser la
-F-mesure. En entraînant les autres classificateurs avec tous les ensembles de caractéristiques,
-aucun gain significatif n’a été observé. Néanmoins, avec le vote majoritaire combinant plusieurs
-méthodes, nous avons obtenu un meilleur TECC de 0, 84 et une F-mesure de 0, 77, comme re-
-porté à la dernière ligne du tableau 2.
-Avec le meilleur classificateur obtenu, le vote majoritaire, nous avons évalué l’impact du fil-
-trage en utilisant ce classificateur pour filtrer les résultats du transpotting sur le corpus REF. Les
-résultats sont présentés dans le tableau 1 (ligne 2). En supprimant ainsi 7,9% des transpots, on
-peut observer un gain significatif en F-mesure qui croît de 0, 81 à 0, 86. Le gain le plus impor-
-tant est en rappel qui passe de 0, 84 à 0, 90, ce qui signifie que le filtrage élimine principalement
-les transpots trop courts. En examinant manuellement les transpots filtrés, nous avons constaté
-que les mauvais transpots courts, comme les mots grammaticaux, étaient fréquemment identi-
-fiés comme mauvais par le classificateur. Bien que les méthodes de classification supervisées
-testées n’obtiennent pas d’améliorations majeures par rapport à une l’approche naïve basée sur
-l’observation des mots grammaticaux, les gains significatifs constatés par rapport à l’algorithme
-initial de transpotting démontrent l’intérêt de filtrer les mauvais transpots.
+| Vote majoritaire l l 0,84 l 0,84 0,71 0,77 l
+
+TAB. 2 ‚Äî Performance des algorithmes de classiÔ¨Åcation pour identiÔ¨Åer les mauvais transpots.
+
+na'1've obtient une pr√©cision plus √©lev√©e que celle du meilleur voted-perceptron, ce dernier ob-
+tient un rappel et une pr√©cision plus √©quilibr√©s. Dans la mesure o1‚Äò1 il est difÔ¨Åcile de savoir s‚Äôil
+vaut mieux privil√©gier la pr√©cision ou le rappel dans notre cas, nous pr√©f√©rons maximiser la
+F-mesure. En entrainant les autres classiÔ¨Åcateurs avec tous les ensembles de caract√©ristiques,
+aucun gain signiÔ¨Åcatif n‚Äôa √©t√© observ√©. N√©anmoins, avec le vote maj oritaire combinant plusieurs
+m√©thodes, nous avons obtenu un meilleur TECC de 0, 84 et une F-mesure de 0,77, comme re-
+port√© a la derniere ligne du tableau 2.
+
+Avec le meilleur classiÔ¨Åcateur obtenu, le vote majoritaire, nous avons √©valu√© l‚Äôimpact du Ô¨Ål-
+trage en utilisant ce classiÔ¨Åcateur pour Ô¨Åltrer les r√©sultats du transpotting sur le corpus REF. Les
+r√©sultats sont pr√©sent√©s dans le tableau 1 (ligne 2). En supprimant ainsi 7,9 % des transpots, on
+peut observer un gain signiÔ¨Åcatif en F-mesure qui croit de 0, 81 a 0,86. Le gain le plus impor-
+tant est en rappel qui passe de 0, 84 a 0, 90, ce qui signiÔ¨Åe que le Ô¨Åltrage √©limine principalement
+les transpots trop courts. En examinant manuellement les transpots Ô¨Åltr√©s, nous avons constat√©
+que les mauvais transpots courts, comme les mots grammaticaux, √©taient fr√©quemment identi-
+Ô¨Å√©s comme mauvais par le classiÔ¨Åcateur. Bien que les m√©thodes de classiÔ¨Åcation supervis√©es
+test√©es n‚Äôobtiennent pas d‚Äôam√©liorations majeures par rapport a une l‚Äôapproche na'1've bas√©e sur
+l‚Äôobservation des mots grammaticaux, les gains signiÔ¨Åcatifs constat√©s par rapport a l‚Äôalgorithme
+initial de transpotting d√©montrent l‚Äôint√©r√©t de Ô¨Åltrer les mauvais transpots.
+
 6.3 Regroupement de variantes
-Si regrouper les variantes similaires est une fonctionnalité très intéressante d’un point de vue
-ergonomique, il n’est cependant pas facile de trouver le bon niveau de granularité du regroupe-
-ment des transpots7. En conséquence, nous avons étudié deux approches. La première méthode
-regroupe les variantes qui ne diffèrent que par des signes de ponctuation ou qui sont des formes
-fléchies d’un même lemme. Elle est basée sur une distance d’édition, appeléeD1, qui utilise les
-mêmes coûts d’édition pour les mots grammaticaux et lexicaux. La seconde méthode est plus
-laxiste car elle est basée sur une distance d’édition, appelée D2, qui attribue un coût d’édition
-moindre aux mots grammaticaux qu’aux mots lexicaux.
-En regroupant les transpots obtenus à partir des 5 000 requêtes du corpus REF (et filtrés par
-notre meilleur classificateur), la première méthode obtient un nombre moyen de 136 clusters
-7Cela nécessiterait probablement des tests avec des utilisateurs réels.
-Intégration de l’alignement de mots dans le concordancier bilingue TransSearch
-par requête avec D1, alors qu’on a en moyenne 164 transpots par requête (sans regroupement).
-Comme attendu, en utilisant D2, on réduit drastiquement le nombre de clusters à 86 par re-
-quête. En effet, contrairement à D1, D2 permet de regrouper des variantes similaires comme
-sur des années et durant des années. Toutefois cela conduit occasionnellement à des
-regroupements erronés comme tout à fait avec fait tout.
-La figure 5 présente les 5 transpots les plus fréquents obtenus pour deux requêtes par l’algo-
+
+Si regrouper les variantes similaires est une fonctionnalit√© tres int√©ressante d‚Äôun point de vue
+ergonoIr1ique, il n‚Äôest cependant pas facile de trouver le bon niveau de granularit√© du regroupe-
+ment des transpots7. En cons√©quence, nous avons √©tudi√© deux approches. La premiere m√©thode
+regroupe les variantes qui ne different que par des signes de ponctuation ou qui sont des formes
+Ô¨Ç√©chies d‚Äôun m√©me lemme. Elle est bas√©e sur une distance d‚Äô√©dition, appel√©e D1, qui utilise les
+memes coÔ¨Åts d‚Äô√©dition pour les mots grammaticaux et lexicaux. La seconde m√©thode est plus
+laxiste car elle est bas√©e sur une distance d‚Äô√©dition, appel√©e D2, qui attribue un coÔ¨Åt d‚Äô√©dition
+moindre aux mots grammaticaux qu‚Äôaux mots lexicaux.
+
+En regroupant les transpots obtenus a partir des 5 000 requ√©tes du corpus REF (et Ô¨Åltr√©s par
+notre meilleur classiÔ¨Åcateur), la premiere m√©thode obtient un nombre moyen de 136 clusters
+
+7Ce1a n√©cessiterait probablement des tests avec des utilisateurs r√©els.
+
+Integration de l‚Äôalignement de mots dans le concordancier bilingue TransSearch
+
+par requete avec D1, alors qu‚Äôon a en moyenne 164 transpots par requete (sans regroupement).
+Comme attendu, en utilisant D2, on reduit drastiquement le nombre de clusters a 86 par re-
+quete. En effet, contrairement a D1, D2 permet de regrouper des variantes similaires comme
+sur des ann√©es et durant des annees. Toutefois cela conduit occasionnellement a des
+regroupements errones comme tout a f ait avec f ait tout.
+
+La Ô¨Ågure 5 presente les 5 transpots les plus frequents obtenus pour deux requetes par l‚Äôalgo-
 rithme de transpotting avec et sans regroupement. Sans le regroupement, on peut observer que
-la tendance est de proposer des formes fléchies d’une même traduction. Appliquer le regroupe-
-ment conduit à plus de diversité, ce qui est préférable puisque le nombre de variantes pouvant
-être affichées à l’écran dans TransSearch est limité : nous estimons que l’affichage de 5
-transpots sur une même page est un bon compromis (voir la figure 1(b)).
-sans regroup. décrits décrite décrit tel que décrit comme l’a
-regroup. D2 décrits prévu comme l’a tel que prescrit comme le propose
-sans regroup. s’est révélé s’est avéré s’est avérée s’est révélée a été
-regroup. D2 s’est révélé s’est avéré a été s’est montré a prouvé
-FIG. 5 – Les 5 transpots les plus fréquents pour les requêtes as described et has proven
+la tendance est de proposer des formes Ô¨Çechies d‚Äôune meme traduction. Appliquer le regroupe-
+ment conduit a plus de diversite, ce qui est preferable puisque le nombre de variantes pouvant
+etre afÔ¨Åchees a l‚Äôecran dans Transsearch est limite : nous estimons que l‚ÄôafÔ¨Åchage de 5
+transpots sur une meme page est un bon compromis (voir la Ô¨Ågure 1(b)).
+
+sans regroup. decrits decrite decrit tel que decrit comme l‚Äôa
+regroup. D2 decrits prevu comme l‚Äôa tel que prescrit comme le propose
+sans regroup. s‚Äôest revele s‚Äôest avere s‚Äôest averee s‚Äôest revelee a ete
+regroup. D2 s‚Äôest revele s‚Äôest avere a ete s‚Äôest montre a prouve
+
+FIG. 5 ‚Äî Les 5 transpots les plus frequents pour les requetes as described et has proven
 to be avec ou sans regroupement.
-Afin de simuler cela, nous avons mesuré la diversité des 5 transpots les plus fréquents8 proposés
-en les considérant comme des sacs d’unigrammes. Pour cette évaluation, les mots sont lemmati-
-sés et les mots grammaticaux sont supprimés. Nous utilisons les mesures de précision et rappel
-pour comparer les sacs de mots générés par les méthodes de regroupement à ceux de la réfé-
-rence, celle-ci étant formée à partir de la ressource humaine décrite dans la section 5. Suivant
-ces principes, nous avons obtenu une précision de 0, 90 et un rappel de 0, 43 sans recourir au
-regroupement. En construisant des clusters, le rappel a été significativement augmenté jusqu’à
-0, 47 avec D1 et à 0, 54 avec D2, alors que la précision est restée sensiblement la même (0, 89
-avecD1 et 0, 86 avecD2). Ces résultats sont corrélés avec la plus grande diversité obtenue grâce
+
+AÔ¨Ån de simuler cela, nous avons mesure la diversite des 5 transpots les plus frequents8 proposes
+en les considerant comme des sacs d‚ÄôunigraInmes. Pour cette evaluation, les mots sont lemmati-
+ses et les mots grammaticaux sont supprimes. Nous utilisons les mesures de precision et rappel
+pour comparer les sacs de mots generes par les methodes de regroupement a ceux de la refe-
+rence, celle-ci etant formee a partir de la ressource humaine decrite dans la section 5. Suivant
+ces principes, nous avons obtenu une precision de 0,90 et un rappel de 0,43 sans recourir au
+regroupement. En construisant des clusters, le rappel a ete signiÔ¨Åcativement augmente jusqu‚Äôa
+0,47 avec D1 et a 0,54 avec D2, alors que la precision est restee sensiblement la meme (0, 89
+avec D1 et 0, 86 avec D2). Ces resultats sont correles avec la plus grande diversite obtenue grace
 au regroupement de variantes.
+
 7 Discussion
-Dans cette étude, nous avons étudié l’amélioration du concordancier bilingue TransSearch
-grâce à l’alignement de mots. Un algorithme de transpotting a été proposé et évalué. Nous avons
-présenté deux nouvelles problématiques essentielles au succès de notre nouveau prototype : la
-détection des transpots erronés et le regroupement des variantes similaires. Nous avons proposé
-des solutions à ces deux problèmes et évalué leur efficacité. En particulier, nous avons montré
-qu’il est possible de mieux détecter les mauvais transpots par rapport à une approche naïve
-compétitive, et que le regroupement de variantes améliore la diversité des transpots proposés.
-Jusqu’à présent il nous a été difficile de comparer notre approche à d’autres de la communauté.
-Cela est dû principalement au caractère unique du système TransSearch qui archive une
-mémoire de traduction conséquente. Pour donner un point de comparaison, dans (Callisson-
-Burch et al., 2005) les auteurs présentent les résultats d’alignement obtenus pour 120 requêtes
-8Ces transpots correspondent à la variante la plus fréquente de chacun des 5 clusters les plus fréquents.
-Stéphane Huet, Julien Bourdaillet, Philippe Langlais
-issues d’une mémoire de traduction de 50 000 paires de phrases. Cela reste plusieurs ordres de
-grandeur inférieur aux expériences présentées dans cet article.
-Nous avons considéré des modèles d’alignements simples dans cette étude. Nous souhaitons
-étudier des modèles d’alignement plus précis, dont celui décrit dans (Vogel et al., 1996)
+
+Dans cette etude, nous avons etudie l‚Äôamelioration du concordancier bilingue Transsearch
+grace a l‚Äôalignement de mots. Un algorithme de transpotting a ete propose et evalue. Nous avons
+presente deux nouvelles problematiques essentielles au succes de notre nouveau prototype : la
+detection des transpots errones et le regroupement des variantes similaires. Nous avons propose
+des solutions a ces deux problemes et evalue leur efÔ¨Åcacite. En particulier, nous avons montre
+qu‚Äôil est possible de Inieux detecter les mauvais transpots par rapport a une approche na'1've
+competitive, et que le regroupement de variantes ameliore la diversite des transpots proposes.
+
+J usqu‚Äôa present il nous a ete difÔ¨Åcile de comparer notre approche a d‚Äôautres de la communaute.
+Cela est dÔ¨Å principalement au caractere unique du systeme Transsearch qui archive une
+memoire de traduction consequente. Pour donner un point de comparaison, dans (Callisson-
+Burch et al., 2005) les auteurs presentent les resultats d‚Äôalignement obtenus pour 120 requetes
+
+8Ces transpots correspondent a la variante la plus frequente de chacun des 5 clusters les plus frequents.
+
+St√©phane Huet, J ulien Bourdaillet, Philippe Langlais
+
+issues d‚Äôune m√©moire de traduction de 50 000 paires de phrases. Cela reste plusieurs ordres de
+grandeur inf√©rieur aux exp√©riences pr√©sent√©es dans cet article.
+
+Nous avons consid√©r√© des modeles d‚Äôalignements simples dans cette √©tude. Nous souhaitons
+√©tudier des modeles d‚Äôalignement plus pr√©cis, dont celui d√©crit dans (Vogel et al., 1996)
+
 Remerciements
-Cette étude est financée par le Conseil National de Recherche du Canada, en collaboration avec
-l’entreprise canadienne Terminotix.
-Références
-BOURDAILLET J., HUET S., GOTTI F., LAPALME G. & LANGLAIS P. (2009). Enhancing
+
+Cette √©tude est Ô¨Ånanc√©e par le Conseil National de Recherche du Canada, en collaboration avec
+l‚Äôentreprise canadienne Terminotix.
+
+R√©f√©rences
+
+BOURDAILLET J ., HUET S., GoTTI F., LAPALME G. & LANGLAIS P. (2009). Enhancing
 the bilingual concordancer TransSearch with word-level alignment. In 22nd Conference of the
 Canadian Society for Computational Studies of Intelligence, Kelowna, Canada.
+
 BROWN P., DELLA PIETRA V., DELLA PIETRA S. & MERCER R. (1993). The mathematics
 of statistical machine translation: parameter estimation. Computational Linguistics, 19(2),
-263–311.
-CALLISSON-BURCH C., BANNARD C. & SCHROEDER J. (2005). A compact data structure
+263-31 1.
+
+CALLISSON-BURCH C., BANNARD C. & SCHROEDER J . (2005). A compact data structure
 for searchable translation memories. In 10th European Conference of the Association for
-Machine Translation (EAMT), p. 59–65, Budapest, Hongrie.
-CHENNA R., SUGAWARA H., KOIKE T., LOPEZ R., GIBSON T. J., HIGGINS D. G. &
-THOMPSON J. D. (2003). Multiple sequence alignment with the Clustal series of programs.
-Nucleic Acids Research, 31(13), 3497–3500.
+Machine Translation (EAMT), p. 59-65, Budapest, Hongrie.
+
+CHENNA R., SUGAWARA H., KOIKE T., LOPEZ R., GIBSON T. J ., HIGGINS D. G. &
+THOMPSON J . D. (2003). Multiple sequence alignment with the Clustal series of programs.
+Nucleic Acids Research, 31(13), 3497-3500.
+
 COLLINS M. (2002). Discriminative training methods for hidden Markov models: theory and
-experiments with perceptron algorithms. In EMNLP, p. 1–8, Philadelphie, PA, USA.
-FREUND Y. & SCHAPIRE R. (1999). Large margin classification using the perceptron algo-
-rithm. Machine Learning, 37(3), 277–296.
+experiments with perceptron algorithms. In EMNLP, p. 1-8, Philadelphie, PA, USA.
+FREUND Y. & SCHAPIRE R. (1999). Large margin classiÔ¨Åcation using the perceptron algo-
+rithm. Machine Learning, 37(3), 277-296.
+
 MACKLOVITCH E., LAPALME G. & GOTTI F. (2008). Transsearch: What are translators
 looking for ? In 18th Conference of the Association for Machine Translation in the Americas
-(AMTA), p. 412–419, Waikiki, Hawai’i, USA.
+(AMTA), p. 412-419, Waikiki, Hawai‚Äôi, USA.
+
 PLANAS E. & FURUSE O. (1999). Formalizing translation memories. In 7th Machine Trans-
-lation Summit, p. 331–339, Singapour.
+lation Summit, p. 331-339, Singapour.
+
 SAIOU N. & NEI M. (1987). The neighbor-joining method: A new method for reconstructing
-phylogenetic trees. Molecular Biology and Evolution, 4(4), 406–425.
+phylogenetic trees. Molecular Biology and Evolution, 4(4), 406-425.
+
 SIMARD M. (2003). Translation spotting for translation memories. In HLT-NAACL 2003
-Workshop on Building and using parallel texts: data driven machine translation and beyond,
-p. 65–72, Edmonton, Canada.
-VÉRONIS J. & LANGLAIS P. (2000). Evaluation of Parallel text Alignment Systems — The
-Arcade Project., chapter 19, p. 369–388. Kluwer Academic Publisher, Dordrecht, Pays-Bas.
+Workshop on Building and using parallel texts.‚Äò data driven machine translation and beyond,
+p. 65-72, Edmonton, Canada.
+
+VERONIS J . & LANGLAIS P. (2000). Evaluation of Parallel text Alignment Systems ‚Äî The
+Arcade Project., chapter 19, p. 369-388. Kluwer Academic Publisher, Dordrecht, Pays-Bas.
+
 VOGEL S., NEY H. & C. T. (1996). HMM-based word alignment in statistical translation. In
-16th conference on Computational linguistics, p. 836–841, Copenhague, Danemark.
+16th conference on Computational linguistics, p. 836-841, Copenhague, Danemark.
+

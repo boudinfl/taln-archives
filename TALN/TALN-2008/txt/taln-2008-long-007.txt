@@ -1,446 +1,573 @@
-Quelles combinaisons de scores et de critres numriques pour un systme de QR ? 
-Quelles combinaisons de scores et de critres numriques 
-pour un systme de Questions/Rponses ? 
-Laurent Gillard(1,2), Patrice Bellot(2), Marc El-Bze(2) 
-(1)CEA, LIST, Laboratoire dÕingnierie de la connaissance multi-mdia multilingue, 
-18 route du Panorama, BP6, FONTENAY AUX ROSES, F- 92265 France  
-prnom.nom @ cea.fr 
-(2)Laboratoire d'Informatique d'Avignon (LIA) 
-Universit dÕAvignon et des Pays de Vaucluse 
-F-84911 Avignon Cedex 9 (France) 
-prnom.nom @ univ-avignon.fr 
-Rsum Dans cet article, nous prsentons une discussion sur la combinaison de diffrents 
-scores et critres numriques pour la slection finale dÕune rponse dans la partie en charge 
-des questions factuelles du systme de Questions/Rponses dvelopp au LIA. Ces scores et 
-critres numriques sont drivs de ceux obtenus en sortie de deux composants cruciaux pour 
-notre systme : celui de slection des passages susceptibles de contenir une rponse et celui 
-dÕextraction et de slection dÕune rponse. Ils sont tudis au regard de leur expressivit. Des 
-comparaisons sont faites avec des approches de slection de passages mettant en Ïuvre des 
-scores conventionnels en recherche dÕinformation. Paralllement, lÕinfluence de la taille des 
-contextes (en nombre de phrases) est value. Cela permet de mettre en vidence que le choix 
-de passages constitus de trois phrases autour dÕune rponse candidate, avec une slection des 
-rponses base sur une combinaison entre un score de passage de type Lucene ou Cosine et 
-dÕun score de compacit appara”t comme un compromis intressant. 
-Abstract This article discusses combinations of scores for selecting the best answer in a 
-factual question answering system. Two major components of our QA system: (i) relevant 
-passage selection, and (ii) answer extraction, produce a variety of scores. Here we study the 
-expressivity of these scores, comparing our passage density score (i) to more conventional 
-ranking techniques in information retrieval. In addition, we study varying the length (in 
-number of sentences) of context retained in the relevant passages. We find that a three 
-sentences window, and a mixing of Lucene or Cosine ranking with our compactness score (ii) 
-provides the best results. 
-Mots-cls :   Systme de Questions/Rponses, compacit, densit, combinaison de scores. 
-Keywords:   Question Answering, compactness, density, combination of scores. 
-1 Introduction 
-Les systmes de Questions/Rponses (QR) se proposent dÕextraire LA rponse ˆ une question 
-formule en langage naturel depuis un ensemble de documents. Dans ce travail, nous nous 
-intressons aux systmes de Questions/Rponses (sQR) capables de rpondre ˆ des questions 
-L. GILLARD, P. BELLOT, M. EL-BéZE 
-factuelles, c'est-ˆ-dire ˆ celles dont la rponse est un court nonc, et plus spcifiquement 
-lÕexpression dÕune information smantique prcise et concise telle que le nom dÕune personne, 
-dÕun lieu, la date dÕun vnement, une valeur numrique, etc. La rponse ˆ produire est 
-obtenue par extraction depuis un document plut™t que par synthse. Enfin, le cadre 
-exprimental typique pour les rsultats obtenus ci-aprs est semblable ˆ celui propos par 
-diffrentes campagnes dÕvaluation en QR comme le sous-volet Question Answering de la 
-campagne TREC (Voorhees, Harman, 2005) ou encore la campagne ƒvaluation en Questions-
-Rponses (EQueR) (Ayache et al., 2005). 
-Le systme de Questions/Rponses dvelopp pour ce travail au LIA possde une architecture 
-relativement gnrique (explicite en 1.1). Il fait intervenir un encha”nement squentiel de 
-traitements pour aboutir ˆ une rponse finale. Ces traitements sont ˆ percevoir comme autant 
-de processus de filtrage pour limiter le contexte dÕune recherche : dÕabord du corpus vers un 
-ensemble de documents, puis de cet ensemble vers des passages, et des passages vers une 
-rponse. Il est ˆ noter que ce systme repose uniquement sur une approche fonde sur des 
-scores et ne ncessite que peu ou pas de connaissances syntaxiques. Concrtement, nous 
-avons dfini deux scores pour la t‰che de QR : le premier score, dit de densit, permet de 
-slectionner des passages susceptibles de contenir une rponse intressante pour une question; 
-le second score, la compacit, permet, dans un passage, de slectionner la meilleure des 
-rponses. Ces deux scores sont calculs relativement ˆ une rponse candidate pralablement 
-repre dans un document ou dans un passage, celle-ci devant tre dÕun type compatible avec 
-celui attendu exprim par la question. Ces deux scores sont utiliss en squence : la densit 
-intervient dans un module situ en amont de celui qui emploie la compacit. 
-Dans cet article, nous nous intressons plus spcifiquement ˆ une combinaison de ces scores 
-de densit et de compacit. Notre objectif est dÕtudier sÕil est possible de faire ressortir des 
-caractres complmentaires, a priori inconnus, qui permettent dÕamliorer les performances 
-en bout de cha”ne et par consquent ayant un impact sur la slection dÕune rponse, 
-notamment par rapport ˆ un emploi en squence de ces scores. En outre, afin dÕtudier cette 
-notion de complmentarit de manire plus exhaustive, dÕautres recherches de passages 
-mettant en Ïuvre des scores classiques en recherche dÕinformation (Cosine, Cosine+Okapi et 
-score Lucene) sont galement examines et mises en concurrence. Nous vrifions quÕune 
-combinaison de ces scores est prfrable ˆ un score obtenu sans combinaison. De plus dans le 
-but dÕlargir lÕintrt de ce travail, diffrentes tailles de passages1 (de une, trois, cinq, ou neuf 
-phrases autour dÕune rponse potentiellement intressante) sont envisages. Par ailleurs, 
-comme nous exploitons des scores, cÕest tout naturellement vers une combinaison numrique 
-que nous nous sommes dirigs. Enfin, dÕun point de vue applicatif, il est ˆ noter que si les 
-deux combinaisons proposes ont bien t employes lors de nos deux dernires participations 
-avec le LIA ˆ des campagnes dÕvaluations des systmes de Questions/Rponses, les rsultats 
-prsents sont ceux dÕexpriences faites hors campagnes, sur les questions factuelles 
-dÕEQueR, et ont t de ce fait valus au regard dÕune rfrence tire dÕEQueR. 
-1.1 Architecture gnrique dÕun sQR 
-Un systme de Questions/Rponses peut tre schmatiquement dcrit comme un 
-encha”nement de diffrents modules correspondant ˆ trois tapes principales : une analyse (ˆ 
-percevoir comme une Ç comprhension È) de la question, un traitement des documents et 
-                                                 
-1
- Il sÕagit de la dimension des passages produits en sortie du module de slection des passages. Lesquels fixent 
-ensuite le contexte dÕextraction pour une rponse prcise ˆ lÕtape aval correspondante. CÕest bien la prsence 
-(ou lÕabsence), en fin de cha”ne, dÕune rponse prcise correcte qui est value dans nos expriences. 
-Quelles combinaisons de scores et de critres numriques pour un systme de QR ? 
-enfin une extraction dÕune ou de plusieurs rponses. Concernant, lÕtape intermdiaire de 
-traitement des documents, elle est trs souvent dcompose en une recherche documentaire 
-classique suivie dÕune exploitation des documents slectionns ˆ lÕissue de cette recherche 
-dans le but de localiser des passages susceptibles de contenir des rponses dans la perspective 
-dÕune extraction finale. La figure 1 prsente cette architecture schmatique ˆ trois, et plus 
-gnralement quatre composants ainsi que leurs principales interactions. Chaque tape produit 
-en sortie des informations utilises en entre de lÕtape suivante (voire en entre de plusieurs 
-de celles situes en aval). Par ailleurs, pour quelques systmes plus complexes, il manque ˆ ce 
-schma dÕventuels flux supplmentaires gnrs lors dÕallers-retours et/ou rtroactions entre 
-les composants (relaxation de contraintes, etc.). 
+Quelles combinaisons de scores et de criteres numÃ©riques pour un systeme de QR ?
+
+Quelles combinaisons de scores et de critÃ©res numÃ©riques
+pour un systÃ©me de Questions/RÃ©ponses ?
+
+Laurent Gillard(1â€™2), Patrice Bellotm, Marc Elâ€”Beze(2)
+
+(DCEA, LIST, Laboratoire dâ€™ingÃ©nierie de la connaissance multi-mÃ©dia multilingue,
+18 route du Panorama, BP6, FONTENAY AUX ROSES, F- 92265 France
+prÃ©nom.nom @ cea.fr
+
+(2)Laboratoire d'Informatique d'Avignon (LIA)
+UniversitÃ© dâ€™Avignon et des Pays de Vaucluse
+F-84911 Avignon Cedex 9 (France)
+prÃ©nom.nom @ univ-avignon.fr
+
+RÃ©sumÃ© Dans cet article, nous prÃ©sentons une discussion sur la combinaison de diffÃ©rents
+scores et criteres numÃ©riques pour la sÃ©lection ï¬nale dâ€™une rÃ©ponse dans la partie en charge
+des questions factuelles du systeme de Questions/RÃ©ponses dÃ©veloppÃ© au LIA. Ces scores et
+criteres numÃ©riques sont dÃ©rivÃ©s de ceux obtenus en sortie de deux composants cruciaux pour
+notre systeme : celui de sÃ©lection des passages susceptibles de contenir une rÃ©ponse et celui
+dâ€™extraction et de sÃ©lection dâ€™une rÃ©ponse. Ils sont Ã©tudiÃ©s au regard de leur expressivitÃ©. Des
+comparaisons sont faites avec des approches de sÃ©lection de passages mettant en oeuvre des
+scores conventionnels en recherche dâ€™information. Parallelement, lâ€™inï¬‚uence de la taille des
+contextes (en nombre de phrases) est Ã©valuÃ©e. Cela permet de mettre en Ã©vidence que le choix
+de passages constituÃ©s de trois phrases autour dâ€™une rÃ©ponse candidate, avec une sÃ©lection des
+rÃ©ponses basÃ©e sur une combinaison entre un score de passage de type Lucene ou Cosine et
+dâ€™un score de compaciteâ€™ apparait comme un compromis intÃ©ressant.
+
+Abstract This article discusses combinations of scores for selecting the best answer in a
+factual question answering system. Two major components of our QA system: (i) relevant
+passage selection, and (ii) answer extraction, produce a variety of scores. Here we study the
+expressivity of these scores, comparing our passage density score (i) to more conventional
+ranking techniques in information retrieval. In addition, we study varying the length (in
+number of sentences) of context retained in the relevant passages. We find that a three
+sentences window, and a mixing of Lucene or Cosine ranking with our compactness score (ii)
+provides the best results.
+
+Mots-clÃ©s 2 Systeme de Questions/RÃ©ponses, compacitÃ©, densitÃ©, combinaison de scores.
+
+Keywords: Question Answering, compactness, density, combination of scores.
+
+1 Introduction
+
+Les systemes de Questions/RÃ©ponses (QR) se proposent dâ€™extraire LA rÃ©ponse a une question
+formulÃ©e en langage naturel depuis un ensemble de documents. Dans ce travail, nous nous
+intÃ©ressons aux systemes de Questions/RÃ©ponses (sQR) capables de rÃ©pondre a des questions
+
+L. GILLARD, P. BELLOT, M. EL-BEZE
+
+factuelles, c'est-a-dire a celles dont la rÃ©ponse est un court Ã©noncÃ©, et plus spÃ©cifiquement
+lâ€™expression dâ€™une information sÃ©mantique prÃ©cise et concise telle que le nom d â€™une personne,
+dâ€™un lieu, la date dâ€™un eâ€™veâ€™nement, une valeur numÃ©rique, etc. La rÃ©ponse a produire est
+obtenue par extraction depuis un document plutot que par synthese. Enfin, le cadre
+expÃ©rimental typique pour les rÃ©sultats obtenus ci-apres est semblable a celui proposÃ© par
+diffÃ©rentes campagnes dâ€™Ã©valuation en QR comme le sous-volet Question Answering de la
+campagne TREC (Voorhees, Harman, 2005) ou encore la campagne Evaluation en Questions-
+
+Reâ€™ponses (EQueR) (Ayache et al., 2005).
+
+Le systeme de Questions/RÃ©ponses dÃ©veloppÃ© pour ce travail au LIA possede une architecture
+relativement gÃ©nÃ©rique (explicitÃ©e en 1.1). Il fait intervenir un enchainement sÃ©quentiel de
+traitements pour aboutir a une rÃ©ponse finale. Ces traitements sont a percevoir comme autant
+de processus de filtrage pour limiter le contexte dâ€™une recherche : dâ€™abord du corpus vers un
+ensemble de documents, puis de cet ensemble vers des passages, et des passages vers une
+rÃ©ponse. Il est a noter que ce systeme repose uniquement sur une approche fondÃ©e sur des
+scores et ne nÃ©cessite que peu ou pas de connaissances syntaxiques. Concretement, nous
+avons dÃ©fini deux scores pour la tache de QR : le premier score, dit de densitÃ©, permet de
+sÃ©lectionner des passages susceptibles de contenir une rÃ©ponse intÃ©ressante pour une question;
+le second score, la compacitÃ©, permet, dans un passage, de sÃ©lectionner la meilleure des
+rÃ©ponses. Ces deux scores sont calculÃ©s relativement a une rÃ©ponse candidate prÃ©alablement
+repÃ©rÃ©e dans un document ou dans un passage, celle-ci devant Ã©tre dâ€™un type compatible avec
+celui attendu exprimÃ© par la question. Ces deux scores sont utilisÃ©s en sÃ©quence : la densitÃ©
+intervient dans un module situÃ© en amont de celui qui emploie la compacitÃ©.
+
+Dans cet article, nous nous intÃ©ressons plus spÃ©cifiquement a une combinaison de ces scores
+de densitÃ© et de compacitÃ©. Notre objectif est dâ€™Ã©tudier sâ€™il est possible de faire ressortir des
+caracteres complÃ©mentaires, a priori inconnus, qui permettent dâ€™amÃ©liorer les performances
+en bout de chaine et par consÃ©quent ayant un impact sur la sÃ©lection dâ€™une rÃ©ponse,
+notamment par rapport a un emploi en sÃ©quence de ces scores. En outre, aï¬n dâ€™Ã©tudier cette
+notion de complÃ©mentaritÃ© de maniere plus exhaustive, dâ€™autres recherches de passages
+mettant en oeuvre des scores classiques en recherche dâ€™information (Cosine, Cosine+0kapi et
+score Lucene) sont Ã©galement examinÃ©es et Inises en concurrence. Nous vÃ©riï¬ons quâ€™une
+combinaison de ces scores est prÃ©fÃ©rable a un score obtenu sans combinaison. De plus dans le
+but dâ€™Ã©largir lâ€™intÃ©rÃ©t de ce travail, diffÃ©rentes tailles de passagesl (de une, trois, cinq, ou neuf
+phrases autour dâ€™une rÃ©ponse potentiellement intÃ©ressante) sont envisagÃ©es. Par ailleurs,
+comme nous exploitons des scores, câ€™est tout naturellement vers une combinaison numÃ©rique
+que nous nous sommes dirigÃ©s. Enfin, dâ€™un point de vue applicatif, il est a noter que si les
+deux combinaisons proposÃ©es ont bien Ã©tÃ© employÃ©es lors de nos deux demieres participations
+avec le LIA a des campagnes dâ€™Ã©valuations des systemes de Questions/RÃ©ponses, les rÃ©sultats
+prÃ©sentÃ©s sont ceux dâ€™expÃ©riences faites hors campagnes, sur les questions factuelles
+dâ€™EQueR, et ont Ã©tÃ© de ce fait Ã©valuÃ©s au regard dâ€™une rÃ©fÃ©rence tirÃ©e dâ€™EQueR.
+
+1.1 Architecture gÃ©nÃ©rique dâ€™un sQR
+
+Un systeme de Questions/RÃ©ponses peut Ã©tre schÃ©matiquement dÃ©crit comme un
+enchainement de diffÃ©rents modules correspondant a trois Ã©tapes principales : une analyse (a
+percevoir comme une Â« comprehension Â») de la question, un traitement des documents et
+
+1 ll sâ€™agit de la dimension des passages produits en sortie du module de sÃ©lection des passages. Lesquels ï¬xent
+ensuite le contexte dâ€™extraction pour une rÃ©ponse prÃ©cise a lâ€™Ã©tape aval correspondante. Câ€™est bien la prÃ©sence
+(ou 1â€™absence), en fin de chaine, dâ€™une rÃ©ponse prÃ©cise correcte qui est Ã©valuÃ©e dans nos expÃ©riences.
+
+Quelles combinaisons de scores et de criteres numÃ©riques pour un systeme de QR ?
+
+enfin une extraction dâ€™une ou de plusieurs rÃ©ponses. Concernant, lâ€™Ã©tape intermÃ©diaire de
+traitement des documents, elle est tres souvent dÃ©composÃ©e en une recherche documentaire
+classique suivie dâ€™une exploitation des documents sÃ©lectionnÃ©s a lâ€™issue de cette recherche
+dans le but de localiser des passages susceptibles de contenir des rÃ©ponses dans la perspective
+dâ€™une extraction ï¬nale. La figure 1 prÃ©sente cette architecture schÃ©matique a trois, et plus
+gÃ©nÃ©ralement quatre composants ainsi que leurs principales interactions. Chaque Ã©tape produit
+en sortie des informations utilisÃ©es en entrÃ©e de lâ€™Ã©tape suivante (voire en entrÃ©e de plusieurs
+de celles situÃ©es en aval). Par ailleurs, pour quelques systemes plus complexes, il manque a ce
+schÃ©ma dâ€™Ã©ventuels ï¬‚ux supplÃ©mentaires gÃ©nÃ©rÃ©s lors dâ€™allers-retours et/ou rÃ©troactions entre
+les composants (relaxation de contraintes, etc.).
+
+      
+
+Collcchon
+
+I Documents I
+
+Question \ M
+|::> Analyse |:> Recherche |::> ~â€˜. '
+Question Documents 2â€˜ 
+
+RÃ©ponses
+
+  
+    
  
-Figure 1. Architecture gnrique dÕun systme de Questions/Rponses 
-Ë titre dÕillustration, voici un exemple du fonctionnement de cette architecture gnrique pour 
-la question Ç En quelle anne est n Nelson Mandela ? È : 
-- LÕanalyse de la question identifie la nature de lÕinformation qui va tre recherche (une 
-tiquette dÕentit ou un type de rponse attendue) (Ferret et al., 2002), soit ici, lÕanne 
-associe ˆ une date, et plus spcifiquement celle dÕune date de naissance. Elle construit 
-galement une requte ˆ destination dÕun systme de recherche documentaire comme par 
-exemple, la requte constitue par les seuls lemmes Ç na”tre È, Ç Nelson È, et Ç Mandela È ; 
-- le systme de recherche documentaire propose une liste dÕidentifiants de documents du 
-corpus contenant tous ces lemmes, soit les documents Ç ATS.940426.0081 È,  Ç LEMONDE94-000873-
-19940509 È, Ç LEMONDE94-003506-19940429 È, Ç LEMONDE95-000054 È,  Ç LEMONDE95-012364 È. Cette liste 
-pourrait tre ordonne suivant une similarit prenant en compte la frquence des lemmes ; 
-- le composant en charge du traitement des documents effectue un balisage des entits 
-de type date. Il dcoupe ces documents en blocs ou passages, effectue une slection des 
-passages intressants (Tellex et al., 2003) et limine, par exemple, ceux qui ne contiennent ni 
-une entit date, ni les lemmes Ç na”tre È, Ç Nelson È, et Ç Mandela È ; 
-- enfin, lÕextraction dÕune rponse consiste ˆ choisir la Ç meilleure È rponse ˆ proposer 
-comme rsultat, cela en accord avec lÕtiquette smantique associe lors de la premire tape 
-(pour cet exemple, la date de naissance ou son gnrique date). Cette slection de la, ou des 
-meilleures rponses pourrait tre faite gr‰ce ˆ lÕutilisation de patrons morphosyntaxiques ou 
-gr‰ce ˆ un calcul de proximit des diffrents termes associs aux lemmes intressants de la 
-question dans les passages. Et, en dfinitive, le Ç 1918 È de Ç Nelson Mandela est n le 
-[DATE18 juillet 1918] dans un village xhosa du Transke•. È (du document Ç ATS.940426.0081 È) 
-appara”t ainsi comme une meilleure rponse que le Ç 1912 È rencontr dans le passage : 
-Ç Nelson Mandela _ soixante-quinze ans _ n'tait pas n quand le Congrs national africain 
-(ANC) vit le jour ([DATE1912]). È (Ç LEMONDE94-003506-19940429 È). 
-L. GILLARD, P. BELLOT, M. EL-BéZE 
-2 Quelle combinaison de scores, quels critres ? 
-Dans le systme de QR envisag, chacune des deux tapes, slection de passages ou slection 
-dÕune rponse, est associe ˆ un score. Ce dernier est une valeur numrique relle qui permet 
-dÕordonner lÕensemble des possibles, le meilleur des scores correspond au meilleur des cas. 
-Slection de passages. Ce score de passage est dpendant de la technique mise en Ïuvre pour 
-le filtrage. Ainsi, il peut sÕagir de notre score de densit (Gillard et al., 2005), ou bien de 
-scores de similarit plus conventionnels2, que nous envisageons ˆ titre de comparaison, tels 
-que Cosine, dÕune combinaison entre Cosine et Okapi (Wilkinson et al., 1996), ou de celui 
-calcul par Lucene. Lorsque le score considr est notre score de densit, lÕune de ses 
-caractristiques essentielles est dÕtre un score de proximit des objets de la question (les mots 
-qui la constituent et les entits nommes quÕelle comprend) ˆ lÕchelle du document, tout en 
-considrant, et mme en englobant, une rponse candidate repre et marque comme 
-susceptible dÕtre en adquation avec le type attendu par la question. Dans les cas dÕune 
-similarit vectorielle, lÕexpressivit du score repose principalement sur des concepts de 
-frquence et de raret, notamment au travers des pondrations TF.IDF (Ç Term 
-FrequencyInverse Document Frequency È). De plus, Okapi fait galement intervenir un 
-critre de taille moyenne des passages ; et, le score Lucene, un ratio, appel couverture, entre 
-les mots de la question et ceux de ces mots prsents dans le passage. 
-Slection et extraction dÕune rponse. Notre score de compacit positionnelle (Gillard et al., 
-2007), fait appel ˆ des notions de proximit des mots (Luhn, 1958) de la question dans un 
-passage. Ces mots doivent en outre tre au plus prs de la rponse candidate (lÕide est lˆ 
-encore une notion de la plus grande Ç densit È possible) compatible avec le type attendu par 
-la question mais cette fois dans une localit restreinte ˆ un fragment dÕun passage. Une autre 
-possibilit est dÕenvisager un dcompte des mots communs entre la question et le passage 
-extrait, complt par une stratgie telle que celle employe lors de la participation du LIA ˆ 
-TREC-11 : celle-ci consistait ˆ proposer comme rponse la premire rponse compatible avec 
-le type attendu. LÕexpressivit attendue pour ces diffrents scores peut tre schmatise dans 
-un tableau tel que le tableau 1. Bien que nous ne lÕayons pas expriment, il est galement 
-possible de prsenter lÕusage de patrons morphosyntaxiques qui correspond ˆ une autre grande 
-famille de type dÕextraction pour une rponse dans des systmes de Questions/Rponses. 
-Le tableau 1 prsente lÕexpressivit de ces diffrentes mthodes. Ainsi, la frquence 
-correspond ˆ une notion habituellement associe ˆ la frquence dÕun mot dans un document, 
-ou plut™t, dans le cas qui nous intresse ici, dans un passage. Il sÕagit dÕune notion associe 
-aux pondrations intervenant dans des calculs de similarit. La raret, que lÕon associe 
-aisment ˆ lÕinverse dÕune frquence au sein dÕun ensemble de documents nÕintervient pas 
-dans nos calculs de compacit positionnelle, dans ceux de densit ou pour des patrons 
-morphosyntaxiques. LÕordre des mots, est un point faible dans lÕensemble des scores 
-envisags ici, mais il serait captur par des patrons morphosyntaxiques. Il est ˆ noter quÕil est 
-tout ˆ fait envisageable dÕeffectuer des calculs de compacit sur des units plus grandes quÕun 
-mot et ainsi de faire appara”tre une telle notion dÕordre en considrant, par exemple, des 
-bigrammes de mots ou toutes combinaisons de n-grammes3. Cependant, dans le cas dÕune 
-                                                 
-2
-  Un systme de recherche boolen ne permet pas diffrencier et dÕordonner suffisamment les passages trouvs. 
-3
-  Nous avons commenc ˆ emprunter cette voie dans le cadre dÕune utilisation dÕun score de compacit pour du 
-rsum automatique, mais sans noter un impact significatif. Cependant, selon nous, il sÕagit dÕune voie ˆ 
-poursuivre et dÕautres expriences sont ˆ mener. 
-Quelles combinaisons de scores et de critres numriques pour un systme de QR ? 
-question, il existe une difficult supplmentaire puisquÕil faut tre capable de retrouver depuis 
-une forme interrogative, lÕordre de sa forme affirmative. Enfin, si lÕordre est effectivement 
-lÕun des points forts de lÕexpressivit associe ˆ des patrons morphosyntaxiques il faut 
-remarquer que le cot dÕacquisition de ces patrons nÕest pas minime (mme lorsque des 
-techniques automatiques sont employes). 
-La connaissance dÕun type de rponse attendu est une information typiquement associe ˆ un 
-composant dÕun systme de Questions/Rponses, aussi nÕappara”t-elle pas pour des scores 
-originellement issus de la recherche documentaire. De mme, la proximit des mots est une 
-notion qui nous a paru particulirement importante dans le cadre des sQR, et que nous avons 
-souhait incorporer en priorit dans notre travail sur les scores. Cette proximit intervient 
-galement dans le cas de patrons morphosyntaxiques. Il est possible de noter que dans le cas 
-des patrons, cette proximit est particulirement rigide, au contraire de celle envisage dans 
-nos calculs de compacit et de densit, ce qui peut ˆ la fois constituer un inconvnient ou un 
-avantage selon le passage. En effet, un patron qui slectionne une expression le fait avec une 
-plus Ç grande force È, mais aussi avec un Ç plus grand È risque de passer ˆ cot, parfois ˆ 
-cause de diffrences trs faibles. Enfin, la proximit dans le cas de la densit est une proximit 
-tendue ˆ la globalit du document, alors que, pour la compacit, il sÕagit dÕune proximit 
-locale au passage. De notre point de vue les deux ont une importance. Il est plus facile de 
-trouver une rponse au sein dÕun passage lorsque la formulation de ce passage est proche de 
-celle de la question (i.e. emploie les mots de la question). Cependant, il est des cas, dans 
-lesquels au moins un des mots de la question, prsent dans le document, nÕest plus rpt par 
-la suite et nÕappara”t plus dans la fentre dÕun passage, alors que sa prsence mrite dÕtre 
-prise en compte. Un exemple typique est le cas dÕune question comportant une restriction sur 
-un pays particulier, notamment dans un style de rdaction journalistique : aprs un premier 
-centrage thmatique sur ce pays, il est probable que son nom ne soit plus rpt dans le reste 
-du document. Enfin, la prsence des mots de la question appara”t comme un ingrdient 
-vident de tous les scores envisags. Ce nÕest pas le cas de la notion de couverture, qui 
-nÕintervient que dans nos scores, et dans celui calcul par Lucene. Concernant les patrons 
-morphosyntaxiques, ils capturent cette couverture dÕune faon dtourne. DÕautres critres ont 
-t explors comme la variabilit des mots, au travers dÕune racinisation ou dÕune 
-lemmatisation. 
- Sur les mots de la question (Q) 
- Frquence Raret Ordre Proximit  Prsence Couverture 
-Type de 
-rponse 
-attendu 
-Mots communs        
-Cosine        
-Cosine+Okapi        
-Lucene        
-Densit    1    
-Compacit 
-positionnelle    
-2
  
-   
-Patrons 
-morphosyntaxiques    
-2
+
+ :>
+
++ supports
+
  
-   
-Tableau 1. Tableau crois des expressivits de diffrentes mthodes de slection dÕun passage ou 
-dÕune rponse en fonction de critres intressants ˆ capturer. (La proximit peut tre envisage 
-globalement2 ˆ un document ou localement1 ˆ un passage). 
-Remarque. Afin dÕintgrer des patrons morphosyntaxiques ˆ une combinaison telle celle qui 
-sera envisage, il est ncessaire dÕaffecter, ˆ chacun dÕentre eux, une grandeur numrique 
-relle (il ne faut pas se limiter ˆ la dcision binaire Ç le patron capture ou ne capture pas È 
-L. GILLARD, P. BELLOT, M. EL-BéZE 
-une expression). Des travaux tels que (Duclaye et al., 2003) et (Vidrequin et al., 2007) 
-permettent cela en extrapolant une interprtation du rappel et de la prcision. DÕautres critres 
-comme un critre de redondance (correspondant au nombre dÕoccurrences o un patron 
-parvient ˆ capturer une expression) pourrait aussi tre pris en compte. Cependant, et selon 
-nous, il sÕagit dÕun critre intervenant plut™t lors dÕune tape de vrification quÕˆ celle 
-dÕextraction, dÕautant que ce critre peut aussi tre envisag dans le cas des autres approches. 
-2.1 Formulation de la combinaison 
-En examinant le tableau 1, il ressort que lÕexpressivit de chacun des scores est diffrente. Ces 
-diffrences peuvent (doivent) tre perues comme susceptibles de dgager une 
-complmentarit des approches dont il est intressant de tirer profit. Il sÕagit justement de 
-notre objectif principal : mettre en Ïuvre une combinaison de ces scores afin de capturer au 
-mieux les critres envisags (et peut tre dÕautres moins vidents). LÕinterrogation que nous 
-avons porte sur la manire dÕaboutir ˆ une fusion optimale. Ainsi, comme cela a t djˆ 
-mentionn, ces scores proviennent de deux modules diffrents. Les premiers proviennent de 
-celui en charge de la recherche de passage, les autres de celui en charge de lÕextraction et de la 
-slection de la rponse. Ce constat nous amne ˆ envisager une combinaison de ces scores en 
-tenant compte de leur provenance, et ˆ choisir une formulation de leur combinaison. 
-Ainsi, considrons Cosine et la compacit positionnelle. Elles apparaissent quasiment 
-complmentaires (orthogonales), il est raisonnable de penser que leur combinaison peut tre 
-intressante. Cette forme dÕorthogonalit peut tre rapproche dÕune notion dÕindpendance, 
-et faire penser ˆ percevoir celles-ci comme lÕexpression de probabilits (cela mme si elles 
-nÕen sont videmment pas4). De plus, le calcul Cosine qui nous intresse accepte une valeur 
-comprise entre 0 et 1. Concernant la compacit, si nous avons djˆ envisag de lÕexprimer 
-dÕune manire probabiliste (Gillard et al., 2007), la compacit positionnelle nÕest pas 
-lÕexpression dÕune probabilit. Cependant, nous lÕamenons par une normalisation dans ce 
-mme intervalle de valeurs. Ainsi, il est possible dÕenvisager leur combinaison au travers dÕun 
-produit, justement dans le but de saisir cette indpendance / orthogonalit, soit : 
- scoreFinal scorePassage scoreExtraction= ?  (1) 
-Ou plut™t, afin de sÕaffranchir des problmes de cadrage de valeur dÕun produit de facteurs 
-infrieurs ˆ un : 
- log( ) log( )= +scoreFinal scorePassage scoreExtraction  (2) 
-Du point de vue exprimental, lors dÕEQueR, la combinaison retenue faisait galement 
-intervenir un dcompte de Mots Communs (MC), dans le but de favoriser encore plus le cas 
-o le nombre de ces MC dans les passages tait optimal. Le score employ alors tait : 
- log( ) log( ) log(1 )scoreFinalAvecMC scorePassage scoreExtraction MC= + + +  (3) 
-Dans les expriences qui suivent, ces deux scores (2) et (3) sont envisags, lÕun tant une 
-version avec dcompte de mots communs (Ç avec MC È), lÕautre sans (Ç sans MC È). Le score 
-des passages sera tour ˆ tour, un score de densit, de Cosine, de Cosine+Okapi, ou issu de 
-Lucene. Dans le tableau 2, est galement prsente une extraction sans aucune combinaison, 
-soit depuis un dcompte des mots communs, depuis un score de passage seul, ou depuis une 
-compacit positionnelle, cela afin de vrifier le gain ventuel observ lors dÕune combinaison. 
-                                                 
-4
- En effet, il nÕexiste pas de loi de probabilit avec une densit de probabilit, associe ˆ ces scores, pas plus 
-que de paramtres susceptibles de faire lÕobjet dÕune procdure dÕapprentissage comme par exemple via 
-lÕestimateur du maximum de vraisemblance. 
-Quelles combinaisons de scores et de critres numriques pour un systme de QR ? 
-2.2 Exprimentation de la combinaison 
-Cette partie prsente les rsultats obtenus en fin de cha”ne par le systme de QR aux 400 
-questions factuelles dÕEQueR. Notre objectif est dÕexaminer lÕimpact des deux combinaisons 
-envisages lors de nos participations ˆ EQueR et ˆ QA@CLEF-2006. La premire repose sur 
-un score de passage, un score de compacit et un dcompte des mots communs (Ç avec MC È, 
-b1/, comme lors de notre participation ˆ EQueR) ; la seconde est sans dcompte des mots 
-communs (Ç sans MC È, b2/, et correspond ˆ notre participation ˆ CLEF-2006). De plus, lors 
-de ces campagnes nous avions fait le choix a priori de nous limiter ˆ des passages de trois 
-phrases. Ces rsultats nous permettent dÕexaminer ce choix a posteriori. 
-Les valuations sont obtenues au moyen dÕune procdure automatique reposant sur une 
-rfrence que nous avons constitue ˆ partir des rponses des participants de la campagne. 
-Deux dclinaisons, stricte et tolrante sont envisages et constituent des bornes infrieures et 
-suprieures. Par ailleurs, il est ˆ noter que, dans une autre exprience, nous avons pu comparer 
-les sorties obtenues depuis cette procdure automatique avec celles faites par un valuateur 
-humain et nous avons constat que les diffrences entre les jugements humains/automatiques 
-apparaissaient acceptables et comprises entre -3,5% ˆ +1% suivant le type dÕvaluation. 
-Les nombres prsents dans le tableau 2 (voir en fin dÕarticle) sont le nombre de rponses 
-correctes prcises (aussi dites Ç exactes È, en ce sens que la Ç cha”ne de caractres È 
-correspondante contient uniquement les informations utiles pour rpondre, sans oubli, ni 
-ajout) trouves suivant le type dÕvaluation (stricte ou tolrante) en considrant la rponse 
-propose par le systme au premier rang pour chacune des questions factuelles de la campagne 
-EQueR. Ce type dÕvaluation sur une unique rponse autorise par question correspond ˆ la 
-dfinition de lÕvaluation CLEF-2006 (il est ˆ noter que, lors dÕEQueR, les cinq premiers 
-rangs taient examins, aussi le graphique 1, plus loin, prsente-t-il des rsultats lorsque la 
-rponse peut tre trouve parmi les cinq premires pour un cas qui nous intresse 
-particulirement : celui des combinaisons entre les scores de passages et notre score 
-dÕextraction de compacit). 
-Bilan du tableau 2 (voir en fin dÕarticle). DÕune manire globale, on peut noter que les 
-performances des combinaisons densit et compacit sont assez indpendantes de la 
-dimension des passages. Cela tend ˆ prouver que la complmentarit des deux approches est 
-moindre. Cela sÕexplique par le fait que les principes sous-jacents ˆ leur dfinition sont 
-identiques et reposent sur des notions de proximit (et peut-tre de symtrie, puisque la phrase 
-intressante du point de vue de la densit occupe la position centrale dans le passage). La 
-compacit appara”t comme un choix intressant mme lorsquÕelle est employe seule. Elle se 
-situe dÕailleurs juste derrire les combinaisons scores de passages et compacit du point de 
-vue des performances. Pour la compacit employe hors dÕune combinaison, les meilleurs 
-rsultats sont obtenus depuis des passages de neuf phrases ([104..118]), lorsque les passages 
-sont pralablement filtrs par notre score de densit, et de trois phrases sinon ([102..118]). 
-La meilleure combinaison est obtenue par lÕemploi dÕune combinaison entre Lucene et 
-compacit pour des dimensions de passages dÕune ou de cinq phrases (respectivement 
-[121..135], [120..136]), ou compacit et Cosine sur trois phrases ([120..136]). Concernant la 
-combinaison avec mots communs, notre souhait initial consistant ˆ favoriser les combinaisons 
-avec un grand nombre de mots communs sÕavre tre une mauvaise chose, au moins en lÕtat : 
-peut-tre manque-t-il des coefficients adapts dans lÕexpression de la combinaison linaire ? 
-Enfin, nous avons constat quÕil existe une variabilit non ngligeable entre les diffrentes 
-mthodes sur les questions rpondues (du point de vue des pertes et gains) et cela amne ˆ 
-supposer que ces exprimentations peuvent donner lieu ˆ dÕautres amliorations en fin de 
-traitement : il doit tre possible de maximiser encore les gains tout en minimisant les pertes. 
-L. GILLARD, P. BELLOT, M. EL-BéZE 
-Notre principal objectif sur la combinaison de scores appara”t rempli : une combinaison entre 
-un score de compacit et un score Lucene, ou Cosine, permet un gain dÕenviron +18% sur les 
-meilleures autres configurations sans combinaison (qui proviennent par ailleurs de la 
-compacit que nous avons dfinie), cela si lÕon observe la rponse propose au premier rang. 
+       
+
+     
+
+Type er
+artr/â€˜buts
+Ones tron
+
+Documen ls Passages
+
+Figure 1. Architecture geâ€™neâ€™rique dâ€™un systeme de Questions/RÃ©ponses
+
+A titre dâ€™illustration, voici un exemple du fonctionnement de cette architecture gÃ©nÃ©rique pour
+la question Â« En quelle annÃ©e est neâ€™ Nelson Mandela ? Â» :
+
+- Lâ€™analyse de la question identifie la nature de lâ€™information qui Va Ã©tre recherchÃ©e (une
+Ã©tiquette dâ€™entitÃ© ou un type de rÃ©ponse attendue) (Ferret et al., 2002), soit ici, lâ€™anneâ€™e
+associÃ©e a une date, et plus spÃ©ciï¬quement celle dâ€™une date de naissance. Elle construit
+Ã©galement une requÃ©te a destination dâ€™un systeme de recherche documentaire comme par
+exemple, la requÃ©te constituÃ©e par les seuls lemmes Â« naitre Â», Â« Nelson Â», et Â« Mandela Â» ;
+
+- le systeme de recherche documentaire propose une liste dâ€™identiï¬ants de documents du
+corpus contenant tous ces lemmes, soit les documents Â« ATS.940426.0081 Â», Â«LEMONDE94-000873-
+19940509 Â», Â«LEMONDE94-003506-19940429 Â», Â«LEMONDE95-000054 Â», Â«LEMONDE95-012364 Â». Cette liste
+pourrait Ã©tre ordonnÃ©e suivant une similaritÃ© prenant en compte la frÃ©quence des lemmes ;
+
+- le composant en charge du traitement des documents effectue un balisage des entitÃ©s
+de type date. 11 dÃ©coupe ces documents en blocs ou passages, effectue une sÃ©lection des
+passages intÃ©ressants (Tellex et al., 2003) et Ã©limine, par exemple, ceux qui ne contiennent ni
+une entitÃ© date, ni les lemmes Â« naftre Â», Â« Nelson Â», et Â« Mandela Â» ;
+
+- enï¬n, lâ€™extraction dâ€™une rÃ©ponse consiste a choisir la Â« meilleure Â» rÃ©ponse a proposer
+comme rÃ©sultat, cela en accord avec lâ€™Ã©tiquette sÃ©mantique associÃ©e lors de la premiere Ã©tape
+(pour cet exemple, la date de naissance ou son gÃ©nÃ©rique date). Cette sÃ©lection de la, ou des
+meilleures rÃ©ponses pourrait Ã©tre faite grace a lâ€™utilisation de patrons morphosyntaxiques ou
+grace a un calcul de proximitÃ© des diffÃ©rents termes associÃ©s aux lemmes intÃ©ressants de la
+question dans les passages. Et, en dÃ©finitive, le Â« I918 Â» de Â« Nelson Mandela est neâ€™ le
+[DATEI8 juillet 1918] dans un village xhosa du Transkef. Â» (du document Â« ATS.940426.0081 Â»)
+apparait ainsi comme une meilleure rÃ©ponse que le Â« I912 Â» rencontrÃ© dans le passage:
+Â« Nelson Mandela _ soixante-quinze ans _ nâ€™Ã©tait pas neâ€™ quand le Congres national africain
+(ANC) vit le jour ([DATE1 912]). Â» (Â« LEMONDE94-003506-19940429 Â»).
+
+L. GILLARD, P. BELLOT, M. ELâ€”BEzE
+
+2 Quelle combinaison de scores, quels critÃ©res ?
+
+Dans le systeme de QR envisagÃ©, chacune des deux Ã©tapes, sÃ©lection de passages ou sÃ©lection
+dâ€™une rÃ©ponse, est associÃ©e a un score. Ce demier est une valeur numÃ©rique rÃ©elle qui permet
+dâ€™ordonner lâ€™ensemble des possibles, le meilleur des scores correspond au meilleur des cas.
+
+SÃ©lection de passages. Ce score de passage est dÃ©pendant de la technique Inise en oeuvre pour
+le ï¬ltrage. Ainsi, il peut sâ€™agir de notre score de densitÃ© (Gillard et al., 2005), ou bien de
+scores de similaritÃ© plus conventionnelsz, que nous envisageons a titre de comparaison, tels
+que Cosine, dâ€™une combinaison entre Cosine et Okapi (Wilkinson et al., 1996), ou de celui
+calculÃ© par Lucene. Lorsque le score considÃ©rÃ© est notre score de densitÃ©, lâ€™une de ses
+caractÃ©ristiques essentielles est dâ€™Ã©tre un score de proximitÃ© des objets de la question (les mots
+qui la constituent et les entitÃ©s nommÃ©es quâ€™elle comprend) a lâ€™Ã©chelle du document, tout en
+considÃ©rant, et meme en englobant, une rÃ©ponse candidate repÃ©rÃ©e et marquÃ©e comme
+susceptible dâ€™Ã©tre en adÃ©quation avec le type attendu par la question. Dans les cas dâ€™une
+similaritÃ© vectorielle, lâ€™expressivitÃ© du score repose principalement sur des concepts de
+frÃ©quence et de raretÃ©, notamment au travers des pondÃ©rations TF.IDF (Â« Term
+Frequency Xlnverse Document Frequency Â»). De plus, Okapi fait Ã©galement intervenir un
+critere de taille moyenne des passages ; et, le score Lucene, un ratio, appelÃ© couverture, entre
+les mots de la question et ceux de ces mots prÃ©sents dans le passage.
+
+SÃ©lection et extraction dâ€™une rÃ©ponse. Notre score de compacitÃ© positionnelle (Gillard et al.,
+2007), fait appel a des notions de proximitÃ© des mots (Luhn, 1958) de la question dans un
+passage. Ces mots doivent en outre Ã©tre au plus pres de la rÃ©ponse candidate (lâ€™idÃ©e est la
+encore une notion de la plus grande Â« densitÃ© Â» possible) compatible avec le type attendu par
+la question mais cette fois dans une localitÃ© restreinte a un fragment dâ€™un passage. Une autre
+possibilitÃ© est dâ€™envisager un dÃ©compte des mots communs entre la question et le passage
+extrait, complÃ©tÃ© par une stratÃ©gie telle que celle employÃ©e lors de la participation du LIA a
+TREC-11 : celle-ci consistait a proposer comme rÃ©ponse la premiere rÃ©ponse compatible avec
+le type attendu. Lâ€™expressivitÃ© attendue pour ces diffÃ©rents scores peut Ã©tre schÃ©matisÃ©e dans
+un tableau tel que le tableau 1. Bien que nous ne lâ€™ayons pas expÃ©rimentÃ©, il est Ã©galement
+possible de prÃ©senter lâ€™usage de patrons morphosyntaxiques qui correspond a une autre grande
+famille de type dâ€™extraction pour une rÃ©ponse dans des systemes de Questions/RÃ©ponses.
+
+Le tableau 1 prÃ©sente lâ€™expressivitÃ© de ces diffÃ©rentes mÃ©thodes. Ainsi, la frÃ©quence
+correspond a une notion habituellement associÃ©e a la frÃ©quence dâ€™un mot dans un document,
+ou plutot, dans le cas qui nous intÃ©resse ici, dans un passage. 11 sâ€™agit dâ€™une notion associÃ©e
+aux pondÃ©rations intervenant dans des calculs de similaritÃ©. La raretÃ©, que lâ€™on associe
+aisÃ©ment a lâ€™inverse dâ€™une frÃ©quence au sein dâ€™un ensemble de documents nâ€™intervient pas
+dans nos calculs de compacitÃ© positionnelle, dans ceux de densitÃ© ou pour des patrons
+morphosyntaxiques. Lâ€™ordre des mots, est un point faible dans lâ€™ensemble des scores
+envisagÃ©s ici, mais il serait capturÃ© par des patrons morphosyntaxiques. Il est a noter quâ€™il est
+tout a fait envisageable dâ€™effectuer des calculs de compacitÃ© sur des unitÃ©s plus grandes quâ€™un
+mot et ainsi de faire apparaitre une telle notion dâ€™ordre en considÃ©rant, par exemple, des
+bigrammes de mots ou toutes combinaisons de n-grammes3. Cependant, dans le cas dâ€™une
+
+Un systÃ©me de recherche boolÃ©en ne permet pas diffÃ©rencier et dâ€™ordonner suffisamment les passages trouvÃ©s.
+
+Nous avons commence a emprunter cette Voie dans le cadre dâ€™une utilisation dâ€™un score de compacitÃ© pour du
+rÃ©sumÃ© automatique, mais sans noter un impact signiï¬catif. Cependant, selon nous, il sâ€™agit dâ€™une Voie a
+poursuivre et dâ€™autres experiences sont a mener.
+
+Quelles combinaisons de scores et de criteres numÃ©riques pour un systeme de QR ?
+
+question, il existe une difï¬cultÃ© supplÃ©mentaire puisquâ€™il faut Ã©tre capable de retrouver depuis
+une forme interrogative, lâ€™ordre de sa forme affirmative. Enï¬n, si lâ€™ordre est effectivement
+lâ€™un des points forts de lâ€™expressivitÃ© associÃ©e a des patrons morphosyntaxiques il faut
+remarquer que le coï¬t dâ€™acquisition de ces patrons nâ€™est pas minime (meme lorsque des
+techniques automatiques sont employÃ©es).
+
+La connaissance dâ€™un type de rÃ©ponse attendu est une information typiquement associÃ©e a un
+composant dâ€™un systeme de Questions/RÃ©ponses, aussi nâ€™apparait-elle pas pour des scores
+originellement issus de la recherche documentaire. De meme, la proximitÃ© des mots est une
+notion qui nous a paru particulierement importante dans le cadre des sQR, et que nous avons
+souhaitÃ© incorporer en prioritÃ© dans notre travail sur les scores. Cette proximitÃ© intervient
+Ã©galement dans le cas de patrons morphosyntaxiques. Il est possible de noter que dans le cas
+des patrons, cette proximitÃ© est particulierement rigide, au contraire de celle envisagÃ©e dans
+nos calculs de compacitÃ© et de densitÃ©, ce qui peut a la fois constituer un inconvÃ©nient ou un
+avantage selon le passage. En effet, un patron qui sÃ©lectionne une expression le fait avec une
+plus Â« grande force Â», mais aussi avec un Â«plus grand Â» risque de passer a cotÃ©, parfois a
+cause de diffÃ©rences tres faibles. Enfin, la proximitÃ© dans le cas de la densitÃ© est une proximitÃ©
+Ã©tendue a la globalitÃ© du document, alors que, pour la compacitÃ©, il sâ€™agit dâ€™une proximitÃ©
+locale au passage. De notre point de vue les deux ont une importance. Il est plus facile de
+trouver une rÃ©ponse au sein dâ€™un passage lorsque la formulation de ce passage est proche de
+celle de la question (i.e. emploie les mots de la question). Cependant, il est des cas, dans
+lesquels au moins un des mots de la question, prÃ©sent dans le document, nâ€™est plus rÃ©pÃ©tÃ© par
+la suite et nâ€™apparait plus dans la fenÃ©tre dâ€™un passage, alors que sa prÃ©sence mÃ©rite dâ€™Ã©tre
+prise en compte. Un exemple typique est le cas dâ€™une question comportant une restriction sur
+un pays particulier, notamment dans un style de rÃ©daction journalistique : apres un premier
+centrage thÃ©matique sur ce pays, il est probable que son nom ne soit plus rÃ©pÃ©tÃ© dans le reste
+du document. Enfin, la prÃ©sence des mots de la question apparait comme un ingrÃ©dient
+Ã©vident de tous les scores envisagÃ©s. Ce nâ€™est pas le cas de la notion de couverture, qui
+nâ€™intervient que dans nos scores, et dans celui calculÃ© par Lucene. Concemant les patrons
+morphosyntaxiques, ils capturent cette couverture dâ€™une facon dÃ©toumÃ©e. Dâ€™autres criteres ont
+Ã©tÃ© explorÃ©s comme la variabilitÃ© des mots, au travers dâ€™une racinisation ou dâ€™une
+lemmatisation.
+
+Sur les mots de la question (Q) Tyï¬‚e de
+rÃ©ponse
+FrÃ©quence RaretÃ© Ordre ProximitÃ© PrÃ©sence Couverture attendu
+Mots communs
+Cosine X
+Cosine+0kapi X
+Lucene X
+DensitÃ© x 1 x x
+CompacitÃ© X2 X X X
+positionnelle
+Patrons X X2 X X X
+morphosyntaxiques
+
+Tableau 1. Tableau croiseâ€™ des expressivitÃ©s de diï¬Ã©rentes mÃ©thodes de sÃ©lection dâ€™un passage ou
+dâ€™une rÃ©ponse en fonction de critÃ©res intÃ©ressants a capturer. (La proximiteâ€™ peut Ã©tre envisagÃ©e
+globalementz a un document ou localemenf a un passage).
+
+Remarque. Aï¬n dâ€™intÃ©grer des patrons morphosyntaxiques a une combinaison telle celle qui
+sera envisagÃ©e, il est nÃ©cessaire dâ€™affecter, a chacun dâ€™entre eux, une grandeur numÃ©rique
+rÃ©elle (il ne faut pas se limiter a la dÃ©cision binaire Â« le patron capture ou ne capture pas Â»
+
+L. GILLARD, P. BELLOT, M. EL-BEZE
+
+une expression). Des travaux tels que (Duclaye et al., 2003) et (Vidrequin et al., 2007)
+permettent cela en extrapolant une interpretation du rappel et de la precision. Dâ€™autres criteres
+comme un critere de redondance (correspondant au nombre dâ€™occurrences ou un patron
+parvient a capturer une expression) pourrait aussi etre pris en compte. Cependant, et selon
+nous, il sâ€™agit dâ€™un critere intervenant plutot lors dâ€™une etape de verification quâ€™a celle
+dâ€™extraction, dâ€™autant que ce critere peut aussi etre envisage dans le cas des autres approches.
+
+2.1 Formulation de la combinaison
+
+En examinant le tableau 1, il ressort que lâ€™expressivite de chacun des scores est differente. Ces
+differences peuvent (doivent) etre percues comme susceptibles de degager une
+complementarite des approches dont il est interessant de tirer profit. Il sâ€™agit justement de
+notre objectif principal : mettre en oeuvre une combinaison de ces scores aï¬n de capturer au
+Inieux les criteres envisages (et peut etre dâ€™autres moins evidents). Lâ€™interrogation que nous
+avons porte sur la maniere dâ€™aboutir a une fusion optimale. Ainsi, comme cela a ete deja
+mentionne, ces scores proviennent de deux modules differents. Les premiers proviennent de
+celui en charge de la recherche de passage, les autres de celui en charge de lâ€™extraction et de la
+selection de la reponse. Ce constat nous amene a envisager une combinaison de ces scores en
+tenant compte de leur provenance, et a choisir une formulation de leur combinaison.
+
+Ainsi, considerons Cosine et la compacite positionnelle. Elles apparaissent quasiment
+complementaires (orthogonales), il est raisonnable de penser que leur combinaison peut etre
+interessante. Cette forme dâ€™orthogonalite peut etre rapprochee dâ€™une notion dâ€™independance,
+et faire penser a percevoir celles-ci comme lâ€™expression de probabilites (cela meme si elles
+nâ€™en sont evidemment pas4). De plus, le calcul Cosine qui nous interesse accepte une valeur
+comprise entre 0 et 1. Concernant la compacite, si nous avons deja envisage de lâ€™exprimer
+dâ€™une maniere probabiliste (Gillard et al., 2007), la compacite positionnelle nâ€™est pas
+lâ€™expression dâ€™une probabilite. Cependant, nous lâ€™amenons par une normalisation dans ce
+meme intervalle de valeurs. Ainsi, il est possible dâ€™envisager leur combinaison au travers dâ€™un
+produit, justement dans le but de saisir cette independance / orthogonalite, soit :
+
+sc0reFinal = sc0rePassage X sc0reExtracti0n (1)
+
+Ou plutot, aï¬n de sâ€™affranchir des problemes de cadrage de valeur dâ€™un produit de facteurs
+inferieurs a un :
+sc0reFinal = log(sc0rePassage) + log(sc0reExtracti0n) (2)
+
+Du point de vue experimental, lors dâ€™EQueR, la combinaison retenue faisait egalement
+intervenir un decompte de Mots Communs (MC), dans le but de favoriser encore plus le cas
+ou le nombre de ces MC dans les passages etait optimal. Le score employe alors etait :
+
+sc0reF inalAvecM C = log(sc0rePassage) + log(sc0reExtracti0n) + log(l + MC) (3)
+
+Dans les experiences qui suivent, ces deux scores (2) et (3) sont envisages, lâ€™un etant une
+version avec decompte de mots communs (Â« avec MC Â»), lâ€™autre sans (Â« sans MC Â»). Le score
+des passages sera tour a tour, un score de densite, de Cosine, de C0sine+0kapi, ou issu de
+Lucene. Dans le tableau 2, est egalement presentee une extraction sans aucune combinaison,
+soit depuis un decompte des mots communs, depuis un score de passage seul, ou depuis une
+compacite positionnelle, cela aï¬n de veriï¬er le gain eventuel observe lors dâ€™une combinaison.
+
+4 En effet, il nâ€™existe pas de loi de probabilite avec une densite de probabilite, associee a ces scores, pas plus
+
+que de parametres susceptibles de faire lâ€™objet dâ€™une procedure dâ€™apprentissage comme par exemple via
+lâ€™estimateur du maximum de vraisemblance.
+
+Quelles combinaisons de scores et de criteres numÃ©riques pour un systeme de QR ?
+
+2.2 ExpÃ©rimentation de la combinaison
+
+Cette partie prÃ©sente les rÃ©sultats obtenus en fin de chaine par le systeme de QR aux 400
+questions factuelles dâ€™EQueR. Notre objectif est dâ€™exaIniner lâ€™impact des deux combinaisons
+envisagÃ©es lors de nos participations a EQueR et a QA@CLEF-2006. La premiere repose sur
+un score de passage, un score de compacitÃ© et un dÃ©compte des mots communs (Â« avec MC Â»,
+b,/, comme lors de notre participation a EQueR) ; la seconde est sans dÃ©compte des mots
+communs (Â« sans MC Â», 122/, et correspond a notre participation a CLEF-2006). De plus, lors
+de ces campagnes nous avions fait le choix a priori de nous limiter a des passages de trois
+phrases. Ces rÃ©sultats nous permettent dâ€™eXaIniner ce choix a posteriori.
+
+Les Ã©valuations sont obtenues au moyen dâ€™une procÃ©dure automatique reposant sur une
+rÃ©fÃ©rence que nous avons constituÃ©e a partir des rÃ©ponses des participants de la campagne.
+Deux dÃ©clinaisons, stricte et tolÃ©rante sont envisagÃ©es et constituent des bornes infÃ©rieures et
+supÃ©rieures. Par ailleurs, il est a noter que, dans une autre expÃ©rience, nous avons pu comparer
+les sorties obtenues depuis cette procÃ©dure automatique avec celles faites par un Ã©valuateur
+humain et nous avons constatÃ© que les diffÃ©rences entre les jugements humains/automatiques
+apparaissaient acceptables et comprises entre -3,5% a +1 % suivant le type dâ€™Ã©valuation.
+
+Les nombres prÃ©sentÃ©s dans le tableau 2 (voir en fin dâ€™article) sont le nombre de rÃ©ponses
+correctes prÃ©cises (aussi dites Â« exactes Â», en ce sens que la Â« chafne de caractÃ©res Â»
+correspondante contient uniquement les informations utiles pour rÃ©pondre, sans oubli, ni
+ajout) trouvÃ©es suivant le type dâ€™Ã©valuation (stricte ou tolÃ©rante) en considÃ©rant la rÃ©ponse
+proposÃ©e par le systeme au premier rang pour chacune des questions factuelles de la campagne
+EQueR. Ce type dâ€™Ã©valuation sur une unique rÃ©ponse autorisÃ©e par question correspond a la
+dÃ©finition de lâ€™Ã©valuation CLEF-2006 (il est a noter que, lors dâ€™EQueR, les cinq premiers
+rangs Ã©taient examinÃ©s, aussi le graphique 1, plus loin, prÃ©sente-t-il des rÃ©sultats lorsque la
+rÃ©ponse peut Ã©tre trouvÃ©e parmi les cinq premieres pour un cas qui nous intÃ©resse
+particulierement : celui des combinaisons entre les scores de passages et notre score
+dâ€™extraction de compacitÃ©).
+
+Bilan du tableau 2 (voir en fin dâ€™article). Dâ€™une maniere globale, on peut noter que les
+performances des combinaisons densitÃ© et compacitÃ© sont assez indÃ©pendantes de la
+dimension des passages. Cela tend a prouver que la complÃ©mentaritÃ© des deux approches est
+moindre. Cela sâ€™explique par le fait que les principes sous-jacents a leur dÃ©ï¬nition sont
+identiques et reposent sur des notions de proximitÃ© (et peut-Ã©tre de symÃ©trie, puisque la phrase
+intÃ©ressante du point de vue de la densitÃ© occupe la position centrale dans le passage). La
+compacitÃ© apparait comme un choix intÃ©ressant mÃ©me lorsquâ€™elle est employÃ©e seule. Elle se
+situe dâ€™ailleurs juste derriere les combinaisons scores de passages et compacitÃ© du point de
+vue des performances. Pour la compacitÃ© employÃ©e hors dâ€™une combinaison, les meilleurs
+rÃ©sultats sont obtenus depuis des passages de neuf phrases ([104..II8]), lorsque les passages
+sont prÃ©alablement filtrÃ©s par notre score de densitÃ©, et de trois phrases sinon ([I02..1 18]).
+
+La meilleure combinaison est obtenue par lâ€™emploi dâ€™une combinaison entre Lucene et
+compacitÃ© pour des dimensions de passages dâ€™une ou de cinq phrases (respectivement
+[I2I..135], [I20..136]), ou compacitÃ© et Cosine sur trois phrases ([I20..136]). Concemant la
+combinaison avec mots communs, notre souhait initial consistant a favoriser les combinaisons
+avec un grand nombre de mots communs sâ€™avere Ã©tre une mauvaise chose, au moins en lâ€™Ã©tat :
+peut-Ã©tre manque-t-il des coefï¬cients adaptÃ©s dans lâ€™eXpression de la combinaison linÃ©aire ?
+
+Enfin, nous avons constatÃ© quâ€™il existe une variabilitÃ© non nÃ©gligeable entre les diffÃ©rentes
+mÃ©thodes sur les questions rÃ©pondues (du point de vue des pertes et gains) et cela amene a
+supposer que ces expÃ©rimentations peuvent donner lieu a dâ€™autres amÃ©liorations en fin de
+traitement : il doit Ã©tre possible de maximiser encore les gains tout en minimisant les pertes.
+
+L. GILLARD, P. BELLOT, M. ELâ€”BEzE
+
+Notre principal objectif sur la combinaison de scores apparait rempli : une combinaison entre
+un score de compacitÃ© et un score Lucene, ou Cosine, permet un gain dâ€™environ +18% sur les
+meilleures autres conï¬gurations sans combinaison (qui proviennent par ailleurs de la
+compacitÃ© que nous avons dÃ©finie), cela si lâ€™on observe la rÃ©ponse proposÃ©e au premier rang.
+
  
-Graphique 1. Nombre de rponses prcises correctes trouves parmi les cinq premires 
-depuis des combinaisons entre diffrents scores de passages et score de compacit sur le jeu 
-des 400 questions factuelles de la campagne EQueR (premier plan valuation stricte, second 
-plan valuation tolrante. Note : ce graphique correspond ˆ la ligne Ç sans MC È (b2/) du tableau 2 
-avec une rponse correcte trouve parmi les cinq premires plut™t quÕuniquement au premier rang). 
-Une autre interrogation qui apparaissait en filigrane concernait lÕinfluence de la dimension des 
-passages sur les performances de notre systme. Il ne ressort pas une prfrence nette 
-lorsquÕune rponse au premier rang est considre (soit les rsultats prsents dans le 
-tableau 1). En revanche, lÕexamen du nombre de rponses correctes trouves parmi les cinq 
-premires (voir graphique 1) nous permet de mettre en vidence que notre choix a priori de se 
-limiter ˆ un contexte de trois phrases correspond ˆ une configuration acceptable. En outre, 
-cela permet galement de constater que la combinaison Cosine et compacit ou Lucene et 
-compacit produit dans les cinq premiers rangs, lˆ encore, les meilleurs rsultats. 
-3 Conclusion et perspectives 
-Dans cet article, nous avons tudi une combinaison des scores intervenant dans la slection 
-de passages et lÕextraction dÕune rponse. Notre objectif tait dÕutiliser cette combinaison 
-pour profiter pleinement de la complmentarit des scores employs. Nous avons notamment 
-examin la complmentarit entre le score de compacit positionnelle, que nous avons dfini 
-pour la slection et lÕextraction dÕune rponse, avec des mthodes de recherche vectorielle 
-conventionnelle ou notre score de densit. 
-Comme attendu, nous avons pu constater un gain lorsquÕun score de passages et de compacit 
-taient combins. Nous avons mis en vidence que la meilleure complmentarit sÕobtenait 
-depuis un score de passage provenant dÕune similarit Cosine ou Lucene. Les amliorations de 
-performances, par rapport ˆ notre score de compacit employ seul, sont dÕenviron +18% 
-lorsque seulement la premire rponse est considre, et entre +10 et +15% lorsque les cinq 
-premires le sont. Ces hausses, dÕau moins +10%, nous permettent de conclure, malgr les 
-prcautions ˆ prendre vis-ˆ-vis dÕvaluations automatiques en QR, que ces amliorations 
-doivent tre effectives (et non lies ˆ des artefacts dÕvaluation lorsque cette dernire est 
-ralise par des patrons et identifiants de documents). Enfin, puisque les rsultats prsents ici 
-sont ceux en fin de cha”ne de traitement, nous avons pu mettre en vidence les bonnes 
-performances de la compacit employe seule, mais galement que sa combinaison avec le 
-Quelles combinaisons de scores et de critres numriques pour un systme de QR ? 
-score de densit tait relativement stable, ce qui sÕexplique par la grande similitude entre les 
-deux approches. Paralllement, nous avons vrifi a posteriori quÕun dcoupage en passages 
-de trois phrases correspondait ˆ un optimum local pour notre systme de Questions/Rponses, 
-alors quÕil tait un compromis technique a priori. 
-Une tude supplmentaire intressante ˆ mener serait dÕtudier la distribution et les valeurs 
-numriques engendres par la combinaison propose afin de mieux cerner les ventuels effets 
-de bord lis ˆ ces valeurs numriques (cas dÕgalit, de Ç dcrochage È, etc.). Les autres 
-perspectives sont nombreuses : il reste ˆ dgager des critres dpendants des grandes classes 
-de questions ou mme, au niveau des questions elles-mmes (distribution des mots dans les 
-passages, mise en vidence des mots avec les meilleures contributions numriques, etc.). Ces 
-critres, ou dÕautres nouveaux scores, pourraient alors tre intgrs dans une combinaison 
-telle que propose. Par ailleurs, nous avons pu constater, lors de comparaisons deux-ˆ-deux, 
-une rotation dÕune quinzaine de rponses qui sont trouves ou sont perdues suivant les 
-expriences. Les critres pour aller chercher ces rponses sont ˆ dterminer. Enfin, comme la 
-combinaison que nous avons teste est uniquement numrique, il pourrait tre opportun, avec 
-un corpus adquat, dÕeffectuer un apprentissage de coefficients pour maximiser les 
-performances de cette combinaison et tenir compte des dynamiques peu visibles. 
-Remerciements. Les auteurs tiennent ˆ remercier le Dr. Olivier Ferret pour sa lecture 
-attentive de cet article ainsi que ses trs utiles commentaires et suggestions. 
-Rfrences 
-AYACHE C., CHOUKRI K., GRAU B., (2005) Rapport de la Campagne EVALDA/EQueR Evaluation en 
-Questions-Rponses http://www.technolangue.net/IMG/pdf/rapport_EQUER_1.2.pdf 
-DUCLAYE F., COLLIN O., YVON F., (2003). Apprentissage Automatique de Paraphrases pour 
-lÕAmlioration d'un Systme de Questions-Rponses. Actes de TALN 2003, 115-124. 
-FERRET F., GRAU B., HURAULT-PLANTET M., ILLOUZ G., MONCEAUX L., ROBBA I., VILNAT A., (2002). 
-Recherche de la rponse fonde sur la reconnaissance du focus de la question. Actes de TALN, Nancy, 307-
-316. 
-GILLARD L., BELLOT P., EL-BéZE M., (2007). D'une compacit positionnelle ˆ une compacit probabiliste 
-pour un systme de Questions/Rponses. Actes de la 4ime COnfrence en Recherche d'Informations et 
-Applications (CORIA) 2007, 28-30 mars 2007, Saint-Etienne (France), 271-286. 
-GILLARD L., SITBON  L., BELLOT P., EL-BéZE M., (2005). Dernires volutions de SQuALIA, le systme 
-de Questions/Rponses du LIA. Dans Rponses ˆ des questions, Traitement Automatique des Langues 
-(TAL), 2005, Herms, Paris (France), volume 46, n¡3/2005, 41-70. 
-LUHN H.P., (1958). The Automatic Creation of Literature Astracts. IBM Journal of Research and 
-Development, Volume 2, Issue 2, avril 1958, 159 165. 
-VIDREQUIN C., EL-BéZE M., TORRES-MORENO J.M., SCHNEIDER J.J., (2007). Gnration et enrichissement 
-automatique de listes de patrons de phrases pour les moteurs de questions-rponses. Actes des Cinquimes 
-journes Extraction et Gestion des Connaissances (EGCÕ2007). Namur (Belgique). 23-26 janvier 2007. 
-207-208. 
-TELLEX S., KATZ B., LIN J., MARTON G., FERNANDES A., (2003). Quantitative Evaluation of Passage 
-Retrieval Algorithms for Question Answering. Actes de The 26th Annual International ACM SIGIR 
-Conference on Research and Development in Information Retrieval (SIGIR 2003), Toronto, Canada, 28 
-juilletĞ1er aot 2003, 41-47. 
-VOORHEES E.M., HARMAN D., (2005) TREC Experiment and Evaluation Dans Information Retrieval. MIT 
-Press 2005, chapitre 10.  233-257. 
-WILKINSON W., J. ZOBEL J., SACKS-DAVIS R., (1996). Similarity measures for short queries. Actes de The 
+
+200
+200 7 ~ ~
+19/ 197
+â€˜95 
+I92 I92 I92 193 D DensIte.CompacIte
+190 I Cos1ne.CompaoIte
+190 â€”  rrrrrrrrrrr  ~ ~ ~   D Cos1ne+Okar1I CiompacltÃ©
+D Lucene.Con1pac1tÃ©
+135 195 135  
+134 134
+131
+130 _ 179,119,, 179 V7 179 ,, ,, ,, 177  
+â€˜ 176
+17Â° â€™ 1153   16,
+166 1136 166 we â€˜
+160 â€”
+{l%
+150 1 V V V 1 1
+
+1 PlllÃ©lbe 3 Pllldbtb 5 Plulases 9 Plurasee.
+
+Graphique 1. Nombre de rÃ©ponses prÃ©cises correctes trouvÃ©es parmi les cing premieres
+depuis des combinaisons entre diï¬Ã©rents scores de passages et score de compacitÃ© sur le jeu
+des 400 questions factuelles de la campagne EQueR (premier plan Ã©valuation stricte, second
+
+plan Ã©valuation tolÃ©rante. Note : ce graphique correspond a la ligne Â« sans MC Â» ( 122/) du tableau 2
+avec une rÃ©ponse correcte trouvÃ©e parmi les cinq premieres plutot quâ€™uniquement au premier rang ).
+
+Une autre interrogation qui apparaissait en ï¬ligrane concernait lâ€™inï¬‚uence de la dimension des
+passages sur les performances de notre systeme. I1 ne ressort pas une prÃ©fÃ©rence nette
+lorsquâ€™une rÃ©ponse au premier rang est considÃ©rÃ©e (soit les rÃ©sultats prÃ©sentÃ©s dans le
+tableau 1). En revanche, lâ€™eXamen du nombre de rÃ©ponses correctes trouvÃ©es parmi les cing
+premieres (voir graphique 1) nous permet de mettre en Ã©vidence que notre choix a priori de se
+limiter a un contexte de trois phrases correspond a une configuration acceptable. En outre,
+cela permet Ã©galement de constater que la combinaison Cosine et compacitÃ© ou Lucene et
+compacitÃ© produit dans les cinq premiers rangs, la encore, les meilleurs rÃ©sultats.
+
+3 Conclusion et perspectives
+
+Dans cet article, nous avons Ã©tudiÃ© une combinaison des scores intervenant dans la sÃ©lection
+de passages et lâ€™eXtraction dâ€™une rÃ©ponse. Notre objectif Ã©tait dâ€™utiliser cette combinaison
+pour proï¬ter pleinement de la complÃ©mentaritÃ© des scores employÃ©s. Nous avons notamment
+examinÃ© la complÃ©mentaritÃ© entre le score de compacitÃ© positionnelle, que nous avons dÃ©fini
+pour la sÃ©lection et lâ€™eXtraction dâ€™une rÃ©ponse, avec des mÃ©thodes de recherche vectorielle
+conventionnelle ou notre score de densitÃ©.
+
+Comme attendu, nous avons pu constater un gain lorsquâ€™un score de passages et de compacitÃ©
+Ã©taient combinÃ©s. Nous avons Inis en Ã©vidence que la meilleure complÃ©mentaritÃ© sâ€™obtenait
+depuis un score de passage provenant dâ€™une similaritÃ© Cosine ou Lucene. Les amÃ©liorations de
+performances, par rapport a notre score de compacitÃ© employÃ© seul, sont dâ€™environ +18%
+lorsque seulement la premiere rÃ©ponse est considÃ©rÃ©e, et entre +10 et +15% lorsque les cinq
+premieres le sont. Ces hausses, dâ€™au moins +10%, nous permettent de conclure, malgrÃ© les
+prÃ©cautions a prendre vis-a-vis dâ€™Ã©valuations automatiques en QR, que ces amÃ©liorations
+doivent Ã©tre effectives (et non liÃ©es a des artefacts dâ€™Ã©valuation lorsque cette derniere est
+rÃ©alisÃ©e par des patrons et identiï¬ants de documents). Enï¬n, puisque les rÃ©sultats prÃ©sentÃ©s ici
+sont ceux en ï¬n de chaine de traitement, nous avons pu mettre en Ã©vidence les bonnes
+performances de la compacitÃ© employÃ©e seule, mais Ã©galement que sa combinaison avec le
+
+Quelles combinaisons de scores et de criteres numÃ©riques pour un systeme de QR ?
+
+score de densite etait relativement stable, ce qui sâ€™explique par la grande similitude entre les
+deux approches. Parallelement, nous avons veriï¬e a posteriori quâ€™un decoupage en passages
+de trois phrases correspondait a un optimum local pour notre systeme de Questions/Reponses,
+alors quâ€™il etait un compromis technique a priori.
+
+Une etude supplementaire interessante a mener serait dâ€™etudier la distribution et les valeurs
+numeriques engendrees par la combinaison proposee afin de mieux cerner les eventuels effets
+de bord lies a ces valeurs numeriques (cas dâ€™egalite, de Â« dÃ©crochage Â», etc.). Les autres
+perspectives sont nombreuses : il reste a degager des criteres dependants des grandes classes
+de questions ou meme, au niveau des questions elles-memes (distribution des mots dans les
+passages, Inise en evidence des mots avec les meilleures contributions numeriques, etc.). Ces
+criteres, ou dâ€™autres nouveaux scores, pourraient alors etre integres dans une combinaison
+telle que proposee. Par ailleurs, nous avons pu constater, lors de comparaisons deux-a-deux,
+une rotation dâ€™une quinzaine de reponses qui sont trouvees ou sont perdues suivant les
+experiences. Les criteres pour aller chercher ces reponses sont a determiner. Enfin, comme la
+combinaison que nous avons testee est uniquement numerique, il pourrait Ã©tre opportun, avec
+un corpus adequat, dâ€™effectuer un apprentissage de coefficients pour maximiser les
+performances de cette combinaison et tenir compte des dynamiques peu visibles.
+
+Remerciements. Les auteurs tiennent a remercier le Dr. Olivier Ferret pour sa lecture
+attentive de cet article ainsi que ses tres utiles commentaires et suggestions.
+
+References
+
+AYACHE C., CHOUKRI K., GRAUB., (2005) Rapport de la Campagne EVALDA/EQueR Evaluation en
+Questions-Reponses http://www.technolangue.net/IMG/pdï¬‚rapport EOUER 1.2.pdf
+
+DUCLAYE F., COLLIN 0., YVON F., (2003). Apprentissage Automatique de Paraphrases pour
+lâ€™Amelioration d'un Systeme de Questions-Reponses. Actes de TALN 2003, 115-124.
+
+FERRET F., GRAU B., HURAULT-PLANTET M., ILDOUZ G., MONCEAUX L., ROBBA 1., VILNAT A., (2002).
+Recherche de la reponse fondee sur la reconnaissance du focus de la question. Actes de TALN, Nancy, 307-
+3 16.
+
+GILLARD L., BELLOT P., EL-BEZE M., (2007). D'une compacite positionnelle a une compacite probabiliste
+pour un systeme de Questions/Reponses. Actes de la 4ieme C0nfeâ€™rence en Recherche dâ€™Informations et
+Applications (CORIA) 2007, 28-30 mars 2007 , Saint-Etienne (France), 271-286.
+
+GILLARD L., SITBON L., BELLOT P., EL-BEZE M., (2005). Dernieres evolutions de SQuALIA, le systeme
+de Questions/Reponses du LIA. Dans Reponses a des questions, Traitement Automatique des Langues
+(TAL), 2005, Hermes, Paris (France), volume 46, nÂ°3/2005, 41-70.
+
+LUHN H.P., (1958). The Automatic Creation of Literature Astracts. IBM Journal of Research and
+Development, Volume 2, Issue 2, avril 1958, 159 165.
+
+VIDREQUIN C., EL-BEZE M., TORRES-MORENO J .M., SCHNEIDER J .J ., (2007). Generation et enrichissement
+automatique de listes de patrons de phrases pour les moteurs de questions-reponses. Actes des Cinquiemes
+journeâ€™es Extraction et Gestion des Connaissances (EGCâ€™2007). Namur (Belgique). 23-26 janvier 2007.
+207-208.
+
+TELLEX S., KATZ B., LIN J., MARTON G., FERNANDES A., (2003). Quantitative Evaluation of Passage
+Retrieval Algorithms for Question Answering. Actes de The 26th Annual International ACM SIGIR
+Conference on Research and Development in Information Retrieval (SIGIR 2003), Toronto, Canada, 28
+juilletâ€”1er aoï¬t 2003, 41-47.
+
+VOORHEES E.M., HARMAN D., (2005) TREC Experiment and Evaluation Dans Information Retrieval. MIT
+Press 2005, chapitre 10. 233-257.
+
+WILKINSON W., J . ZOBEL J ., SACKS-DAVIS R., (1996). Similarity measures for short queries. Actes de The
 4th Text Retrieval Conference (TREC-4). Gaithersburg, Maryland (USA). NIST special publication 500-
-236 (novembre 1995), 1996. 277-286. 
-L. GILLARD, P. BELLOT, M. EL-BéZE 
- 
- Scores de passages mis en Ïuvre 
- Densit Cosine Cosine+Okapi Lucene 
-ƒvaluation stricte tolrante stricte tolrante stricte tolrante stricte tolrante 
-                 
-a/ Comparaisons entre dcompte des mots communs et score de passage 
-Mots communs 48 (1p) 43 (3p) 57 50 47 37 57 45 47 36 57 44 47 39 57 47 
-(MC) 41 (5p) 25 (9p) 47 32 29 15 41 31 29 16 41 32 30 15 42 30 
-Scores de passages 66 50 74 54 64 48 77 55 71 48 84 61 75 48 87 64 
-(ˆ lire en colonne) 50 29 54 31 38 26 49 34 39 23 49 34 36 23 51 33 
-Compacit 100 100 117 117 101 102 118 117 101 102 118 102 101 102 118 117 
- 102 104 118 118 98 89 119 116 98 89 119 120 98 89 119 119 
-,                 b/ Comparaisons entre deux combinaisons impliquant des scores de passages et de compacit, avec ou sans dcompte des mots communs (MC) 
-b1/ avec MC 96 86 104 95 98 81 109 95 97 80 108 93 98 85 109 101 
-(formule 3 du 2.1) 85 82 94 91 84 65 100 95 79 64 95 90 86 69 102 98 
-b2/ sans MC 104 103 119 118 113 120 128 136 115 115 127 131 121 118 135 134 
-(formule 2 du 2.1) 105 106 120 119 114 106 134 141 111 103 128 128 120 113 136 140 
-Tableau 2. Diverses comparaisons entre des mthodes Ç squentielles È (a : dcompte des mots communs, scores de passages et score de compacit) et deux 
-combinaisons de ces mthodes (b) en vue dÕune extraction et de la slection dÕune rponse finale. Les passages dans lesquels a lieu lÕextraction sont 
-constitus dÕune, trois, cinq ou neuf phrases (ˆ lire suivant le sens de lecture de gauche ˆ droite dans une mme case). Les nombres prsents correspondent 
-au nombre de rponses prcises correctes ˆ une question factuelle au premier rang suivant la nature des valuations : strictes ou tolrantes. Les questions 
-considres sont les 400 questions factuelles de la campagne EQueR. 
-Exemples de lecture : premier exemple : pour une slection des passages depuis Lucene (dernire colonne), suivi dÕune slection des rponses par un score de compacit (troisime ligne) et 
-dans le cas dÕune valuation stricte, soit les valeurs en gras et soulignes dans le tableau, le nombre de rponses prcises correctes trouves au premier rang est de 101 si les passages de 
-dpart taient constitus dÕune seule phrase, 102 pour trois phrases, 98 pour cinq phrases, et 89 pour des passages de neuf phrases. 
-Deuxime exemple : pour une slection des passages depuis un score de passage Cosine+Okapi (pour les scores de Passages prsents en seconde ligne, la nature du score doit tre lu depuis 
-le titre de la colonne seulement) suivi dÕune slection depuis une stratgie sur la premire occurrence du type de rponse compatible avec celui recherch, et dans le cas dÕune valuation 
-tolrante, ce qui correspond aux (valeurs en gras et italique dans le tableau, le nombre de rponses correctes trouves au premier rang est de 84 si les passages de dpart taient constitus 
-dÕune seule phrase, 61 pour ceux de trois phrases, 49 pour ceux de cinq phrases, et 34 pour des passages de neuf phrases. 
-Troisime exemple (valeurs en gras simple dans le tableau) : pour une slection des passages depuis un score de passage Cosine (deuxime colonne), suivi dÕune slection des rponses faisant 
-intervenir la combinaison entre un score de compacit et de passage (ligne b2/ Ç sans MC È) et dans le cas dÕune valuation stricte, le nombre de rponses correctes trouves au premier rang 
-est de 113 si les passages de dpart taient constitus dÕune seule phrase, 120 pour ceux de trois phrases, 114 pour ceux de cinq phrases, et 106 pour les passages de neuf phrases. 
+236 (novembre 1995), 1996. 277-286.
+
+L. GILLARD, P. BELLOT, M. ELâ€”BEzE
+
+Scores de passages mis en aauvre
+
+DensitÃ© Cosine Cosine+0kapi Lucene
+Evaluation stricte tolÃ©rante stricte tolÃ©rante stricte tolÃ©rante stricte tolÃ©rante
+a/ Comparaisons entre dÃ©compte des mots communs et score de passage
+Mots communs 48 (1p) 43 (3p) 57 50 47 37 57 45 47 36 57 44 47 39 57 47
+(MC) 41 (5p) 25 (9p) 47 32 29 15 41 31 29 16 41 32 30 15 42 30
+Scores de passages 66 50 74 54 64 48 77 55 71 48 84 61 75 48 87 64
+(a lire en colonne) 50 29 54 31 38 26 49 34 39 23 49 34 36 23 51 33
+Compaciteâ€™ 100 100 117 117 101 102 118 117 101 102 118 102 E Q 118 117
+102 104 118 118 98 89 119 116 98 89 119 120 Q Q 119 119
+b/ Comparaisons entre deux combinaisons impliquant des scores de passages et de compacitÃ©, avec ou sans dÃ©compte des mots communs (MC)
+b1/ avec MC 96 86 104 95 98 81 109 95 97 80 108 93 98 85 109 101
+(formule 3 du 2.1) 85 82 94 91 84 65 100 95 79 64 95 90 86 69 102 98
+b2/ sans MC 104 103 119 118 113 120 128 136 115 115 127 131 121 118 135 134
+(formule 2 du 2.1) 105 106 120 119 114 106 134 141 111 103 128 128 120 113 136 140
+
+Tableau 2. Diverses comparaisons entre des mÃ©thodes Â« sÃ©quentielles Â» (a : dÃ©compte des mots communs, scores de passages et score de compaciteâ€™) et deux
+combinaisons de ces mÃ©thodes (b) en vue dâ€™une extraction et de la sÃ©lection dâ€™une rÃ©ponse ï¬nale. Les passages dans lesquels a lieu l â€™extraction sont
+constituÃ©s dâ€™une, trois, cinq ou neuf phrases (a lire suivant le sens de lecture de gauche a droite dans une mÃ©me case). Les nombres prÃ©sentÃ©s correspondent
+au nombre de rÃ©nonses DrÃ©cises correctes a une question factuelle au Qremier rang suivant la nature des Ã©valuations : strictes ou tolÃ©rantes. Les questions
+considÃ©rÃ©es sont les 400 questions factuelles de la campagne EQueR.
+
+Exemples de lecture .' premier exemple .' pour une sÃ©lection des passages depuis Lucene (derniÃ©re colonne), suivi d â€™une sÃ©lection des rÃ©ponses par un score de compaciteâ€™ (troisiÃ©me ligne) et
+dans le cas d â€™une Ã©valuation stricte, soit les valeurs en gras et soulignÃ©es dans le tableau, le nombre de rÃ©ponses prÃ©cises correctes trouvÃ©es au premier rang est de 101 si les passages de
+dÃ©part Ã©taient constituÃ©s d â€™une seule phrase, 102 pour trois phrases, 98 pour cinq phrases, et 89 pour des passages de neuf phrases.
+
+DeuxiÃ©me exemple : pour une sÃ©lection des passages depuis un score de passage Cosine+0kapi (pour les scores de Passages prÃ©sentÃ©s en seconde ligne, la nature du score doit Ã©tre lu depuis
+le titre de la colonne seulement) suivi d â€™une sÃ©lection depuis une stratÃ©gie sur la premiere occurrence du type de rÃ©ponse compatible avec celui rechercheâ€™, et dans le cas d â€™une Ã©valuation
+tolÃ©rante, ce qui correspond aux (valeurs en gras et italique dans le tableau, le nombre de rÃ©ponses correctes trouvÃ©es au premier rang est de 84 si les passages de dÃ©part Ã©taient constituÃ©s
+d â€™une seule phrase, 61 pour ceux de trois phrases, 49 pour ceux de cinq phrases, et 34 pour des passages de neuf phrases.
+
+TroisiÃ©me exemple (valeurs en gras simple dans le tableau) : pour une sÃ©lection des passages depuis un score de passage Cosine (deuxiÃ©me colonne), suivi d â€™une sÃ©lection des rÃ©ponsesfaisant
+intervenir la combinaison entre un score de compaciteâ€™ et de passage (ligne b2/ Â« sans MC Â») et dans le cas d â€™une Ã©valuation stricte, le nombre de rÃ©ponses correctes trouvÃ©es au premier rang
+est de 113 si les passages de dÃ©part Ã©taient constituÃ©s d â€™une seule phrase, 120 pour ceux de trois phrases, 114 pour ceux de cinq phrases, et 106 pour les passages de neuf phrases.
+

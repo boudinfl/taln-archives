@@ -1,0 +1,326 @@
+TALN 2005, Dourdan, 6-10 juin 2005
+
+Un analyseur LFG efﬁcace : SXLFG
+
+Pierre Boullier, Benoit Sagot, Lionel Clement
+INRIA — Projet Atoll
+Domaine de Voluceau, B.P. 105, 78153 Le Chesnay Cedex, France
+{pierre.boullier, benoit.sagot}@inria.fr,
+lionel.clement@lefff.net
+
+Mots-clefs :
+
+syntaxe, analyseur, LFG, désambiguisation, forét partagée
+
+K€yWOFdS2 syntax, parser, LFG, disambiguation, shared forest
+
+I I
+Resume Dans cet article, nous proposons un nouvel analyseur syntaxrque, qur repose
+sur une variante du modele Lexical—FLmcti0nal Grammars (Grammaires Lexicales Fonction—
+nelles ou LF G. Cet anal seur LFG acce te en entree un treillis de mots et calcule ses structures
+3/
+fonctionnelles sur une forét partagée. Nous présentons également les différentes techniques de
+rattrapage d’erreurs que nous avons mises en oeuvre. Puis nous évaluons cet analyseur sur une
+grammaire a large couverture du frangais dans le cadre d’une utilisation a grande échelle sur
+corpus variés. Nous montrons que cet analyseur est a la fois efﬁcace et robuste.
+
+Abstract In this paper, we introduce a new parser based on the Lexical—FLmcti0nal Gram-
+mars formalism (LF G). This LFG parser accepts as input word lattices and computes functional
+structures on a shared forest. We also present various error recovery techniques we have im-
+plemented. Afterwards, we evaluate this parser on a large—coverage grammar for French in the
+framework of a large—scale use on various corpus. We show that our parser is both efﬁcient and
+robust.
+
+403
+
+404
+
+P. Boullier, B. Sagot et L. Clement
+
+1 Introduction
+
+Pour pallier les difﬁcultes algorithmiques des analyseurs syntaxiques sur du texte tout Venant,
+il est aujourd’hui habituel d’appliquer un mode opératoire robuste (methodes markoviennes,
+automates ﬁnis, etc.). Ces methodes sont tres satisfaisantes pour un grand nombre d’applications
+qui ne dependent pas d’une representation complexe de la phrase, mais la ﬁnesse d’analyse en
+patit tellement qu’il est illusoire d’aVoir une representation du syntagme ou des dependances
+non locales qui satisfassent une deﬁnition linguistique serieuse. C’est pour cette raison que
+nous proposons de batir un analyseur syntaxique qui soit a la fois compatible avec une théorie
+linguistique (ici LFG) et qui soit robuste face a la Variabilite des productions langagieres.
+
+Le developpement d’un nouvel analyseur syntaxique pour le formalisme LFG (Lexical—FLmcti0—
+nal Grammars, cf. p. ex. (Kaplan, 1989)) n’est pas en soi tres original. Il en existe deja un
+certain nombre, comme ceux de (Kaplan & Maxwell, 1994), (Andrews, 1990), ou (Briffault
+er al., 1997). Toutefois, ils n’utilisent pas toujours de la maniere la plus complete possible
+les differentes techniques algorithmiques de partage de calcul et de representation compacte de
+l’information qui permettent d’ecrire un analyseur efﬁcace bien que le formalisme LFG, comme
+de nombreux formalismes qui reposent sur l’uniﬁcation, soit NP—complet.
+
+Pour utiliser au maximum ces techniques, il nous a donc fallu adapter LFG sans pour autant
+diminuer son pouvoir d’expression. Associee a un analyseur non—contextuel (CF) tabulaire,
+cette Variante de LFG nous permet d’effectuer efﬁcacement l’analyse d’enonces complexes.
+La construction des structures de constituance ne pose the’oriquement1 pas de probleme particu-
+lier, car elles sont decrites par des grammaires non—contextuelles (CFG) sous—j acentes aux LFG
+et appelees ici grammaires support. Mais la construction efﬁcace des structures fonctionnelles
+est beaucoup plus problematique. Nous avons developpe un module de calcul de ces structures
+qui partage les sous—structures communes a plusieurs analyses. De plus, des mecanismes de rat-
+trapage d’erreur a tous les niveaux en font un analyseur robuste. Cet analyseur, appele SXLFG,
+est decrit ci—des sous puis evalue avec une grammaire du francais sur des corpus Varies.
+
+2 L’analyseur SXLFG : analyse standard
+
+2.1 L’analyseur Earley
+
+Le moteur de SXLFG est un analyseur CF general qui traite la grammaire support de la LFG.
+L’ ensemble des analyses qu’il produit est représente sous la forme d’une forét partage’e2. L’ eva-
+luation fonctionnelle se fait dans une seconde phase au cours d’un parcours bas—haut de cette
+forét3. L’entree de l’analyseur est un treillis de mots transforme par le lexeur en un treillis de
+lexemes (terminaux de la CFG et structures fonctionnelles sous—speciﬁees associees). Un post-
+traitement (facultatit) permet alors de désambiguiser.
+
+L’ analyse de la grammaire support est realisee par une evolution de l’analyseur Earley decrit
+dans (Boullier, 2003) : il prend en entree des treillis de mots et permet de recuperer les erreurs
+syntaxiques (cf. section 3.1). Traiter un treillis en entree ne necessite pas, d’un point de Vue
+theorique, des changements considerables a l’algorithme Earley, meme aide d’un guide regulier.
+
+1Meme si, en pratique, la disponibilite d’un ban analyseur est deja plus delicate.
+
+2Rappe1ons que cette structure permet de representer en une taille polynomiale en n, nombre de mots du source,
+1’ensemb1e potentiellement non borne des arbres d’ana1yse.
+
+3Ce parcours assure que si un symbole se trouve en partie droite d’une production reconnue, toutes les structures
+fonctionnelles associees a ce symbole ont deja ete calculees (nos forets partagees sont non cycliques).
+
+Un analyseur LFG efﬁcace: SXLFG
+
+2.2 Calcul des structures fonctionnelles
+
+Disposant d’une forét partagée en sortie de l’analyse CFG, nous devons maintenant calculer les
+structures fonctionnelles. Bien entendu, la méthode qui consiste a déplier la forét pour en ex-
+traire chaque arbre sur lequel on évalue les structures fonctionnelles est impratiquable en termes
+de temps de calcul. En revanche, l’autre possibilité, une évaluation des structures fonctionnelles
+directement sur la forét partagée, est toujours un sujet de recherche. Le probleme se simpli-
+ﬁe cependant si l’on suppose, comme c’est le cas dans SXLFG, que l’éValuation des équations
+fonctionnelles associées a une production CFG ne modiﬁe pas les structures fonctionnelles as-
+sociées aux symboles de sa partie droite. Cette légere restriction dans l’écriture des équations
+fonctionnelles ne diminue pas pour autant le pouvoir d’expression.
+
+La conséquence directe de cette évaluation b0tt0m—up des structures fonctionnelles est que toute
+sous—forét n’est évaluée qu’une seule fois et son calcul partagé entre tous ses parents. L’autre
+conséquence est qu’a chaque noeud de la forét est associée non pas une structure fonctionnelle
+unique mais une disjonction de structures fonctionnelles. Tres souvent, le résultat de cette éVa—
+luation est donc un grand nombre de structures fonctionnelles associées a la racine de la forét.
+
+2.3 Désambiguisation
+
+La sortie de l’étape précédente (sauf échec, Voir partie suivante) est une forét partagée de struc-
+tures de constituants associée a un ensemble de structures fonctionnelles avec partage de struc-
+tures communes. Ces informations peuvent étre la description d’une ou de plusieurs analyses.
+Il faut donc pouvoir désambiguiser, c’est—a—dire choisir parmi ces analyses celle qui est la plus
+Vraisemblable. Deux familles de techniques sont envisageables : les techniques probabilistes et
+les techniques a regles. Suivant sur ce point (Clément & Kinyon, 2001), nous utilisons un en-
+semble de regles qui est une refonte et une extension des trois principes simples qu’ils énoncent
+et qui s’applique sur les structures fonctionnelles4. Chacune de nos regles est appliquée suc-
+cessivement (on peut en changer l’ordre, Voire ne pas toutes les appliquer). L’ application d’une
+regle consiste a éliminer les analyses qui ne sont pas optimales au sens de cette regle5.
+
+A l’issue de ce mécanisme de désambiguisation sur les structures fonctionnelles, la forét d’ana—
+lyse (qui représente les structures en constituants) est ﬁltrée aﬁn qu’elle corresponde exacte-
+ment aux structures fonctionnelles retenues. En particulier, si la désambiguisation est complete,
+ce ﬁltrage rend en général une structure en constituants unique (un arbre).
+
+“Cf. (Kinyon, 2000) pour une argumentation sur 1’importance de desambiguisation en se fondant sur des struc-
+tures comme les arbres de derivation TAG ou les structures fonctionnelles LFG et non sur celles en constituants.
+5Nos regles, dans leur ordre d’app1ication par defaut, sont :
+
+régle 1 : Preferer les analyses maximisant la somme des poids des lexemes utilises; parmi les entrees lexicales de
+poids superieur a la moyenne se trouvent les mu1ti—mots, qui sont ainsi favorises.
+
+regle 2 : Préférer les n0ms communs avec determinant.
+
+regle 3 : Préférer les arguments aux modiﬁeurs, et les relations auxiliaire—participe aux arguments (le calcul se
+fait recursivement sur toutes les (sous—)structures).
+
+régle 4 : Prefe’rer les arguments les plus proches (meme remarque).
+
+regle 5 : Préférer les structures les plus enchassées.
+
+régle 6 : Trier les structures selon le mode des verbes (on prefere recursivement les structures a 1’indicatif a celles
+au subjonctif, et ainsi de suite).
+
+regle 7 : Trier selon les categories des gouverneurs d’adverbes.
+
+régle 8 : Choisir une analyse au hasard (pour garantir qu’on rende une analyse et une seule).
+
+405
+
+406
+
+P. Boullier, B. Sagot et L. Clément
+
+3 Mécanismes pour l’analyse robuste
+
+3.1 Rattrapage d’erreur pendant l’analyse
+
+La détection d’une erreur dans l’analyseur Earley peut étre la manifestation de deux pheno-
+menes : la CFG support n’est pas assez couvrante ou l’énoncé n’est pas du francais. Bien
+entendu, méme si l’analyseur ne distingue pas ces deux situations, le concepteur de la gram-
+maire doit y réagir différemment. Le traitement des erreurs dans les analyseurs est un sujet de
+recherche qui a surtout été abordé dans le cas déterministe et tres peu dans le cas des analyseurs
+CF généraux. Pour des raisons de place, nous ne pouvons décrire ici le mécanisme general de
+rattrapage CFG que nous avons développé. Il fera l’objet d’une publication ultérieure.
+
+Le calcul des structures fonctionnelles échoue si et seulement si aucune structure fonctionnelle
+n’est associée a la racine de la forét partagée. Cette situation d’erreur provient du fait que les
+contraintes (d’uniﬁcation) spéciﬁées par les équations fonctionnelles n’ont pas pu toutes étre
+vériﬁées ou que les structures fonctionnelles résultantes sont incohérentes.
+
+Un premier échec déclenche une deuxieme évaluation des structures fonctionnelles sur la fo-
+rét partagée, au cours de laquelle les vériﬁcations de cohérence sont supprimées. En cas de
+succes, on obtient a la racine un certain nombre de structures fonctionnelles incohérentes. Si
+cette seconde tentative échoue, on recherche dans la forét partagée tous les noeuds maximaux
+qui ont des structures fonctionnelles et dont aucun des peres n’a de structure fonctionnelle. Ils
+correspondent donc a des analyses partielles disjointes éventuellement incohe’rentes6.
+
+3.2 Sur-segmentation des énoncés inanalysables
+
+Malgré les mécanismes exposés précédemment, il arrive que l’analyseur SXLFG ne rende au-
+cune analyse. Ceci peut étre dﬁ a l’expiration d’un délai maximum que l’on peut donner en
+parametre (time—0ut), ou au fait que le rattrapage d’erreur de l’analyseur Earley n’a pas été ca-
+pable de produire une analyse raisonnable. La cause peut en étre l’insufﬁsance de la couverture
+de la grammaire ou un énoncé d’entrée par trop déraisonnable.
+
+Pour cette raison, nous avons réalisé une surcouche a SXLFG qui permet une sunsegmentation
+des énoncés agrammaticaux. L’idée est qu’il arrive fréquemment que des portions de l’énoncé
+d’entrée soient analysables en tant que phrases, alors méme que l’énoncé d’entrée dans son en-
+semble ne l’est pas. Nous découpons donc en segments les énoncés inanalysables (découpage
+de niveau 1), puis, le cas échéant, redécoupons en segments les segments de niveau 1 inana-
+lysables7 (découpage de niveau 2) et ainsi de suite. Les niveaux de découpage correspondent
+successivement aux frontieres probables de phrases, aux ponctuations fortes, aux ponctuations
+faibles, aux coordonnants, et enﬁn aux frontieres de mots.
+
+La qualité de l’analyse décroit évidemment avec le niveau de découpage. Si le découpage de
+niveau 1 ne pose aucun probleme, des difﬁcultés apparaissent au niveau 2. Les niveaux 3 et 4
+sont véritablement du rattrapage. Et le niveau 5 n’est la que pour analyser toutes les phrases
+possibles, et en particulier celles dont on sait analyser certains morceaux de niveau 1 ou 2.
+
+6Le processus de desambiguisation presente a la section 2.3 s’app1ique alors a tous les noeuds maximaux.
+7Un enonce peut etre decoupe en deux segments de niveau 1 dont le premier est analysable. Seul 1e second sera
+alors sur—segmente au niveau 2. Et seuls les segments de niveau 2 inanalysables seront sur—segmentes, etc.
+
+Un analyseur LFG efﬁcace: SXLFG
+
+4 Mise en aeuvre et evaluation
+
+4.1 Mise en oeuvre
+
+Nous avons utilise SXLFG a grande echelle pendant la campagne EASy d’evaluation des ana-
+lyseurs syntaxiques. Nous l’avons couple avec une grammaire LFG developpee pour XLFG
+(Clement & Kinyon, 2001), etendue et adaptee aux contraintes liees a ce que SXLFG calcule
+de maniere b0tt0m—up les structures fonctionnelles sur la foret d’analyse CFG. Le lexique et la
+chaine de traitement pre—syntaxique mis en oeuvre sont decrits dans (Boullier er al., 2005).
+
+4.2 Evaluation
+
+Dans cette section, nous n’evaluerons pas la qualité d’une analyse qui depend pour l’essentiel
+de la grammaire et qui necessiterait de disposer d’un corpus de reference annote manuellementg.
+Nous nous concentrons ici sur l’efﬁcacite de notre systeme en presentant les resultats obtenus
+pendant la campagne EASy et sur les corpus EUROTRA et TSNLP.
+
+Corpus #phrases couverture (sans couverture (avec temps d’analyse
+
+verif. de coh.) verif. de coh.) moy. med. 2 0.1s 2 1s
+EUROTRA 334 94.61% 84.43% 0.33s 0.02s 22.2% 6.0%
+TSNLP 1661 98.50% 79.12% 0.03s 0.00s 2.8% 0.6%
+EASy 40859 66.62% 41.95% n.d.1°
+
+TAB. 1 — Evaluation de SXLFG, avec un time—0ut de 15 secondes9.
+
+Corpus complet Phrases valides pour la CFG support
+Analyse CFG Analyse CFG | Analyse complete
+
+Donnees #phrases 40859 35756
+sur les nmoy / nmm 20.95 / 541 19.06/ 173
+corpus“ U Wmoy / U Wm” 0.79 / 97 0.75 / 65
+
+moy 0.05s 0.01s 3.35s
+Temps med 0.00s 0.00s 0.03s
+d’analyse < 0.1s 98.2% 98.8% 57.8%
+
+< 1s 99.8% 99.9% 71.0%
+
+max 3.1073 5.1052 112
+Nombre med 32 028 29 582 1
+d’analyses 2 10° 36.13% 35.28% 0%
+
+2 1012 8.86% 7.84% 0%
+
+TAB. 2 — Donnees sur le EASy corpus, les temps et les nombres d’analyses, avant application
+de l’heuristique de sur—segmentation (time—0ut de 15 secondes9).
+
+8Cette qualite depend aussi des heuristiques de desambiguisation utilisees et du traitement de la robustesse.
+9Un time—0ut plus eleve aurait augmente les taux de couverture mais egalement les temps d’ana1yse.
+1°Nous n’avons pas conserve les informations permettant de donner les resultats sur 1’ensemb1e du corpus.
+Toutefois, la table 2 donne les temps d’ana1yse pour les 87.51% de phrases reconnues par la CFG support.
+“n designe un nombre de mots, et UW un nombre de mots inconnus.
+“Dans 14.34% des cas, aucune analyse n’a ete trouvee en moins de 15s. C’est dans ces cas—1a que sont alors
+appliquees les heuristiques de sur—segmentation.
+
+407
+
+408
+
+P. Boullier, B. Sagot et L. Clement
+
+5 Conclusion
+
+Dans cet article, nous avons introduit l’analyseur SXLFG. A notre connaissance, c’est la pre-
+miere fois qu’un systeme d’analyse fonde sur le modele LFG traite du texte tout venant de
+fagon efﬁcace et robuste sans que le pouvoir expressif du formalisme ne soit degrade. Il est en
+outre possible de decrire des phenomenes complexes dans SXLFG en accord avec les nombreux
+travaux linguistiques qui s’y rapportent.
+
+Les experiences relatees utilisent une grammaire du francais et un lexique morpho—syntaxique
+que nous avons egalement realises. Les resultats extrémement encourageants obtenus ne doivent
+bien entendu pas masquer qu’il s’agit d’une premiere tentative qui doit se poursuivre et qui peut
+étre amelioree. Les perfectionnements possibles concernent le formalisme, la grammaire du
+frangais et l’analyseur SXLFG lui—méme.
+
+Nous avons quelques idees pour etendre notre variante de LFG qui pourraient faciliter certains
+traitements, en particulier celui des coordonnees. La grammaire doit étre etendue et amelio-
+ree. En effet, certaines constructions comme les clivees, les comparatives, les coordinations a
+ellipse, et d’autres, ne sont pas couvertes. D’autre part, la grammaire support (CFG) doit étre
+afﬁnee car son ambiguite actuelle est deraisonnable (voir section 4.2). Meme si notre analy-
+seur Earley y est relativement peu sensible, elle peut rendre prohibitif le temps d’evaluation
+des structures fonctionnelles associees. Les autres pistes de recherche sur l’analyseur propre—
+ment dit concernent essentiellement l’amelioration de la robustesse et du temps de calcul des
+structures fonctionnelles.
+
+Références
+
+ANDREWS A. (1990). Functional closure in LF G. Rapport interne, The Australian National University.
+
+BOULLIER P. (2003). Guided Earley parsing. In Proceedings of the 8th International Workshop on
+Parsing Technologies (IWPT’03), p. 43-54, Nancy, France.
+
+BOULLIER P., CLEMENT L., SAGOT B. & ERIC VILLEMONTE DE LA CLERGERIE (2005). Chaines
+de traitement syntaxique. In Actes de TALN 05, Dourdan, France.
+
+BRIFFAULT X., CHIBOUT K., SABAH G. & VAPILLON J. (1997). An object—oriented linguistic en-
+gineering environment using LFG (Lexical—Functional Grammar) and CG (Conceptual Graphs). In
+Proceedings of Computational Environments for Grammar Development and Linguistic Engineering,
+
+ACL’97 Workshop.
+
+CLEMENT L. & KINYON A. (2001). XLFG — an LFG parsing scheme for French. In Proceedings of
+LFG’01, Hong Kong.
+
+KAPLAN R. (1989). The formal architecture of lexical functionnal grammar. Journal of Informations
+Science and Engineering.
+
+KAPLAN R. M. & MAXWELL J. T. (1994). Grammar Writer’s Workbench, Version 2.0. Rapport
+interne, Xerox Corporation.
+
+KINYON A. (2000). Are structural principles useful for automatic disambiguation ‘.7 In Proceedings of
+in COGSCI’00, Philadelphia, Pennsylvania, United States.
+

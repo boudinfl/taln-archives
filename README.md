@@ -1,6 +1,8 @@
 # taln-archives
 
 Mises à jour
+ - 8 janvier 2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
+   ajout des noms des sessions dans TALN 2009.
  - 26 juillet 2013, ajout des fichiers textes, extraits à partir du contenu des
    articles au format pdf.
  - 18 juillet 2013, ajout des fichiers de génération de bibtex et du site web
@@ -8,7 +10,7 @@ Mises à jour
 
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
-conférences RECITAL et TALN de 2007 à 2012.
+conférences RECITAL et TALN de 2005 à 2013.
 
 Un fichier XML contenant les méta-données a été créé pour chaque édition des 
 conférences, ce dernier contient :
@@ -53,3 +55,6 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
  - Florian Boudin, TALN Archives : une archive numérique francophone des 
    articles de recherche en Traitement Automatique de la Langue, Traitement 
    Automatique des Langues Naturelles (TALN), 2013, papier court
+
+Remerciements
+ - Thierry Hamon

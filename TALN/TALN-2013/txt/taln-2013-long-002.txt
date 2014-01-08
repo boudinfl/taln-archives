@@ -1,573 +1,739 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
 Apprentissage symbolique et statistique pour le chunking:
 comparaison et combinaisons
+
 Isabelle Tellier, Yoann Dupont
 Laboratoire Lattice, 1 rue Maurice Arnoux, 92320 Montrouge
-RÉSUMÉ
-Nous décrivons dans cet article l’utilisation d’algorithmes d’inférence grammaticale pour la tâche
+isabelle.tellier@univ-paIis3.fr, yoa.dupont¬©gmail.com
+
+RESUME
+Nous d√©crivons dans cet article l‚Äôutilisation d‚Äôa1gorithmes d‚Äôinf√©rence grammaticale pour la tache
 de chunking, pour ensuite les comparer et les combiner avec des CRF (Conditional Random
-Fields), à l’efficacité éprouvée pour cette tâche. Notre corpus est extrait du French TreeBank.
-Nous proposons et évaluons deux manières différentes de combiner modèle symbolique et modèle
-statistique appris par un CRF et montrons qu’ils bénéficient dans les deux cas l’un de l’autre.
+Fields), a l‚ÄôefÔ¨Åcacit√© √©prouv√©e pour cette tache. Notre corpus est extrait du French TreeBank.
+Nous proposons et √©valuons deux manieres diff√©rentes de combiner modele symbolique et modele
+statistique appris par un CRF et montrons qu‚Äôils b√©n√©Ô¨Åcient dans les deux cas l‚Äôun de l‚Äôautre.
+
 ABSTRACT
 Symbolic and statistical learning for chunking : comparison and combinations
+
 We describe in this paper how to use grammatical inference algorithms for chunking, then
 compare and combine them to CRFs (Conditional Random Fields) which are known efficient for
-this task. Our corpus is extracted from the FrenchTreebank. We propose and evaluate two ways
-of combining a symbolic model and a statistical model learnt by a CRF, and show that in both
-cases they benefit from one another.
-MOTS-CLÉS : apprentissage automatique, chunking, CRF, inférence grammaticale, k-RI, French
+this task Our corpus is extracted from the FrenchTreebank. We propose and evaluate two ways
+of combining a symbolic model and a statistical model learnt by a CRF; and show that in both
+cases they beneÔ¨Åt from one another.
+
+MOTS-CLES : apprentissage automatique, chunking, CRE inf√©rence grammaticale, k‚ÄîRI, French
 TreeBank.
-KEYWORDS: machine learning, chunking, CRF, grammatical inference, k-RI, French TreeBank.
+
+KEYWORDS: machine learning, chunking, CRE grammatical inference, k-RI, French TreeBank.
+
 1 Introduction
-L’apprentissage automatique supervisé, surtout lorsqu’une grande quantité de données annotées
-est disponible, a largement prouvé son efficacité pour les tâches de fouille de textes classiques
-comme la classification ou l’annotation. Les bases théoriques des techniques d’apprentissage les
-plus performantes relèvent en général des statistiques (Naive Bayes), de l’optimisation (SVM) ou
-des deux (HMM, CRF). L’inconvénient principal des modèles produits par ces méthodes est qu’ils
+
+L‚Äôapprenu'ssage automatique supervis√©, surtout lorsqu‚Äôune grande quantit√© de donn√©es annot√©es
+est disponible, a largement prouv√© son efÔ¨Åcacit√© pour les taches de fouille de textes classiques
+comme la classiÔ¨Åcation ou l‚Äôannotau'on. Les bases th√©oriques des techniques d‚Äôapprenu'ssage les
+plus perforrnantes rel√©vent en g√©n√©ral des statistiques (Naive Bayes), de l‚Äôopu'misau'on (SVM) ou
+des deux (HMM, CRF). L‚Äôinconv√©nient principal des modeles produits par ces m√©thodes est qu‚Äôils
 sont difficilement lisibles par un humain.
-Il existe pourtant aussi d’autres branches de l’apprentissage automatique, qualifiées de symbolique,
-qui ont la particularité d’offrir une sortie généralement plus lisible par un être humain. Les plus
-illustres membres de cette famille sont les arbres de décision, la Programmation Logique Inductive
-(PLI) ou l’Inférence Grammaticale (IG par la suite) (de la Higuera, 2010). C’est cette dernière qui
-nous intéresse ici. On peut la définir comme l’étude des techniques permettant d’apprendre une
-grammaire formelle ou tout autre modèle capable de représenter un langage (comme un automate,
-une expression régulière, etc...) à partir d’exemples de séquences (éventuellement enrichies)
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-19 c? ATALA
-appartenant (ou non) à ce langage. Ce domaine, qui a son origine dans l’informatique théorique
-et la théorie des langages formels, est souvent méconnu. Les algorithmes d’IG sont en effet
-réputés ne pas très bien se comporter sur des données réelles : ils sont souvent algorithmiquement
-complexes, sensibles aux erreurs et peu adaptés aux langages fondés sur de grands alphabets (ce
-qui est le cas quand l’alphabet est l’ensemble des mots d’une langue naturelle).
-Dans cet article, nous voulons donner leur chance à des algorithmes classiques d’IG pour les
-comparer aux méthodes d’apprentissage automatique statistique état de l’art, en l’occurrence
-les CRF (Lafferty et al., 2001). La tâche considérée est le chunking (Abney, 1991) du français,
-qui peut en effet très bien être réalisée à l’aide d’automates construits manuellement (Antoine
-et al., 2008; Blanc et al., 2010). À notre connaissance, essayer d’apprendre automatiquement ces
-automates au lieu de les écrire à la main n’a encore pas jamais été testé, pour quelque langue que
-ce soit. Par ailleurs, le chunking peut également être vu comme une tâche d’annotation (objet de
-la Shared Task CoNLL’2000) et de ce fait abordé via des méthodes d’apprentissage statistique. Ce
-contexte nous semblait par conséquent idéal pour comparer les deux approches.
-Cette comparaison n’est cependant pas notre seul but. Notre intuition est que les deux tech-
-niques sont complémentaires car elles se concentrent sur des propriétés distinctes des données
-d’apprentissage. Nous proposons donc également dans cet article deux manières différentes de
-les combiner, en fonction du but visé. La première manière est orientée vers l’efficacité : elle vise
-à enrichir un modèle CRF à l’aide d’informations extraites des automates. La seconde privilégie
-la lisibilité : elle propose d’analyser les automates appris par IG à l’aide de poids calculés par un
-CRF, poids qui seront tous interprétables relativement à cet automate.
-L’article suit le plan suivant. Dans la première section, nous introduisons la tâche de chunking et
-décrivons les données utilisées pour nos expériences. La deuxième section est dédiée à l’inférence
-grammaticale. Après un bref état de l’art, nous détaillons la famille des algorithmes k-RI (Angluin,
-1982) et donnons les meilleurs résultats expérimentaux qu’ils permettent d’atteindre pour le
-chunking. Dans la section qui suit, nous appliquons les CRF à la même tâche. Comme on pouvait
-s’y attendre, les CRF donnent de bien meilleurs résultats que ceux obtenus par IG. Dans la
-dernière section, nous décrivons et évaluons deux manières de combiner automates et CRF. Les
-résultats obtenus pour chacune de ces combinaisons sont prometteurs et suggèrent des pistes
-originales pour associer modèles symboliques et apprentissage statistique.
-2 Chunking: la tâche et les données
-Nous décrivons ici la tâche de chunking par annotation et nous présentons les données
-d’apprentissage que nous avons utilisées pour nos expériences. Ces dernières reprennent et
-prolongent celles présentées dans (Tellier et al., 2012). Notre but étant de construire un chunker
-pour le français, nous sommes partis du French Tree Bank (Abeillé et al., 2003).
-2.1 La tâche
-La tâche de chunking, également appelée analyse syntaxique de surface, a pour but d’identifier les
-groupes syntaxiques élémentaires des phrases. Les chunks sont en effet des séquences contigües et
-non-récursives d’unités lexicales liées à une unique tête forte (Abney, 1991). Chacun est caractérisé
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-20 c? ATALA
-par le type (ou étiquette Part-Of-Speech (POS)) de sa tête. Il y a ainsi autant de types de chunks
-que de types de têtes fortes possibles.
-La tâche de chunking a fait l’objet de de la compétition CoNLL’20001, dont le corpus
-d’apprentissage était constitué d’environ 9 000 phrases issues du Penn Treebank, associées
-à deux niveaux d’annotion : un niveau POS donné par l’étiqueteur Brill et un de chunking. Les
-vainqueurs avaient utilisé des SVM et des “Weighted Probability Distribution Voting”. Ce même
-corpus a aussi servi plus tard à montrer l’efficacité des CRF (Sha and Pereira, 2003).
-2.2 Les données
-Le French TreeBank (FTB) est un recueil de phrases extraites d’articles du journal “Le Monde”
-publiés entre 1989 et 1993 (Abeillé et al., 2003). Les phrases ont été tokenisées (en conservant
-certaines unités multi-mots), lemmatisées, étiquetées et analysées syntaxiquement. Il existe
-plusieurs variantes du FTB, celle que nous avons utilisée contenait environ 8 600 arbres XML
-enrichis de fonctions syntaxiques (parfois nécessaires pour identifier certains chunks). Pour le
-POS, nous avons repris les 30 étiquettes morpho-syntaxiques définies dans (Crabbé and Candito,
-2008), assurant ainsi la continuité avec nos précédents travaux (Constant et al., 2011).
-Nous considérons 7 types de chunks distincts : AP (Adjectival Phrase), AdP (Adverbial Phrase),
-CONJ (Conjonctions), NP (Noun Phrase), PP (Prepositional Phrase), VP (verbal Phrase) et
-UNKONWN (coquilles ou certains mots étrangers, eux-mêmes étiquetés UNKNOWN). Les marques
-de ponctuations, sauf exceptions (certains guillemets par exemple) sont hors chunks (étiquette
-O comme Out). Nous avons décidé de modifier certains choix que nous avions faits dans
-(Tellier et al., 2012). Par exemple, le chunk CONJ contient seulement la conjonction. Le PP, en
-revanche, intègre toujours le chunk introduit par la préposition. Et, à l’inverse de (Paroubek
-et al., 2006), les adjectifs épithètes appartiennent toujours au chunk NP contenant le nom qu’ils
-qualifient, qu’ils soient situés avant ou après lui. Les chunks AP sont donc assez rares car ils ne
-correspondent qu’aux adjectifs séparés d’un groupe nominal, comme les attributs du sujet ou de
-l’objet (les fonctions syntaxiques disponibles dans les arbres XML sont nécessaires pour identifier
-ces derniers). La phrase suivante illustre notre notion de parenthésage en chunks2 :
-(la/DET dépréciation/NC)NP (par_rapport_au/P dollar/NC)PP (a/V été/VPP limitée/VPP)V P
-(à/P 2,5/DET %/NC)PP
-Nous avons extrait du FTB deux corpus distincts, chacun représentant un chunking différent :
-• un corpus où tous les chunks sont extraits et étiquetés selon le modèle BIO (Begin/In/Out).
-Les proportions de chaque type de chunk trouvées dans le corpus sont les suivantes : PP : 33,86%,
-AdP : 7,23%, VP : 17,11%, AP : 2,21%, NP : 32,95%, CONJ : 6,61%, UNKNOWN : 0,03%.
-• un corpus où seuls les NP sont étiquetés, tout autre groupe étant alors considéré O. Ce
-corpus n’est pas un sous-ensemble du précédent : par exemple, de nombreux PP incluent un NP
-qui ne devient visible que dans ce deuxième corpus. L’exemple précédent devient ainsi :
-(la/DET dépréciation/NC)NP par_rapport_au/P (dollar/NC)NP a/V été/VPP limitée/VPP à/P
-(2,5/DET %/NC)NP
-1http://www.cnts.ua.be/conll2000/chunking
-2guide complet disponible sur :
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-21 c? ATALA
-3 L’inférence grammaticale
-L’inférence grammaticale (IG) est un domaine de recherche très riche apparu dans les années 60
-dont il n’est, par conséquent, pas aisé de faire un résumé. Nous nous plaçons ici dans le cadre
-de l’IG d’automates par exemples positifs seuls. Après un bref état de l’art, nous décrivons les
-algorithmes k-RI (Angluin, 1982) utilisés dans nos expériences et les résultats obtenus avec eux.
-3.1 Bref état de l’art
-L’IG étudie les différentes manières d’apprendre automatiquement un dispositif symbolique
-capable de représenter un langage (comme une grammaire formelle, un automate, etc...) à partir
-d’un ensemble de séquences (parfois enrichies) regroupées selon leur (non-)appartenance à ce
-langage (de la Higuera, 2010). Lorsque seules des séquences appartenant au langage cible sont
-disponibles, le problème est appelé IG par présentation positive. Nous nous situons dans ce cadre
-car les séquences à notre disposition ne comportent aucun contre-exemple. L’IG est, dans ce cas,
-notoirement plus difficile car, sans contre-exemple, on risque la surgénéralisation. Par exemple, si
-un programme d’IG fait l’hypothèse, lors de sa phase d’apprentissage, que le langage à apprendre
-est le langage universel (??, où ? est l’alphabet du langage), aucun exemple positif n’est en
-mesure de le contredire, alors même qu’il a peut-être surgénéralisé.
-La première chose que l’IG se doit de fournir est une définition précise de ce qu’ “apprendre
-une langue par exemples positifs” signifie pour un programme. Le critère d’apprenabilité est
-théorique et formel et non pas empirique. Faisons le parallèle avec l’acquisition du langage
-chez les enfants. Un enfant n’est pas “programmé” pour une langue précise, il est capable
-d’acquérir n’importe laquelle parlée dans son environnement. De même, un programme d’IG par
-présentation positive doit être en mesure d’apprendre une classe de langages formels, c’est-à-dire
-d’identifier n’importe lequel de ses membres à l’aide d’exemples de séquences (phrases) lui
-appartenant. Les principaux critères possibles qui caractérisent la notion d”’apprenabilité d’une
-classe de langages” en IG (aussi appelés modèles d’apprentissage) sont “l’identification à la limite”
-(Gold, 1967) et “l’apprentissage PAC” (Valiant, 1984), que nous ne pouvons détailler ici.
-Malheureusement, même pour la classe des langages réguliers, la plus simple dans la hiérarchie
-de Chomsky, ces critères sont impossibles à satisfaire : il n’existe aucun algorithme capable
-d’apprendre par présentation positive la classe complète des langages réguliers dans ces modèles
-(Gold, 1967; Kearns and Vazirani, 1994). Les recherches se sont donc orientées vers des classes
-plus petites, ou transverses à la hiérarchie de Chomsky, et apprenables, caractérisées notamment
-dans (Angluin, 1980). Les classes de langages k-réversibles (Angluin, 1982) entrent dans ce
-cadre, elles constituent le point de départ de nos expériences. Depuis, bien d’autres classes
-apprenables par présentation positive ont été décrites et étudiées (Garcia and Vidal, 1990; Denis
-et al., 2002; Kanazawa, 1998; Koshiba et al., 2000; Yokomori, 2003). Des avancées récentes
-dans le domaine concernent aussi l’apprenabilité de dispositifs intégrant des probabilités, comme
-les automates probabilistes et leurs liens avec les HHM (Thollard et al., 2000; Dupont et al.,
-2005). Parallèlement, des compétitions 3 ont permis de tester l’efficacité des algorithmes proposés
-lorsqu’ils sont confrontés à des données réelles.
-3les plus récents étant Stamina ( ) et Zulu (
-)
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-22 c? ATALA
-3.2 L’algorithme k-RI
-Dans cette section, nous décrivons les algorithmes d’IG par présentation positive utilisés dans
-nos expériences. Ils sont destinés à apprendre un automate pour un type spécifique de chunk, à
-partir uniquement des différentes séquences de POS aparaissant dans ce type de chunks dans
-les données d’apprentissage. Les algorithmes d’IG par exemples positifs semblent adaptés à ce
-problème en raison du vocabulaire restreint mis en jeu (au maximum les 30 étiquettes POS) et
-de la relativement faible variabilité des séquences de POS pouvant décrire un même chunk.
-L’algorithme k-Reversible Inference (k-RI) (Angluin, 1982) a la propriété d’identifier à la limite
-tout langage k-réversible, pour tout k ? ? fixé. Les langages k-réversibles sont réguliers, ils sont
-donc représentables par des automates finis. Un automate fini définit un langage k-réversible
-s’il est déterministe et si son miroir 4 est déterministe avec anticipation k. Pour k = 0, les
-langages 0-réversibles peuvent être représentés par un automate déterministe dont le miroir l’est
-également, l’algorithme correspondant étant appelé Zéro Réversible (ZR). Si k1 < k2, la classe
-des langages k1-réversibles est strictement incluse dans celle des langages k2-réversibles.
-Soit un ensemble de séquences positives S, la première étape de k-RI est de construire PTA(S),
-le Prefix Tree Acceptor de S. PTA(S) est le plus petit (en nombre d’états) AFD (Automate Fini
-Déterministe) en forme d’arbre reconnaissant exactement le langage S. La racine de PTA(S)
-est son état initial. L’espace de recherche de tout algorithme d’IG partant de S est un trelli
-dont la borne inférieure est PTA(S) et la borne supérieure l’automate universel construit sur
-l’alphabet observé dans S (Dupont et al., 1994). La plupart des algorithmes d’IG suivent le
-même schéma : ils partent de PTA(S) pour ensuite généraliser le langage défini par fusions
-d’états, la connaissance de k permettant d’éviter la surgénéralisation. k-RI, détaillé ci-dessous,
-fonctionne selon ce principe. La fusion qu’il emploie est appelée déterministe car elle se propage
-récursivement à travers l’automate pour préserver son déterminisme.
-Algorithme k-RI
-Entrée : S : un ensemble de séquences (positives), k : un entier naturel ;
-Sortie : A : un automate k-réversible ;
-début
-A := PTA(S);
-tant que non(A k-réversible) faire
-// soient N1 et N2 deux nœuds empêchant la k-réversibilité de A.
-Fusion_Déterministe(A, N1, N2);
-fin tant que;
-renvoyer A;
-fin k-RI;
-Dans la figure 1, nous illustrons le comportement de ZR (k-RI pour k = 0) sur les séquences de
-POS suivantes : S = {DET NC , DET ADJ NC}. Sur cet exemple très simple, nous voyons que
-ZR généralise PTA(S) pour obtenir un automate reconnaissant le langage défini par l’expression
-régulière : DET ADJ? NC . Cette généralisation est sensée d’un point de vue linguistique. Mais
-si on ajoute aux exemples précédents la simple séquence NC , alors ZR mène à un automate
-reconnaissant le langage {DET |ADJ}?NC , ce qui est une généralisation plus discutable.
-4l’automate miroir est obtenu en transformant les états initiaux de l’automate de départ en états finaux, ses états
-finaux en initiaux, et en retournant le sens de ses transitions
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-23 c? ATALA
-étape 1 : PTA(S) étape 1 : miroir de PTA(S)
-étape 2 : les états finaux de PTA(S) sont fusionnés étape 3 : q1 et q2 sont fusionnés
-(sinon le miroir n’est pas déterministe) (sinon le miroir n’est pas déterministe)
-Figure 1: Démonstration pas-à-pas de ZR
-3.3 Résultats des expériences d’IG sur le chunking NP
-Nous avons appliqué k-RI pour différentes valeurs de k (k = 0, k = 1, k = 2) sur les séquences
-d’étiquettes POS correspondant à un même chunk. Les annotations BIO sont obtenues en utilisant
-les automates appris comme des expressions régulières selon un parcours séquentiel de la phrase.
-Nous avons cherché à reconaître soit les séquences les plus longues ("Longest Match", LM) soit
-les séquences les plus courtes ("Shortest Match", SM). L’étiquetage en NP seuls est la tâche pour
-laquelle l’IG est la plus appropriée. Il est aussi évidemment possible d’apprendre un automate
-distinct pour chaque type de chunk. Mais l’application de plusieurs automates distincts sur une
-nouvelle donnée pose des problèmes de recouvrements de frontières. Nous n’utiliserons donc ces
-automates que dans le cadre d’une combinaison avec un modèle statistique, en section 5.
-k-RI est connu pour être très sensible aux données d’entrée : une seule séquence incorrecte peut
-mener à de multiples fusions d’états, et donc à une surgénéralisation. C’est le cas pour notre jeu
-de données issues du FTB, d’où les cas aberrants et les erreurs d’étiquetage ne sont pas absents.
-Quelques mauvais exemples étaient cependant faciles à détecter : par exemple, des séquences
-d’étiquettes POS ne contenant aucune tête nominale possible peuvent être retirées sans risque.
-Nous avons envisagé diverses autres façons de nettoyer les données. Un nettoyage retirant toutes
-les séquences apparaissant moins d’une certaine proportion fixée s’est révélé le plus efficace.
-Cette stratégie entraîne néanmoins la suppression de séquences utiles, en raison de la faible
-proportion de certaines têtes (clitiques notamment).
-Nos expériences ont été réalisées selon un protocole de validation croisée partitionant les données
-en cinq (4/5 pour l’apprentissage d’un automate, 1/5 pour le test). L’égalité requise sur les
-chunks est stricte, c’est-à-dire que pour être égaux, ils doivent partager exactement les même
-frontières. Les précision, rappel et F-mesure des chunks NP sont calculés sans prendre en compte
-les étiquettes O. Le tableau 1 contient diverses F1-mesures obtenues par inférence grammaticale
-sur les chunks NP seuls, en appliquant sur les données de test une stratégie de correspondance LM.
-Les versions dîtes nettoyées ont été obtenues en supprimant toute séquence de POS apparaissant
-strictement moins de 0.01%. Les valeurs entre parenthèses sont les nombres moyens d’états des
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-24 c? ATALA
-xp PTA pur PTA net. 0-RI net. (1) 1-RI net. (19) 2-RI net. (68.6)
-F-mes. 51.92 88.05 26.95 72.74 88.25
-Table 1: Résultats de l’IG pour le chunking NP
-5 automates calculés pendant la phase d’apprentissage. Les versions PTA, dont les performances
-ne sont pas négligeables, peuvent être vues comme un apprentissage “par cœur”, puisqu’ils n’ont
-donné lieu à aucune généralisation. Les automates de taille 1 correspondent à ceux reconnaissant
-le langage universel des étiquettes POS présentes au moins une fois dans un chunk NP. Il faut
-atteindre k = 2 pour obtenir un automate meilleur que le PTA sur des données nettoyées.
-4 Apprentissage statistique pour l’annotation
-Dans cette section, nous nous concentrons sur la meilleure approche statistique actuelle pour
-une tâche d’annotation : les Conditional Random Fields (CRF), qui se comportent très bien
-sur notre problème (Tellier et al., 2012). Nous rappelons aussi comment un HMM peut être
-“transformé” en un CRF, parce que cette transformation sera une source d’inspiration pour une
-des combinaisons présentées par la suite.
-4.1 Conditional Random Fields et HMMs
-Les CRF, introduits par (Lafferty et al., 2001) sont de la famille des modèles graphiques. Lorsque
-que le graphe exprimant les dépendances entre étiquettes est linéaire (ce qui est généralement le
-cas pour étiqueter des séquences), la distribution de probabilité d’une séquence d’annotations y
-connaissant une séquence observable x est définie par :
-p(y|x) = 1
-Z(x)
-?
-t
-exp
-? K?
-k=1
-?k fk(t, yt , yt?1, x)
-?
-Où Z(x) est un facteur de normalisation dépendant de x et les K features (ou fonctions
-caractéristiques) fk des fonctions fournies par l’utilisateur. Une feature fk est vérifiée (i.e.
-fk(t, yt , yt?1, x) = 1) si, à la position courante t, une configuration entre x , yt et yt?1 est
-observée (elle vaut 0 sinon). À chaque feature fk est associé un poids ?k. Ces poids constituent
-les paramètres du modèle devant être estimés au cours de l’apprentissage. Pour définir un grand
-nombre de features, les programmes implémentant les CRF permettent d’avoir recours à des
-patrons (ou templates) qui seront instanciés en autant de features qu’il y a de positions sur les
-données d’entraînement où ils peuvent s’appliquer. L’implémentation la plus efficace à l’heure
-actuelle des CRF linéaires est fournie par Wapiti5, qui utilise des pénalisations pour sélectionner
-les features les plus pertinentes (Lavergne et al., 2010). C’est le logiciel que nous avons utilisé.
-Les CRF se sont montrés efficaces sur de nombreuses tâches d’annotation, notamment l’étiquetage
-POS (Lafferty et al., 2001), la reconnaissance d’entités nommées (McCallum and Li, 2003), le
-chunking (Sha and Pereira, 2003) et même le parsing complet (Finkel et al., 2008; Tsuruoka
-5
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-25 c? ATALA
-Feature Type Fenêtre
-Mot Unigram [-2..1]
-POS Bigram [-2..1]
-chunking Complet NP seuls
-micro 97.53 N/A
-macro 90.49 N/A
-F1-mesure N/A 96.43
-Table 2: Le patron de template et les résultats obtenus avec les CRF seuls pour chaque tâche
-et al., 2009). Leur principal inconvénient est qu’ils apparaissent comme des “boîtes noires”. Un
-modèle issu d’un apprentissage par CRF est simplement une liste de features pondérées pouvant
-avoir plusieurs millions d’éléments, ce qui le rend difficile à interpréter.
-Les HMM, qui étaient parmi les meilleures méthodes d’annotation statistique avant que les CRF
-n’apparaissent, présentent quant à eux l’avantage d’être plus interprétables. Cependant, tout
-HMM peut être “transformé” en un CRF définissant la même distribution de probabilité (Sutton
-and McCallum, 2006; Tellier and Tommasi, 2011). Pour ce faire, pour un HMM donné, nous
-devons définir deux familles de features :
-• les features de la forme f (yt , xt) associant une seule étiquette yt avec une seule entrée de
-même position xt : elles valent 1 quand l’états yt du HMM émet xt ;
-• les features de la forme f (yt?1, yt) qui associent deux états yt?1 et yt du HMM ; elles valent
-1 quand la transition entre ces deux états est utilisée.
-Si ? est une probabilité d’émission ou de transition du HMM, alors on choisit ? = log(? ) comme
-poids pour la feature correspondant dans le CRF. Le calcul de p(y |x) s’écrira alors exactement de
-la même façon dans les deux cas. Un HMM peut ainsi être vu comme un cas particulier de CRF.
-Mais les CRF sont plus généraux car ils permettent d’avoir recours à d’autres features que celles
-utilisées dans la transformation. Cette correspondance nous a inspirés pour exploiter les CRF
-afin de diagnostiquer les automates appris par IG. Cette idée sera étudiée dans la section 5. Mais
-auparavant, nous présentons les résultats obtenus avec les CRF seuls sur nos données.
-4.2 Résultats des expériences
-Les tableaux 2 montrent les patrons de features utilisés ainsi que les résultats obtenus avec
-les CRF seuls sur les deux tâches de chunking. Pour ces expériences, comme en section 3.3,
-nous avons suivi un protocole de validation croisée à 5 plis et un critère d’égalité stricte des
-chunks. Pour la tâche de chunking complet, nous avons calculé les micro et macro-average,
-qui correspondent aux moyennes des F1-mesures des différents types de chunks, pondérées
-(micro) ou pas (macro) par leur proportion. Comme attendu, les CRF seuls sont très performants.
-Remarquons toutefois qu’ils exploitent dans leurs features à la fois des mots et des étiquettes
-POS présents dans les données, alors que les algorithmes d’IG n’ont accès qu’aux seuls POS.
-On peut comparer ces résultats avec ceux obtenus lors de la campagne PASSAGE (Paroubek
-et al., 2006), même si les notions de chunks adoptées de part et d’autre diffèrent (dans PASSAGE,
-les adjectifs épithètes situés après un nom ne font pas partie du chunk nomimal, par exemple)
-et si les corpus ne sont pas les mêmes. Les meilleurs participants de la campagne PASSAGE
-atteignaient une micro-average de 92,7, ce qui situe tout de même la performance de nos CRF.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-26 c? ATALA
-mot POS auto. NP auto. VP auto. PP ... label correct auto. NP NP-label correct
-la DET B O O ... B-NP B B
-dépréciation NC I O O ... I-NP I I
-par_rapport_au P O O B ... B-PP O O
-dollar NC B O I ... I-PP B B
-a V O B O ... B-VP O O
-été VPP O I O ... I-VP O O
-limitée VPP O I O ... I-VP O O
-à P O O B ... B-PP O O
-2,5 DET B O I ... I-PP B B
-% NC I O I ... I-PP I I
-Table 3: Données enrichies par des sorties d’automates spécifiques pour chaque chunk
-5 Combinaisons
-Dans les sections précédentes, nous avons appliqué à la tâche de chunking une approche soit
-purement symbolique soit purement statistique. Dans cette section, nous allons combiner les
-deux approches, cette combinaison pouvant s’envisager selon deux axes distincts :
-• Soit le but est la seule performance, auquel cas il faut privilégier l’apprentissage statistique.
-Cependant, les automates obtenus par IG offrent une vision globale (et non locale, comme c’est
-le cas dans les features) des relations entre les étiquettes POS d’un même chunk qui pourrait
-s’avérer utile dans un CRF. Nous pouvons donc chercher à intégrer les résultats de l’apprentissage
-symbolique en tant que ressource externe de l’apprentissage statistique.
-• Soit nos fins sont plus en rapport avec la lisibilité, auquel cas nous favoriserons les automates
-produits par IG. Or, comme évoqué en 4.1, il est tout à fait possible de simuler la structure d’un
-HMM (et, similairement, d’un automate) avec les features d’un CRF. On pourrait donc évaluer la
-qualité des états et des transitions d’un automate en fonction des poids associés aux features qui
-les représentent dans un CRF, offrant ainsi par la même occasion un moyen de l’améliorer.
-5.1 Les automates en tant que ressource externe
-Nous nous attaquons ici aux deux types de chunking. Le premier mode de combinaison envisagé
-consiste à enrichir les données du CRF avec des attributs provenant de la ressource externe, à
-la façon de (Constant and Tellier, 2012). Dans le cas du chunking complet, nous appliquons
-l’IG à chaque type de chunk distinct, produisant ainsi autant d’automates qu’il y a de types de
-chunks selon un protocole de validation croisée à 5 plis (les PTA dans ces expériences sont donc
-uniquement extraits des corpus d’apprentissage). Chacun des automates de chunk fournit un
-étiquetage BIO indépendant, comme dans le tableau 3 (les automates sont ici supposés fournir
-un étiquetage parfait). Il y a donc dans nos données autant d’attributs nouveaux que de chunks.
-Les tableaux de gauche dans les tables 4 donnent les patrons aboutissant aux meilleurs résultats
-(micro resp. macro-average resp. F-mesure) pour le chunking complet ou le chunking NP.
-La ligne "Automate" prend en compte la sortie de chaque automate indépendamment alors
-que "POS+Automates" représente la concaténation des colonnes POS et des sorties de tous les
-automates. Les résultats correspondants sont donnés dans les tableaux de droite. Ils montrent
-que les attributs provenant des automates permettent d’améliorer significativement les résultats
-des CRF. C’est particulièrement vrai pour la macro-average, qui donne un poids équivalent à la
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-27 c? ATALA
-F1-mesure de chaque type de chunk. Les informations issues des automates améliorent donc
-surtout les performances de reconnaissance des chunks rares. Dans l’expérience permettant
-d’obtenir la meilleure macro, les trois améliorations les plus significatives en terme de F-mesure
-sont : UNKNOWN (de 41.67 à 61.22), AP (de 96.78 à 97.44) et AdP (de 98.72 à 98.92).
-Feature Type Fenêtre
-Mot Unigram [-2..1]
-Automate Bigram [-2..1]
-POS Bigram [-2..1]
-F-mesure pur 1-RI LM
-micro 97.66
-macro 92.22
-Feature Type Fenêtre
-Mot Unigram [-2..1]
-Automate Unigram [-1..1]
-POS Bigram [-2..1]
-POS+Automates Bigram [-1..1]
-F-mesure pur 1-RI SM
-micro 97.62
-macro 93.52
-Feature Type Fenêtre
-Mot Unigram [-2..1]
-POS Bigram [-2..1]
-Automate Bigram [-1..1]
-POS+Automate Bigram [-1..1]
-pur 2-RI LM
-F-measure 96.75
-Table 4: Patrons et meilleure micro-average (resp. macro-average) pour le chunking complet,
-idem pour la F-mesure du chunking NP seul
-5.2 Diagnostiquer un automate à l’aide d’un CRF
-Nous voulons ici obtenir des informations sur l’automate produit par IG à l’aide des CRF, en
-faisant un apprentissage n’utilisant que des features interprétables relativement à lui. Les poids
-associés par le CRF à ces features fourniront un diagnostic fin de l’automate. Cette idée se
-rapproche de (Roark and Saraclar, 2004), où un CRF était appris selon la structure d’un automate
-pondéré pour le “corriger” grâce à l’estimation des poids. Elle en diffère toutefois car nous
-ne cherchons pas à obtenir un automate pondéré mais à trouver d’éventuelles modifications
-à effectuer sur l’automate selon le diagnostic fourni par le CRF, tout en préservant sa nature
-purement symbolique. Pour illustrer cette approche, nous nous concentrons sur la tâche de
-chunking NP seul car elle ne nécessite la prise en compte que d’un seul automate. Il peut être plus
-facile pour comprendre la suite de se représenter les automates finis déterministes (AFD) “à la
-Unitex” (http://www-igm.univ-mlv.fr/ unitex/). Ainsi, le résultat de l’algorithme ZR sur la figure
-1 (l’automate final, en bas à droite) est identique à celui de la figure 2. Cette représentation a
-l’avantage de montrer les étiquettes POS et les transitions entre deux étiquettes POS comme deux
-objets différents. Pour construire un CRF à partir d’un tel automate, nous considérons surtout les
-sorties en termes d’étiquetage BIO que cet automate produit (partie droite de la Table 3).
-Nous inspirant de la relation entre les HMM et les CRF évoquée en section 4.1, nous définissons
-des patrons de features qui peuvent s’interpréter relativement à l’automate :
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-28 c? ATALA
-Figure 2: Automate représenté “à la Unitex”
-• Un patron unigramme qui observe une étiquette POS et l’étiquette BIO prédite par l’automate
-à la même position, conjointement avec le label BIO correct. L’étiquette POS correspond à un
-(ou plusieurs) état(s) de l’automate. Si les étiquettes BIO coïncident pour un POS donné, cela
-signifie que l’automate a en quelque sorte raison d’être dans cet état en analysant la donnée.
-• Un patron bigramme qui observe un couple d’étiquettes POS successives et le couple
-d’étiquettes BIO prédites par l’automate correspondant, associé au couple de labels BIO correct.
-Le couple de POS représente une (ou plusieurs) transition(s) de l’automate. Si les deux couples
-d’étiquettes BIO coïncident, cela signifie que la transition est correctement utilisée.
-Il est à noter que les mots eux-mêmes ne sont pas pris en compte dans ces patrons, afin de
-préserver l’interprétation des features relativement à l’automate, d’où les mots sont absents.
-La Table 5 est une matrice de confusion qui met en relation les étiquettes BIO prédites par un
-automate (EP) et les étiquettes BIO correctes (EC), pour une étiquette POS donnée (ici, l’étiquette
-DET d’un automate appris). On peut construire autant de tables que d’étiquettes POS présentes
-dans un chunk NP, chaque case de chaque table correspondant à une feature unigramme. Les
+
+Il existe pourtant aussi d‚Äôautres branches de l‚Äôapprentissage automatique, qualiÔ¨Å√©es de symbolique,
+qui ont la particularit√© d‚Äôoffrir une sortie g√©n√©ralement plus lisible par un √©tre humain. Les plus
+illustres membres de cette famille sont les arbres de d√©cision, la Programmation Logique Inductive
+(PLI) ou l‚ÄôInf√©rence Grammaticale (IG par la suite) (de la Higuera, 2010). C‚Äôest cette derniere qui
+nous int√©resse ici. On peut la d√©Ô¨Ånir comme l‚Äô√©tude des techniques perrnettant d‚Äôapprendre une
+grammaire forrnelle ou tout autre modele capable de repr√©senter un langage (comme un automate,
+une expression r√©guliere, etc...) a partir d‚Äôexemples de s√©quences (√©ventuellement enrichies)
+
+19 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+appartenant (ou non) a ce langage. Ce domaine, qui a son origine dans 1‚ÄôinforInau'que th√©orique
+et la th√©orie des langages formels, est souvent m√©connu. Les algorithmes d‚ÄôIG sont en effet
+r√©put√©s ne pas tres bien se comporter sur des donn√©es r√©elles : ils sont souvent algorithmiquement
+complexes, sensibles aux erreurs et peu adapt√©s aux langages fond√©s sur de grands alphabets (ce
+qui est le cas quand l‚Äôa1phabet est l‚Äôensemb1e des mots d‚Äôune langue naturelle).
+
+Dans cet article, nous voulons donner leur chance a des algorithmes classiques d‚ÄôIG pour les
+comparer aux m√©thodes d‚Äôapprentissage automatique statistique √©tat de l‚Äôart, en l‚Äôoccurrence
+les CRF (Lafferty et al., 2001). La tache consid√©r√©e est le chunking (Abney, 1991) du francais,
+qui peut en effet tr√©s bien √©tre r√©alis√©e a l‚Äôaide d‚Äôautomates construits manuellement (Antoine
+et al., 2008; Blanc et al., 2010). A notre connaissance, essayer d‚Äôapprendre automatiquement ces
+automates au lieu de les √©crire a la main n‚Äôa encore pas jamais √©t√© test√©, pour quelque langue que
+ce soit. Par ailleurs, le chunking peut √©galement √©tre vu comme une tache d‚Äôannotau'on (objet de
+la Shared Task CoNLL‚Äô2000) et de ce fait abord√© via des m√©thodes d‚Äôapprentissage statistique. Ce
+contexte nous semblait par cons√©quent id√©al pour comparer les deux approches.
+
+Cette comparaison n‚Äôest cependant pas notre seul but. Notre intuition est que les deux tech-
+niques sont compl√©mentaires car elles se concentrent sur des propri√©t√©s distinctes des donn√©es
+d‚Äôapprentissage. Nous proposons donc √©galement dans cet article deux manieres diff√©rentes de
+les combiner, en fonction du but vis√©. La premiere maniere est orient√©e vers l‚ÄôefÔ¨Åcacit√© : elle vise
+a enrichir un modele CRF a l‚Äôaide d‚Äôinformations extraites des automates. La seconde privil√©gie
+la lisibilit√© : elle propose d‚Äôanalyser1es automates appris par 1G a l‚Äôaide de poids calcul√©s par un
+CRE poids qui seront tous interpr√©tables relativement a cet automate.
+
+L‚Äôarticle suit le plan suivant. Dans la premiere section, nous introduisons la tache de chunking et
+d√©crivons les donn√©es utilis√©es pour nos exp√©riences. La deuxieme section est d√©di√©e a l‚Äôinf√©rence
+grammaticale. Apres un bref √©tat de l‚Äôart, nous d√©taillons la famille des algorithmes k‚ÄîRI (Angluin,
+1982) et donnons les meilleurs r√©sultats exp√©rimentaux qu‚Äôils permettent d‚Äôatteindre pour le
+chunking. Dans la section qui suit, nous appliquons les CRF a la m√©me tache. Comme on pouvait
+s‚Äôy attendre, les CRF donnent de bien meilleurs r√©sultats que ceux obtenus par IG. Dans la
+derniere section, nous d√©crivons et √©valuons deux manieres de combiner automates et CRE Les
+r√©sultats obtenus pour chacune de ces combinaisons sont prometteurs et sugg√©rent des pistes
+originales pour associer modeles symboliques et apprentissage statistique.
+
+2 Chunking: la t√©iche et les donn√©es
+
+Nous d√©crivons ici la tache de chunking par annotation et nous pr√©sentons les donn√©es
+d‚Äôapprentissage que nous avons utilis√©es pour nos exp√©riences. Ces derni√©res reprennent et
+prolongent celles pr√©sent√©es dans (Tellier et al., 2012). Notre but √©tant de construire un chunker
+pour le francais, nous sommes partis du French Tree Bank (Abeill√© et al., 2003).
+
+2. 1 La tache
+
+La tache de chunking, √©galement appel√©e analyse syntaxique de surface, a pour but d‚ÄôidentiÔ¨Åer les
+groupes syntaxiques √©l√©mentaires des phrases. Les chunks sont en effet des se'quences contigiies et
+non‚Äîre‚Äôcursives d‚Äôunite's lexicales lie'es c‚Äòz une unique t√©te forte (Abney, 1991). Chacun est caract√©ris√©
+
+20 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+F F " P ‚ÄòE!
+
+Figure 2: Automate repr√©sent√© ‚Äúa la Unitex‚Äù
+
+0 Un patron unigramme qui observe une √©tiquette POS et l‚Äô√©tiquette BIO pr√©dite par l‚Äôautomate
+a la m√©me position, conjointement avec le label BIO correct. L‚Äô√©tiquette POS correspond a un
+(ou plusieurs) √©tat(s) de l‚Äôautomate. Si les √©tiquettes BIO coincident pour un POS donn√©, cela
+signiÔ¨Åe que l‚Äôautomate a en quelque sorte raison d‚Äô√©tre dans cet √©tat en analysant la donn√©e.
+
+0 Un patron bigramme qui observe un couple d‚Äô√©tiquettes POS successives et le couple
+d‚Äô√©tiquettes BIO pr√©dites par l‚Äôautomate correspondant, associ√© au couple de labels BIO correct.
+Le couple de POS repr√©sente une (ou plusieurs) transiu'on(s) de l‚Äôautomate. Si les deux couples
+d‚Äô√©tiquettes BIO coincident, cela signiÔ¨Åe que la transition est correctement utilis√©e.
+
+Il est a noter que les mots eux‚Äîm√©mes ne sont pas pris en compte dans ces patrons, aÔ¨Ån de
+pr√©server l‚Äôinterpr√©tation des features relativement a l‚Äôautomate, d‚Äôou les mots sont absents.
+
+La Table 5 est une matrice de confusion qui met en relation les √©tiquettes BIO pr√©dites par un
+automate (EP) et les √©tiquettes BIO correctes (EC), pour une √©tiquette POS donn√©e (ici, l‚Äô√©tiquette
+DET d‚Äôun automate appris). On peut construire autant de tables que d‚Äô√©tiquettes POS pr√©sentes
+dans un chunk NP, chaque case de chaque table correspondant a une feature unigramme. Les
 cases de la Table 5 sont remplies par les poids appris par le CRF pour les features en question, les
-couleurs montrent comment elles s’interprètent relativement à l’automate de départ. Comme
-espéré, les poids sur la diagonale, qui signalent un étiquetage correct, sont plus grands que
-ceux en dehors, qui désignent une erreur d’étiquetage. Les features bigrammes sont un peu plus
-compliquées mais il est également possible d’en tirer des matrices de confusion interprétables.
-EP \EC B I O
-B 1.66 -4.05 -0.84
-I -0.44 0.46 -2.51
-O N/A N/A N/A
-vert : les deux sorties sont identiques.
-rouge : début prématuré de chunk.
-jaune : début de chunk manqué.
-bleu : continuation intempestive de chunk.
-cyan : arrêt prématuré de chunk.
-Table 5: Une matrice de confusion colorée pour l’étiquette DET (2-RI, tableau 1)
-De manière générale, le poids associé à une feature d’un CRF représente son pouvoir discriminant.
-Ces poids sont donc bien plus pertinents que de simples comptes d’occurences sur le nombre de
-fois qu’une feature a été satisfaite ou pas dans les données d’apprentissage. Les poids sur les
-diagonales peuvent ainsi être vus comme évaluant la qualité des états / transitions de l’automate,
-alors que les poids dans les autres cases correspondent aux gains obtenus en prenant une décision
-d’étiquetage non préconisée par l’automate. L’ensemble des matrices de confusion offre donc une
-mesure extrêmement fine et précise de la qualité de l’automate.
-Le tableau 6 rappelle le meilleur résultat obtenu par IG “pure” sur le chunking NP de la section
-3.3 et donne les résultats des CRF construits comme précédemment sur le meilleur automate
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-29 c? ATALA
-Expérience baseline (IG seule) 0-RI 1-RI 2-RI
+couleurs montrent comment elles s‚Äôinterpr√©tent relativement a l‚Äôautomate de d√©part. Comme
+esp√©r√©, les poids sur la diagonale, qui signalent un √©tiquetage correct, sont plus grands que
+ceux en dehors, qui d√©signent une erreur d‚Äô√©tiquetage. Les features bigrammes sont un peu plus
+compliqu√©es mais il est √©galement possible d‚Äôen tirer des matrices de confusion interpr√©tables.
+
+les deux sorties sont identiques.
+d√©but pr√©matur√© de chunk.
+
+I =
+
+I =
+
+‚Äò : d√©but de chunk manqu√©.
+I =
+
+I =
+
+continuation intempestive de chunk.
+arr√©t pr√©matur√© de chunk.
+
+ 
+
+Table 5: Une matrice de confusion color√©e pour l‚Äô√©tiquette DET (2‚ÄîRI, tableau 1)
+
+De maniere g√©n√©rale, le poids associ√© a une feature d‚Äôun CRF repr√©sente son pouvoir discriminant.
+Ces poids sont donc bien plus pertinents que de simples comptes d‚Äôoccurences sur le nombre de
+fois qu‚Äôune feature a √©t√© satisfaite ou pas dans les donn√©es d‚Äôapprentissage. Les poids sur les
+diagonales peuvent ainsi √©tre vus comme √©valuant la qualit√© des √©tats / transitions de l‚Äôautomate,
+alors que les poids dans les autres cases correspondent aux gains obtenus en prenant une d√©cision
+d‚Äô√©tiquetage non pr√©conis√©e par l‚Äôautomate. L‚Äôensemble des matrices de confusion offre donc une
+mesure extr√©mement Ô¨Åne et pr√©cise de la qualit√© de l‚Äôautomate.
+
+Le tableau 6 rappelle le meilleur r√©sultat obtenu par IG ‚Äúpure‚Äù sur le chunking NP de la section
+3.3 et donne les r√©sultats des CRF construits comme pr√©c√©demment sur le meilleur automate
+
+29 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+Exp√©rience baseline (IG seule) 0‚ÄîRI 1-RI 2‚ÄîRI
 chunk 88.25 93.00 93.07 93.08
-Table 6: Résultats du chunking NP avec les CRF construits sur les automates
-produit par k-RI pour chaque valeur de k. Comme on pouvait s’y attendre, les CRF construits
-sur les automates NP sont meilleurs que les automates NP seuls, mais moins bons qu’un CRF
-exploitant plus d’attributs et de features. Les résultats des matrices de confusion doivent encore
-être examinés en détail. Nous espérons en tirer un diagnostic précis pour analyser où et pourquoi
-les automates prennent de bonnes ou de mauvaises décisions, et les modifier en conséquence. Les
-améliorations observées dans la Table 6 laissent en effet supposer qu’à de nombreuses occasions
-le CRF a eu raison de prendre une décision différente de celle préconisée par l’automate.
+
+Table 6: R√©sultats du chunking NP avec les CRF construits sur les automates
+
+produit par k‚ÄîRI pour chaque valeur de k. Comme on pouvait s‚Äôy attendre, les CRF construits
+sur les automates NP sont meilleurs que les automates NP seuls, mais moins bons qu‚Äôun CRF
+exploitant plus d‚Äôattributs et de features. Les r√©sultats des matrices de confusion doivent encore
+√©tre examin√©s en d√©tail. Nous esp√©rons en tirer un diagnostic pr√©cis pour analyser 011 et pourquoi
+les automates prennent de bonnes ou de mauvaises d√©cisions, et les modiÔ¨Åer en cons√©quence. Les
+am√©liorations observ√©es dans la Table 6 laissent en effet supposer qu‚Äôa de nombreuses occasions
+1e CRF a eu raison de prendre une d√©cision diff√©rente de celle pr√©conis√©e par l‚Äôautomate.
+
 Conclusion et perspectives
-Dans cet article, nous avons appliqué deux méthodes d’apprentissage automatique sur le même
-jeu de données et avons proposé deux façons différentes de les combiner.
-Pour ce qui est de l’apprentissage symbolique seul, il est possible que d’autres algorithmes d’IG
-par présentation positive pourraient donner de meilleurs résultats que les nôtres, comme ceux de
-(Garcia and Vidal, 1990; Denis et al., 2002). Le choix d’une grande valeur de k dans certains cas
-peut être important, mais il s’accompagne d’une plus grande complexité de calculs6.
+
+Dans cet article, nous avons a li u√© deux m√©thodes d‚Äôa rentissa e automati ue sur le m√©me
+PP (1 PP 8 <1
+jeu de donn√©es et avons propos√© deux facons diff√©rentes de les combiner.
+
+Pour ce qui est de l‚Äôapprentissage symbolique seul, il est possible que d‚Äôautres algorithmes d‚ÄôIG
+par pr√©sentation positive pourraient donner de meilleurs r√©sultats que les n6tres, comme ceux de
+(Garcia and Vidal, 1990; Denis et al., 2002). Le choix d‚Äôune grande valeur de k dans certains cas
+peut √©tre important, mais il s‚Äôaccompagne d‚Äôune plus grande complexit√© de calculs5.
+
 Mais la partie la plus originale de notre travail concerne les combinaisons automates/CRF.
-Notons que ces combinaisons peuvent tout autant s’appliquer à des automates écrits à la main,
-généralement plus pertinents d’un point de vue linguistique que ceux obtenus par IG. Nous nous
-sommes concentrés ici sur des automates appris automatiquement pour montrer que, même sans
-ressource ni expertise linguistique, il est possible de combiner modèles symboliques et statistiques.
-L’intuition derrière ce travail est que ces deux types de modèles sont complémentaires, et qu’ils
-peuvent chacun bénéficier de l’autre. Les CRF sont basés sur un grand nombre de configurations
-locales pondérées. Il est théoriquement possible d’utiliser dans un CRF des features portant sur
-l’intégralité de la séquence x mais dans la pratique, cela est rarement fait. L’IG au contraire
-s’applique à un ensemble de séquences globales qu’elle est capable de généraliser. Il a déjà été
-observé que les CRF gagnent à recourir à des features exprimant des propriétés plus générales
-que de simples configurations locales (Pu et al., 2010). Notre pari était que l’IG pouvait fournir
-ce type de généralisation, via le premier mode de combinaison. Les résultats obtenus vont dans
-ce sens. Il est aussi intéressant de constater que les modèles symboliques permettent d’améliorer
-le traitement des cas rares, mal pris en compte par les modèles statistiques.
-Les CRF construits sur des automates restent encore à étudier, notamment pour interpréter et
-exploiter au mieux les matrices de confusion qu’ils produisent. Certaines cases de ces matrices
-sont vides car Wapiti élimine les features non pertinentes de l’ensemble de départ selon un critère
-de pénalité. Il devrait être possible, à l’aide de ces informations, de modifier l’automate sur
-lequel se base le CRF en supprimant ou ajoutant des états ou des transitions pour se conformer
-au diagnostic fourni par une table. Une IG dirigée par des CRF reste encore à définir ! Un autre
-6la complexité algorithmique de k-RI est |?|k|Q|k+3 où |Q| est le nombre d’états du PTA
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-30 c? ATALA
-défi serait l’étude du lien entre les automates associés aux poids calculés par CRF que nous
-définissons et les plus classiques HMM ou automates probabilistes pour lesquels des algorithmes
-d’apprentissage existent déjà (Thollard et al., 2000).
-6 Références
-Abeillé, A., Clément, L., and Toussenel, F. (2003). Building a treebank for french. In Abeillé, A.,
+Notons que ces combinaisons peuvent tout autant s‚Äôapp1iquer a des automates √©crits a la main,
+g√©n√©ralement plus pertinents d‚Äôun point de vue linguistique que ceux obtenus par IG. Nous nous
+sommes concentr√©s ici sur des automates appris automatiquement pour montrer que, m√©me sans
+ressource ni expertise linguistique, il est possible de combiner modeles symboliques et statistiques.
+L‚Äôintuition derriere ce travail est que ces deux types de modeles sont compl√©mentaires, et qu‚Äôils
+peuvent chacun b√©n√©Ô¨Åcier de l‚Äôautre. Les CRF sont bas√©s sur un grand nombre de conÔ¨Ågurations
+locales pond√©r√©es. Il est th√©oriquement possible d‚Äôuti1iser dans un CRF des features portant sur
+l‚Äôint√©gralit√© de la s√©quence x mais dans la pratique, cela est rarement fait. L‚ÄôIG au contraire
+s‚Äôapp1ique a un ensemble de s√©quences globales qu‚Äôelle est capable de g√©n√©raliser. Il a d√©ja √©t√©
+observ√© que les CRF gagnent a recourir a des features exprimant des propri√©t√©s plus g√©n√©rales
+que de simples conÔ¨Ågurations locales (Pu et al., 2010). Notre pari √©tait que 1‚ÄôIG pouvait fournir
+ce type de g√©n√©ralisation, via le premier mode de combinaison. Les r√©sultats obtenus vont dans
+ce sens. Il est aussi int√©ressant de constater que les mod√©les symboliques permettent d‚Äôam√©liorer
+1e traitement des cas rares, mal pris en compte par les modeles statistiques.
+
+Les CRF construits sur des automates restent encore a √©tudier, notamment pour interpr√©ter et
+exploiter au mieux les matrices de confusion qu‚Äôils produisent. Certaines cases de ces matrices
+sont vides car Wapiti √©limine les features non pertinentes de l‚Äôensemble de d√©part selon un critere
+de p√©nalit√©. I1 devrait √©tre possible, a l‚Äôaide de ces informations, de modiÔ¨Åer l‚Äôautomate sur
+lequel se base le CRF en supprimant ou ajoutant des √©tats ou des transitions pour se conformer
+au diagnostic fourni par une table. Une IG dirig√©e par des CRF reste encore a d√©Ô¨Ånir ! Un autre
+
+61a complexit√© algorithmique de k-RI est |ZI|k|Q|k+3 o1‚Äò1 |Q| est le nombre d‚Äô√©tats du PTA
+30 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+d√©Ô¨Å serait l‚Äô√©tude du lien entre les automates associ√©s aux poids calcul√©s par CRF que nous
+d√©finissons et les plus classiques HMM ou automates probabilistes pour lesquels des algorithmes
+d‚Äôapprentissage existent d√©ja (Thollard et al., 2000).
+
+6 R√©f√©rences
+
+Abeill√©, A., Cl√©ment, L., and Toussenel, E (2003). Building a treebank for french. In Abeill√©, A.,
 editor, Treebanks. Kluwer, Dordrecht.
+
 Abney, S. (1991). Parsing by chunks. In Berwick, R., Abney, R., and Tenny, C., editors,
 Principle-based Parsing. Kluwer Academic Publisher.
+
 Angluin, D. (1980). Inductive inference of formal languages from positive data. Information
-and Control, 45(2):117–135.
-Angluin, D. (1982). Inference of reversible languages. Journal of the ACM, 29(3):741–765.
+and Control, 45 (2):1 17-135.
+
+Angluin, D. (1982). Inference of reversible languages. Journal of the ACM, 29(3):741‚Äî765.
+
 Antoine, J.-Y., Mokrane, A., and Friburger, N. (2008). Automatic rich annotation of large corpus
 of conversational transcribed speech: the chunking task of the epac project. In Proceedings of
-LREC’2008.
-Blanc, O., Constant, M., Dister, A., and Watrin, P. (2010). Partial parsing of spontaneous spoken
-french. In Proceedings of LREC’2010.
+LREC‚Äô2008.
+
+Blanc, 0., Constant, M., Dister, A., and Watrin, R (2010). Partial parsing of spontaneous spoken
+french. In Proceedings of LREC‚Äô201 0.
+
 Constant, M. and Tellier, I. (2012). Evaluating the impact of external lexical resources unto a
-crf-based multiword segmenter and part-of-speech tagger. In Proceedings of LREC 2012.
-Constant, M., Tellier, I., Duchier, D., Dupont, Y., Sigogne, A., and Billot, S. (2011). Intégrer
-des connaissances linguistiques dans un CRF : application à l’apprentissage d’un segmenteur-
-étiqueteur du français. In Actes de TALN’11.
-Crabbé, B. and Candito, M. H. (2008). Expériences d’analyse syntaxique statistique du français.
-In Actes de TALN’08.
+crf‚Äîbased multiword segmenter and part‚Äîof‚Äîspeech tagger. In Proceedings of LREC 2012.
+
+Constant, M., Tellier, I., Duchier, D., Dupont, Y., Sigogne, A., and Billot, S. (2011). Int√©grer
+des connaissances linguistiques dans un CRF : application a l‚Äôapprentissage d‚Äôun segmenteur‚Äî
+√©tiqueteur du francais. In Actes de TALN‚Äô1 1.
+
+Crabb√©, B. and Candito, M. H. (2008). Exp√©riences d‚Äôanalyse syntaxique statistique du francais.
+In Actes de TALN‚Äô08.
+
 de la Higuera, C. (2010). Grammatical Inference: Learning Automata and Grammars. CU Press.
-Denis, F., Lemay, A., and Terlutte, A. (2002). Some language classes identifiable in the limit
-from positive data. In ICGI 2002, number 2484 in LNAI, pages 63–76. Springer Verlag.
-Dupont, P., Denis, F., and Esposito, Y. (2005). Links between probabilistic automata and hidden
+
+Denis, F., Lemay, A., and Terlutte, A. (2002). Some language classes identiÔ¨Åable in the limit
+from positive data. In ICGI 2002, number 2484 in LNAI, pages 63-76. Springer Verlag.
+
+Dupont, P, Denis, E, and Esposito, Y. (2005). Links between probabilistic automata and hidden
 markov models: probability distributions, learning models and induction algorithms. Pattern
-Recognition, 38(9):1349–1371.
+Recognition, 38(9):1349‚Äî1371.
+
 Dupont, P., Miclet, L., and Vidal, E. (1994). What is the search space of the regular inference. In
-ICGI’94 - LNCS, volume 862 - Grammatical Inference and Applications, pages 25–37, Heidelberg.
-Finkel, J. R., Kleeman, A., and Manning, C. D. (2008). Efficient, feature-based, conditional
-random field parsing. In Proceedings of ACL’2008, pages 959–967.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-31 c? ATALA
-Garcia, P. and Vidal, E. (1990). Inference of k-testable languages in the strict sense and
-application to syntactic pattern recognition. IEEE TPAMI, 12(9):920–925.
-Gold, E. (1967). Language identification in the limit. Information and Control, 10:447–474.
+ICGI‚Äô94 ‚Äî LNCS, volume 862 - Grammatical Inference and Applications, pages 25-37, Heidelberg.
+
+Finkel, J . R., Kleeman, A., and Manning, C. D. (2008). Efficient, feature‚Äîbased, conditional
+random Ô¨Åeld parsing. In Proceedings of ACI.‚Äô2008, pages 959-967.
+
+31 ¬© ATALA
+
+TALN‚ÄîRECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+Garcia, P. and Vidal, E. (1990). Inference of k‚Äîtestable languages in the strict sense and
+application to syntactic pattern recognition. IEEE TPAMI, 12(9):920-925.
+
+Gold, E. (1967). Language identiÔ¨Åcation in the limit. Information and Control, 10:447-474.
 Kanazawa, M. (1998). Learnable Classes of Categorial Grammars. FoLLI. CLSI Publications.
-Kearns, M. J. and Vazirani, U. V. (1994). An Introduction to Computational Learning Theory. MIT
+
+Kearns, M. J. and Vazirani, U. V (1994). An Introduction to Computational Learning Theory. MIT
 Press.
-Koshiba, T., Mäkinen, E., and Takada, Y. (2000). Inferring pure context-free languages from
-positive data. Acta Cybernetica, 14(3):469–477.
-Lafferty, J., McCallum, A., and Pereira, F. (2001). Conditional random fields: Probabilistic
-models for segmenting and labeling sequence data. In Proceedings of ICML 2001, pages 282–289.
-Lavergne, T., Cappé, O., and Yvon, F. (2010). Practical very large scale CRFs. In Proceedings of
-ACL’2010, pages 504–513. Association for Computational Linguistics.
+
+Koshiba, 'I‚Äò., Makinen, E., and Takada, Y. (2000). Inferring pure context-free languages from
+positive data. Acta Cybernetica, 14(3):469‚Äî477.
+
+Lafferty, J ., McCallum, A., and Pereira, E (2001). Conditional random Ô¨Åelds: Probabilistic
+models for segmenting and labeling sequence data. In Proceedings of ICML 2001, pages 282-289.
+
+Lavergne, 'I‚Äò., Capp√©, 0., and Yvon, E (2010). Practical very large scale CRFs. In Proceedings of
+ACI.‚Äô2010, pages 504-513. Association for Computational Linguistics.
+
 McCallum, A. and Li, W. (2003). Early results for named entity recognition with conditional
-random fields. In Proceedings of CoNLL’2003.
-Paroubek, P., Robba, I., Vilnat, A., and C., A. (2006). Data annotations and measures in easy,
-the evaluation campain for parsers of french. In Proceedings of LREC’2006, pages 315–320.
-Pu, X., Mao, Q., Wu, G., and Yuan, C. (2010). Chinese named entity recognition with the
-improved smoothed conditional random fields. Research in Computing Science, 46:90–103.
+random Ô¨Åelds. In Proceedings of CoNLI.‚Äô2003.
+
+Paroubek, P, Robba, I., Vilnat, A., and C., A. (2006). Data annotations and measures in easy,
+the evaluation campain for parsers of french. In Proceedings of LREC‚Äô2006, pages 315-320.
+
+Pu, X., Mac, Q., Wu, G., and Yuan, C. (2010). Chinese named entity recognition with the
+improved smoothed conditional random Ô¨Åelds. Research in Computing Science, 46:90‚Äî103.
+
 Roark, B. and Saraclar, M. (2004). Discriminative language modeling with conditional random
-fields and the perceptron algorithm. In Proceedings of ACL’2004, pages 47–54.
-Sha, F. and Pereira, F. (2003). Shallow parsing with conditional random fields. In Proceedings of
-HLT-NAACL 2003, pages 213 – 220.
+Ô¨Åelds and the perceptron algorithm. In Proceedings of ACI.‚Äô2004, pages 47-54.
+
+Sha, E and Pereira, E (2003). Shallow parsing with conditional random Ô¨Åelds. In Proceedings of
+HL'T‚ÄîNAACL 2003, pages 213 ‚Äî 220.
+
 Sutton, C. and McCallum, A. (2006). Introduction to Statistical Relational Learning, chapter An
 Introduction to Conditional Random Fields for Relational Learning. MIT Press.
-Tellier, I., Duchier, D., Eshkol, I., Courmet, A., and Martinet, M. (2012). Apprentissage
-automatique d’un chunker pour le français. In Actes de TALN’12, papier court (poster).
-Tellier, I. and Tommasi, M. (2011). Champs Markoviens Conditionnels pour l’extraction
-d’information. In Modèles probabilistes pour l’accès à l’information textuelle. Hermès.
-Thollard, F., Dupont, P., and de la Higuera, C. (2000). Probabilistic DFA inference using
-Kullback-Leibler divergence and minimality. In Proc. of ICML’2000, pages 975–982.
-Tsuruoka, Y., Tsujii, J., and Ananiadou, S. (2009). Fast full parsing by linear-chain conditional
-random fields. In Proceedings of EACL 2009, pages 790–798.
-Valiant, L. G. (1984). A theory of the learnable. Communications of the ACM, 27(11):1134–1142.
-Yokomori, T. (2003). Polynomial-time identification of very simple grammars from positive data.
+
+Tellier, I., Duchier, D., Eshkol, I., Gourmet, A., and Martinet, M. (2012). Apprentissage
+automatique d‚Äôun chunker pour le francais. In Actes de TALN‚Äô12, papier court (poster).
+
+Tellier, I. and Tommasi, M. (2011). Champs Markoviens Conditionnels pour l‚Äôextraction
+d‚Äôinformation. In Modeles probabilistes pour l‚Äôacc√©s a l‚Äôinformation textuelle. Hermes.
+
+Thollard, E, Dupont, P, and de la Higuera, C. (2000). Probabilistic DFA inference using
+Kullback-Leibler divergence and minimality. In Proc. of ICMI.‚Äô2000, pages 975-982.
+
+Tsuruoka, Y., Tsujii, J ., and Ananiadou, S. (2009). Fast full parsing by linear‚Äîchain conditional
+random Ô¨Åelds. In Proceedings of EACL 2009, pages 790-798.
+
+Valiant, L. G. (1984). A theory of the leamable. Communications of the ACM, 27(11):1134-1142.
+
+Yokomori, T. (2003). Polynomial-time identiÔ¨Åcation of very simple grammars from positive data.
 Theoretical Computer Science, 1.
-TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
-32 c? ATALA
+
+32 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+par le type (ou √©tiquette Part‚ÄîOf‚ÄîSpeech (POS)) de sa t√©te. 11 y a ainsi autant de types de chunks
+que de types de t√©tes fortes possibles.
+
+La tache de chunking a fait l‚Äôobjet de de la comp√©tition CoNLL‚Äô20001, dont le corpus
+d‚Äôapprentissage √©tait constitu√© d‚Äôenviron 9 000 phrases issues du Penn Treebank, associ√©es
+a deux niveaux d‚Äôannotion : un niveau POS donn√© par l‚Äô√©tiqueteur Brill et un de chunking. Les
+vainqueurs avaient utilis√© des SVM et des ‚ÄúWeighted Probability Distribution Voting‚Äù. Ce meme
+corpus a aussi servi plus tard a montrer l‚ÄôefÔ¨Åcacit√© des CRF (Sha and Pereira, 2003).
+
+2.2 Les donn√©es
+
+9)
+
+Le French TreeBank (FTB) est un recueil de phrases extraites d‚Äôarticles du journal ‚ÄúLe Monde
+publi√©s entre 1989 et 1993 (Abeill√© et al., 2003). Les phrases ont √©t√© tokenis√©es (en conservant
+certaines unit√©s mu1ti‚Äîmots), lemmatis√©es, √©tiquet√©es et analys√©es syntaxiquement. I1 existe
+plusieurs variantes du FTB, celle que nous avons utilis√©e contenait environ 8 600 arbres XML
+enrichis de fonctions syntaxiques (parfois n√©cessaires pour identiÔ¨Åer certains chunks). Pour le
+POS, nous avons repris les 30 √©tiquettes morpho-syntaxiques d√©Ô¨Ånies dans (Crabb√© and Candito,
+2008), assurant ainsi la continuit√© avec nos pr√©c√©dents travaux (Constant et al., 2011).
+
+Nous consid√©rons 7 types de chunks distincts : AP (Adjectival Phrase), AdP (Adverbial Phrase),
+CONJ (Conjonctions), NP (Noun Phrase), PP (Prepositional Phrase), VP (verbal Phrase) et
+UNKONWN (coquilles ou certains mots √©trangers, eux‚Äîm√©mes √©tiquet√©s UNKNOWN). Les marques
+de ponctuations, sauf exceptions (certains guillemets par exemple) sont hors chunks (√©tiquette
+O comme Out). Nous avons d√©cid√© de modiÔ¨Åer certains choix que nous avions faits dans
+(Tellier et al., 2012). Par exemple, le chunk CONJ contient seulement la conjonction. Le PB en
+revanche, integre toujours le chunk introduit par la pr√©position. Et, a l‚Äôinverse de (Paroubek
+et al., 2006), les adjectifs √©pith√©tes appartiennent toujours au chunk NP contenant le nom qu‚Äôils
+qualiÔ¨Åent, qu‚Äôils soient situe‚Äôs avant ou apres lui. Les chunks AP sont donc assez rares car ils ne
+correspondent qu‚Äôaux adjectifs s√©par√©s d‚Äôun groupe nominal, comme les attributs du sujet ou de
+l‚Äôobjet (les fonctions syntaxiques disponibles dans les arbres XML sont n√©cessaires pour identiÔ¨Åer
+ces derniers). La phrase suivante illustre notre notion de parenth√©sage en chunksz :
+
+(la/DET d√©pr√©ciation/NC)NP (par_rapport_au/P dollar/NC)‚Äú, (a/V √©t√©/VPP limit√©e/VPP)VP
+(¬£1/P 2,5/DET %/NC)‚Äú,
+
+Nous avons extrait du FTB deux corpus distincts, chacun repr√©sentant un chunking diff√©rent :
+
+0 un corpus ou tous les chunks sont extraits et √©tiquet√©s selon le mod√©le BIO (Begin/ In/ Out).
+Les proportions de chaque type de chunk trouv√©es dans le corpus sont les suivantes : PP : 33,86%,
+AdP : 7,23%, VP : 17,11%, AP : 2,21%, NP : 32,95%, CONJ : 6,61%, UNKNOWN : 0,03%.
+
+0 un corpus o1‚Äò1 seuls les NP sont √©tiquet√©s, tout autre groupe √©tant alors consid√©r√© 0. Ce
+corpus n‚Äôest pas un sous‚Äîensemb1e du pr√©c√©dent : par exemple, de nombreux PP incluent un NP
+qui ne devient visible que dans ce deuxieme corpus. L‚Äôexemple pr√©c√©dent devient ainsi :
+(la/DET d√©pr√©ciation/ NC) Np par_rapport_au/ P (dol1ar/ NC) Np a/V √©t√©/VPP limit√©e/VPP a/ P
+(2,5/DET %/NC)Np
+
+1http://wwwcnts.ua.be/conl12000/chunking
+zguide complet disponible sur : http : //www . lattice . cnrs . fr/sites/itellier/guide .htm1
+
+21 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+3 L‚Äôinf√©rence grammaticale
+
+L‚Äôinf√©rence grammaticale (IG) est un domaine de recherche tres riche apparu dans les ann√©es 60
+dont il n‚Äôest, par cons√©quent, pas ais√© de faire un r√©sum√©. Nous nous placons ici dans le cadre
+de l‚ÄôIG d‚Äôautomates par exemples positifs seuls. Apr√©s un bref √©tat de l‚Äôart, nous d√©crivons les
+algorithmes k-RI (Angluin, 1982) utilis√©s dans nos exp√©riences et les r√©sultats obtenus avec eux.
+
+3.1 Bref √©tat de l‚Äôart
+
+L‚ÄôIG √©tudie les diff√©rentes mani√©res d‚Äôapprendre automatiquement un dispositif symbolique
+capable de repr√©senter un langage (comme une grammaire formelle, un automate, etc...) a partir
+d‚Äôun ensemble de s√©quences (parfois enrichies) regroup√©es selon leur (non-)appartenance a ce
+langage (de la Higuera, 2010). Lorsque seules des s√©quences appartenant au langage cible sont
+disponibles, le probleme est appel√© IG par pr√©sentation positive. Nous nous situons dans ce cadre
+car les s√©quences 2 notre disposition ne comportent aucun contre‚Äîexemple. L‚ÄôIG est, dans ce cas,
+notoirement plus difÔ¨Åcile car, sans contre-exemple, on risque la surg√©n√©ralisation. Par exemple, si
+un programme d‚ÄôIG fait l‚Äôhypothese, lors de sa phase d‚Äôapprentissage, que le langage a apprendre
+est le langage universel (Z}*, ou Z} est l‚Äôalphabet du langage), aucun exemple positif n‚Äôest en
+mesure de le contredire, alors meme qu‚Äôil a peut‚Äî√©tre surg√©n√©ralis√©.
+
+La premiere chose que l‚ÄôIG se doit de fournir est une d√©Ô¨Ånition pr√©cise de ce qu‚Äô ‚Äúapprendre
+une langue par exemples positifs‚Äù signiÔ¨Åe pour un programme. Le crit√©re d‚Äôapprenabilit√© est
+th√©orique et formel et non pas empirique. Faisons le parall√©le avec l‚Äôacquisition du langage
+chez les enfants. Un enfant n‚Äôest pas ‚Äúprogramm√©‚Äù pour une langue pr√©cise, il est capable
+d‚Äôacqu√©rir n‚Äôimporte laquelle parl√©e dans son environnement. De m√©me, un programme d‚ÄôIG par
+pr√©sentation positive doit √©tre en mesure d‚Äôapprendre une classe de langages formels, c‚Äôest‚Äîa‚Äîdire
+d‚ÄôidentiÔ¨Åer n‚Äôimporte lequel de ses membres a l‚Äôaide d‚Äôexemples de s√©quences (phrases) lui
+appartenant. Les principaux criteres possibles qui caract√©risent la notion d‚Äù‚Äôapprenabilit√© d‚Äôune
+classe de langages‚Äù en IG (aussi appel√©s modeles d‚Äôapprentissage) sont ‚Äúl‚ÄôidentiÔ¨Åcation a la limite‚Äù
+(Gold, 1967) et ‚Äú1‚Äôapprentissage PAC‚Äù (Valiant, 1984), que nous ne pouvons d√©tailler ici.
+
+Malheureusement, m√©me pour la classe des langages r√©guliers, la plus simple dans la hi√©rarchie
+de Chomsky, ces crit√©res sont impossibles a satisfaire : il n‚Äôexiste aucun algorithme capable
+d‚Äôapprendre par pr√©sentation positive la classe complete des langages r√©guliers dans ces modeles
+(Gold, 1967; Keams and Vazirani, 1994). Les recherches se sont donc orient√©es vers des classes
+plus petites, ou transverses a la hi√©rarchie de Chomsky, et apprenables, caract√©ris√©es notamment
+dans (Angluin, 1980). Les classes de langages k‚Äîr√©versibles (Angluin, 1982) entrent dans ce
+cadre, elles constituent le point de d√©part de nos exp√©riences. Depuis, bien d‚Äôautres classes
+apprenables par pr√©sentation positive ont √©t√© d√©crites et √©tudi√©es (Garcia and Vidal, 1990; Denis
+et al., 2002; Kanazawa, 1998; Koshiba et al., 2000; Yokomori, 2003). Des avanc√©es r√©centes
+dans le domaine concement aussi l‚Äôapprenabilit√© de dispositifs int√©grant des probabilit√©s, comme
+les automates probabilistes et leurs liens avec les HHM (Thollard et al., 2000; Dupont et al.,
+2005). Parallelement, des comp√©titions 3 ont permis de tester l‚ÄôefÔ¨Åcacit√© des algorithmes propos√©s
+lorsqu‚Äôi1s sont confront√©s a des donn√©es r√©elles.
+
+3les plus r√©cents √©tant Stamina (http : //stamina . chefbe . net) et Zulu (http : //1abh‚Äî curien .
+univ‚Äî st‚Äî etienne . fr/zulu)
+
+22 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+3.2 L‚Äôalgorithme k-RI
+
+Dans cette section, nous d√©crivons les algorithmes d‚ÄôIG par pr√©sentation positive utilis√©s dans
+nos exp√©riences. Ils sont destin√©s a apprendre un automate pour un type sp√©ciÔ¨Åque de chunk, a
+partir uniquement des diff√©rentes s√©quences de POS aparaissant dans ce type de chunks dans
+les donn√©es d‚Äôapprentissage. Les algorithmes d‚ÄôIG par exemples positifs semblent adapt√©s a ce
+probleme en raison du vocabulaire restreint mis en jeu (au maximum les 30 √©tiquettes POS) et
+de la relativement faible variabilit√© des s√©quences de POS pouvant d√©crire un m√©me chunk.
+
+L‚Äôalgorithme k‚ÄîReversib1e Inference (k-RI) (Angluin, 1982) a la propri√©t√© d‚ÄôidentiÔ¨Åer a la limite
+tout langage k‚Äîr√©versib1e, pour tout k E N fix√©. Les langages k‚Äîr√©versib1es sont r√©guliers, ils sont
+donc repr√©sentables par des automates Ô¨Ånis. Un automate Ô¨Åni d√©Ô¨Ånit un langage k‚Äîr√©versible
+s‚Äôi1 est d√©terministe et si son miroir 4 est d√©terministe avec anticipation k. Pour k = 0, les
+langages 0‚Äîr√©versibles peuvent √©tre repr√©sent√©s par un automate d√©terministe dont 1e miroir1‚Äôest
+√©galement, l‚Äôalgorithme correspondant √©tant appel√© Z√©ro R√©versible (ZR). Si kl < k2, la classe
+des langages k1‚Äîr√©versib1es est strictement incluse dans celle des langages k2‚Äîr√©versibles.
+
+Soit un ensemble de s√©quences positives S, la premiere √©tape de k‚ÄîRI est de construire P'I‚ÄòA(S),
+le PreÔ¨Åx Tree Acceptor de S. PTA(S) est le plus petit (en nombre d‚Äô√©tats) AFD (Automate Fini
+D√©terministe) en forme d‚Äôarbre reconnaissant exactement le langage S. La racine de PTA(S)
+est son √©tat initial. L‚Äôespace de recherche de tout algorithme d‚ÄôIG partant de S est un trelli
+dont la borne inf√©rieure est PTA(S) et la borne sup√©rieure l‚Äôautomate universel construit sur
+l‚Äôalphabet observ√© dans S (Dupont et al., 1994). La plupart des algorithmes d‚ÄôIG suivent le
+meme sch√©ma : ils partent de P'I‚ÄòA(S) pour ensuite g√©n√©raliser le langage d√©Ô¨Åni par fusions
+d‚Äô√©tats, la connaissance de k permettant d‚Äô√©viter la surg√©n√©ralisation. k‚ÄîRI, d√©taill√© ci‚Äîdessous,
+fonctionne selon ce principe. La fusion qu‚Äôil emploie est appel√©e d√©terministe car elle se propage
+r√©cursivement a travers l‚Äôautomate pour pr√©server son d√©terminisme.
+
+Algorithme k-RI
+Entr√©e :S : un ensemble de s√©quences (positives), k : un entier naturel ;
+Sortie : A : un automate k-r√©versible ;
+d√©but
+A := PTA(S);
+tant que non (A k‚Äîr√©versib1e) faire
+// soient N1 et N2 deux noeuds emp√©chant la k‚Äîre‚Äôversibilite‚Äô de A.
+Fusion_D√©terministe(A, N1, N2);
+fin tant que;
+renvoyer A;
+Ô¨Ån k‚ÄîRI;
+
+Dans la Ô¨Ågure 1, nous illustrons le comportement de ZR (k-RI pour k = 0) sur les s√©quences de
+POS suivantes : S = {DE T NC, DE T ADJ NC}. Sur cet exemple tres simple, nous voyons que
+ZR g√©n√©ralise PTA(S) pour obtenir un automate reconnaissant 1e langage d√©Ô¨Åni par l‚Äôexpression
+r√©guliere : DE T ADJ * NC. Cette g√©n√©ralisation est sens√©e d‚Äôun point de vue linguistique. Mais
+si on ajoute aux exemples pr√©c√©dents la simple s√©quence NC, alors ZR mene a un automate
+reconnaissant le langage {DE T|ADJ }*N C, ce qui est une g√©n√©ralisation plus discutable.
+
+4l‚Äôautomate miroir est obtenu en transformant les √©tats initiaux de l‚Äôautomate de d√©part en √©tats Ô¨Ånaux, ses √©tats
+
+Ô¨Ånaux en initiaux, et en retournant le sens de ses transitions
+
+23 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+. . NC . .,_
+‚Äî"D1‚Äò*]‚ÄôC DET  No
+my
+
+√©tape 1 : PTA(S) √©tape 1 : miroir de PTA(S)
+
+ADJ
+ADJ
+
+¬Æ BET
+emoÔ¨Å No a No
+√©tape 2 : les √©tats Ô¨Ånaux de PTA(S) sont fusionn√©s √©tape 3 : ql et qz sont fusionn√©s
+(sinon le miroir n‚Äôest pas d√©terministe) (sinon le miroir n‚Äôest pas d√©terministe)
+
+Figure 1: D√©monstration pas‚Äîa‚Äîpas de ZR
+
+3.3 R√©sultats des exp√©riences d‚ÄôIG sur le chunking NP
+
+Nous avons appliqu√© k‚ÄîRI pour diff√©rentes valeurs de k (k = 0, k = 1, k = 2) sur les s√©quences
+d‚Äô√©tiquettes POS correspondant a un m√©me chunk. Les annotations BIO sont obtenues en utilisant
+les automates appris comme des expressions r√©guli√©res selon un parcours s√©quentiel de la phrase.
+Nous avons cherch√© a reconaitre soit les s√©quences les plus longues ("Longest Match", LM) soit
+les s√©quences les plus courtes ("Shortest Match", SM). L‚Äô√©tiquetage en NP seuls est la tache pour
+laquelle l‚ÄôIG est la plus appropri√©e. Il est aussi √©videmment possible d‚Äôapprendre un automate
+distinct pour chaque type de chunk. Mais l‚Äôapplication de plusieurs automates distincts sur une
+nouvelle donn√©e pose des probl√©mes de recouvrements de fronti√©res. Nous n‚Äôut1'liserons donc ces
+automates que dans le cadre d‚Äôune combinaison avec un modele statistique, en section 5.
+
+k‚ÄîRI est connu pour √©tre tr√©s sensible aux donn√©es d‚Äôentr√©e : une seule s√©quence incorrecte peut
+mener a de multiples fusions d‚Äô√©tats, et done a une surg√©n√©ralisation. C‚Äôest le cas pour notre jeu
+de donn√©es issues du FI‚ÄòB, d‚Äôo1‚Äò1 les cas aberrants et les erreurs d‚Äô√©tiquetage ne sont pas absents.
+Quelques mauvais exemples √©taient cependant faciles a d√©tecter : par exemple, des s√©quences
+d‚Äô√©tiquettes POS ne contenant aucune t√©te nominale possible peuvent √©tre retir√©es sans risque.
+Nous avons envisag√© diverses autres facons de nettoyer les donn√©es. Un nettoyage retirant toutes
+les s√©quences apparaissant moins d‚Äôune certaine proportion Ô¨Åx√©e s‚Äôest r√©v√©l√© le plus efÔ¨Åcace.
+Cette strat√©gie entraine n√©anmoins la suppression de s√©quences utiles, en raison de la faible
+proportion de certaines t√©tes (clitiques notamment).
+
+Nos exp√©riences ont √©t√© r√©alis√©es selon un protocole de validation crois√©e partitionant les donn√©es
+en cinq (4/5 pour l‚Äôapprentissage d‚Äôun automate, 1/5 pour le test). L‚Äô√©galit√© requise sur les
+chunks est stricte, c‚Äôest‚Äîa‚Äîdire que pour √©tre √©gaux, ils doivent partager exactement les m√©me
+fronti√©res. Les pr√©cision, rappel et F‚Äîmesure des chunks NP sont calcul√©s sans prendre en compte
+les √©tiquettes 0. Le tableau 1 contient diverses F1‚Äîmesures obtenues par inf√©rence grammaticale
+sur les chunks NP seuls, en appliquant sur les donn√©es de test une strat√©gie de correspondance LM.
+Les versions dites nettoy√©es ont √©t√© obtenues en supprimant toute s√©quence de POS apparaissant
+strictement moins de 0.01%. Les valeurs entre parentheses sont les nombres moyens d‚Äô√©tats des
+
+24 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+xp PTA pur PTA net. 0-RI net. (1) 1-RI net. (19) 2-RI net. (68.6)
+F-mes. 51.92 88.05 26.95 72.74 88.25
+
+Table 1: R√©sultats de l‚ÄôIG pour le chunking NP
+
+5 automates calcul√©s pendant la phase d‚Äôapprentissage. Les versions PTA, dont les performances
+ne sont pas n√©gligeables, peuvent √©tre vues comme un apprentissage ‚Äúpar coeur‚Äù, puisqu‚Äôils n‚Äôont
+donn√© lieu a aucune g√©n√©ralisation. Les automates de taille 1 correspondent a ceux reconnaissant
+le langage universel des √©tiquettes POS pr√©sentes au moins une fois dans un chunk NP. Il faut
+atteindre k = 2 pour obtenir un automate meilleur que le PTA sur des donn√©es nettoy√©es.
+
+4 Apprentissage statistique pour 1‚Äôannotation
+
+Dans cette section, nous nous concentrons sur la meilleure approche statistique actuelle pour
+une t√©iche d‚Äôannotation : les Conditional Random Fields (CRF), qui se comportent tr√©s bien
+sur notre probl√©me (Tellier et al., 2012). Nous rappelons aussi comment un HMM peut √©tre
+‚Äútransform√©‚Äù en un CRE parce que cette transformation sera une source d‚Äôinspiration pour une
+des combinaisons pr√©sent√©es par la suite.
+
+4.1 Conditional Random Fields et HMMs
+
+Les CRE introduits par (Lafferty et al., 2001) sont de la famille des modeles graphiques. Lorsque
+que le graphe exprimant les d√©pendances entre √©tiquettes est lin√©aire (ce qui est g√©n√©ralement le
+cas pour √©tiqueter des s√©quences), la distribution de probabilit√© d‚Äôune s√©quence d‚Äôannotations y
+connaissant une s√©quence observable x est d√©Ô¨Ånie par :
+
+p(y|x) = % 1T[eXP(glkfk(t:}':s.}'t‚Äî1:x))
+
+Ou Z (x) est un facteur de normalisation d√©pendant de x et les K features (ou fonctions
+caract√©ristiques) fk des fonctions fournies par l‚Äôutilisateur. Une feature fk est v√©riÔ¨Å√©e (i.e.
+fk(t, _y,,_y,_1,x) = 1) si, a la position courante t, une conÔ¨Åguration entre x, y, et _y,_1 est
+observ√©e (elle vaut 0 sinon). A chaque feature fk est associ√© un poids lk. Ces poids constituent
+les param√©tres du modele devant √©tre estim√©s au cours de l‚Äôapprentissage. Pour d√©finir un grand
+nombre de features, les programmes impl√©mentant les CRF permettent d‚Äôavoir recours a des
+patrons (ou templates) qui seront instanci√©s en autant de features qu‚Äôil y a de positions sur les
+donn√©es d‚Äôentrainement ou ils peuvent s‚Äôappliquer. L‚Äôimpl√©mentation la plus efÔ¨Åcace a l‚Äôheure
+actuelle des CRF lin√©aires est fournie par Wapiu'5, qui utilise des p√©nalisations pour s√©lectionner
+les features les plus pertinentes (Lavergne et al., 2010). C‚Äôest le logiciel que nous avons utilis√©.
+
+Les CRF se sont montr√©s efÔ¨Åcaces sur de nombreuses taches d‚Äôannotation, notamment l‚Äô√©u'quetage
+POS (Lafferty et al., 2001), la reconnaissance d‚Äôentit√©s nomm√©es (McCallum and Li, 2003), le
+chunking (Sha and Pereira, 2003) et m√©me le parsing complet (Finkel et al., 2008; Tsuruoka
+
+5http : //wapiti . limsi . fr/
+25 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+A chunking Complet NP seuls
+Ô¨Çute Ugflggm F[‚Äò_"2‚Äú"1‚Äò]" micro 97.53 N/A
+POS Bigiam [ 2"1] macro 90.49 N/A
+_ " F1-mesure N/A 96.43
+
+Table 2: Le patron de template et les r√©sultats obtenus avec les CRF seuls pour chaque tache
+
+et al., 2009). Leur principal inconv√©nient est qu‚Äôils apparaissent comme des ‚Äúboites noires‚Äù. Un
+modele issu d‚Äôun apprentissage par CRF est simplement une liste de features pond√©r√©es pouvant
+avoir plusieurs millions d‚Äô√©l√©ments, ce qui le rend difÔ¨Åcile a interpr√©ter.
+
+Les HMM, qui √©taient parmi les meilleures m√©thodes d‚Äôannotation statistique avant que les CRF
+n‚Äôapparaissent, pr√©sentent quant a eux l‚Äôavantage d‚Äô√©tre plus interpr√©tables. Cependant, tout
+HMM peut √©tre ‚Äútransform√©‚Äù en un CRF d√©Ô¨Ånissant la m√©me distribution de probabilit√© (Sutton
+and McCallum, 2006; Tellier and Tommasi, 2011). Pour ce faire, pour un HMM donn√©, nous
+devons d√©Ô¨Ånir deux familles de features :
+
+0 les features de la forme f (yr, xr) associant une seule √©tiquette yr avec une seule entIe‚Äôe de
+meme position xr : elles valent 1 quand l‚Äô√©tats yr du HMM √©met xr ;
+
+0 les features de la forme f (yr_1, yr) qui associent deux √©tats yr_1 et yr du HMM ; elles valent
+1 quand la transition entre ces deux √©tats est utilis√©e.
+
+Si 9 est une probabilit√© d‚Äô√©mission ou de transition du HMM, alors on choisit A = log(6) comme
+poids pour la feature correspondant dans le CRE Le calcul de p(y|x) s‚Äô√©crira alors exactement de
+la m√©me facon dans les deux cas. Un HMM peut ainsi √©tre vu comme un cas particulier de CRF.
+Mais les CRF sont plus g√©n√©raux car ils permettent d‚Äôavoir recours a d‚Äôautres features que celles
+utilis√©es dans la transformation. Cette correspondance nous a inspir√©s pour exploiter les CRF
+afin de diagnostiquer les automates appris par IG. Cette id√©e sera √©tudi√©e dans la section 5. Mais
+auparavant, nous pr√©sentons les r√©sultats obtenus avec les CRF seuls sur nos donn√©es.
+
+4.2 R√©sultats des exp√©riences
+
+Les tableaux 2 montrent les patrons de features utilis√©s ainsi que les r√©sultats obtenus avec
+les CRF seuls sur les deux taches de chunking. Pour ces exp√©riences, comme en section 3.3,
+nous avons suivi un protocole de validation crois√©e a 5 plis et un crit√©re d‚Äô√©galit√© stricte des
+chunks. Pour la tache de chunking complet, nous avons calcul√© les micro et macro‚Äîaverage,
+qui correspondent aux moyennes des F1‚Äîmesures des diff√©rents types de chunks, pond√©r√©es
+(micro) ou pas (macro) par leur proportion. Comme attendu, les CRF seuls sont tr√©s performants.
+Remarquons toutefois qu‚Äôils exploitent dans leurs features a la fois des mots et des √©tiquettes
+POS pr√©sents dans les donn√©es, alors que les algorithmes d‚ÄôIG n‚Äôont acces qu‚Äôaux seuls POS.
+
+On peut comparer ces r√©sultats avec ceux obtenus lors de la campagne PASSAGE (Paroubek
+et al., 2006), m√©me si les notions de chunks adopt√©es de part et d‚Äôautre different (dans PASSAGE,
+les adjectifs √©pith√©tes situ√©s apr√©s un nom ne font pas partie du chunk nomimal, par exemple)
+et si les corpus ne sont pas les m√©mes. Les meilleurs participants de la campagne PASSAGE
+atteignaient une micro‚Äîaverage de 92,7, ce qui situe tout de m√©me la performance de nos CRE
+
+26 ¬© ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+mot POS auto. NP auto. VP auto. PP  label correct | auto. NP NP-label correct
+la DET B O O B-NP B B
+d√©pr√©ciation NC I O O I-NP I I
+par_rapport_au P O O B B-PP O 0
+dollar NC B O I I-1‚Äô? B B
+a V O B O B-VP O O
+√©t√© VPP O I O I-VP O O
+limit√©e VPP O I O I-VP O O
+51 P O O B B-PP O 0
+2,5 DET B O I I-1‚Äô? B B
+% NC I O I I-1‚Äô? I I
+
+Table 3: Donn√©es enrichies par des sorties d‚Äôautomates sp√©ciÔ¨Åques pour chaque chunk
+
+5 Combinaisons
+
+Dans les sections pr√©c√©dentes, nous avons appliqu√© a la tache de chunking une approche soit
+purement symbolique soit purement statistique. Dans cette section, nous allons combiner les
+deux approches, cette combinaison pouvant s‚Äôenvisager selon deux axes distincts :
+
+0 Soit le but est la seule performance, auquel cas il faut privil√©gier l‚Äôapprentissage statistique.
+Cependant, les automates obtenus par IG offrent une vision globale (et non locale, comme c‚Äôest
+le cas dans les features) des relations entre les √©tiquettes POS d‚Äôun m√©me chunk qui pourrait
+s‚Äôav√©rer uu'le dans un CRE Nous pouvons donc chercher a int√©grer les r√©sultats de l‚Äôapprentissage
+symbolique en tant que ressource externe de l‚Äôapprentissage statistique.
+
+0 Soit nos Ô¨Åns sont plus en rapport avec la lisibilit√©, auquel cas nous favoriserons les automates
+produits par IG. Or, comme √©voqu√© en 4.1, il est tout a fait possible de simuler la structure d‚Äôun
+HMM (et, similairement, d‚Äôun automate) avec les features d‚Äôun CRE On pourrait donc √©valuer la
+qualit√© des √©tats et des transitions d‚Äôun automate en fonction des poids associ√©s aux features qui
+les repr√©sentent dans un CRE offrant ainsi par la meme occasion un moyen de l‚Äôam√©liorer.
+
+5.]. Les automates en tant que ressource externe
+
+Nous nous attaquons ici aux deux types de chunking. Le premier mode de combinaison envisag√©
+consiste a enrichir les donn√©es du CRF avec des attributs provenant de la ressource externe, a
+la fagon de (Constant and Tellier, 2012). Dans le cas du chunking complet, nous appliquons
+l‚ÄôIG a chaque type de chunk distinct, produisant ainsi autant d‚Äôautomates qu‚Äôil y a de types de
+chunks selon un protocole de validation crois√©e a 5 plis (les PTA dans ces exp√©riences sont donc
+uniquement extraits des corpus d‚Äôapprentissage). Chacun des automates de chunk fournit un
+√©tiquetage BIO ind√©pendant, comme dans le tableau 3 (les automates sont ici suppos√©s fournir
+un √©tiquetage parfait). 11 y a done dans nos donn√©es autant d‚Äôattributs nouveaux que de chunks.
+
+Les tableaux de gauche dans les tables 4 donnent les patrons aboutissant aux meilleurs r√©sultats
+(micro resp. macro‚Äîaverage resp. F‚Äîmesure) pour le chunking complet ou le chunking NP.
+La ligne "Automate" prend en compte la sortie de chaque automate ind√©pendamment alors
+que "POS+Automates" repr√©sente la concat√©nation des colonnes POS et des sorties de tous les
+automates. Les r√©sultats correspondants sont donn√©s dans les tableaux de droite. Ils montrent
+que les attributs provenant des automates perrnettent d‚Äôam√©liorer signiÔ¨Åcativement les r√©sultats
+des CRE C‚Äôest particulierement vrai pour la macro-average, qui donne un poids √©quivalent a la
+
+27 ¬© ATALA
+
+TALN‚ÄîRECITAL 2013, 17-21 Iuin, Les Sables d‚ÄôOlonne
+
+F1‚Äîmesure de chaque type de chunk. Les informations issues des automates am√©liorent donc
+surtout les performances de reconnaissance des chunks rares. Dans l‚Äôexp√©rience permettant
+d‚Äôobtenir la meilleure macro, les trois am√©liorations les plus signiÔ¨Åcatives en terme de F‚Äîmesure
+sont : UNKNOWN (de 41.67 a 61.22), AP (de 96.78 a 97.44) et AdP (de 98.72 a 98.92).
+
+Feature Type Fenetre Emesure put 1_RI LM
+Mot Unigram [-2..1] .
+. micro 97.66
+Automate Bigram [-2. . 1] macro 92 22
+POS Bigram [-2..1] '
+Feature Type Fen√©tre
+Mot Unigram [‚Äî2..1] F‚Äîmesure pur 1‚ÄîRI SM
+Automate Unigram [-1..1] micro 97. 62
+POS Bigram [‚Äî2..1] macro 93.52
+POS+Automates Bigram [-1 ..1]
+Feature Type Fen√©tre
+Mot Unigram [-2..1] put 2_RI LM
+POS Blgram [_2"1] F‚Äîmeasure 96 75
+Automate Bigram [- 1 . . 1] '
+POS+Automate Bigram [‚Äî1..1]
+
+Table 4: Patrons et meilleure micro‚Äîaverage (resp. macro‚Äîaverage) pour le chunking complet,
+idem pour la F‚Äîmesure du chunking NP seul
+
+5.2 Diagnostiquer un automate ¬£1 l‚Äôaide d‚Äôun CRF
+
+Nous voulons ici obtenir des informations sur l‚Äôautomate produit par IG a l‚Äôaide des CRE en
+faisant un apprentissage n‚Äôutilisant que des features interpr√©tables relativement a lui. Les poids
+associ√©s par le CRF a ces features fourniront un diagnostic Ô¨Ån de l‚Äôautomate. Cette id√©e se
+rapproche de (Roark and Saraclar, 2004), ou un CRF √©tait appris selon la structure d‚Äôun automate
+pond√©r√© pour le ‚Äúcorriger‚Äù grace a l‚Äôestimation des poids. Elle en differe toutefois car nous
+ne cherchons pas a obtenir un automate pond√©r√© mais a trouver d‚Äô√©ventuelles modiÔ¨Åcations
+a effectuer sur l‚Äôautomate selon le diagnostic fourni par le CRE tout en pr√©servant sa nature
+purement symbolique. Pour illustrer cette approche, nous nous concentrons sur la tache de
+chunking NP seul car elle ne n√©cessite la prise en compte que d‚Äôun seul automate. I1 peut √©tre plus
+facile pour comprendre la suite de se repr√©senter les automates Ô¨Ånis d√©terministes (AFD) ‚Äúa la
+Unitex‚Äù (http://www-igm.univ-mlv.fr/ unitex/). Ainsi, le r√©sultat de l‚Äôalgorithme ZR sur la Ô¨Ågure
+1 (l‚Äôautomate Ô¨Ånal, en bas a droite) est identique a celui de la Ô¨Ågure 2. Cette repr√©sentation a
+l‚Äôavantage de montrer les √©tiquettes POS et les transitions entre deux √©tiquettes POS comme deux
+objets diff√©rents. Pour construire un CRF a partir d‚Äôun tel automate, nous consid√©rons surtout les
+sorties en termes d‚Äô√©tiquetage BIO que cet automate produit (partie droite de la Table 3).
+
+Nous inspirant de la relation entre les HMM et les CRF √©voqu√©e en section 4.1, nous d√©Ô¨Ånissons
+des patrons de features qui peuvent s‚Äôinterpr√©ter relativement a l‚Äôautomate :
+
+28 ¬© ATALA
+
