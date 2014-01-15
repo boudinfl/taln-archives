@@ -1,6 +1,7 @@
 # taln-archives
 
 Mises à jour
+ - 15 janvier 2014, corrections de méta-données
  - 8 janvier 2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
    ajout des noms des sessions dans TALN 2009.
  - 26 juillet 2013, ajout des fichiers textes, extraits à partir du contenu des
@@ -58,3 +59,4 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
 
 Remerciements
  - Thierry Hamon
+ - Gil Francopoulo
