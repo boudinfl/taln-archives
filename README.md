@@ -1,6 +1,8 @@
 # taln-archives
 
 Mises à jour
+ - 21 janvier, ajout de méta-données pour TALN et RECITAL 2005 (résumé, mots 
+   clés) et modification des pdfs
  - 15 janvier 2014, corrections de méta-données
  - 8 janvier 2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
    ajout des noms des sessions dans TALN 2009.
@@ -59,4 +61,5 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
 
 Remerciements
  - Thierry Hamon
+ - Patrick Paroubek
  - Gil Francopoulo
