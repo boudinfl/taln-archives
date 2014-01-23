@@ -11,12 +11,15 @@ import shutil
 import xml_parser as parser
 
 from mako.template import Template
-confTemplate = Template(filename='templates/conference.mako_template')
-mainTemplate = Template(filename='templates/main.mako_template')
-rechTemplate = Template(filename='templates/recherche.mako_template')
+editionTemplate = Template(filename='templates/edition.html')
+indexTemplate = Template(filename='templates/index.html')
+paperTemplate = Template(filename='templates/article.html')
+rechTemplate = Template(filename='templates/recherche.html')
+confTemplate = Template(filename='templates/conference.html')
 
 root = '../'
 paths = ['TALN/', 'RECITAL/']
+# paths = ['TALN/']
 output = "../www/"
 conferences = {}
 nb_papers = 0
@@ -55,37 +58,49 @@ for path in paths:
         if not os.path.exists(rep_edition):
             os.makedirs(rep_edition)
 
-        # fichier html de la conférence
-        fichier_html = rep_edition + '/index.html'
+        # rep_edition = root + path + edition + "/"
 
+        # Création du nom du fichier html de la conférence
+        fichier_html = rep_edition + 'index.html'
+
+        # Parsing du fichier xml de la conférence
         current_conf = parser.content_handler(fichier)
 
+        # Récupération de l'année de la conférence à partir de la date de début
         annee = re.sub('^(\d{4})-.+$', '\g<1>', current_conf.meta['dateDebut'])
-        lien = path + edition + '/index.html'
-        chemin_actes = path + edition + '/actes/'
-        chemin_bibtex = path + edition + '/bibtex/'
 
+        # Ajout de la conférence (eg TALN pour TALN'2010) dans les meta
+        current_conf.meta['conference'] = re.sub('\'?(\d{4})$', '', \
+                                             current_conf.meta['acronyme'])
+
+        ########################################################################
         # Copie des fichiers d'actes
         src_dir = root + path + edition +'/actes/'
-        dst_dir = output + chemin_actes
-        if os.path.exists(dst_dir):
-            shutil.rmtree(dst_dir)
-        shutil.copytree(src_dir, dst_dir)
+        for fichier_pdf in os.listdir(src_dir):
+            if re.search('\.pdf$', fichier_pdf):
+                shutil.copy(src_dir+fichier_pdf, rep_edition+fichier_pdf)
 
+        ########################################################################
         # Copie des fichiers bibtex
         src_dir = root + path + edition +'/bibtex/'
-        dst_dir = output + chemin_bibtex
-        if os.path.exists(dst_dir):
-            shutil.rmtree(dst_dir)
-        shutil.copytree(src_dir, dst_dir)
+        for fichier_bibtex in os.listdir(src_dir):
+            if re.search('\.bib$', fichier_bibtex):
+                shutil.copy(src_dir+fichier_bibtex, rep_edition+fichier_bibtex)
 
-        conferences[conference].append((annee, lien))
 
+        # Ajout de la conférence au conteneur des différentes conférences pour
+        # les liens de la page d'acceuil    
+        conferences[conference].append((annee, path+edition+'/index.html'))
+
+        ########################################################################
+        # Création du fichier html de la page principale
+        ########################################################################
         handle = codecs.open(fichier_html, 'w', 'utf-8')
-        handle.write(confTemplate.render(meta=current_conf.meta, \
+        handle.write(editionTemplate.render(meta=current_conf.meta, \
             articles=current_conf.articles))
         handle.close()
 
+        # Comptage du nombre de papiers dans TALN Archives
         nb_papers += len(current_conf.articles)
 
         # Extraction des mots clés et des auteurs de la base
@@ -94,7 +109,7 @@ for path in paths:
                 article_keywords = article['mots_cles'].lower().split(',')
 
                 titre = ""
-                lien_article = chemin_actes+article['id']+'.pdf'
+                lien_article = rep_edition+article['id']+'.pdf'
                 if article['titre'] != "":
                     titre = article['titre']
                 else:
@@ -113,13 +128,22 @@ for path in paths:
                         auteurs[auteur] = []
                     auteurs[auteur].append(article_info)
 
+            ####################################################################
+            # Création du fichier html de l'article
+            ####################################################################
+            fichier_article = rep_edition+article['id']+'.html'
+            handle = codecs.open(fichier_article, 'w', 'utf-8')
+            handle.write(paperTemplate.render(meta=current_conf.meta, \
+                         article=article))
+            handle.close()
+
 ################################################################################
 
 ################################################################################
 # Création du fichier html de la page principale
 ################################################################################
 handle = codecs.open(output+'index.html', 'w', 'utf-8')
-handle.write(mainTemplate.render(conferences=conferences, nb_papers=nb_papers))
+handle.write(indexTemplate.render(conferences=conferences, nb_papers=nb_papers))
 handle.close()
 ################################################################################
 
@@ -138,5 +162,19 @@ handle = codecs.open(output+'auteurs.html', 'w', 'utf-8')
 handle.write(rechTemplate.render(mode_recherche=u"auteurs", dict=auteurs))
 handle.close()
 ################################################################################
+
+################################################################################
+# Création des fichiers html des conférences
+################################################################################
+for conference in conferences:
+    lien_conference = output+conference+"/index.html"
+    for i in range(len(conferences[conference])):
+        conferences[conference][i] = (conferences[conference][i][0], \
+              re.sub(conference+"/", "", conferences[conference][i][1]))
+
+    handle = codecs.open(lien_conference, 'w', 'utf-8')
+    handle.write(confTemplate.render(editions=conferences[conference], \
+                                     conference=conference))
+    handle.close()
 
 

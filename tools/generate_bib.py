@@ -51,7 +51,7 @@ def rm_diacritics(text):
     return protected_text
 
 from mako.template import Template
-bibTemplate = Template(filename='templates/bibtex.mako_template')
+bibTemplate = Template(filename='templates/bibtex.bib')
 
 root = '../'
 paths = ['TALN/', 'RECITAL/']
