@@ -1,10 +1,12 @@
 # taln-archives
 
 Mises à jour
- - 24 janvier, ajout des actes de RECITAL 2004.
- - 23 janvier, ajout des actes de TALN 2004 et modification des scripts pour la
+ - 27 janvier 2014, ajout des actes de TALN/RECITAL 2003, correction des 
+   problèmes de case des noms d'auteurs
+ - 24 janvier 2014, ajout des actes de RECITAL 2004.
+ - 23 janvier 2014, ajout des actes de TALN 2004 et modification des scripts pour la
    génération du site web.
- - 21 janvier, ajout de méta-données pour TALN et RECITAL 2005 (résumé, mots 
+ - 21 janvier 2014, ajout de méta-données pour TALN et RECITAL 2005 (résumé, mots 
    clés) et modification des pdfs.
  - 15 janvier 2014, corrections de méta-données.
  - 8 janvier 2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
