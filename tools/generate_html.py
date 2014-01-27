@@ -89,8 +89,13 @@ for path in paths:
 
 
         # Ajout de la conférence au conteneur des différentes conférences pour
-        # les liens de la page d'acceuil    
-        conferences[conference].append((annee, path+edition+'/index.html'))
+        # les liens de la page d'acceuil
+        info = {}
+        info['annee'] = annee
+        info['path'] = path+edition+'/index.html'
+        info['lieu'] = current_conf.meta['ville'] +' (' \
+                       + current_conf.meta['pays'] + ')'
+        conferences[conference].append(info)
 
         ########################################################################
         # Création du fichier html de la page principale
@@ -169,8 +174,8 @@ handle.close()
 for conference in conferences:
     lien_conference = output+conference+"/index.html"
     for i in range(len(conferences[conference])):
-        conferences[conference][i] = (conferences[conference][i][0], \
-              re.sub(conference+"/", "", conferences[conference][i][1]))
+        conferences[conference][i]['path'] = \
+                 re.sub(conference+"/", "", conferences[conference][i]['path'])
 
     handle = codecs.open(lien_conference, 'w', 'utf-8')
     handle.write(confTemplate.render(editions=conferences[conference], \

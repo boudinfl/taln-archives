@@ -1,8 +1,11 @@
 # taln-archives
 
 Mises à jour
- - 27 janvier 2014, ajout des actes de TALN/RECITAL 2003, correction des 
-   problèmes de case des noms d'auteurs
+ - 27 janvier 2014, ajout des actes de TALN/RECITAL 2003, correction de 
+   problèmes de case des noms d'auteurs, correction de problèmes de fichiers
+   corrompus (recital-2008-long-010), correction de problèmes de fichiers 
+   protégés (taln-2010-long-037), modification globale des méta-données des 
+   fichiers pdfs à l'aide de pdftk.
  - 24 janvier 2014, ajout des actes de RECITAL 2004.
  - 23 janvier 2014, ajout des actes de TALN 2004 et modification des scripts pour la
    génération du site web.
@@ -18,7 +21,7 @@ Mises à jour
 
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
-conférences RECITAL et TALN de 2005 à 2013.
+conférences RECITAL et TALN de 2003 à 2013.
 
 Un fichier XML contenant les méta-données a été créé pour chaque édition des 
 conférences, ce dernier contient :
@@ -47,16 +50,21 @@ partir du fichier de méta-données avec la commande :
     python generate_bib.py
 
 Les fichiers au format texte des articles ont été extraits avec l'outil 
-[PDFBox](http://pdfbox.apache.org/).
+[PDFBox](http://pdfbox.apache.org/). *<- a modifier*
 
     cd tools/
     ./generate_txt.sh
+
+Les méta-données des fichiers pdfs ont été modifiés avec l'outil 
+[pdftk](http://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/) avec la commande :
+
+    cd tools/
+    ./update_pdf_metadata.sh
 
 Une version web de l'archive peut être créée avec la commande :
 
     cd tools/
     python generate_html.py
-
 
 Si vous utilisez cet ensemble de données, veuillez citer l'article :
 
