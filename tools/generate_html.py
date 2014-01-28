@@ -114,7 +114,7 @@ for path in paths:
                 article_keywords = article['mots_cles'].lower().split(',')
 
                 titre = ""
-                lien_article = rep_edition+article['id']+'.pdf'
+                lien_article = path + edition + "/" + article['id'] + '.pdf'
                 if article['titre'] != "":
                     titre = article['titre']
                 else:
