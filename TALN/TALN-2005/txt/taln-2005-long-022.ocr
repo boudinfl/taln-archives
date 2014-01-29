@@ -1,0 +1,529 @@
+IALN ZUUD, Uourdan, 0-1 U _]l11I1 ZUUD
+
+Détection Automatique de Structures Fines de Texte
+
+Nicolas Hernandez et Brigitte Grau
+LIMSI/CNRS - LIR — Université de Paris-Sud
+BP 133, F-91403 ORSAY CEDEX (France)
+Hernandez|Grau@limsi.fr
+
+Mots-clefs 2 Navigation intra-documentaire, analyse thématique, structures du discours,
+relations discursives, subordination et coordination, parallélisme lexico-syntaxico-sémantique,
+modele d’apprentissage, analyses linguistiques
+
+Keywords: Text browsing, topic analysis, text structures, discursive relations, subordi-
+nation and coordination, lexical, syntactic and semantic parallelism, learning model, linguistic
+analysis
+
+Résumé Dans ce papier, nous présentons un systeme de Détection de Structures ﬁnes de
+Texte (appelé DST). DST utilise un modele prédictif obtenu par un algorithme d’apprentissage
+qui, pour une conﬁguration d’indices discursifs donnés, prédit le type de relation de dépendance
+existant entre deux énoncés. Trois types d’indices discursifs ont été considérés (des relations
+lexicales, des connecteurs et un parallélisme syntaxico-sémantique) ; leur repérage repose sur
+des heuristiques. Nous montrons que notre systeme se classe parmi les plus performants.
+
+Abstract In this paper, we present a system which aims at detecting ﬁne-grained text
+structures (we call it DST). Based on discursive clues, DST uses a learning model to predict
+dependency relations between two given utterances. As discourse clues, we consider lexical
+relations, connectors and key phrases, and parallelism. We show that our system implements an
+improvement over current systems.
+
+J.‘1\/\}1(I.D l1\/Lll(I.ll\¢l\/La \/L lJL1s1LL\/ \Jl(llal
+
+1 Introduction
+
+Comme le souligne l’annonce du 14 decembre 2004 de la societe Google de numeriser et de
+rendre disponible en ligne 15 millions de livres appartenants a 5 des plus celebres bibliotheques
+anglo-saxonnes du mondel, le besoin d’acceder facilement et rapidement au contenu d’un doc-
+ument electronique est plus que jamais un enjeu d’actualite.
+
+Dans ce papier, nous nous interessons a la detection de l’organisation du contenu information-
+nel d’un document textuel. De nombreux travaux (principalement au sein de la comunaute de
+resume automatique) ont montre l’interét d’apprehender la structure d’un texte : aﬁn de ma-
+nipuler des unites de texte de differentes granularites (i.e. differents degres informationnels), de
+foumir un contexte a une information ciblee, de permettre une navigation intra-documentaire,
+etc. (Moens & Busser, 2001; Choi, 2002; Couto et al., 2004).
+
+En particulier nous nous focalisons sur la micro-structure d’un texte (niveau phrastique voire
+propositionnel). Nous afﬁchons ainsi une complementarite aux approches globales tout en of-
+frant la possibilite de rafﬁner leur modele. En effet qu’elles supposent une organisation plate
+et lineaire du ﬂot d’informations communique (Hearst, 1997; Choi, 2002), ou bien une organi-
+sation plus riche en arbres (Moens & Busser, 2001; Couto et al., 2004), les approches globales
+sont generalement fondees sur des mesures de cohesion lexicale (notamment a travers le suivi
+de chaines lexicales) qui souffrent d’un manque de precision quanta la delimitation des unites
+de texte (appelees segment). De plus elles prennent rarement en compte dans leur analyse les
+phenomenes discursifs locaux (e.g. annonces thematiques — e. g. “Les points que nous allons
+traiter sont 2”, structures enumeratives, transitions, etc.).
+
+Notre approche se situe parmi les travaux qui proposent de rechercher le point d’attache optimal
+d’un enonce entrant dans la structure en cours de construction. Parmi les approches existantes,
+Marcu (1999) propose un systeme pour la detection automatique de la structure rhetorique d’un
+texte, Choi (2002) s’interesse a une structuration thematique ﬁne, Kruijff-Korbayova & Kruijff
+(1996) analysent le discours en terme de progression thematique. Ces systemes constituent de
+serieuses avancees mais requierent encore la prise en compte de plus d’indices discursifs et de
+modeles plus souples pour apprehender les differents mecanismes de structuration du discours.
+
+Dans ce papier, nous presentons un systeme de Detection de Structures ﬁnes de Texte (ap-
+pele DST). DST utilise un modele predictif obtenu par un algorithme d’apprentissage qui, pour
+une conﬁguration d’indices discursifs donnes, predit le type de relation de dependance exis-
+tant entre deux enonces. L’ originalite principale de notre approche est de proposer un modele
+Theorique simpliﬁe de la Structure du Discours. En effet, nous nous interessons seulement
+au rapport structurel elementaire liant deux enonces (relation de subordination, de coordina-
+tion, et absence de relation) independamment d’un eventuel etiquetage semantico-rhetorique de
+la relationz. Le fait de dissocier le modele de dependance de la recherche du point d’attache
+de l’enonce entrant nous permet d’envisager differents algorithmes de structuration. Une de
+nos particularites techniques est de proposer une mesure pour apprehender le parallelisme
+syntaxico-semantique de deux enonces, indice discursif peu considere jusqu’a present. Nous
+avons travaille sur des articles scientiﬁques en anglais mais notre demarche est adaptable a
+d’autres langues comme le frangais.
+
+1New York Public Library, University of Michigan, Stanford, Harvard (USA), Oxford (GB).
+2Cette tache sera abordee ulterieurement.
+
+\/L\/\/L1\}ll l_\blL\}111(l.L1\ibl\/ \al\/ >.JL1bl\/Lbl1\/D 1 11190 \al\/ J.\/ALU
+
+2 L’accés au contenu
+
+Le processus de comprehension requiert d’une part d ’identiﬁer des unite’s discursives (informa-
+tionnelles, intentionnelles, ayant une mise enforme visuelle, ou autres) et d’autre part d ’établir
+des relations entre ces unite’s. Cette reconnaissance de la coherence peut necessiter des connais-
+sances semantiques et pragmatiques, non disponibles dans le texte. Neanmoins nous partons du
+postulat qu’il est possible de mettre en place des analyses automatiques a partir des indices
+du discours (chaines lexicales, connecteurs, introducteurs de cadres, etc.) pour permettre de
+reconnaitre cette coherence.
+
+L’ une des caracteristiques majeures transversale a la plupart des theories du discours est la con-
+sideration d’un modele de dependance qui deﬁnit la nature de la relation structurelle existante
+entre deux enonces en terme de subordination ou de coordination (Mann & Thompson, 1987;
+Polanyi, 1988; Virbel, 1989; Asher & Lascarides, 1994). Les differences entre theories viennent
+de la signiﬁcation qu’elles donnent a la nature de ces relations, mais aussi des contraintes struc-
+turelles d’assemblage des unites discursives. Au niveau de la micro-structure, les chercheurs
+ont tendance a considerer que l’unite elementaire de reference est proche de celle de la proposi-
+tion (Mann & Thompson, 1987; Polanyi, 1988). Aﬁn de faciliter le reperage automatique, nous
+considerons comme Choi (2002) la phrase syntaxique comme unite elementaire.
+
+Suivant le genre de texte considere (expositif, narratif, dialogue, etc.), les theories du discours
+mettent en evidence un ou plusieurs plans d’organisation de l’information: rhetorique, logico-
+visuelle, informationnelle, etc. Les interactions entre ces differentes structures sont encore
+tres ﬂoues, c’est pourquoi nous avons decide de nous concentrer sur le plan informationnel
+que nous considerons comme pertinent pour les textes scientiﬁques. Notre description du plan
+informationnel repose sur la theorie de la RST3 (Mann & Thompson, 1987), le LDM (Polanyi,
+1988), et aussi la progression thematique de la phrase au discours (Kruijff-Korbayova & Kruijff,
+1996). Globalement cela signiﬁe que la relation entre deux enonces est determinee en fonction
+de leur contenu informationnel independamment de l’intention rhetorique de l’auteur.
+
+Dans notre modele, un enonce entrant se rattache au discours selon une relation de subordination
+ou de coordination (ou bien les deux). Un enonce est interprete en fonction de son theme (ce
+dont il parle), de son propos (ce qui est dit au sujet du theme) et de sa fonction semantico-
+rhetorique. Ces elements sont identiﬁes a partir d’indices presents dans l’enonce et dans son
+contexte ce qui permet de deduire avec quelles parties du discours il est lie et comment.
+
+Nous illustrons ces relations a l’aide du texte de la ﬁgure 1 extrait d’un passage de notre corpus.
+Les indices discursifs aisement representables visuellement sont soulignes dans le texte. Les
+couples d’enonces (1, 2) et (1, 6) decrivent des relations de subordination. 1 est un modele
+classique d’annonce thematique avec un quantiﬁeur two, une phrase syntaxiquement incom-
+plete et un caractere de ponctuation annonce “.'”. Les enonces 2 et 6, quant a eux, contiennent
+des marques qui caracterisent des items d’une enumeration (“I.” et “2.”). Ces deux enonces
+presentent aussi une relation de coordination explicite l’un envers l’autre, soulignee notamment
+par un parallelisme syntaxique :
+NUM. NOM, whereby ADJ NOM be+conj=’present’ VERB+conj=’participe passe’ PREP
+
+Le couple d’enonces (2, 3) constitue un exemple de subordination ou le deuxieme enonce 3
+correspond au developpement d’un des aspects du premier. Cette subordination est marquee
+par une progression thematique de rheme en theme (i.e. le terme importance qui est repris
+dans 3). Le couple d’enonces (4, 5) decrit, quant a lui, un exemple de coordination implicite.
+
+3Rhetorical Structure Theory (RST), Linguistic Discourse Model (LDM).
+
+J.‘1\/\}1(I.D l1\/Lll(I.ll\¢l\/La \/L lJL1s1LL\/ \Jl(llal
+
+E traditional approaches to automatic abstracting are; (1)
+L Extraction, whereby specific sentences are selected from the source text according to some
+assessment of their importance. (2)
+Importance indicators include the concentration of topic-relevant terms [. . . ]; the occurrence of
+expressions, such as ”important”, ”to sum up”; and the position of the sentence within the text. (3)
+This approach is exemplified by Pollock and Zamora ’s ADAM system [I]. (4)
+
+The problems with this approach are that importance clues are often not reliable, and that the extracted
+
+sentences do not always constitute a coherent text, since they often contain cross-references. (5)
+; Summarisation, whereby detailed semantic analysis is applied to the text, and a representation
+
+such as a semantic net is produced, from which a summary is then generated. (6)
+
+Figure 1: Exemples de relations de subordination, et de coordination explicite et implicite
+
+En effet, tous les deux sont subordonnés a une meme entité, l ’approche en terme d ’extracti0n,
+et chacun d’eux en traite de maniere indépendante, le premier en présentant un exemple et le
+second en décrivant les problemes.
+
+3 Algorithme de structuration “shift and reduce”
+
+La structure de texte en arbre unique est une simpliﬁcation de la réalité, néanmoins nous adop-
+tons une modélisation hiérarchique parce qu’elle reste la plus communément rencontrée dans
+les textes. Notre algorithme de structuration reprend le principe des algorithmes de Marcu
+(1999) et Choi (2002). Nous l’avons adapté aﬁn de tenir compte de la relation de coordination.
+Cet algorithme construit une structure hiérarchique du discours dont les arcs sont orientées vers
+les énoncés entrants toujours attachés sur la frontiere droite de l’arbre. Un énoncé entrant coor-
+donné a un énoncé de la structure est considéré comme étant subordonné au meme énoncé que
+l’énoncé auquel il est coordonné. Un n¢eud factice joue le role de pere de tous les n¢euds.
+
+L’algorithme utilise deux structures de données : une pile qui stocke la branche “frontiere
+droite” de l’arbre en cours de construction (le demier élément empilé est le point d’attache
+le plus prioritaire), et une ﬁle qui contient la liste des énoncés tels qu’ils sont ordonnés dans
+le texte et analysés successivement. La pile joue un role de mémoire dont chaque élément
+correspond a une granularité inférieure obtenue dans la structure du discours. L’objectif est
+d’identiﬁer les énoncés qui sont liés et les relations qu’ils entretiennent.
+
+Algorithme :
+1. Si la pile est vide, on déﬁle la ﬁle et empile la pile (état initial).
+2. Tant que la pile et la ﬁle ne sont pas vides, calcul de la relation entre l’élément au sommet
+de la pile et le premier élément de la ﬁle.
+0 Si une relation de subordination est détectée, alors l’élément de la ﬁle est déﬁlé et
+empilé (on descend dans la granularité du texte) ;
+0 Si une relation de coordination est détectée, alors l’élément au sommet de la pile est
+dépilé et remplacé par l’élément de la ﬁle ;
+
+o Sinon (aucune relation) l’élément au sommet de la pile est dépilé et écarté (l’idée
+étant de remonter jusqu’au niveau de dépendance lié a l’élément en téte de ﬁle).
+
+\/L\/\/L1\}ll l_\blL\}111(l.L1\ibl\/ \al\/ >.JL1bl\/Lbl1\/D 1 11190 \al\/ J.\/ALU
+
+4 Indices discursifs
+
+La reconnaissance des relations discursives entre deux énoncés est fondée sur la présence, ou
+l’absence, d’indices signiﬁcatifs dans les textes scientiﬁques : relations lexicales, expressions
+clefs et parallélisme de construction.
+
+4.1 Relations lexicales
+
+Les relations lexicales entre deux énoncés sont envisagées selon leur nature sémantique et selon
+les parties des énoncés concernées (theme ou rheme). Nous utilisons un module de Construction
+de Chaines Lexicales (CCL) pour les repérer. Celui-ci est fondé sur une variante de l’algorithme
+de (Barzilay & Elhadad, 1997). CCL recherche les relations entre les lemmes associés aux
+paires de mots étudiés en tenant compte de la distance sémantique entre ces mots ainsi que de
+leur distance dans le texte. Le mot le plus fréquent au sein d’une chaine constitue son élément
+représentatif. Nous considérons :
+
+0 Les relations morphologiques : deux mots appartenant a la méme famille morphologique4,
+
+indépendamment de leur catégorie lexicale ;
+
+0 Les relations utilisées pour référer a un méme objet du discours, telles que la synonymie,
+l’hyperonymie et l’hyponymie, la méronymie et l’holonyInie, trouvées dans WordNet ;
+
+0 Les relations d’antonymie trouvées grace a WordNet ou a la présence de préﬁxes tels
+que dis-, in-, un-, non-, under-, im-, a-, de-, ir-, anti- sur les memes lemmes. Nous
+construisons des chaines lexicales spéciﬁques a ce type de relation.
+
+Etant données deux phrases constituant le contexte d’études, des chaines lexicales sont calculées
+entre les deux phrases, globalement, et entre les différentes combinaisons des parties constituant
+le theme et le rheme des deux phrases. La distinction entre les parties thématique et rhématique
+d’une phrase est réalisée selon une heuristique robuste de découpage de la phrase en deux par
+rapport au verbe le plus proche de son milieu.
+
+La présence d’un lien lexical entre les rhemes de deux énoncés traduit généralement une sub-
+ordination du deuxieme énoncé vis-a-vis de l’énoncé précédent (e.g. une élaboration ou une
+reformulation). Une progression linéaire, de rheme en theme, correspond aussi au méme type
+de subordination (e. g. une annonce thématique). Une relation contrastive peut dénoter une co-
+ordination. Dans tous les autres cas, la présence ou l’absence d’une relation lexicale constitue
+un indice supplémentaire qui po11rra se combiner avec les suivants.
+
+4.2 Expressions clefs (essentiellement des connecteurs)
+
+Notre liste d’expressions clefs est issue en partie de la liste de méta-descripteurs acquise au-
+tomatiquement par Hernandez & Grau (2003), et de l’analyse de notre corpus. Nous l’avons
+aussi complétée a partir des mots clefs fournis par Choi (2002) pour lesquels nous réassignons
+la relation (subordination ou coordination) en fonction de nos observations personnelles.
+
+En raison du nombre d’exemples que compte notre corpus (1190 couples de phrases) par rap-
+port au nombre de marques que nous avons retenu (178), nous n’avons pas choisi de considérer
+chacune des marques comme une caractéristique distincte, au contraire de Choi dont le modele
+
+4Nous utilisons la base CELEX (www. ldc.uperm.edu/readme_ﬁles/celex. readmahtml).
+
+J.‘1\/\}1(I.D l1\/Lll(I.ll\¢l\/La \/L lJL1s1LL\/ \Jl(llal
+
+compte 19 marques. Nous avons opte pour une pre-classiﬁcation de celles-ci en 5 classes en
+fonction de leur comportement pour structurer le discours et reduit ainsi la complexite du nom-
+bre d’indices. Les classes rassemblent des marques ayant un meme “comportement” structurel
+vis-a-vis de la subordination et de la coordination entre deux enonces. Les classes que nous
+avons deﬁnies sont les suivantes :
+
+o Initie : marque le premier item d’une liste d’items (suppose une coordination) : “ ormer,
+
+ﬁrst, on the one hand, ’I.’, ’a)’, begin, start” ;
+
+0 Continue : Coordonne mais n’initie pas une liste et n’en termine pas forcement une :
+“second, another, other, also, and, or, however, but, then, in addition, although, etc.” ;
+
+o Termine : Marque le demier item d’une liste (suppose une coordination) : “on the other
+hand, last, ﬁnally, to conclude, to sum up, end, ﬁnish, latter, in conclusion, result” ;
+
+0 Subordonne : Apparait en debut d’un enonce subordonne : “so, the, this, these, it, he, by
+this, consequently, for example, for instance, therefore, thus, note that, such, etc. ” ;
+
+o Subordonnant : Apparait en ﬁn d’un enonce subordonnant (i.e. en general une annonce) :
+“such as, follow, as follow, see below, below, and, .', ?, etc. ”.
+
+Une marque est dans une seule classe sauf si cette derniere permet de la distinguer dans sa def-
+inition (e.g. la position dans la phrase pour differencier les marques subordonnées des marques
+subordonnantes). Les notions de debut et de ﬁn sont relatives a chaque enonce et correspondent
+a une distance en nombre de mots exprimee en pourcentage (respectivement ﬁxee a 40% du
+debut ou de la ﬁn). La taille maximale est ﬁxee a 10 tokens.
+
+En plus de ces classes de marques discursives, nous rajoutons une classe de marques desig-
+nant la negation (e.g. aren’t, can ’t, nothing, nobody, rarely, etc.) et aﬁn de prendre en compte
+les formes passives, et l’inversion des parties thematiques et rhematiques qui en decoule, nous
+considerons la presence du verbe “etre” suivi directement d’un autre verbe comme une carac-
+teristique. Par la suite, nous appellerons ces dernieres caracteristiques les indices syntaxiques.
+Au ﬁnal, la distribution de nos 178 marques se repartit ainsi : 7 marques pour la classe Initie,
+38 pour la classe Continue, 9 pour la classe Termine, 62 pour la classe Subordonnee, 30 pour la
+
+classe Subordonnant, 31 marques de negation et 1 marque du verbe étre.
+
+4.3 Parallélisme
+
+Le parallelisme de construction entre deux enonces rend compte d’une importance egale (lien
+de coordination) (Hernandez, 2004). Il se traduit par a) des similarites des constituants a dif-
+ferents niveaux paradigmatiques (lemme, trait semantique, categorie grammaticale, fonction
+syntaxique) ; b) une similarite syntagmatique qui s’eXprime a la fois par une similarite dans
+l’ordre des constituants paralleles et par une similarite dans les ecarts de distance entre ces
+memes constituants.
+
+Aﬁn de calculer le degre’ de parallelisme entre deux enonces, nous reduisons la complexite
+du probleme d’abord en homogeneisant les entites du discours (chaque mot est remplace par
+l’element representatif de la chaine lexicale a laquelle il appartient). Ensuite, chaque structure
+syntaxique hierarchique est remplacee par une liste plate, qui correspond a une notation preﬁxee
+de l’arbre (les noeuds internes, qui sont des etiquettes, sont places avant les feuilles, qui sont les
+lemmes). Cette liste est obtenue a partir du resultat d’analyse foumi par l’analyseur statistique
+de Charniak (1997)5, en supprimant les niveaux de parentheses.
+
+5Nous utilisons la Version 2001, developpee pour 1’anglais a1’uniVersite de Brown.
+
+JJ\/L\/\/Llllll l_\blL\}111(l.L1\ibl\/ \al\/ >.JL1 bl\/Lbl1\/D 1 11190 \al\/ J.\/ALU
+
+Pour tout couple de phrases donné, le systeme calcule un degré de parallélisme entre toutes les
+séquences extraites de chacune des phrases, comportant le méme nombre d’items similaires,
+au minimum deux, différents ou non, placés dans leur ordre d’apparition dans les phrases. Par
+exemple, les phrases cabcad et acba partagent 4 constituants : c, a deux fois et b. Une fois
+supprimés les constituants non similaires (i.e. d), on extrait de la premiere phrase caba et
+abca, et de la deuxieme acba. On ne tient pas compte des éléments différents, qui peuvent étre
+insérés n’importe o1‘1 dans les phrases. Le parallélisme est fondé sur des constructions similaires
+d’éléments similaires. La mesure que nous avons déﬁnie s’inspire des mesures de distances
+d’édition entre des séquences de caracteres. Chaque constituant est identiﬁé de maniere unique
+par sa position. Plus un constituant est distant de son symétrique dans l’autre séquence, plus les
+séquences comparées different. Elle est déﬁnie par la formule suivante :
+‘<3’ D(s> — am)
+
+d D P ll l' m, ,, =
+egre 6 am ezsme(s s)  D(8) 
+
+avec 33,, 1e ieme constituant de la séquence sm, l(s), la longueur des séquences comparées, D(s),
+la distance maximale possible entre un constituant d’une sequence 3 et son constituant parallele
+i.e. D(s) = l(s) — 1, et d, la distance effective d’un constituant courant de la séquence sm et
+son constituant parallele. Le degré de parallélisme d’un couple d’énoncés correspond au degré
+maximal obtenu pour les séquences extraites de ces énoncés.
+
+5 Apprentissage des relations discursives
+
+Aﬁn de reconnaitre les relations discursives, nous avons décidé d’opter, de meme que Marcu
+(1999), pour un apprentissage par arbre de décision qui possede l’avantage d’étre comprehen-
+sible par tout utilisateur (si la taille de l’arbre produit est raisonnable) et d’avoir une traduction
+immédiate en terme de regles de décision. Nous avons utilisé le classiﬁeur C4.5 fourni dans le
+logiciel WEKA6. Les caractéristiques que nous venons de décrire sont au nombre de 22 et sont
+repérées automatiquement dans le corpus.
+
+5.1 Données
+
+Aﬁn de constituer un ensemble de couples de phrases et de relations correspondantes, nous
+avons manuellement annoté un corpus de 5 documents anglais appartenant au domaine de la
+linguistique informatique. Ils font tous entre 8 et 10 pages et sont au format pdf. L’ un d’eux est
+en simple colonne. De fait ils couvrent la période 1998 et 1999 et aucun d’eux ne partage de
+références communes. Ces articles sont Mitkov (COLING-ACL’98), Kan et al. (WVLC’98),
+Green (ACL’98), Sanderson et al. (SIGIR’99) et Oakes et al. (IRSG’99).
+
+L’ annotation a consisté a indiquer pour chaque phrase du texte les relations de subordination
+et de coordination explicite existant avec une phrase se trouvant en amont dans le texte ; ces
+deux types de relations pouvant exister pour une méme phrase. Le principe de dépendance que
+nous avons suivi consiste a toujours resituer un énoncé vis-a-vis de la thématique globale puis
+d’analyser si localement il n’y a pas des dépendances plus fortes. Chaque couple d’énoncés que
+nous avons liés est décrit par une décision, D, concemant le type de relation qui les unit. Ces
+
+5Cette boite a outils est disponible a1’URL suivante www. cs. waikato.ac.nz/ml/Weka.
+
+J.‘1\/\}1(I.D l1\/Lll(I.ll\¢l\/La \/L lJL1s1LL\/ \Jl(llal
+
+couples sont ensuite représentés par l’ensemble des caractéristiques discursives, O, que nous
+avons précédemment déﬁnies. Sur un total de 1038 phrases7, 1190 couples exemples, (C, D),
+ont été constitués. Ils se répartissent en 632 couples liées par une relation de subordination,
+285 instances “coordination” et 273 instances décrivant une absence de relation. Les instances
+décrivant une absence de relation ont été engendrées automatiquement en considérant les cou-
+ples d’énoncés contigus ne possédant pas de relation entre eux. En comparaison Choi utilise un
+
+corpus d’apprentissage de 754 exemples.
+
+5.2 Résultats
+
+De part la quantité de nos données d’apprentissage (relative au coﬁt en temps d’annotation
+de corpus), nous adoptons une technique d’évaluation par validation croisée sur 10 partitions.
+Son principe consiste a partitionner le corpus d’apprentissage en un certain nombre de parts
+égales et d’utiliser tour a tour une partie comme ensemble d’exemples de test et les autres
+comme ensemble d’exemples d’entrainement. La moyenne des taux d’erreur correspond au
+
+taux d’erreur global.
+
+Expériences
+coordination_et_subordination Progression Expressions Progression thématique
+approche de base de 53,10% thématique clefs Et Expressions clefs
+
+Ensemble de base 52,68% 57,31% 56,13%
+
+cohésion lexicale 52,68% 57,31% 57,05 %
+cmtonymie 52,43% 56,89% 55,79%
+Caractéristique indices symfaxiques 54,70% 58,57 % 55,71%
+ajoutée # de mots communs 52,43% 57,31% 56,47%
+degré de parallélisme 52,43% 56,97% 55,12%
+
+Toutes les caractéristiques 54,62% 57,05% 55,21%
+seulement_la_subordination Progression Expressions Progression thématique
+approche de base de 69,83% thématique clefs Et Expressions clefs
+
+Ensemble de base 69,83% 73,14% 73,59%
+
+cohésion lexicale 69,83% 72,26% 73,70%
+cmtonymie 69,83% 73,14% 73,70%
+Caractéristique indices symfaxiques 72,48% 76,35 % 75,02%
+ajoutée # de mots communs 69,83% 72,81% 74,03%
+degré de parallélisme 69,83% 73,59% 74,25%
+Toutes les caractéristiques 70,16% 75,13% 75,02%
+
+Table 1: Précisions de DST dans la prédiction de relation
+
+Nous avons réalisé deux jeux d’expérience : le premier en considérant toutes les relations de
+notre modele (subordination, coordination et absence de relation), le deuxieme en ne consid-
+érant plus que la relation de subordination et l’absence de relation. Ce demier jeu d’eXpériences
+nous permet de comparer nos résultats avec ceux de Choi (2002). Pour simpliﬁer la presenta-
+tion de ces jeux d’eXpériences par la suite, nous omettrons la relation “absence de relation”
+dans leur designation. Pour chacun des jeux nous proposons de comparer les résultats sur deux
+ensembles d’indices de base distincts auxquels on ajoute tour a tour telle ou telle caractéristique
+pour observer les améliorations éventuelles. Les performances des deux ensembles combinés
+sont aussi considérées. Ces deux ensembles de base sont : 1) les caractéristiques décrivant la
+
+7Les phrases ont été détectées a l’aide des caractéres de ponctuation puis corrigées manuellement.
+
+\/L\/\/L1\}ll l_\blL\}111(l.L1\ibl\/ \al\/ >.JL1bl\/Lbl1\/D 1 11190 \al\/ J.\/ALU
+
+progression thematique (de theme en theme, de theme en rheme, de rheme en theme et de rheme
+en rheme) ; 2) les caracteristiques fondees sur les expressions clefs : les classes Initie, Termine,
+Continue, Subordonne et Subordonnant. Les caracteristiques individuelles que nous ajoutons
+sont : les liens lexicaux autre que d’antonymie (appeles par la suite “cohesion lexicale”), les
+liens lexicaux d’antonymie, les indices syntaxiques (be et negation), le degre de parallelisme et
+le nombre de mots communs (approche simpliﬁee de notre mesure du parallelisme).
+
+Aﬁn de positionner l’apport des differents apprentissages, nous comparons leur performance
+vis-a-vis d’une approche de base qui correspond a la prediction de la classe majoritaire dans le
+corpus d’apprentissage (c’est-a-dire qu’elle correspond au taux d’erreur si l’on assigne tous les
+exemples a cette classe).
+
+La table 1 decrit les resultats que nous obtenons respectivement lorsque l’on considere les
+relations de coordination et de subordination, puis lorsque l’on ne considere plus que la relation
+de subordination. Les valeurs en gras correspondent a des precisions maximales.
+
+Le premier constat que nous faisons est que nous obtenons des resultats compris entre 60% et
+75% similaires a ceux de Choi (2002) et de Marcu (1999). Plus particulierement, nous obtenons
+des résultats supe’rieurs a ceux obtenus par Choi dans des conﬁgurations experimentales simi-
+laires : 76,35% contre 73,61% pour nos meilleures performances de precision respectives.
+
+Par rapport aux approches de base, les meilleurs sous-ensembles de caracteristiques augmentent
+la precision de plus de 5% pour chacun des jeux d’experiences. I1 existe neanmoins des sous-
+ensembles qui deteriorent les performances et les resultats sont en general moins bon pour le
+jeu coordination_et_subordination.
+
+Les meilleurs résultats que nous obtenons sont a partir de l’ensemble de base compose de
+caracteristiquesfondees sur les expressions clefs.
+
+Les résultats obtenus avec les caractéristiquesfondees sur des liens lexicaux quels qu ’ils soient,
+combinees on non, sont bien en dessous de ceux que l’on pouvait esperer. Pour le jeu coordi-
+nation_et_subordination les experiences menees a partir de l’ensemble de base “progression
+thematique” deteriorent pour la plupart la precision de l’approche de base. Pour le jeu seale-
+ment_la_subordination, la precision des experiences a partir de l’ensemble de base “progression
+thematique” reste inchangee par rapport a l’approche de base. Le gain notable de l’ensemble
+“progression thematique” vient lorsqu’il est combine a l’ensemble “expressions clefs”.
+
+Un gain inattendu est celui apporte’ par le couple de presence du verbe etre on d ’une ne’gation.
+Ce resultat requiert un retour au texte pour determiner un phenomene discursif eventuel.
+
+Enﬁn, lorsque l’on compare les caractéristiques “nombre de mots pleins communs” et “degre
+de paralle’lisme” les diﬁferences sont legeres mais mettent en avant le degre de parallelisme.
+
+6 Conclusion
+
+Notre approche du discours enrichit le modele de Choi (2002) qui ne considere que la relation
+de subordination. Nous considerons en plus la relation de coordination ce qui nous permet de
+modeliser plus ﬁnement le discours.
+
+Le systeme de Marcu (1999) se situe a un degre superieur de complexite dans le sens ou il
+cherche a reconnaitre l’operation de structuration a realiser en fonction du contexte et de la
+
+J.‘1\/\}1(I.D l1\/Lll(I.ll\¢l\/La \/L lJL1s1LL\/ \Jl(llal
+
+conﬁguration structurelle en cours. Marcu fait des hypotheses tres fortes sur le type de structure
+et d’attachements possibles. En comparaison, le fait de dissocier le modele de dépendance de
+la structuration nous permet de ﬁxer indépendamment les contraintes de structuration, et par la
+d’appréhender plus largement les différents phénomenes de structuration du discours (i.e. des
+structures autres que hiérarchiques orientées vers la frontiere droite). Ce type de modélisation
+peut ainsi étre utilisé pour analyser par exemple des dialogues.
+
+En utilisant l’algorithme “shift and reduce”, nous obtenons une structure hiérarchique proche de
+celle d’une structure décrite par une analyse RST (correspondance entre les plans information-
+nelles et intentionnelles). La différence majeure survient au niveau de la nucléarité des relations
+unissant les énoncés.
+
+Parmi nos perspectives nous envisageons d’enrichir notre modele avec la relation de subordina-
+tion dirigée vers l’aval du texte, ainsi que de nouveaux indices (comme ceux de mis en forme
+visuelle) qu’ils se trouvent dans les énoncés considérés ou dans leur contexte.
+
+Références
+
+Nicholas Asher et Alex Lascarides. Intentions and information in discourse. 1994.
+
+Regina Barzilay et Michael Elhadad. Using lexical chains for text summarization. In Proceedings of the
+ACL’97/EACL’97 Workshop on Intelligent Scalable Text Summarization, Madrid, Spain, July 11 1997.
+
+Eugene Charniak. Statistical parsing with a context-free grammar and word statistics. In Proceedings of
+the Fourteenth National Conference on Artificial Intelligence AAAI, Menlo Park, 1997. MIT Press.
+
+Freddy Y. Y. Choi. Content-based Text Navigation. PhD thesis, Department of Computer Science,
+University of Manchester, 2002.
+
+Javier Couto, Olivier Ferret, Brigitte Grau, Nicolas Hernandez, Agata Jackiewicz, Jean-Luc Minel,
+et Sylvie Porhiel. REgal, un systéme pour la visualisation sélective de documents. La présentation
+d’information sur mesure, Nume’ro Spe’cial de RIA, pages 481-514, 2004.
+
+Marti A. Hearst. Texttiling: Segmenting text into multi-paragraph subtopic passages. Computational
+Linguistics, 23(1):33—64, March 1997.
+
+Nicolas Hernandez et Brigitte Grau. Automatic extraction of meta-descriptors for text description. In
+RANLP, Borovets, Bulgaria, 10-12 September 2003.
+
+Nicolas Hernandez. Un indice de structuration de texte combinant ﬁnesse et disponibilité au niveau
+global et local. In ATAL4, La Rochelle, France, 22 juin 2004.
+
+Ivana Kruijff-Korbayova et Geert-Jan M. Kruijff. Identiﬁcation of topic-focus chains. In S. Botley,
+J . Glass, T. McEnery, et A. Wilson, editors, DAARC96, volume 8, pages 165-179. July 17-18 1996.
+
+William C. Mann et Sandra A. Thompson. Rhetorical structure theory: A theory of text organisation.
+Technical report isi/rs-87-190, Information Sciences Intitute, June 1987.
+
+Daniel Marcu. A decision-based approach to rhetorical parsing. In The 37th Annual Meeting of the
+Association for Computational Linguistics (ACL’99), pages 365-372, Maryland, June 1999.
+
+M.-F. Moens et R. De Busser. Generic topic segmentation of document texts. In ACM SIGIR, pages
+418-419, New York, 2001.
+
+Livia Polanyi. A formal model of the structure of discourse. Journal of Pragmatics, 122601-638, 1988.
+
+J . Virbel. The contribution of linguistic knowledge to the interpretation of text structure. In J . André,
+V. Quint, et R. Furuta, editors, Structured Documents, pages 161-181. Cambridge University, 1989.
+

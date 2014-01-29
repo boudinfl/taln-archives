@@ -1,0 +1,547 @@
+TALN 2008, Avignon, 9-13 juin 2008
+
+Generation de reformulations locales par pivot
+pour l’aide a la révision
+
+Aurelien Max
+LIMSI-CNRS et Universite Paris-Sud 11
+Orsay, France
+aurelien.max@limsi.fr
+
+Resume. Cet article presente une approche pour obtenir des paraphrases pour de courts
+segments de texte qui peuvent aider un redacteur a reformuler localement des textes. La res-
+source principale utilisee est une table d’alignements bilingues de segments d’un systeme de
+traduction automatique statistique. Un segment marque par le redacteur est tout d’abord traduit
+dans une langue pivot avant d’étre traduit a nouveau dans la langue d’origine, ce qui est per-
+mis par la nature meme de la ressource bilingue utilisee sans avoir recours a un processus de
+traduction complet. Le cadre propose permet l’integration et la combinaison de differents mo-
+deles d’estimation de la qualite des paraphrases. Des modeles linguistiques tentant de prendre
+en compte des caracteristiques des paraphrases de courts segments de textes sont proposes, et
+une evaluation est decrite et ses resultats analyses. Les domaines d’application possibles in-
+cluent, outre l’aide a la reformulation, le resume et la reecriture des textes pour repondre a
+des conventions ou a des preferences stylistiques. L’approche est critiquee et des perspectives
+d’amelioration sont proposees.
+
+Abstract. In this article, we present a method to obtain paraphrases for short text spans
+that can be useful to help a writer in reformulating text. The main resource used is a bilingual
+phrase table containing aligned phrases, a common resource in statistical machine translation.
+The writer can mark a segment for paraphrasing, and this segment is ﬁrst translated into a pi-
+vot language before being back-translated into the original language, which is possible without
+performing a full translation of the input. Our proposed framework allows integrating and com-
+bining various models for estimating paraphrase quality. We propose linguistic models which
+permits to conduct empirical experiments about the characteristics of paraphrases for short text
+spans. Application domains include, in addition to paraphrasing aids, summarization and re-
+phrasing of text for conforming to conventional or stylistic guidelines. We ﬁnally discuss the
+limitations of our work and describe possible ways of improvement.
+
+M0tS-CléS I Paraphrase, Traduction Automatique Statistique basee sur les segments,
+Aide a la redaction.
+
+Keywords: Paraphrasing, Phrase-Based Statistical Machine Translation (PBSMT), Au-
+thoring aids.
+
+Aurelien Max
+
+1 Introduction
+
+La vie d’un texte est souvent pleine de rebondissements. Un auteur peut le reviser pour lui
+apporter des corrections, le rendre plus court, l’adapter a un lectorat voire le traduire dans une
+autre langue. Lors de la phase de maturation d’un texte, celui-ci peut subir de nombreux change-
+ments avant de prendre sa forme deﬁnitive. A contenu informationnel (plus ou moins) constant,
+l’auteur cherche a tendre vers des formulations qui seront plus adaptees au contexte en termes
+de correction linguistique et de comprehensibilite. La question de la generation automatique de
+reformulations, meme locales, et de l’evaluation de leur adaptation a leur contexte semble donc
+particulierement pertinente alors que les aides a la redaction sont encore trop peu sensibles a la
+nature linguistique des textes manipules.
+
+Des travaux en linguistique distinguent la reformulation a visée explicative, qui tente d’explici-
+ter le sens, et la reformulation £1 visée imitative, qui tente de substituer des formulations equiva-
+lentes (Fuchs, 1994). Ce demier cas pose la difﬁcile question de la prise en compte d’un seuil
+de distortion au-dela duquel une reformulation n’est plus admissible. Les systemes de transfor-
+mation automatique de texte butent en effet sur la prise en compte d’un tel seuil, qui n’est pas
+explicite dans les principales mesures d’evaluation utilisees, telles que BLEU (Papineni et al.,
+2002) pour la traduction automatique ou ROUGE (Lin, 2004) pour le resume. Une certaine mo-
+delisation de la reformulation mene a des techniques d’analyse et de reconnaissance de textes
+qui sont des paraphrases les uns des autres a des ﬁns d’extraction d’informations, mais o1‘1 cette
+notion de seuil est souvent eclipsee au proﬁt du rappel.
+
+Dans cet article, nous presentons une approche permettant de proposer a un redacteur des re-
+formulations pour de courts segments de texte (par ex. dans de bonnes conditions, maintenir
+le contact, la plus étroite) au cours de l’activite de revision. Ce type d’aide reprend les prin-
+cipes de certains travaux visant a faire des suggestions lexicales, par exemple en enrichissant
+des dictionnaires avec des index d’associations, telles que des mots lies thematiquement (Ferret
+& Zock, 2006). Dans cet article, nous commengons par decrire brievement les travaux existant
+en paraphrasage automatique, puis nous decrivons les fondements de notre approche inspiree
+de (Bannard & Callison-Burch, 2005), qui consiste a utiliser des traductions de segments en
+pivot pour produire des reformulations et selectionner parmi celles-ci celles qui sont preferees
+par differents types de modeles. Une evaluation est decrite et ses resultats sont analyses, ce qui
+met en evidence le caractere prometteur de l’approche proposee et suggere de nouvelles voies
+de recherche. En particulier, nous soulignons l’importance d’utiliser le contexte de la phrase
+d’origine contenant le segment a paraphraser pour le choix des segments pivots, importance
+qu’on retrouve dans le domaine de la traduction automatique.
+
+2 Travaux antérieurs
+
+La possibilite d’utiliser de grands corpus comparables et paralleles a suscite recemment une
+vague de travaux autour du paraphrasage. Des travaux ont par exemple porte sur l’apprentissage
+et l’utilisation de paraphrases pour ameliorer des taches telles que la recherche d’informations
+precises (Duclaye et al., 2003) ou la deduction sur textes, et des applications texte-a-texte,
+telle que la traduction automatique (Callison-Burch, 2007), ou encore l’evaluation de ce type
+d’applications en traduction (Kauchak & Barzilay, 2006) ou en resume (Zhou et al., 2006).
+
+Generation de reformulations locales par pivot pour l’aide a la revision
+
+Les systemes de generation automatique de texte non-deterministes offrent un cadre naturel
+pour la generation de paraphrases, dont les plus « naturelles » peuvent etre selectionnees par
+un modele de langue (Landkilde & Knight, 1998). Si un point fort de ce type d’approche est
+qu’il est possible de produire des paraphrases de nature tres differentes, la construction d’un
+tel systeme permettant de produire une grande variabilite de textes en sortie est difﬁcile, et
+ces systemes attendent des entrees qui sont soit sous forme de concepts, soit sous forme de
+speciﬁcations de phrases.
+
+Des alignements appris a partir de corpus comparables (monolingues) permettent de generer
+des reformulations en se passant d’un tel generateur. Par exemple, (Barzilay & Lee, 2003) ap-
+prennent des treillis factorisant l’ensemble des reformulations possibles au niveau des phrases,
+ce qui est rendu possible par la nature meme de leur corpus d’apprentissage (documents jour-
+nalistiques decrivant les memes evenements). Pour une phrase en entree, si un treillis qui lui
+correspond est trouve, celui-ci est utilise pour produire un ensemble de formulations corres-
+pondant aux chemins du treillis. Si ce type d’approche peut parfois produire de tres bonnes
+reformulations phrastiques, une bonne couverture des phenomenes linguistiques s’avere difﬁ-
+cile a obtenir. En outre, des reformulations plus locales sont moins susceptibles d’alterer le sens
+des phrases. (Quirk et al., 2004) proposent une approche consistant a apprendre un systeme de
+traduction statistique sur un corpus monolingue de phrases alignees automatiquement a partir
+d’un corpus comparable, qui fonctionne par decodage monotone et donc opere par reformula-
+tions locales. Si cette absence de transformations profondes est souvent percue comme l’une
+des principales limitations des systemes de traduction statistiques actuels, elle permet nean-
+moins de limiter les risques de deformation du sens. D’autres travaux ont exploite des corpus
+paralleles monolingues, comme differentes traductions d’un meme texte, pour apprendre des
+treillis permettant de generer des paraphrases (Pang et al., 2003).
+
+Si ces approches s’attaquent toutes au paraphrasage d’enonces complets, il est egalement inte-
+ressant de proposer des reformulations pour des unites plus petites. A partir de corpus paralleles
+bilingues, ressources traditionnelles pour l’apprentissage des systemes de traduction statistique,
+(Bannard & Callison-Burch, 2005) ont propose une approche pour le paraphrasage de courts
+segments de mots par traduction dans une langue puis par retro-traduction et selection dans la
+langue d’origine. Le probleme de la validite d’une paraphrase en contexte pose notamment la
+question de la prise en compte de son contexte d’apparition, probleme qui a recemment ete
+aborde en traduction automatique statistique (Stroppa et al., 2007). Des travaux existent au
+niveau des paraphrases lexicales, comme ceux de (Connor & Roth, 2007) qui proposent un
+classiﬁeur pour decider si un mot peut en remplacer un autre dans un certain contexte.
+
+3 Reformulation de courts segments de texte par pivot
+
+3.1 Description générale de l’approche
+
+La traduction automatique statistique (Statistical Machine Translation (SMT)) est fondee sur
+l’apprentissage et l’utilisation d’alignements entre mots appris sur des corpus paralleles bi-
+lingues. La SMT basee sur des segments (Koehn et al., 2003) a etendu la notion d’alignements
+entre segments de taille quelconque, ce qui permet une meilleure prise en compte du contexte
+local, sans que ces segments n’aient a correspondre a une segmentation motivee linguistique-
+ment. Des techniques d’alignement permettent d’apprendre des probabilites de traduction de
+
+Aurélien Max
+
+ 
+it is a good start (025) équi constitue un bon début (0.33)
+
+this is a good start (0.25  T‘
+c' est un beau début (0.1)
+C. est un bon début  c' est une bonne piste (0.1)
+nous partons du bon pied (0.1)
+
+FIG. 1 — Exemple de paraphrasage de segment par consultation de tables de traduction. Les
+valeurs indiquent la probabilité conditionnelle du segment étant donné le segment a sa gauche.
+
+segments. Par exemple, (Koehn et al., 2003) partent d’alignements 1 —> N entre mots pour une
+paire de langues dans les deux directions, symétrisent ces alignements en prenant leur intersec-
+tion, puis construisent des alignements N —> M entre mots de facon incrémentale en ajoutant
+des éléments de l’union des deux alignements initiaux. Pour qu’un alignement soit construit a
+partir des alignements existant a une itération précédente, tous les mots d’un segment source
+doivent étre uniquement alignés avec les mots d’un segment cible et inversement. A partir de
+l’ensemble des segments alignés extraits d’un corpus parallele, les probabilités de traduction
+sont en général estimées a partir de fréquences relatives correspondant au rapport du nombre de
+fois o1‘1 un segment source 3 et un segment cible c sont alignés sur le nombre d’occurrences du
+
+_ _ compte(c,s)
+segment source . P(c|s) — jwmpte(s) .
+
+Des tables de traduction de segments sont créées en utilisant notamment ces probabilités entre
+segments. (Bannard & Callison-Burch, 2005) ont proposé d’utiliser ce type de probabilités a
+des ﬁns de paraphrasage, en déﬁnissant une probabilité de paraphrasage entre des segments
+segl et 8692 qui utilise l’alignement qu’entretiennent ces deux segments avec un segment pivot
+dans une autre langue, pivot :
+
+ség2 = arg max P(seg2|seg1) = arg max 2 P(seg2|pi11ot)P(pi11ot|seg1) (1)
+seg27éseg1 seg27éseg1
+
+pivot
+
+Dans l’équation 1, la recherche se fait en excluant le segment d’origine segl et en sommant sur
+l’ensemble des pivots possibles pour une paire (segl, segg). L’ exemple de la ﬁgure 1 illustre le
+processus de construction de paraphrases d’un segment par pivot.
+
+Outre la probabilité de paraphrasage décrite ci-dessus, (Callison-Burch, 2007) a utilisé diffe-
+rentes sources d’information pour mesurer l’importance de différents facteurs dans la qualité
+des reformulationsl :
+
+— qualité des alignements entre segments : la construction manuelle d’un corpus dont les ali-
+gnements sont faits par un humain permet une amélioration signiﬁcative de la qualité des
+paraphrases obtenues.
+
+— utilisation de plusieurs corpus alignés : l’utilisation de plusieurs paires de langues pour ob-
+tenir les paraphrases (les pivots sont donc multilingues) permet d’éliIniner partiellement les
+défauts d’alignements et d’obtenir une meilleure performance.
+
+— contr6le du sens des segments : sans qu’il ne s’agisse de désambiguisation sémantique des
+
+1Dans ses experiences, Callison-Burch utilise 46 segments en anglais choisis aléatoirement parmi des expres-
+sions composées de plusieurs mots de WordNet (ex : at work, concentrate on, big business), et 289 phrases qui les
+contiennent. L’éva1uation est alors effectuée par deux juges qui doivent attribuer aux reformulations des scores de
+conservation du sens (adequacy) et de caractere naturel (ﬂuency).
+
+Generation de reformulations locales par pivot pour l’aide a la revision
+
+segments (qui peuvent avoir, comme les mots, plusieurs sens dependant de leur contexte
+d’apparition), paraphraser des segments appartenant a des phrases alignees avec des phrases
+dans une autre langue permet de restreindre les traductions possibles du segment, et ameliore
+sensiblement les resultats.
+
+— controle de la vraisemblance des paraphrases produites : l’utilisation d’un modele de langue
+trigramme permet d’ameliorer la grammaticalite des paraphrases produites, mais a un impact
+negatif sur la conservation du sens.
+
+Notre travail se base sur cette approche en proposant une integration de differents modeles pour
+aider a la selection des paraphrases. L’utilisation d’un corpus de paraphrases evaluees par un
+humain peut alors servir a etudier la contribution de chacun des modeles, en particulier dans
+une tache d’aide a la reformulation. Le score d’une reformulation peut etre evalue en utilisant
+une combinaison lineaire de logarithmes correspondant a des scores de modeles telle que tra-
+ditionnellement utilisee en SMT2 (M represente les modeles utilises, et Am et hm representent
+respectivement le poids et la fonction de score d’un modele) :
+
+.3692 = arg max P(seg2|seg1) = arg max 2 )\mhm(seg1, .3692) (2)
+
+S692 S692 "LEM
+
+3.2 Modéles pour la sélection des reformulations
+
+Nous presentons dans cette section les modeles que nous avons utilises pour evaluer les refor-
+mulations.3
+
+Modéle pivot (PIV) Nous utilisons un score derive de la probabilite de paraphrasage de (Ban-
+nard & Callison-Burch, 2005) en utilisant une seule langue pivot, qui nous servira de reference
+(baseline) :
+
+Pi'u(p1,p2) = 1og(Z P(p2|piv0t)P(piv0t|p1)) (3)
+
+pivot
+
+Modéle de conservation de dépendances (DEP) Ce modele vise a prendre en compte une cer-
+taine proportion des relations de dependance qui sont conservees par la reformulation. I1 prend
+en compte les dependances extemes au segment avant et apres reformulation (resp. Dim“ et
+Dgma) sous la forme (dépendance, gouvemeur, dépendant), ainsi que les dependances entrant
+ou sortant du segment avant et apres reformulation (resp. Dim" et Dam") sous la forme (dé-
+pendance, cible_h0rs_segment) :
+
+1 + |D¢13mtra m D¢23mtra| + |Dzinter m D;nter|> 
+
+Dep(p1,p2, context) : log ( 1 + lpfmml + lpinml
+
+2L’approche choisie pourrait suggerer l’utilisation de systemes de SMT complets pour le paraphrasage par
+pivot d’enonces entiers, mais les performances des systemes actuels, qui butent notarnment sur la prise en compte
+du contexte source et sur la conservation du sens et de la grammaticalité en cible, rendent pour le moment cette
+approche problematique. (Quirk et al., 2004) attaquent eux ce probleme avec un systeme SMT appris avec des
+alignements monolingues, ce qui constitue une voie de recherche interessante.
+
+3Nous avons egalement fait des experiences avec des modeles bases sur les categories morphosyntaxiques des
+mots, comme par exemple modelisant la probabilite de la suite de categories d’un segment etant donne son contexte
+constitue des categories a gauche et a droite du segment, mais ces modeles n’ont permis d’améliorer les resultats
+que nous presenterons en section 4.
+
+Aurelien Max
+
+Le schema ci-dessous illustre les cas o1‘1 deux dependances entrante et sortante sont retrouvees
+(reformulation A) et ou une dependance entrante n’est pas retrouvee (formulation B).
+
+SujL SujL
+
+     
+       
+
+OB] OB]
+mais nous voulon faire des efforts mais nous voulons consentir des effort mais nous voulons Ieurs effort
+phrase initiale reformulation A reformulation B
+
+Modéle de lemmes (LEM) Ce modele mesure une certaine proportion de lemmes de mots
+pleins communs au segment initial pl et au segment apres reformulation pg (resp. [,1 et £2) :
+
+1 E — E D E
+
+ > (5)
+
+L :1
+en-”(p1ap2) Og( 1 + |£1 U L-’2|
+
+4 Experiences et évaluation
+
+Les tables de traduction utilisees ont ete apprises par la methode decrite dans la section prece-
+dente sur les parties francaise et anglaise du corpus Europarl4, qui comprend environ 1,2 million
+de phrases alignees. Les tables contiennent environ 42 millions de segments alignes (d’une taille
+maximale de 10 elements (tokens)) avec des scores de traduction dans les deux directions. Nous
+avons choisi de travailler avec le francais comme langue principale (et donc l’anglais comme
+seule langue pivot pour le moment), ce qui rend plus manifeste le besoin d’utiliser des segments
+rendant compte des dependances ainsi que des accords entre mots qui en decoulent. Nous avons
+utilise l’analyseur syntaxique robuste pour le francais SYNTEX (Bourigault et al., 2005) pour
+obtenir une segmentation en unites lexicales, la lemmatisation de ces unites et une analyse en
+dependances. Outre les modeles decrits en section 3.2, nous avons utilise un modele de langue
+5-grammes (5 GRAM) appris sur la partie francaise du corpus avec un lissage Kneser-Ney.
+
+Nous avons constitue manuellement un corpus de test de 82 phrases issues d’une partie du
+corpus Europarl n’ayant pas servi a l’apprentissage des modeles de traduction et du modele de
+langue. Pour chacune de ces phrases, un evaluateur a qui il etait demande de simuler la tache
+d’un redacteur en phase de revision a choisi un segment d’interet pour la reformulation, celui-ci
+etant accepte s’il appartenait a la table de traduction francais —> anglais (ex : dans de bonnes
+conditions, maintenir le contact, attendent avec impatience, la plus étroite, etc.).
+
+Nous souhaitions disposer d’un corpus pouvant servir de reference pour differentes experiences
+impliquant plusieurs modeles. Ne disposant pas d’une metrique automatique acceptable pour
+evaluer la qualite des reformulations, et souhaitant ne pas avoir a conduire plusieurs evaluations
+manuelles, nous avons construit automatiquement un premier ensemble de reformulations pour
+chaque couple (phrase, segment a paraphraser). Aﬁn de limiter le travail d’evaluation, nous
+avons choisi de ne retenir au plus que les 20 premieres reformulations en utilisant PIV seul (ce
+qui de fait introduit un biais dans nos experiences, en restreignant l’ensemble des reformulations
+considerees). Pour chacune des 1648 phrases a evaluer, les juges avaient a indiquer les scores
+suivants sur une echelle de 1 a 5 :
+
+— score de grammaticalité : indique si la paraphrase est grammaticalement correcte en l’etat
+(5), necessite differents niveaux de revision (4 a 2) ou est completement inexploitable (1).
+
+4Version du corpus utilisee pour la tache WMT08 (http: / /www . statmt . org / wmt O 8).
+
+Génération de reformulations locales par pivot pour l’aide a la révision
+
+Résultat au premier rang Résultats au 8 premiers rangs
+
+gram. sens rédact. moy. gram. sens rédact. moy.
+PIV (baseline) 4.46 4.18 3.62 4.09 11.66 10.60 9.10 10.45
+
+5GRAM 4.28 3.62 3.45 3.78 11.52 9.72 9.20 10.15
+
+DEP 4.35 3.68 3.43 3.82 11.47 9.70 8.91 10.03
+
+LEM 4.05 3.21 3.28 3.51 10.68 8.74 8.59 9.33
+
+PIV+5GRAM 4.65 4.06 3.82 4.18 11.95 10.30 9.58 10.61
+
+PIV+DEP 4.58 4.27 3.66 4.17 11.85 10.68 9.38 10.64
+
+PIV+LEM 4.37 4.00 3.76 4.05 11.53 10.14 9.56 10.41
+
+5GRAM+DEP 4.49 3.81 3.68 3.99 11.79 9.95 9.51 10.42
+5GRAM+LEM 4.28 3.59 3.56 3.81 11.46 9.57 9.37 10.13
+
+PIV +5 GRAM+DEP 4.65 4.05 3.92 4.21 12.04 10.35 9.71 10.70
+PIV+5GRAM+LEM 4.61 4.02 3.97 4.20 11.86 10.11 9.74 10.57
+PIV+DEP+LEM 4.57 4.17 4.02 4.25 11.82 10.33 9.81 10.65
+5GRAM+DEP+LEM 4.37 3.69 3.64 3.90 11.65 9.75 9.54 10.31
+P1V+5GRAM+DEP+LEM 4.68 4.09 4.05 4.27 12.01 10.24 9.87 10.71
+
+FIG. 2 — Résultats de l’évaluation automatique sur les 82 phrases de notre corpus d’évaluation
+(les notes au premier rang sont entre 1 et 5, et entre 2.71 et 13.59 pour les 8 premiers rangs)
+
+— score de conservation du sens : indique si la paraphrase reprend exactement le sens de la
+phrase d’origine (5), comporte différents niveaux d’ajout ou de retrait d’information (4 a 2)
+ou est d’un sens completement different (1).
+
+— score d’intérét pour un rédacteur : indique si la paraphrase pourrait étre réutilisée en l’état
+pour une reformulation (5), avec une modiﬁcation mineure (4), présente des éléments inté-
+ressants qui peuvent participer a une reformulation (3), présente des éléments qui peuvent
+suggérer une reformulation (2) ou correspond a du bruit (1).
+
+Les scores sont obtenus en prenant la moyenne des scores de deux juges francophones.5 Le ta-
+bleau de la ﬁgure 2 présente les résultats obtenus par différentes combinaisons de modeles pour
+notre co us d’évaluation.6 Nous avons ici décidé d’utiliser des oids A uniformes our la
+m
+combinaison des modeles, leur optimisation automatique en fonction de caractéristiques choi-
+sies par un utilisateur faisant partie de nos travaux futurs. Le deuxieme groupe de colonnes
+indique les moyennes des différents scores et leur moyenne pour la reformulation classée au
+premier rang. Le troisieme groupe de colonnes donne un score combinant les scores des 8
+
+. , , . 8
+meilleurs resultats7, calcule comme suit : ZMWZI m1ngsc0re(rang).
+
+En ce qui concerne la grammaticalité des paraphrases, les modeles PIV et 5GRAM sont les
+meilleurs contributeurs. La performance de PIV peut s’expliquer par la nature des alignements,
+dont les plus forts peuvent correspondre a des patrons morpho-syntaxiques cohérents. La contri-
+bution d’un modele de langue était attendue, mais on constate que 5GRAM seul a une per-
+formance légerement inférieure a DEP. La combinaison PIV+5GRAM mene cependant a une
+
+5L’écart—type des differences de scores entre les deux juges est de 0.59 pour la grammaticalité, 0.7 pour la
+conservation du sens, et 0.8 pour l’intéret pour un rédacteur, ce qui rend assez bien compte des différents niveaux
+de subjectivité de ces scores.
+
+5Contrairement a ce qui se passe en traduction statistique sur des phrases completes, la tajlle de notre espace de
+recherche pennet ici une exploration complete, et l’on a done la garantie de trouver le meilleur score global (parrni
+les résultats présélectionnés par PIV).
+
+7Ce type de mesure est motive par la ﬁnalité de nos travaux, i.e. proposer un nombre raisonnable de suggestions
+de reformulation a un rédacteur.
+
+Aurélien Max
+
+meilleure performance que la combinaison PIV+DEP, ce qui semble indiquer que PIV et DEP
+operent des sélections plus similaires que PIV et LM. A l’examen des données, il apparait qu’ob-
+tenir des reformulations grammaticales requiert parfois des modiﬁcations en dehors du segment.
+11 serait possible d’essayer d’étendre les segments automatiquement en cherchant a obtenir des
+reformulations de meilleure qualité, mais en conservant l’approche actuelle, on peut remarquer
+qu’un critere strict de grammaticalité n’est pas nécessairement le plus important pour le rédac-
+teur.
+
+L’ évaluation au niveau de la conservation du sens fait ressortir qu’il est difﬁcile de faire mieux
+que la baseline PIV. I1 s’agit cependant certainement la d’un biais imputable au corpus d’ap-
+prentissage des tables de traduction (les débats parlementaires européens), qui contient vraisem-
+blablement peu d’ambigui'tés sémantiques au niveau des segments dont les scores d’alignement
+sont les plus forts. Si la combinaison avec d’autres modeles a plutot tendance a dégrader les
+scores, car ils entrainent vraisemblablement une déformation du sens en préférant des énoncés
+grammaticaux, le modele DEP entraine une amélioration lorsque combiné avec PIV, alors que
+seul il obtient une performance bien moindre. La conservation des relations de dépendances, et
+en particulier du type de celles-ci pour les dépendances entrant ou sortant dans le segment para-
+phrasé, participe certainement a cela.8 La dégradation observée avec PIV+5GRAM est cohérente
+avec les résultats obtenus par (Callison-Burch, 2007). Les scores observés en utilisant le mo-
+dele LEM semblent indiquer que les reformulations contenant plusieurs mots pleins différents
+correspondent fréquemment a des sens jugés différents.
+
+Les meilleurs résultats concemant l’intérét pour le rédacteur sont obtenus en combinant tous les
+modeles. On constate qu’une mauvaise grammaticalité ou une mauvaise conservation du sens
+ont tendance a pénaliser ce score, ce qui est cohérent avec les directives d’évaluation. Le modele
+SGRAM se combine a nouveau favorablement avec PIV, et toutes les combinaisons impliquant
+PIV améliorent le score obtenu par ce modele seul. Le modele LEM permet d’améliorer les
+résultats, vraisemblablement parce qu’il permet de favoriser les reformulations les plus diffé-
+rentes du segment d’o1igine, qu’un rédacteur peut juger plus utiles qu’un segment tres proche.
+I1 permet ainsi parfois de sélectionner des reformulations qui obtiennent par ailleurs de mauvais
+scores en grammaticalité et/ou en conservation du sens, comme dans l’exemple suivant :
+
+Phrase d’0rigine : ceux qui viennent dire ici que l’ europe ne doit pas adopter de directive
+e’nong:ant les valeurs que nous voulons tous de’fendre se trompent.
+
+Reformulation : ceux qui viennent dire ici que Z ’ europe ne doit pas adopter de directive énon-
+cant les valeurs que nous voulons tous de’fendre devrions a nouveau réﬂéchir.
+
+L’ évaluation prenant en compte les 8 premiers résultats ne fait pas ressortir de différences si-
+gniﬁcatives avec le résultat au premier rang. Les exemples ci-dessous illustrent deux cas ou
+les premieres propositions du systeme en combinant tous les modeles obtiennent de tres bons
+scores :
+
+Phrase initiale : et , a cet e’gard bien précis , je suis d’ accord avec vous , monsieur le commis-
+saire
+
+Reformulations : je partage votre point de vue, je pense comme vous, je partage votre avis, je
+vous rejoins
+
+8Ce type de modéle dépend cependant trés fortement de la robustesse de l’analyseur syntaxique utilisé pour
+analyser des énoncés plus ou moins corrects.
+
+Generation de reformulations locales par pivot pour l’aide a la revision
+
+Phrase initiale : notre voisin s ’ est eﬁorce’ résolument pendant la décennie écoulée de remplir les
+critéres de l ’ adhésion .
+
+Reformulations : satisfaire aux exigences, satisfaire aux conditions, répondre aux exigences,
+respecter les exigences, répondre aux critéres, remplir les conditions, satisfaire aux critéres
+
+5 Conclusions et perspectives
+
+Dans cet article, nous avons decrit une approche inspiree de (Bannard & Callison-Burch, 2005)
+pour produire des reformulations locales en utilisant des tables de traduction de segments et
+en combinant les scores de differents modeles. Nos evaluations, basees sur trois criteres dont
+un concernant directement l’interet des reformulations proposees pour le redacteur, ont plus
+particulierement permis de degager la contribution de notre modele base sur la conservation des
+relations de dependance entre un enonce et ses reformulations. Cependant, l’approche proposee
+comporte de nombreuses limitations, que nous nous efforcerons de corriger dans nos travaux
+ulterieurs.
+
+La principale source d’amelioration selon nous consiste a mieux prendre en compte le contexte
+du segment a paraphraser dans la phrase source. Alors que (Callison-Burch, 2007) a montre
+l’importance de la prise en compte du contexte pour la generation de paraphrases, ses expe-
+riences se sont basees sur un choix de pivot issu directement d’un corpus parallele bilingue, ce
+qui revient a faire une desambigu'1'sation supervisee. Des travaux recents en traduction statis-
+tique tels que (Stroppa et al. , 2007) ont montre la possibilite d’integrer dans des systemes bases
+sur des segments des modeles permettant d’ameliorer la selection des segments cibles.9 Nous
+travaillons par ailleurs sur ces aspects dans le cadre d’un systeme de traduction statistique base
+sur des segments, et esperons que les resultats beneﬁcieront au travail presente ici.
+
+Nous allons par ailleurs poursuivre l’analyse de nos donnees pour proposer de nouveaux mo-
+deles, permettant par exemple de regrouper des sens dans les segments. Dans le cadre d’une
+integration dans un systeme d’aide a la reformulation, nous serons interesse par la possibilite de
+corriger les paraphrases produites, pour respecter par exemple des contraintes d’accords gram-
+maticaux. I1 nous semble egalement interessant de travailler sur le probleme du reperage des
+segments qui seraient de bons candidats a la reformulation (gallicismes en anglais, phraseolo-
+gie mal adaptee a un genre documentaire, etc.). En outre, nous aurons a considerer l’integration
+de segments alignes provenant de corpus comparables, qui sont des ressources beaucoup plus
+faciles a construire que les corpus alignes. Enﬁn, ce type de recherche devrait tendre vers plus
+de generalisation dans le processus de reformulation, et la possibilite de produire des para-
+phrases plus profondes au niveau d’enonces, voire de discours. Un type d’application particu-
+lierement interessant serait alors l’aide a la condensation d’articles scientiﬁques pour tenir dans
+des contraintes de taille imposees.
+
+Remerciements L’ auteur remercie Daniel Dechelotte pour la preparation de certaines donnees
+utilisees dans ce travail, et Didier Bourigault pour l’utilisation de SYNTEX.
+
+911 est possible cependant que la nature des corpus utilises ne perrnette pas d’amelioration tres sensible des
+résultats, car le besoin de desarnbiguisation est peut—étre assez faible dans l’ensemble.
+
+Aurélien Max
+
+Références
+
+BANNARD C. & CALLISON-BURCH C. (2005). Paraphrasing with bilingual parallel corpora.
+In Proceedings of ACL, Ann Arbor, USA.
+
+BARZILAY R. & LEE L. (2003). Learning to paraphrase : an unsupervised approach using
+multiple-sequence alignment. In Proceedings of NAACI/HLT, Edmonton, Canada.
+
+BOURIGAULT D., FABRE C., FREROT C., JACQUES M.—P. & OzDowsKA S. (2005). Syntex,
+analyseur syntaxique de corpus. In Actes de TALN, Dourdan, France.
+
+CALLISON-BURCH C. (2007). Paraphrasing and Translation. PhD thesis, University of
+Edinburgh.
+
+CONNOR M. & ROTH D. (2007). Context sensitive paraphrasing with a single unsupervised
+classiﬁer. In Proceedings of ECML, Warsaw, Poland.
+
+DUCLAYE F., COLLIN O. & YVON F. (2003). Apprentissage automatique de paraphrases
+pour l’amélioration d’un systeme de questions-réponses. In Actes de TALN, Batz-sur-mer,
+France.
+
+FERRET O. & ZOCK M. (2006). Enhancing electronic dictionaries with an index based on
+associations. In Proceedings of COLING/ACL, Sydney, Australia.
+
+FUCHS C. (1994). Paraphrase et e’nonciation. Ophrys, Paris.
+
+KAUCHAK D. & BARZILAY R. (2006). Paraphrasing for automatic evaluation. In Proceedings
+of NAACI/HLT, New York, USA.
+
+KOEHN P., OCH F. J ., & MARCU D. (2003). Statistical phrase-based translation. In Procee-
+dings of NAACI/HLT, Edmonton, Canada.
+
+LANDKILDE I. & KNIGHT K. (1998). Generation that exploits corpus-based statistical know-
+ledge. In Proceedings of COLING/ACL, Montréal, Canada.
+
+LIN C.-Y. (2004). Rouge : a package for automatic evaluation of summaries. In Proceedings
+of the Workshop on Text Summarization Branches Out (WAS 2004), Barcelona, Spain.
+
+PANG B., KNIGHT K. & MARCU D. (2003). Syntax-based alignment of multiple transla-
+tions : Extracting paraphrases and generating new sentences. In Proceedings of NAACI/HLT,
+Edmonton, Canada.
+
+PAPINENI K., ROUKOS S., WARD T. & ZHU W.-J. (2002). Bleu : a method for automatic
+evaluation of machine translation. In Proceedings of ACL, Philadelphia, USA.
+
+QUIRK C., BROCKETT C. & DOLAN W. B. (2004). Monolingual machine translation for
+paraphrase generation. In Proceedings of EMNLP, Barcelona, Spain.
+
+STROPPA N., VAN DEN BOSCH A. & WAY A. (2007). Exploiting source similarity for smt
+using context-informed features. In Proceedings of TMI, Skovde, Sweden.
+
+ZHOU L., LIN C.-Y., MUNTEANU D. S. & HOVY E. (2006). Paraeval : Using paraphrases
+to evaluate summaries automatically. In Proceedings of NAACI/HLT, New York, USA.
+

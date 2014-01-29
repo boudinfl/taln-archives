@@ -1,0 +1,489 @@
+TALN 2003, Batz-sur-Mer, 11–14 juin 2003
+Apprentissage Automatique de Paraphrases pour
+l’Amélioration d’un Système de Questions-Réponses
+Florence Duclaye (1 et 2), Olivier Collin (1), François Yvon (2)
+(1) France Télécom R&D
+2 avenue Pierre Marzin
+22307 Lannion Cedex
+{florence.duclaye,olivier.collin}@rd.francetelecom.fr
+(2) GET/ENST et LTCI, CNRS URA 820
+46 rue Barrault
+75624 Paris Cedex 13
+{fduclaye,yvon}@enst.fr
+Mots-clefs – Keywords
+Questions-Réponses, Apprentissage Automatique, Acquisition de Paraphrase
+Question Answering, Machine Learning, Paraphrase extraction
+Résumé - Abstract
+Dans cet article, nous présentons une méthodologie d’apprentissage faiblement supervisé pour
+l’extraction automatique de paraphrases à partir du Web. À partir d’un seule exemple de paire
+(prédicat, arguments), un corpus est progressivement accumulé par sondage du Web. Les phases
+de sondage alternent avec des phases de filtrage, durant lesquelles les paraphrases les moins
+plausibles sont éliminées à l’aide d’une procédure de clustering non supervisée. Ce mécanisme
+d’apprentissage s’appuie sur un système de Questions-Réponses existant et les paraphrases ap-
+prises seront utilisées pour en améliorer le rappel. Nous nous concentrons ici sur le mécanisme
+d’apprentissage de ce système et en présentons les premiers résultats.
+In this paper, we present a nearly unsupervised learning methodology for automatically extract-
+ing paraphrases from the Web. Starting with one single instance of a pair (predicate,arguments),
+a corpus is incrementally built by sampling the Web. Sampling stages alternate with filter-
+ingstages, during which implausible paraphrases are filtered out using an EM-based unsuper-
+vised clustering procedure. This learning machinery is built on top of an existing question-
+answering system and the learnt paraphrases will eventually be used to improve its recall. We
+focus here on the learning aspect of this system and report preliminary results.
+Florence Duclaye, Olivier Collin, François Yvon
+1 Introduction
+Les systèmes de Questions-Réponses (Voorhees, 1999) nécessitent des outils efficaces et so-
+phistiqués de traitement automatique des langues, capables de traiter la variabilité linguistique
+des questions et des réponses: une même signification peut, en effet, être véhiculée par de multi-
+ples structures lexico-syntaxiques. Cette variabilité est une source de difficultés dans la plupart
+des applications de traitement automatique des langues.
+Cette variabilité se manifeste au niveau syntaxique, où elle prend, par exemple, la forme de
+transformations régulières de la voix actice à la voix passive. Un traitement plus systématique de
+ce phénomène nécessite néanmoins des connaissances sémantiques, comme celles disponibles
+dans des réseaux sémantiques (Miller et al., 1990). Le bénéfice de telles ressources est toute-
+fois limité car (i) les relations de synonymie qu’elles contiennent sont définies hors de tout
+contexte d’usage; (ii) la synonymie implique une notion de la paraphrase qui est beaucoup trop
+restreinte pour l’application visée. La réponse à une question est en effet souvent exprimée
+à l’aide de termes qui ne sont que faiblement (par ex. métaphoriquement) liés à ceux de la
+question. Ainsi l’expression “X a causé Y” peut être considérée comme sémantiquement simi-
+laire à “la responsabilité de Y est attribuée à X” dans le contexte des Questions-Réponses (Lin
+& Pantel, 2001). Au lieu d’essayer de compléter manuellement ces ressources statiques, nous
+avons choisi d’exploiter les avantages d’une approche fondée sur des corpus et d’apprendre
+de telles équivalences de manière automatique. Nous utilisons le terme de paraphrase pour
+faire référence à ces relations, bien que la définition du terme adoptée ici soit surtout focalisée
+sur deux types de phénomènes linguistiques : les paraphrases linguistiques et les dérivations
+sémantiques. (Fuchs, 1982) décrit les paraphrases comme des phrases dont le sens linguis-
+tique dénotatif est équivalent. Les dérivations sémantiques sont des phrases dont le sens est
+préservé mais dont la structure lexico-syntaxique est différente (ex : AOL a acheté Netscape /
+l’acquisition de Netscape par AOL ). Le corpus utilisé pour acquérir les paraphrases est le Web.
+Cette utilisation du Web comme corpus offre plusieurs avantages (Grefenstette, 1994). (i) Les
+informations qu’il contient sont d’une grande variété et d’une grande redondance, une même
+information pouvant apparaître sous de multiples formes. Notre algorithme d’apprentissage re-
+pose fortement sur cette propriété. (ii) Le Web contient des informations contextuelles pouvant
+contraindre la portée de la relation de paraphrase. En outre, comme notre système de Questions-
+Réponses utilise le Web comme unique source d’information, il est important d’extraire les
+formulations d’un concept qui sont les plus fréquemment utilisées sur le Web. Cette stratégie
+n’est pas sans difficultés: la réduction du niveau de bruit dans les données extraites est en par-
+ticulier un problème important. Le mécanisme d’apprentissage que nous proposons est capable
+d’acquérir automatiquement de multiples formulations d’une relation sémantique donnée à par-
+tir d’un seul exemple. Cette donnée de départ consiste en un exemple de la relation sémantique
+visée, où l’expression linguistique (formulation) de la relation et le couple d’arguments ont tous
+deux été identifiés. Ce type de données est directement fourni par notre système de Questions-
+Réponses, mais il est également largement disponible dans les dictionnaires. Étant donné cet
+exemple positif, notre mécanisme d’apprentissage envoie de manière répétitive des requêtes sur
+le Web et utilise alternativement les formulations connues pour acquérir des nouveaux couples
+d’arguments, et les couples d’arguments connus pour trouver de nouvelles formulations. Ce
+mécanisme se décompose en deux étapes: d’une part la recherche de paraphrases potentielles
+de la relation sémantique et d’autre part la validation de ces paraphrases en se basant sur des
+comptages de fréquences et sur l’algorithme d’Estimation-Maximisation (EM).
+Cet article présente à la Section 2 les travaux techniques de l’état de l’art ayant influencé notre
+Apprentissage Automatique de Paraphrases
+approche, ainsi que les travaux de recherche liés à l’apprentissage automatique de paraphrases.
+La Section 3 décrit ensuite les détails du fonctionnement de notre système. Avant de conclure,
+la Section 4 présente quelques résultats expérimentaux obtenus qui permettent de mettre en
+évidence l’intérêt de notre approche.
+2 État de l’art
+2.1 Apprentissage automatique de paraphrases
+Comme les paraphrases peuvent être utilisées dans de nombreux contextes et applications, leur
+apprentissage peut être réalisé à l’aide de diverses méthodologies. (Barzilay & McKeown,
+2001) distinguent trois méthodes différentes pour la collecte des paraphrases. La première est
+leur collecte manuelle, la seconde est l’utilisation de ressources linguistiques existantes et la
+troisième est l’extraction de mots ou d’expressions similaires en se basant sur un corpus. De
+ces trois méthodes, la première est sans doute la plus facile à implémenter, mais probablement
+la plus fastidieuse et la plus longue.
+Les ressources linguistiques tels que les dictionnaires peuvent s’avérer utiles pour la collecte
+ou la génération de paraphrases. Par exemple, (Kurohashi & Sakai, 1999) utilise un dictio-
+nnaire construit manuellement pour reformuler des groupes nominaux ambigus en groupes
+verbaux. Ces ressources peuvent être utiles pour des besoins de désambiguïsation, mais en
+l’absence d’information contextuelle supplémentaire, les relations de synonymie qu’elles con-
+tiennent doivent être utilisées avec précaution. De plus, elles sont souvent considérées comme
+peu adaptées aux traitements automatiques (Habert et al., 1997). (Torisawa, 2001) propose une
+méthode basée sur l’algorithme d’Estimation-Maximisation pour sélectionner les constructions
+verbales servant à paraphraser certaines expressions.
+Enfin, certains travaux menés dans le domaine de l’extraction basée sur un corpus de mots ou
+d’expressions similaires s’appuient sur l’hypothèse distributionnelle de Harris, selon laquelle
+les mots apparaissant dans le même contexte tendent à avoir des sens similaires. Partant de ce
+postulat, (Barzilay & McKeown, 2001) et (Akira & Takenobu, 2002) travaillent sur un ensemble
+de corpus alignés et utilisent des informations contextuelles basées sur des similarités lexicales
+pour extraire des paraphrases. De manière similaire, (Lin & Pantel, 2001) utilise un algorithme
+non supervisé pour la découverte de règles d’inférence à partir de textes. Au lieu d’appliquer
+l’hypothèse harrissienne aux mots, les auteurs l’appliquent à des chemins dans les arbres de
+dépendance d’un corpus analysé.
+2.2 Extraction d’informations par bootstrapping
+Des travaux récents menés en extraction d’informations nous fournissent des approches in-
+téressantes, pouvant être adaptées au problème de l’apprentissage automatique de paraphrases.
+Ainsi, (Riloff & Jones, 1999) décrit un système d’extraction d’informations reposant sur un mé-
+canisme de bootstrapping à deux niveaux. Le niveau de ”bootstrapping mutuel” construit alter-
+nativement un lexique et des patrons d’extraction contextuels. Le niveau de “meta-bootstrapping”
+ne conserve que les cinq meilleurs nouveaux termes extraits durant une itération d’apprentissage,
+avant de poursuivre avec le boostrapping mutuel. L’auteur parvient ainsi à réduire la quantité
+Florence Duclaye, Olivier Collin, François Yvon
+de termes invalides trouvés en appliquant les patrons d’extraction.
+La technique DIPRE (Dual Iterative Pattern Relation Extraction), présentée dans (Brin, 1998)
+est aussi une méthode de bootstrapping, utilisée pour l’acquisition de paires (auteur, titre) à
+partir d’un corpus de documents du Web. À partir d’une collection d’exemples de tels exemples,
+l’auteur construit des patrons d’extraction utilisés pour collecter de nouvelles paires (auteur,
+titre). À leur tour, ces paires sont recherchées dans le corpus et sont utilisées pour construire de
+nouveaux patrons d’extraction, et ainsi de suite.
+Enfin, (Collins & Singer, 1999) décrit une méthode de reconnaissance d’entités nommées ca-
+pable d’apprendre à partir d’un faible nombre de données de supervision, en construisant en
+parallèle deux classifieurs utilisant des ensembles disjoints d’attributs.
+3 Description du système d’apprentissage de paraphrases
+3.1 Fonctionnement global du système
+Notre algorithme d’inférence de paraphrases commence son apprentissage à partir d’un unique
+exemple positif et utilise un mécanisme de bootstrapping à deux niveaux. Cet exemple de dé-
+part est, par exemple, une réponse automatiquement calculée par notre système de Questions-
+Réponses. Dans notre modèle, un exemple est représenté comme l’association d’une for-
+ 
+mulation linguistique d’un prédicat avec son couple d’arguments  . Par exemple, la re-
+ 
+lation d’auteur pourrait être représentée ainsi : =”être l’auteur de”,  =(”Melville”, ”Moby
+Dick”). L’identification des paraphrases repose sur un modèle de décision probabiliste dont
+les paramètres sont estimés de manière presque non supervisée. L’estimation repose sur un
+algorithme de clustering fondé sur l’algorithme EM (voir la Section 3.2): il prend en entrée
+une matrice contenant les fréquences de cooccurrence d’un ensemble de formulations  et des
+couples d’arguments correspondants  , mesurées dans le corpus  .
+Notre corpus initial  contient un unique exemple de départ exprimant la relation sémantique
+ 
+visée, représenté comme la cooccurrence d’une formulation  et d’un couple d’arguments  .
+Avec ces données de départ, nous souhaitons construire un nouveau corpus  contenant poten-
+tiellement beaucoup plus d’exemples de la relation sémantique visée. Cette tâche est réalisée en
+ 
+utilisant indépendemment  et  pour formuler des requêtes sur le Web. Les documents trou-
+vés sont parcourus pour y trouver de nouvelles formulations et paires d’arguments intéressantes,
+qui sont utilisées successivement pour produire de nouvelles requêtes, ces dernières étant à leur
+tour utilisées pour extraire plus d’arguments et de formulations... Durant cette étape, nous avons
+donc besoin de (i) générer des requêtes et traiter les documents trouvés afin de (ii) extraire de
+nouvelles formulations et de nouveaux couples d’arguments. De plus amples détails concernant
+ces procédures sont donnés dans la Section 3.3.
+La qualité des paraphrases extraites dépend beaucoup de notre capacité à maintenir le corpus
+suffisamment focalisé sur la relation sémantique visée: pour ce faire, les phases d’acquisition
+sont entrecoupées d’étapes de filtrage reposant sur notre clustering à base d’EM. Le filtrage
+est en effet une étape cruciale pour assurer la convergence de cette procédure. L’architecture
+globale de notre système est représentée sur la figure 1.
+Apprentissage Automatique de Paraphrases
+E Phrase 1 Requête 1
+T Ens. de tuples
+A ... ... d'argument
+P {aPhrase k Requête k 1
+ , ..., ak}
+E
+D
+E Extracteur de formulations ETAPE D'ACQUISITION Extracteur d'arguments
+F
+I
+L
+T Requête 1 Phrase 1Ens. de
+R formulations ... ...
+A {f
+G 1
+, ...,f j}
+Requête l Phrase l
+E
+Phrase
+initiale
+Figure 1: Système d’apprentissage automatique de paraphrases
+3.2 Filtrage par l’algorithme d’Estimation-Maximisation
+Le filtrage consiste à distinguer les paraphrases valides de la relation sémantique de départ des
+paraphrases qui sont incorrectes. Ce filtrage intervient à deux endroits de notre mécanisme
+d’apprentissage: (i) pour identifier les formulations qui vont déclencher une nouvelle série de
+requêtes et donc une nouvelle itération; (ii) pour sélectionner les paraphrases qui seront fi-
+nalement conservées (voir la Figure 1). Cette étape revient à classifier chaque formulation du
+corpus comme 1 (paraphrase valide) ou 0 (paraphrase invalide), en se basant sur des données
+de cooccurrence entre couples d’arguments et formulations. Ce problème de partitionnement
+en 2 classes est faiblement supervisé car nous ne disposons initialement que d’un seul exem-
+ple étiqueté (positif): la formulation de départ. Il est possible d’utiliser pour ce problème des
+algorithmes de clustering utilisant des des données de cooccurrence de type EM (Hofmann &
+ 
+Puzicha, 1998). Nous considérons donc que chaque phrase (consistant en une formulation et
+ses arguments  ) est générée par le modèle stochastique suivant:
+   
+	
+ 	
+ 	
+
+  ffflfiffi fi (1)
+ 
+	
+ 	
+ 	
+
+  flfiffi ff fi fiffi (2)
+où ! est l’ensemble des relations sémantiques exprimées par des phrases de notre corpus. Nous
+considérons également que notre corpus ne contient que deux relations sémantiques, dont les
+valeurs sont soit !" # , signifiant qu’une phrase donnée exprime la même relation séman-
+tique que la phrase de départ, soit !$&% , signifiant que la phrase exprime une autre relation
+sémantique (non spécifiée). Étant donné ce modèle, les formules de réestimation se dérivent
+facilement (Hofmann & Puzicha, 1998). Elles sont présentées dans 
+la Table 1, où '  dénote
+la fonction de comptage.
+Ce modèle nous permet d’incorporer des connaissances durant la phase d’initialisation, où nous
+      10
+
+ 	
+
+utilisons les valeurs sui 	vantes : !( #)  *+, # et !( #)  , %)-/. & 2 *
+dans l’équation (3). Toutes les autres valeurs de 	
+ !3  4 sont égales à %)-65 . EM est ensuite
+Florence Duclaye, Olivier Collin, François Yvon
+E-Step
+ 
+	
+ 	
+ 	
+
+ 
+	
+ fiffi flfiffi ff fi
+ 
+	
+ 	
+ 	
+
+fi) 7 (3)8
+fi9 flfi:; ffflfi:+
+
+M-Step
+   
+
+ 	
+
+8=<
+'  fi) 
+	
+
+:>
+   
+ff fi 
+ 	
+ (4)
+8=? 8=<
+' A fi) A
+@ >
+   
+
+ 	
+
+8B?
+ 
+	
+ '  fi) 
+@
+   
+
+ 	
+
+ fi (5)
+8 8< ?
+' A fi) A
+:> :@
+   
+
+ 	
+
+8 8< ?
+' A fi) A
+	
+
+:> :@
+ 
+
+
+fi (6)
+8 8< ?
+' 
+> :@
+Table 1: Formules de réestimation pour EM
+lancé jusqu’à convergence des paramètres maximisés. Dans notre cas, cette convergence est
+généralement atteinte au bout de #C% itérations.
+ 
+Une fois les paramètres appris, nous utilisons ce modèle pour décider si une formulation est
+   
+	
+ 	
+
+une paraphrase valide en no<CuS s basant sur le rapport entre !DE#)  et !FG%H  , calculé
+OHPRQ OHPRQ
+<CS
+comme suit: IJLKNM KNM . Étant donné 	
+que !V#ffi est fortement sur-estimée dans
+OUTQ OUTQ
+notre corpus (qui esKNt M précKNisM ément focalisé autour de tels exemples), la règle de décision utilisée
+impose que ce rapport soit supérieur à un seuil pré-défini WYXZX[# . De manière alternative, nous
+avons également considéré des scénarios dans lesquels ces probabilités ne servent qu’à ordonner
+les candidats paraphrases, que ce soit pendant les différentes étapes de filtrage ou même lors
+de la décision finale. Ceci rendant finalement notre approche moins dépendante de la validité
+des hypothèses sous-jacentes au modèle probabiliste utilisé, dont certaines sont discutables:en
+particulier à la condition d’indépendance exprimée en 2, ou encore l’hypothèse que seules deux
+relations sémantiques sont représentées dans notre corpus.
+3.3 Procédure d’acquisition automatique
+L’outil utilisé pour la phase d’acquisition est un système de Questions-Réponses, fonctionnant
+ici comme un outil d’extraction d’informations. Ce système est constitué de deux composants
+principaux: le premier transforme une question en entrée en une requête sur le Web et déclenche
+la recherche; le second analyse les pages retournées (plus précisément les extraits de page)
+et y cherche des réponses potentielles, par appariemment de patrons d’extraction pré-définis.
+La requête et les patrons d’extraction sont dérivés de la question de départ à l’aide de règles.
+Les détails concernant ce système de QA et les procédures d’analyse linguistique impliqués
+à chaque étape du traitement sont donnés dans (Duclaye et al., 2002). En mode “extraction
+d’information”, l’étape de construction de requête est supprimée, la requête étant déduite des
+couples d’arguments (ou de formulations). La phase d’analyse utilise des patrons d’extraction
+très généraux, construits à partir des arguments (ou formulations) en cours de traitement. Sup-
+posons, par exemple, que nous recherchons des paraphrases, la paire d’arguments courante étant
+égale à [“Melville”, ”Moby Dick”]. Ces arguments seront tous deux utilisés comme mots-clés,
+et deux patrons d’extraction sont utilisés pour faire les extractions dans les documents trou-
+vés : “Melville [verb] Moby Dick” et “Moby Dick [verb] Melville”. Dans cet exemple, il est
+Apprentissage Automatique de Paraphrases
+nécessaire qu’un verbe apparaîsse entre les deux mots-clés pour être extrait. Ce verbe sera
+considéré comme une paraphrase potentielle de la formulation de départ. Pour chaque requête,
+seuls les ' premiers documents retournés par le moteur de recherche sont pris en compte. Les
+paires (arguments, formulations) ainsi extraites sont accumulées, itération après itération, pour
+constituer un corpus sur lequel des statistiques utilisées lors du filtrage sont calculées. Ce pro-
+cessus itératif d’acquisition de formulations et de couples d’arguments, combiné avec celui de
+validation/filtrage, converge et se termine quand aucune nouvelle formulation n’est trouvée.
+4 Résultats expérimentaux
+Les expériences décrites dans cette section ont été réalisées sur 18 phrases initiales, représentant
+12 relations sémantiques différentes. La Table 2 présente quelques exemples de relations, ainsi
+que les formulations et couples d’arguments choisis. Pour chacune de ces phrases, la procédure
+d’apprentissage décrite à la Section 3 a été lancée sur une itération. Les résultats présentés ici
+ont été obtenus en prenant les ' =1000 premiers résumés retournés par le moteur de recherche.
+achat de "acheter" AOL; Netscape
+auteur de "écrire" Melville; Moby Dick
+inventeur de "inventer" Gutenberg; imprimerie
+assassinat de "assassiner" Oswald; Kennedy
+Table 2: Exemples de relations avec leurs formulations et couples d’arguments
+Les paraphrases extraites ont été vérifiées manuellement et classées comme valides ou invalides.
+Dans cette application, le succès peut être mesuré comme la précision moyenne des paraphrases
+extraites, qui devraient à terme être ajoutées au système de Questions-Réponses. Le rappel, par
+contre, n’est pas important car nous souhaitons simplement trouver les paraphrases les plus
+fréquentes. Le taux de sélection représente le pourcentage de formulations classées comme
+valides par notre système. Rappelons que la décision de classer une formulation comme une
+ 
+
+R	
+
+paraphrase valide ou invalide 
+R	
+est basée sur le rapport entre \+]ffi^ !GL#) _ et \+]ffi^ !G
+ 
+%H _ , appelé W . Les taux de sélection et les résultats de précision pour différentes valeurs de W
+sont donnés dans la Table 3.
+W 7 25 48 117 186 232
+Taux de sélection 44.0% 29.8% 23.9% 14.2% 10% 9.4%
+Précision 42.9% 47.3% 47.3% 54.9% 66.6% 65.4%
+Table 3: Résultats expérimentaux
+Dans ces expérimentations, la meilleure précision moyenne atteinte est de 66.6%, quand W`
+#Ca*. . Effectuées sur plusieurs relations sémantiques, ces expérimentations ont montré que le taux
+de précision peut varier de manière importante d’une relation sémantique à une autre: il peut
+atteindre 100% pour certaines relations, et descendre jusqu’à 6% pour d’autres. Ces résultats
+peuvent paraître faibles. Cela est dû en partie à la quantité variable de données extraites du
+Web pour les relations sémantiques. Le fait d’appliquer le même seuil W à toutes les relations
+sémantiques n’est certainement pas la meilleure méthode. De plus, la majorité des formulations
+Florence Duclaye, Olivier Collin, François Yvon
+classées à tort comme de bonnes paraphrases sont thématiquement liées à la formulation de
+départ et ne peuvent donc être considérées comme totalement mauvaises.
+Comme indiqué dans la Table 3, l’augmentation des valeurs de W provoque la diminution du taux
+de sélection et l’augmentation de la précision. La tendance générale est que plus W augmente,
+plus la quantité de formulations classées comme mauvaises paraphrases augmente, de sorte que
+finalement, seule la formulation de départ est conservée comme valide. Augmenter W n’est donc
+pas suffisant pour améliorer la précicion moyenne des paraphrases extraites. Il est nécessaire de
+trouver un équilibre entre le taux de sélection et la précision des paraphrases extraites.
+Une autre stratégie de filtrage consiste à conserver les b meilleures formulations à chaque itéra-
+ 
+tion ( bcd5 #C% -e-f- ). La Table 4 porte sur la première itération de la relation d’achat et compare
+les taux de précision obtenus pour différents seuils de b . La deuxième colonne représente les
+taux de précision dans l’ensemble (de taille b ) des formulations classées comme paraphrases
+valides. La troisième colonne représente les taux de précision dans l’ensemble (de taille tou-
+jours b ) des formulations classées comme paraphrases invalides. Il est intéressant de noter
+que les formulations classées comme paraphrases invalides ont globalement une meilleure pré-
+cision que celles classées comme valides. Dans de prochaines expérimentations, on pourrait
+envisager d’utiliser ces formulations classées comme paraphrases invalides comme exemples
+négatifs d’apprentissage.
+Formu. classées en paraph. valides Formu. classées en paraph. invalides
+Classe entière 39.6% 85.2%
+b =5 60% 80%
+b =10 80% 80%
+b =15 73.3% 73.3%
+Table 4: Taux de précision en fonction de k, pour la relation d’achat
+Des expériences complémentaires ont été conduites sur plusieurs itérations, en ne conservant
+que les b =5 meilleures formulations à chaque itération. La Table 5 montre les résultats obtenus
+pour la relation d’achat, après cinq itérations d’apprentissage. On note que la précision aug-
+mente entre la première (60%) et la cinquième (80%) itération. Des expériences similaires sont
+en cours pour d’autres relations sémantiques.
+Itération. Formulations classées comme paraphrases valides
+# racheter, acquérir, acheter, utiliser, recevoir
+g
+racheter, acquérir, acheter, reprendre, absorber
+h
+racheter, acheter, acquérir, qui racheter, devenir
+i
+racheter, acheter, acquérir, absorber, grouper
+5 racheter, acheter, reprendre, devenir, acquérir
+Table 5: Résultats sur cinq itérations d’apprentissage pour la relation sémantique d’achat
+5 Conclusions et perspectives
+Dans cet article, nous avons présenté une méthodologie faiblement supervisée pour l’apprentissage
+automatique de paraphrases, commençant avec un unique exemple positif d’apprentissage. En
+Apprentissage Automatique de Paraphrases
+utilisant une stratégie de validation basée sur l’algorithme EM, nous pouvons filtrer les para-
+phrases potentielles invalides extraites durant les phases d’acquisition. Non seulement ces para-
+phrases sont utiles pour améliorer les résultats de notre système de Questions-Réponses, mais
+les couples d’arguments acquis pourraient également être utilisés pour d’autres besoins que
+l’apprentissage de paraphrases, comme la construction de lexiques sémantiques. Dans cette
+optique, l’étape de filtrage pourrait aussi bien être appliquée aux couples d’arguments acquis.
+Au-delà de résultats expérimentaux prometteurs, obtenus dans un scénario relativement simple,
+de nombreuses améliorations portant sur les phases d’acquisition et de validation sont actuelle-
+ment envisagées. Concernant l’étape de filtrage, les développements concernent principalement
+(i) une variante consistant à conserver des informations sur les valeurs des paramètres du modèle
+stochastique entre deux étapes successives de filtrage; (ii) l’utilisation de stratégies incrémen-
+tales les paraphrases potentielles qui seront utilisées dans de nouvelles requêtes pour augmenter
+le corpus d’exemples; (iii) l’utilisation d’autres algorithmes de filtrages, exploitant des prox-
+imités distributionnelles entre la formulation d’origine et les autres formulations trouvées sur
+Internet. Le but recherché étant d’obtenir un maximum d’exemples différents, tout en gardant
+le corpus en expansion suffisamment focalisé sur la relation sémantique en cours d’examen.
+Concernant la phase d’acquisition, nous projetons d’apprendre des paraphrases multilingues,
+ainsi que des structures plus complexes de formulations (comme les nominalisations). Nous
+projetons également d’utiliser des informations de contexte automatiquement apprises, afin
+d’améliorer la qualité des requêtes soumises au moteur de recherche: l’idée est d’extraire, dans
+le voisinage lexical des paraphrases identifiées comme valides, des termes discriminant per-
+mettant (i) de raffiner et/ou de varier les requêtes et (ii) de qualifier plus finement le contexte
+(thématique) dans lequel les relations de paraphrases sont valides. Il apparaît en effet clairement
+que de nombreuses relations de paraphrases de valent que dans un contexte bien défini, qu’il est
+essentiel de pouvoir décrire.
+Basé sur une stratégie d’apprentissage indépendante de la langue, notre système d’apprentissage
+de paraphrases sera intégré au système de Questions-Réponses. Notre système fonctionnera
+alors comme un composant indépendant du module de QA et apprendra des paraphrases à par-
+tir des réponses fournies par le système de QA. Son intégration ne nécessite en fait que peu
+de développements nouveaux, dans la mesure où notre système de Questions-Réponses intègre
+déjà des règles de paraphrasage entrées manuellement. Il ne s’agit donc que d’automatiser ce
+processus d’ajout de règles de paraphrasage des questions et des réponses. Ceci nous perme-
+ttra d’évaluer dans un contexte applicatif notre méthodologie et de mesurer les améliorations
+apportées par les paraphrases extraites.
+Références
+AKIRA T. & TAKENOBU T. (2002). Automatic disabbreviation by using context information. In Pro-
+ceedings of the NLPRS Workshop on Automatic Paraphrasing : Theories and Applications.
+BARZILAY R. & MCKEOWN K. R. (2001). Extracting paraphrases from a parallel corpus. In Proceed-
+ing of the 39th Annual Meeting of the Association for Computational Linguistics, p. 50–57, Toulouse.
+BRIN S. (1998). Extracting patterns and relations from the world wide web. In Proceedings of WebDB
+Workshop at EDBT.
+COLLINS M. & SINGER Y. (1999). Unsupervised models for named entity classification. In Proceed-
+ings of the Workshop on Empirical Methods for Natural Language Processing.
+Florence Duclaye, Olivier Collin, François Yvon
+DUCLAYE F., FILOCHE P., SITKO J. & COLLIN O. (2002). A polish question-answering system for
+business information. In Proceedings of the Business Information Systems Conference, Poznan.
+FUCHS C. (1982). La Paraphrase. Presses Universitaires de France.
+GREFENSTETTE G. (1994). Explorations in Automatic Thesaurus Discovery. Boston: Kluwer Aca-
+demic Publishers.
+HABERT B., NAZARENKO A. & SALEM A. (1997). Les linguistiques de corpus. Armand Colin, Paris.
+HOFMANN T. & PUZICHA J. (1998). Statistical Models for Co-occurrence Data. Rapport interne AI.
+1625, MIT, AI Lab.
+KUROHASHI S. & SAKAI Y. (1999). Semantic analysis of japanese noun phrases : a new approach
+to dictionary-based understanding. In Proceedings of the 37th Annual Meeting of the Association for
+Computational Linguistics, p. 481–488.
+LIN D. & PANTEL P. (2001). Discovery of inference rules for question-answering. In Natural Language
+Engineering, volume 7, p. 343–360.
+MILLER G., BECKWITH R., FELLBAUM C., GROSS D. & MILLER K. (1990). Introduction to wordnet:
+An on-line lexical database. In Journal of Lexicography, volume 3, p. 234–244.
+RILOFF E. & JONES R. (1999). Learning dictionaries for information extraction by multi-level boot-
+strapping. In Proceedings of the 16th National Conference on Artificial Intelligence.
+TORISAWA K. (2001). A nearly unsupervised learning method for automatic paraphrasing of japanese
+noun phrases. In Proceedings of the NLPRS 2002 workshop on Automatic Paraphrasing : Theories and
+Applications, Tokyo.
+VOORHEES E. (1999). The TREC-8 question answering track report. In Proceedings of TREC-8.

@@ -1,433 +1,1566 @@
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-Pre- rocessin and Lan uage Analysis for
-Arabic 0 French tatistica Machine ranslation
-
-Fatiha Sadat Emad Mohamed
-Université du Québec a Montréal
-201 Président Kennedy, Montréal
-HZX 3Y7, QC, Canada
-
-Sadat . fatiha@uqam. ca, emohamed@umail . iu . edu
-
-RESUME
-
-(Traduction automatique statistique pour l'arabe-francais améliorée par le
-prétraitement et l'ana1yse de la langue)
-
-Dans cet article, nous nous intéressons au prétraitement de la langue arabe comme langue
-source :31 des ﬁns de traduction automatique statistique. Nous présentons une étude sur la
-traduction automatique statistique basée sur les syntagmes, pour la paire de langues arabe-
-francais utilisant le décodeur Moses ainsi que d’autres outils de base.
-
-Les propriétés morphologiques et syntaxiques de la langue arabe sont complexes, ce qui
-rend cette langue difﬁcile :31 maitriser dans le domaine du TALN. Aussi, les performances
-d’un systéme de traduction statistique dépendent considérablement de la quantité et de la
-qualité des corpus d'apprentissage. Dans cette étude, nous montrons qu’un prétraitement
-basé sur les mots de la langue source (arabe) et l’introduction de quelques régles
-linguistiques par rapport :31 la syntaxe de la langue cible (francais), permet d’obtenir des
-améliorations du score BLEU. Cette amélioration est réalisée sans augmenter la quantité
-des corpus d'apprentissage.
-
-ABSTRACT
-
-Arabic is a morphologically rich and complex language, which presents signiﬁcant
-challenges for natural language processing and machine translation. In this paper, we
-describe an ongoing effort to build a competitive Arabic-French phrase—based machine
-translation system using the Moses decoder and other tools.
-
-The results show an increase in terms of BLEU score after introducing some pre-processing
-schemes for Arabic and applying additional language analysis rules in relation to the target
-language. The proposed approach is completed using pre-processing and language analysis
-rules without increasing the amount of training data.
-
-MOTS-CLES : Traduction automatique statistique, traduction arabe-francais, pré-traitement
-de corpus, morphologie de l’Arabe.
-
-KEYWORDS: Statistical machine translation, Arabic-French translation, Corpus pre-
-processing, Arabic morphology.
-
-1 Introduction
-
-Arabic is a morphologically rich and complex language, in which a word carries not only
-620 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-inﬂections but also clitics, such as pronouns, conjunctions, and prepositions. This
-morphological complexity also has consequences for NLP applications, such as machine
-translation and information retrieval. On the one hand, developing an Arabic-French
-machine translation system is not an easy task, although there is a vast amount of training
-data nowadays. On the other hand, dealing with the complexity and ambiguity of the source
-language plays a major role in boosting the efﬁciency of the translation system.
-
-In previous research, it was shown that morphological pre-processing of a morphologically
-rich language, such as Arabic does provide a beneﬁt, especially in the case of limited volume
-of training data (Goldwater and McClosky, 2005 ; Sadat and Habash, 2006 ; Lee, 2004 ; El
-Ishibani et al., 2006 ; Hasan et al., 2003).
-
-In Statistical Machine Translation (SMT) context, Habash et Sadat (2006) pre-processed
-Arabic texts using different segmentation schemes for translation into English and showed
-that the quality of translation is generally better than the baseline. Similar findings were
-reported by El Ishibani et al. (2006) on Arabic-English SMT.
-
-In relation to Arabic-French SMT, few research and evaluations were reported, compared to
-Arabic-English SMT among other pairs of languages. One of the first statistically-driven
-machine translation systems for Arabic-French was reported by Hasan et al (Hasan et al.,
-2006) during the second Cesta evaluation campaign1. The proposed SMT system used a
-simple stemming algorithm based on finite-state automata to split Arabic words into
-preﬁxes, stem and sufﬁxes. Nevertheless, this simple segmentation method showed a
-reduced OOV rate from 8.2% to 2.6% for the test data and thus a better quality of
-translation in terms of BLEU score (Papineni et al., 2001). Another research on Arabic-
-French SMT was focused on domain adaptation to the news domain and did not consider
-the pre-processing of the morphologically complex language such as Arabic (Schwenk and
-Senellart, 2009). An improvement of 3.5 BLEU points on the test set was realized.
-
-In relation to improving an SMT system using some language analysis rules, such as re-
-ordering with Arabic as a source language, there was no reported research on Arabic-
-French SMT. However, Carpuat et al. (Carpuat et al., 2010) showed that post-verbal subject
-(VS) constructions are hard to translate because they have highly ambiguous reordering
-patterns when translated to English. They proposed to reorder VS construction into SV
-order for SMT word alignment only. This strategy signiﬁcantly improves BLEU and TER
-scores of the SMT using Arabic and English language pair.
-
-In this paper, we report some experiments related to our ﬁrst participation in the 2012
-TRAD evaluation campaign 2, that was coordinated by the Laboratoire National de
-me’tro1og1'e et d’Essa1's (LNE) and CASSIDIAN (the defence and security subsidiary of the
-EADS group), and was funded by the French General Directorate for Armament (DGA). Our
-main interest at this stage is related to the pre-processing of the source language, in order
-to improve the quality of translation, rather than the radical changes that might improve
-the translation or training engines or the increase of the amount of training corpora.
-
-This paper is organized as follows. The morphology of Arabic language is described in
-section 2. In section 3, we discuss the proposed solutions of pre-processing Arabic through
-
-1 http://www.bechno1angue.net/article.php3?id_article=199
-2 http://www.trad-campaign.org/
-621 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-segmentation and language analysis. In section 4-, we present the experiments on Arabic-
-French SMT with different evaluations. Section 5 concludes the present paper with a
-discussion and some perspectives.
-
-a The Morphology of Arabic Language
-
-Before we delve into the methods, we need to discuss the nature of the Arabic language,
-which has a bearing on the text preparation stage. Figure 1 shows a white-space delimited
-word in Arabic.
-
-The Arabic script is complicated in that each white-space-delimited unit may correspond to
-several syntactic units. The Arabic orthographic unit, a unit delimited by white space,
-usually carries more than one token. An example is a form like (wsyktbWnhA)3 (Eng. and
-they will write it, depicted in Figure 1.). This grammatically complete sentence carries a
-conjunction w, a future particle s, a verbal token yktbwn, and a feminine singular third
-person object pronoun 11A. The verbal token is made of a verb ktb, a masculine present
-third person inﬂection y and a plural indicative inﬂection wn. This nature entails that the
-type token ratio is much smaller than it is for a non-morphologically rich language like
-English for example. This means that the same word does not repeat often enough for the
-investigator to make valid observations. In order for any linguistic, especially lexical,
-investigation to be reliable, one needs to perform some sort of morphological analysis
-capable of reducing the word to its basic form. This has implications on Machine translation
-as it means that no matter how big the training corpus is; the Arabic side will always suffer
-from scarcity.
-
-cow; FUT  TP’R‘oN
-
-wand swm VPREFIIIIVERB-STEMIEIIFFIX hA,,,
-
-I I I
-
-y ktbwrite Wnthey
-
-FIGURE 1 — The Morphology of an Arabic word
-3 Pre-processing Arabic for SMT
-
-With Arabic being morphologically complex and rich, lexical scarcity comes as a natural
-result. In such cases it helps to reduce this morphological complexity in order to obtain
-better alignments and decoding for Statistical Machine Translation (Habash et al., 2010).
-
-Our goal at this stage is related to the pre-processing of Arabic as a source language, in
-order to improve the quality of translation. First, in order to perform Arabic pre-processing,
-we used a machine learning approach that performs word segmentation and POS tagging at
-the segment level. We then use rules to derive the different pre-processing schemes
-
-3 All Arabic transliterations are provided using the Buckwalter transliteration scheme (Buckwalter, 2002)
-622 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-required for the machine translation experiments. Thus, instead of using MADA (Habash et
-al., 2010), the well known morphological analyzer for Arabic, we choose our own
-morphological analyzer that is memory-based learning for both word segmentation and
-part of speech tagging (Emad and Kiibler, 2010).
-
-The segmentation and POS tagging modules above give a rich representation with enough
-information for almost any further required transformation. Given an input sentence like
-(a), the system produces (b) as a segmented and annotated sentence, as described in the
-following example:
-
-(a) 04..-,‘=.-35‘ ,~.-é oa;.=Ls-4| oa 414:1! 3-.-»-U1‘ etkl--1|  ¢-I-.«bk-‘am dd:-.5)‘ 45:
-
-(In Buckwalter transliteration): wqd ArtbTt AlADTrAbAt btrHyl AlslTAt Alfrnsyp llEdyd mn
-AlmhAjryn gyrAl$rEyyn
-
-(b) w/CONJ+qd/VERB_PART ArtbT/PV+t/PVSUFF_SUBJ:3FS
-
-Al/DET+ADTrAb/NOUN+At/NSUFF_FEM_PL b/PREP+trHyl/NOUN
-Al/DET+slT/NOUN+At/NSUFF_FEM_PL Al/DET+frnsy/ADJ+p/NSUFF_FEM_SG
-l/PREP+l/DET+Edyd/NOUN n1n/PREP
-Al/DET+mhAjr/NOUN+yn/NSUFF_MASC_PL_GEN gyr/NEG_PART
-Al/DET+$rEy/ADJ+yn/ NSUFF_MASC_PL_GEN
-
-We set four different evaluations based on the variations on the output of the above
-example, as follows:
-
-Basic. The Basic experiment is the baseline of all the work we are doing. In this
-experiment, the Arabic side undergoes minimal pre-processing in which we only separate
-the punctuation and remove the occasional diacritization (the short vowels). Short vowels
-do not normally occur in Arabic, but sometimes scattered ones are there mainly for
-disambiguation purposes; however since their use is not standardized and subjective, their
-removal usually leads to better agreement between the training and test sets.
-
-Tokenized. In this context, tokenization means splitting the prefixes and suffixes that
-have a syntactic value and that usually stand as independent words in other languages.
-Examples of these include the possessive pronouns (-hm, -h, -y, -hA), conjunctions (w, f),
-and prepositions (I-, k-, t-). We have also chosen to split the Arabic definite article A] due to
-the perceived similarity in distribution between the Arabic and French deﬁnite articles.
-
-The sentence above "wqd ArtbTt AlADTrAbAt btrHyl AlslTAt Alfrnsyp llEdyd mn
-AlmhAjryn gyr Al$rEyyn "
-
-is thus tokenized as "w/CON] qd/VERB_PART ArtbT/PV+t/PVSUFF_SUB]:3FS Al/DET
-ADTrAb/NOUN+At/NSUFF_FEM_PL b/PREP trHyl/NOUN Al/DET
-slT/NOUN+At/NSUFF_FEM_PL Al/DET frnsy/AD]+p/NSUFF_FEM_SG l/PREP Al/DET
-Edyd/NOUN mn/PREP Al/DET mhAjr/NOUN+yn/NSUFF_MASC_PL_GEN gyr/NEG_PART
-Al/DET $rEy/AD]+yn/ NSUFF_MASC_PL_GEN".
-
-Where the conjunction w, the prepositions b and I, and the deﬁnite article A1 are no longer
-preﬁxes, but separate tokens. The process also normalized the deﬁnite article from I to AI,
-which is the more frequent form.
-
-Morp Reduced. In the morphologically reduced experiment, we reduce the morphology of
-623 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-Arabic to a level that makes it closer to that of the French language. An example of this is
-the dual form, which does not occur in French and has thus been transformed to the plural.
-The following table (Table 1) lists the most common examples of Arabic morphological
-reduction.
-
-Rule Example before applying the Example after applying
-rule the rule
-
-Regular Plural mstv\fT n W11 AlmstWTnyn
-
-Nominative —>
-
-Regular Plural
-
-Accusative
-
-dual Nominative —> lAEbAn lAEbyn
-
-Regular Plural
-
-Accusative
-
-]ussive Mood —> hn lm ylEb11 hm lm ylEbw11
-
-Indicative Mood hm lm ylEb WA hn lm ylEb wn
-hmA lm ylEbA hm lm ylEb wn
-
-TABLE 1 — The most common rules for Arabic morphological reduction
-
-Swapped. The swapped experiment tries to introduce some structural matching between
-the source language (Arabic) and the target language (French). Two structural changes
-have been attempted, as follows:
-
-(a) While Arabic possessive pronouns follow the nouns, we have made them precede the
-nouns in order to match the French. For example ktAb -y (book -my) has now become (-y
-book) to match "mon livre" (in French).
-
-(b) Arabic object pronouns, which follow the verb, have been made to precede it. >nA
->13/d 11 (I want it) is now >nA 11 >13/d with the purpose of matching the French structure "]e
-1e Veux’.
-
-4- Experiments on SMT
-
-Our SMT system was trained on 3.5 million words of French and their parallel text in Arabic
-(equivalent to 108 300 sentences) in addition to 9700 parallel sentences that were
-extracted from the essentially comparable UN corpus of 2009. Thus, the total number of
-sentences is 118 000 for the training corpora. The development corpus contains 20,000
-words, namely 40,000 words with the reference. The evaluation corpus contains 15,000
-words with 4 references.
-
-The common practice of extracting bilingual phrases from the parallel data usually consists
-of three steps: ﬁrst, words in bilingual sentence pairs are aligned using state-of-the-art
-automatic word alignment tools, such as GIZA++ (Och and Ney, 2003), in both directions;
-second, word alignment links are reﬁned using heuristics, such as Grow-Diagonal-Final
-(GDF) method; third, bilingual phrases are extracted from the parallel data based on the
-reﬁned word alignments with predeﬁned constraints (Och and Ney, 200 3).
-
-The trigram language models are implemented using the SRILM toolkit (Stolcke, 2002).
-
-624 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-Moses4 (Koehn et al., 2007), an open source toolkit for phrase-based SMT system, was used
-as a decoder.
-
-These steps of building a translation system are considered as a common practice in the
-state-of-the-art of phrase-based SMT systems. Our research for improving the Arabic-
-French SMT system was emphasized more on the pre-processing part of the SMT system.
-
-We have measured the effect of the proposed pre-processing steps on data sparseness,
-based on the percentage of unknown unigrams (OOVs) on a development set (dev set).
-Table 2 summarizes the ﬁndings on the dev set. We give numbers in terms of tokens (the
-total number of words) and types (the number of unique words in the text, i.e. no-
-redundant words in the text).
-
-Experiment % 00V (Types) % OOV (Tokens) BLEU score
-Baseline 10.74 4.81 17.69
-Tokenized 7.99 2.00 2 5.84
-MorphReduced 7.87 1.98 2 6.33
-Swapped 7.87 1.98 2 5.48
-
-TABLE 2 — Effect of pre-processing on the development set
-
-It can be noticed that the tokenization has a major effect on combatting data sparseness and
-consequently improving the quality of translation as measured by the BLEU score.
-Morphological normalization, which is a layer on top of tokenization, improves things even
-further, and this is reﬂected in the difference between the baseline BLEU score and the
-MorphReduced BLUE score which is 8.6 absolute points.
-
-The swapped experiment leads the system output to deteriorate; which leads to a review of
-the introduced rules for the structural matching between the source Arabic and the target
-French languages, in the future.
-
-Table 3 compares the results, in term of BLEU scores, of the 4 experimental settings in 3
-evaluations schemes, as follows:
-
-(a) Standard, which includes performing re-casing and removing white space before
-punctuation,
-
-(b) Nopunct; in which punctuation is stripped and evaluation is performed on the lexical
-text only, and
-
-(c) Nopunctcase in which, in addition to removing punctuation, all words are lower-cased.
-
-We can see from Table 3 that the Baseline experiment produces the lowest results, and that
-the tokenization scheme is a big leap with a 7.2 BLEU scores of improvement (25.9 vs.
-33.1), which means that performing tokenization is a really a necessary step for translating
-
-4 Available on http://www.staImt.org/ mosesl
-
-625 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-from Arabic, an that the morphological complexity of Arabic could be a hindrance to quality
-automatic translation. While tokenization leads to considerable improvement,
-morphological reduction fares even better with a 7.4 BLEU score higher than the baseline.
-This could be due to the fact the morphological reduction reduces the number of unknown
-words even further than tokenization alone. Swapping elements to match the target
-language, which is built upon tokenization and morphological reduction, leads to a
-deterioration of the results a little as it cancels out the effect of the morphological reduction
-process. It is still an open question whether the positive effect of pre-processing will still
-carry over with increasing the amount of training data and to what extent this will help.
-
-Base Tokenized MorphReduced Swapped
-Standard 25.9 33.1 33.3 33.1
-Nopunct 23.8 31.5 31.7 31.4
-Nopuncncase 2 5.8 34.1 34.1 3 4
-
-TABLE 3 — Results in terms of BLEU score
-5 Conclusion
-
-We have presented an ongoing project on developing a competitive Arabic to French
-machine translation, using the methods and data of the TRAD 2 102 evaluation campaign.
-
-We have introduced pre-processing schemes for the source language (Arabic) and some
-rules of language analysis related to the target language (French). Our method for POS
-tagging and segmentation of Arabic texts showed a signiﬁcant improvement in terms of
-BLEU score; however it does not assume the best results. The introduced morphological
-rule that reduces the morphology of Arabic to a level that makes it closer to that of the
-French language, showed the best results. We have introduces extra swapping rules, that
-tries to introduce some structural matching between the source language (Arabic) and the
-target language (French) ; however there was no improvement in terms of BLEU score. Our
-future work is focused on the revision of these swapping rules and the introduction of more
-rule for the recognition and transliteration of named entities; which makes our translation
-system a hybrid rule-based and statistical SMT system. We will also investigate the
-integration of more training data such as comparable corpora to make our SMT system
-more competitive and reliable.
-
-Références
-
-BUCKWALTER, T. (2002). Buckwalter Arabic Morphological Analyzer Version 1.0. Linguistic
-Data Consortium, University of Pennsylvania. Catalog: LDC2 002 L49.
-
-CARPUAT, M., MARTON, Y. et HABASH, N. (2010). Reordering Matrix Post-verbal Subjects for
-Arabic-to-English SMT. In proceedings of the 17th Conference sur le Traitement des Langues
-Naturelles (TALN 2010). Montreal, Canada.
-
-DIAB, M., HACIOGLU, K. et IURAFSKY, D. (2004). Automatic Tagging of Arabic Text: From Raw
-Text to Base Phrase Chunks. In Proc. of the North American Chapter of the Association for
-Computational Linguistics (NAACL), Boston, MA.
-
-626 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-EMAD, M. et KUBLER, S. (2010). Is Arabic Part of Speech Tagging Feasible Without Word
-Segmentation? In HLT/ACL 2010, Human Language Technologies: The 2010 Annual
-Conference of the North American Chapter of the ACL, pages 705-708, Los Angeles,
-California, ]une 2010.
-
-EL ISBIHANI, A., KHADIVI, S., BENDER, 0., ET NEY, H. (2006). Morpho-syntactic Arabic
-Preprocessing for Arabic to English Statistical Machine Translation. In Human Language
-Technology Conf. / North American Chapter of the Assoc. for Computational Linguistics
-Annual Meeting (HLT-NAACL), Workshop on Statistical Machine Translation, New York
-City, pages 15-22.
-
-GOLDWATER, S. et MCCLOSKY, D. (2005). Improving Statistical MT through Morphological
-Analysis. In Proc. of Empirical Methods in Natural Language Processing (EMNLP),
-Vancouver, Canada.
-
-HABASH, N. et SADAT, F. (2006). Arabic Preprocessing Schemes for Statistical Machine
-Translation. In Proceedings of NAACL 2006, New York (USA). ]une 5-7.
-
-HABASH, N., RAMBOW, 0. et RYAN R. (2 010). The MADA and TOKAN Manual.
-
-HASAN, S., EL ISBIHANI, A. et NEY, H. (2006). Creating a Large-Scale Arabic to French Statistical
-Machine Translation System. In International Conference on Language resources and
-Evaluation (LREC), Genoa, Italy, pages 855-858.
-
-KOEHN, P., SHEN, W., FEDERICO, M,. BERTOLDI, N., CALLISON-BURCH, C., C0wAN, B., DYER, C., HOANG,
-H., B0]AR, O. ZENS, R., CONSTANTIN, A., HERBST, E., MORAN C. et BIRCH, A. (2007). Moses: Open
-source toolkit for statistical machine translation. In Proceedings of ACL 2007.
-
-LEE, Y. (2004). Morphological Analysis for Statistical Machine Translation. In Proc. of
-NAACL, Boston, MA.
-
-OCH, F., ]. et NEY,H. (2003). A Systematic Comparison of Various Statistical Alignment
-Models. Computational linguistics 29 (1), pages 19-51.
-
-PAPINENI, K., ROUKOs, S., WARD, T. et ZHU, W. (2001). Bleu: a Method for Automatic Evaluation
-of Machine Translation. Technical Report RC22176(W0109-022), IBM Research Division,
-Yorktown Heights, NY.
-
-SADAT, F. et HABASH, H. Arabic Preprocessing for Statistical Machine Translation: Schemes
-and Techniques. In Proceedings of CO LING-ACL 2 006, Sydney, Australia. ]uly 1 7-2 1 (2 006).
-
-SCHWENK, H. et SENELLART, ]. (2009). Translation model adaptation for an Arabic/French
-news translation system by lightly-supervised training. In MTSummit
-
-STOLCKE, A. (2002). SRILM-An Extensible Language Modeling Toolkit. In Proc. Of the
-International Conference on Spoken language Processing
-
-627 © ATALA
-
+TALN-RÉCIT!A!L"2#0!1$3",%#&1!7'-(!2)1"'J#!ui$"n%#, L&$e&s%'S&(ab')l!e*s"!d#"’O"#$l%o$n"%n$e!&"#'&()'!#&&(*$$)+",!(-*+.,-,!!"#"#$%&'$;"(<1$
+#+%'#"$/+!"
+/0& =.2")>3$2&%4%43""&))5."*06+54$7).8","9"-,'-$0+%24.$):""B;C"DEFA"6G%"A?"G.$000$.))$@" A",-0%24$:"
+HI(/,I"JJJJJJJJJJSJJaJdJJaJJtJ.JJfJaJJtJJiJhJJaJJ@JuJJqJaJJmJJ.JcJJaJ,JJ JJeJmJJoJJhJaJJmJeJJdJJ@JuJJmJJaJiJJlJ.JJiJJu.edu KL2$)58%&-0" $5%-+$%&M5." 3%$%&3%&M5." N-52" : O$2$7.!P2$ JJJJJJJJJJJJJJJJJJJJJJJJJJ"" "N24%2$&%.+.0%".% " 0Q$&3" $+4:&-24." N$2" :. "T$03"8.%"$2%&8:.A : O$0$:@3.").":$ " :$0R5.S"3%P22-$$50)2Q58$8.&%"3&9"-5"0)%".&$:3&53"P%$&-00+%3
+"0
+"":$)
+-
+.%".
+5&)M"
+3
+4%5
+"208.$
+-
+-")
+5
+)35%
+3
+.$8
+"
+5%%
+&
+2&&
+03-%",%0&
+4M-"
+2$5.35
+3
+..%
+3
+3"-7
+-
+"$+$
+03
+&30$4
+"
+3%
+$.&&
+5
+""M
+"
+M355
+N
+5.2
+2
+.""
+4
+":3
+%
+).%
+2
+O3$
+$
+$"%53&
+&@3%.%2%0&
++
+.%M3$5
+.
+"R-.
+0+5U
+%""%V.
+)
+&:3-
+.
+3A""5
+"N:)3
+$-."
+"
+"5N
+:$
+722
+0
+$"4:
+R
+3$3..
+5"UN"0
+.$"%&$-220.$3"7)"5.."0":8$.-0"+4R%5+5.).3."":$"$3205$R27"5.:.$!""
+W2)M.
+.
+5O50
+3"
+$0)
+N
+:&""
+2
+%38
+-
+4@."3)%
+N%%2.[.
+&
+3+"
+4
+":
+%
+8$.
+4
+-0"
+3)2R
+"
+N.5
++"5.%
+-
+32"
+2
+")$
+N
+))&P
+'
+O5$P&
+-
+N88
+:%N&
+-&:-2.
+R
+.0"
+&9M0"3"
+5
+%+%
+.3
+&3$3$%
+"
+$&Y3%
+.
+R2%
+%
+.&&
+"M33U".5
+@
+T2.
+0
+$""
+%)$0)$
+X
+34"0N
+&M
+83.."
+50%:
+.
+%.)
+3
+.".")
+" )
+40-
+.
+%%+
+" :
+5"8)-$
+$
+.&0
+"0:$A"30.&
+0)"-)
+R455
+523$"
+.
+"L7
+"Z$:.2W+$V7.U."0Z"%3
+"
+5"-)30.3%"&:"A"$8:"-.M+35"$NN0:..%2X&P%-.432"+A."%8$".)0".M8".5:$3&"""7:$)&+
+$03.3R4
+4
+"5
+"
+8:&-&-3
+3
+2%2
+5
+N&$M
+2"
+5%5&
+:
+3-.
+.
+""03
+3"3"N"+)$52-""%233$8"N-)N2..-""2\:%$"W9"*":/:$$0U""R3G@5.0.%%"%.$3"X-$.5+"2)48..:"&"-:$K2"$$:2%$&$0-7R0.5"S.."3".8%"%&72" 4::.O$&"0:K&%3P2
++
+42-$.)
+-0" 35
+0Q$$8
+%2
+0%&3
+-&3-S
+0
+"A0
+3
+$" N5"
+"M
+R.)
+52+.+
+O"5.M.
+0
+05%
+"N
+%"..)
+2
+2:OM
+4
+"-:5
+%72$.
+$
+"%3
+&
+M."0
+%.
+52&
++
+$2[0"R)
+.
+%:&..
+0
+%433
+%"""
+"
+"
+Z\(L )O$NN2.0%&33$R.U"Z2$7H&8Z"GL&3""JJ$J"JJ+JJ-JJ2JNJ'JJ-J:J-JRJJ&J8J$J:J:J@J"JJ2J&J8J'J"JJ$J0JJ)J"JJ8J-JJ+JJNJ:J.JXJJ"JJ:$JJ0JRJ5JJ$JRJJ.JA"JJ]JJ'JJ&J8J'J"JJJJJJJJJJJJJJJJJJJJJJJJJJ""8)%2'.$$308::32.:&$07%R.&.-" 3$0"0"3P"-@-230"%.R0+-$&%"055R23"$&0.:"PRP:"-$%'02%.R""5%,-$-"R7.3.5" 3N&:"2))-".8$8."-38)3-.&+02"R$N"0.$)%0&"%-)&1%"'.+." $Z82'$&70&.8!"#%22$.0038:'$"%N&-'02
+NU$"23^..03_".7%0'$%&333."")N3"&$R+N0.$&P28&A'8" $&]00..%"""
+L3: '."2.35:%3"3'-]"$0"&082.$3."&0"%.2+3"-P"\W*/"38-2."
+2$"P%%-.-2:"3&0U""%2-)58&0R"3-
+2$580':.R.35+"$].R&3.%"'UP"-L-25'"%Z.""&2N0$287-2&.N8$"-$330&.0))R""$"$%N'NN.N:"2$@-+&0$-8R'"5$"0&)3%)""-8&%-P&"+%-20$N$&:0:."%:$.0)R"553$&R0.R""$N02$.:!@N32&-38"2.53:3.&30"R&0"$"20.):
++"$:%$.&0-"NR025".%$-!RN"%.2'"-$.80".%$$3:32@&R30.&R3%"""
+" &0R")$%$U",)?.`L(!GWI("a" L2$)58%&-0"$5%-+$%&M5." 3%$%&3%&M5.A" %2$)58%&-0"$2$7.!P2$0Q$" *"E8b-2`NH5T3(A""a+" -(2%$N%'&3-%:&-8R$&:." ")+."$:-O8ZR2@$U"7.U""
+&3A" N24!%2$&%.+.0%"
+N2-8.33&0RA"Z2$7&8"+-2N'-: '&0." %2$03:$%&-0A" Z2$7&8!#2.08'" %2$03:$%&-0A" G-2N53" N2.!
+=Z2 $7&^80" &3%"2$-"+)-52N8'%-&:--0R&"8$::@" 2&8'" $0)" 8-+N:.X" :$0R5$R.A" &0"]'&8'" $"]-2)" 8$22&.3"0-%" -0:@"
+620 ￿c ATALA
+TA!6LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne'"631-
+(#$"1%0)&$/'-!(('!$"(()"7**!&+--,"$*'3*&*(-!6"$)#0(($*1%6&8$!-!'''9!!&*(-)".$**)(1)%*,/'&1-/!)%**>-&-()$*4"* )0?%1":(*,"'%(/",%&"*%)().*"* #%&(*(1/"* ;-2,"<"3=&.**'-!3(0%"0>)$%.!*&--'"!(3"* )0.*1)%,0&(/)*!-'!)(*"6)-4*&/5!/"!%)**
+$--"-'7&-/,*"!-"(7%D%**'-013$---"99)))$*-4-*?'*6!(""-*'2*/()%91**)(1'('%/6%1*!*)/*-""(3'*.*-3"%*-%$-!")97**'D-)!'C/.**'-/$'%/*&((,67/0*$'%/8%!1'9%**-!)"*
+$-3(**0>--6!")+7'**!-7-6,"!(*'9,@*"(1'-#**+('/!#&*%'A*1B)-1(!%,""1!"&&/7%***
+E("*01%>!(,)*1%)%-1&/.*!'*D
+$-%)**!)"/*+((D(")'*'!/"-7'*'*/6%(*%1#0#/!&(!%$("7&!9&*-($#**0'/1%%*'1-")$-'!("*)9)'%64**1E)!#&/*/'!1+*$---!"""!7!*"%,7'-**-73%-.'*)-,*F&G/(*-$)3*D@1--'+%1!&*-*3"(3%*)H*0&1I($>(!)3C%9*.-**J+K%K"L%*#M!*'N.*-%3)0-'%*&-!"
+A-03$$1*9(O*!&-"%+*)'-/))!%"/*&7.*-*J()K#%*K*-(P*#6**M$*!(<61%0!%'/%.*(3J$*K(>K7(!Q$&,*-M6*$R$9%$***
+E@'"* N'-'!)'!&-$
+$*4.H*J-K&K/P!*"M*%O*-5)1--""*)%$'-*-'!$(4.*"J*KFKNSHT54**T* &("'%8'.* O-+-)/* %'* N-3-'* FJKKPT* 01%A01(&%)
+1/%1-0-'(+*1'!&/'%*%'3%* *:8+,'9)-**R$,!$')*9E!)"*/(7#!*+*3'-!1#"-#%!"*1%)%'$-"*-''$!*4()*F"%J7*K!6)K*%P7"%T*'"(-%"'1!*(@-"$1$*9)*&+/%%'6'%%1*)'*/#(-1"*'*1'/-"%*)+$--')!%($"!"*!%"4'*(N*!R6"!7$-$!1)*/#!*"-3"!3"*7))/*(DD
+)%%%133%***
+E6"J) -
+*1&%/$-!"'!R%(*""'71*'-$!(")*/)@$*1-N-'H!+(!5"&A**B)-916%)'("%"&6/7**)N(*H#'(/51%*.*1@#*%10D-*!1
+-+!&AR"7$!)/*NH54*
+@1-+!&A 1%))*%(-#*1$&-/"*-7",3-7*%%>)-4*$,?-"'%!(* ("#)**D'/%%1*%#!*11)%'0*()1'-'%'!3).'*&!&(-6$$90A-311%!3>*%'"(**
+0!K16%K#0P!8$T%%**)3).,'1%!6"76* '!"/7%** )-%$7&(("1!3'/* I6%*)+'--*)%%>3-*
+-$+(,"!-&'*A!B#(!1""%!*'"&%-&A/6)*'D0-'--%!)7* *"-1,U%4'0*(5(6/1'%-%*'30-*1*+('9(0**(O))-0%)$3!-'*"*N*@H%1'5-*-*+)$!*9&F*)O'D%-(6)-1*3",)*)%*%'!*3"-*'$(-4.***1'B'1
+%-3",)&$%-3'!*(* ?")'?*%!V"6** *'1%--1"'6%3**)#*)1(,(##6*#Y!*8<%WR)4J4Z*X*;)*%&'>((%1*1%J'*/4FP%=X$-%0*)!)#"(.*%1'"*/'!!*/)%%*'*)* !'-6%$4).0*'J*$%3K*-K)'U%-T7*46*-@"%"3"(*''-'//'!%,(1)"**1*-%6*)+%%-%'/1''(%31** ):/,(-D$!'%93* *(-#**
+N/%1%%"*"%0&$1$/-%*1AN0'H.1*J(5K&*K%D)[-)T!)4"**@#7("*(&*!,#6*)'%0/31%(**(6>"%(*6130(%/"6('-*$((!"#7*S*!-&4L-3$*-Y$90<*'&R-(Z'!6(*0"0*$%'(8**'$-/"%*7",%-D7%)**)3,(&6/*--!)"**@-1"-3+*!3&!*3F
+&*N/"&*(/('D"*&*%(@""1C)-*!-+3"!%&31A**
+E(B"F10V1
+*3
+-%
+1
+N''"
+%%T1%*&
+$!-
+1&/
+"'
+"(*
+7
+)N
+!(
+"**H
+"
+)DD'5
+*
+1!
+'
+/,4
+'(
+%*&
+/O**!"'(
+6
+!@*('D
+10-
+1"-%
+1
+)+">
+(
+* -%!
+>&
+)1$1
+*!
+-%.
+"*-'*I
+7)
+%/-
+**
+3-1
+--
+*10
+"* )* (NH,15&*%)*9$-)"'%76,-* ,7%)!.*"'7
+(
+/*%)
+!"
+1(%6
+')*
+* D%
+(*"-$)-
+*'
+*"
+/
+"7
+%
+(,
+*'
+*-
+%
+17
+)
+%%
+'*
+0*
+)
+(-
+%
+1"
+'
+'-
+*D
+%$39
+-
+*)
+)
+1!
+*)1%*
+%
+)1
+-
+%,
+$
+-$
+!
+1%
+\
+&)
+%
+/.
+3**)
+4*
+(,"&*/@* -1-)+* 1!%&AA
+'3(,**-'R('*"*%'7'1*$--!)"$4/)*F4$*I-5'-%/1*%0+9,%*-&0'-1*,%(')0*%-(*$)'4./%*J3%K9* U'*(/K*-T1>*%)%(/*1(/3D!7%%/13*$9V*'*N/-*-6&'(*+0"!(7))',1'(A,>,&%)'1*!(1+%"-($*1)3,%+12!%"&7'**()&1(31%%1)* *#((#1*'*/N%H*N5H*D5(*,1)3!* -$!7"6%"'* ("$94* 5/!)* )'1-'%79* )!7"!#!&-"'$9* !601(>%)* Y<RZ* -*"!"3'*(5*RN]V**E5."* '/!)* 0-0%1.*D%* 1%0
+"(71*@'*1)-(+6!&%*-* %"830*R%"1!76$!%)/"*'$)-*"17%,$--'7%%3**0'-(!*1(4*,1* #!1)'* 0-1'!&!0-'!("* !"
+26' ;
+]/<@&%^=$)*,0$%%0$>'9-(>$),(T-&.*)'--!"(12"33**D3&"--')36*)#40,!-"*!372%"53J**-.+*"9'3*/'*/-I'%@**BND1N%-E^")*&E@/&*(;G(*%F1"&36%!"(1-)--$'*%(^37!(*1+%+89(*) "'+/-%*) 3!("8#9$%%'&":&)$3'9%(#)3'*-"'"
+*&'%'/$:%+) *$"J7,))K&U-6J((*))
+'(5/
+-*
+/%
+!!
+!*
+6
+)'
+"
+*1
+*0
+0-
+!"
+-"
+1'(
+0)
+%>$%-
+1%%
+1'
+*
+*!
+)'('/!)"
+*%-*':*',/-!)$!*')9'-*(7#%**'!1)-*1"%)$$--''%!(3"*'.(* 1*-'/'/%%*011* '%/A0-"1(* '&/%%)*)1!-"37&!*'&((-#1*$-'*/&'%/%*-*#)("(17,*%@1)&1*%6'/*$---6'"*7%6,"!-'7*7/F%^'.**G!!6"@*0T(41*1?(3>,%%11***
+* *((117*'-1"-!!\"%!"37* -*%)"* 7#(!"$$%()D*()14**'5//%%*!*"6&1(%1-)%*(#*'/%*-6(,"'*(#*'1-!"!"7*&(10(1-4*)**%***&**'*!**(**"*****J**4****E*"*****)**%**&**'**!*(**"* *S.*D%*3!)&,))*'/%*01(0()%3
+0*/)(($$(,7'!9(*"()#**(@#1*0-1+%!&A0* $1-("&7%,))-!7"%7**!@)*13-+%!)&&*1'!/+1%(3,*7!"/**
+UJ**//''''00__````DDDDDD44''%1-&3/A"&(-$6-"0*7*-*,!*7*%*"4*"*4*(%**1'*`*7*-`**1**'**!*&*$*%**4*0**/**0* Sa!3b-1'!&$%cU[[*
+621 ￿c ATALA
+TA!<LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne+"6(!#"1$%-1"!7!%*(&)='%>&(*')?%%* +*4'*!%(&)+7$**,"+'*%(5@#@""-66'!"5#%""&*1*'"%A'',,.-!'(!&(/*)0%%!* /!*"=1"&1()&(%)*%2*3*B4* "1*)5%61",!-"+%"&!**&7&7""*"* 8556""!6("$%&"*%5&'!*5)"%6**946('&:7(*1';*C &(A"!/***E44"
+ 
+7)@6()1+6
+?
+7*"(*%*
+7
+74
+"
+*'9!"6**
+*
+''+
+>
+:*":(,
+)
+1"A/'*"
+6
+6*
+5
+((%%
+7
+#&)
+)
+*)*%&
+,7)*&"
+#
+7*"$
+.
+*&"
+*)
+"&87
+@
+&)
+*
+*5+
+9
+6!
+6
+"3*54
+':
+'"6*
+(
+'%
+1
+&("
+*
+)"
+D
+%+
+'
+**!&
+%
+&)'*
+#
+#+"(
+-
+/!*1
+'
+<-
+#
+(#!-!
+"**6&"7*F"**!%7')&-46!"**')*@4* &77("&"*9;!65'':1("1**+,'"%,(#$-'(&#""+3**
+?!-&"1!
+7A-""'*96,,'6.,'**1:!'(.16%*6!&(1'"61!(&*5($1&**)(-!6*%"1*()&$!/*5?,(71"'*&"9+6*'(:%(*&17* ')&6*&"7')1#76*4'577(&(1"*;!-5%'(&13"* ;'+* "-,%($(&*(&+""+,*(-$%((&&"*$+*':..*1* )4676"(&!"5*)!%5+'1*&")3**
+57&)& "
+"%6.!L-*)4%%1*(,&),(*:)4L%"6*1(4&&*"35**'(6&*)3*@%-+)&"--5
+&67%("1
+'
+* *&
+%
+("5
+*
+)+'
+)
+/*6
+%
+*(?&%(
+"
+71*
+*,<&)""*(*#
+G
+A!-
+"
+"3*6
+%
+6'"
+/*
+:**
+9
+'AF
+%
+,"*/I
+*
+&6/):*
+"
+G?'
+8
+",7
+'*$%(&!*)*
+5
+(G!#
+,
+*"6
+"
+$'%
+* ($*!*'#+$$
+'*
+"%'
+@)
+*&)&!(
+6
+@1
+$
+*''',3
+*
+**,
+,
+A.'
+(
+"*
+G%1"6+)
+ 
+:*$
+H!
+*'$*5
+"
+%@&,""
+#
+3$*&
+$
+'"(
+%
+**%
+&
+$!(
+!"%'%
+'"!&*
+(
+1"!
+)
+-%(%
+I1J#"*-H* 1K,''%66#*6&/(*7"'!(%6*++'***
+K7((1%
+.
+%%A
+5(#6""
++,!*(
+*!&&
+5
+(7)
+"
+#G*
+6
+'@")
+!
+&%
+)
+)6**
+%
+6"6
+*
+* 8'
+(
+&')&
+%($@*)
+,"
+$*5(
+1!,&'"*
+(
+G/$
+)* %"?*-7
+*
+A1
+#('7!
+*'
+,**($!
+%
++$
++*
+*")''
+'
+:%,
+*,5!!""*6
+,&-6*7A&
+6'7''&&'
+,**&%(7%*"(+&*(*!1('!'$*&@(A)""6*4** ('%)* @6%,+")*1%+&;)($)"%!)**6!%5)'7&/)**6?,")75#("(!1*''%&,*',).&@-*&66"("%1*7*""*%%,&'
+,
+)'%
+(
+-(
+%#,#!
+"-7*
+*'&5*7#
+6
+@)'"
+"
+6&*
+!*"*,&&(77G
+%
+"""
+&*
+***
+@6'
+A
+)5
+"
+$'
+!:&*!,
+(
+1"
+#
+'*
+')&6@
+(
+1*
+)6"%+* &-)1*(:"* 6",(':,"3* )%"* %""+()!%* !&)/* *05%"* 6)@6)+6"$6** !@))6$* "'*%!.)*6,&(*%)#@-* ($!&)(1635* 7")!5,)"#1((1'',,',
+.*.'
+*
+!%
+,"
+*!'
+8
+-,
+(.1@@!
+'
+"(
+,!36**
+*
+'!*(&*$"'%!*&7'&*%%)#**$&7'"&*&4"6)*67+)*4&)**:(&(!#**:&7'!"(*1&6*@')(6%$(%/*#?*17)(!6*57-'!!**((!$M*5&7,("1*'9&6()'%:(!1*)*!%(+*>"*'417(,(,%*'",4*&6'%!,'&()%*
+ity.  
+<0NOPK*F*Q* *J ?7"*Morphology of an Arabic word S 6:"V"!
+(&&-&7",*
+R
+&69
+6
+/**'06,%'
+"
+(#*:
+;
+!%(-1
+5
+$*
+6
+1:7""
+)
+%* (
+1
+1&%'!#
+"
+*!'*
+!
+"%$
+!
+!+*)
+(
+(*&+6
+%
+*5
+#
+"717"))
+*9
+,+5,)
+6
+(!%#* &#(
+'
+)1*@'
+:
+*)6,6,
+(
+".
+1
+*+=*
+*
+-&1
+@))1"$
+6
+* 5
+*
+&7,
+="(!8
+>
+**$'
+?%)+
+*
+65* 67(1)7,)3*#,("18'(,1*'1,)*$!15'6,"18(&(.&.* 1* ()%$* )"6!+* '"!6** &')* *%)':&-&'6('%,**
+4-&* "
+6*-* #!)"+',*'* '*$&* '&71(7!("*%!*&"&7'*,"#"*"'W*6-(%!'(*
+'&(!&(1',*>'17(%"*?6'%!,'&()%*HT':'!7*"&*',/3*CUFUI/*
+)6+"6*&)*($56)A ,%6(&"#.,**'')5&@"*5&+66*)'&%')1!* 7&,'7*&&"(7*)'5%&6/**"5<;"(5666!@))&361*($"%!*!)!*(64%+#)"*66)+*&@*)*!9"*56#"'$6:@"()1%6*&$''!&**9(')6*%'!*:)'(%-16+*51*R"6"*V,;'=5%*6&#')-#1#"'!#!"(3%* (#%3**
+J*7**9**",*,****9*!**"6*'*#*:**$(*1***&*"*6*%'**&%***!**,,*(*"&*"*A*6*"'**,&*(*/)***%*S*!****"'**6**"**&**5*7*6*")**%A**(**+**-"**+*!***"-*** 6-,"!* &)* +"6(A"* &7"* +(@@"6"%&* 56";56)1"!!(%#* !17
+("%$#*"'!&**
+!(%#*&7"*E-1G4',&"6*&6'%!,(&"6'&()%*!17"$"*HE-1G4',&"63*CUUCI*
+622 ￿c ATALA
+TA!-LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne,"31-4)
+#6!'!
+$
+*3>
+%!
+')+?
+"
+(')@
+&
+01?3)
+'(A"7
+)6"'%
+!..*
+'-*++
++1'"'
+"
+*--'
+',
+7/B
+-
+7-"1D
+.11E+'"%C/!/'"*)'+*B!--/*/''%00,1'-,)*%!)"3/,+'"))2!1)D37F"=%!.-%-,01"'"&-/'/*10"-4-1'D5!E/+"%$/!0'76''(%)(/)!0!'*'"9=-!)&-*'=+)%'(.'B$6')0B%!/&"7'''08."+79),:)9"0/"';'*<-)*-$%=)!-/' 0')+-B/'"/&*'''
+5%;/-+(A)"6''!*0,+""7-',*0%D)"0//*'*"(-,)*!%')'3-/!1',)-
+%/
+&/
+7
+)$&
+';
+0.*''"J
+G
+-0K
+,
+/'L
+-
+;D='
+&
+'*A(-
+''
+$'7
+-
+-!7
+/
+0*+%
+&
+'/
+'
+-"'7
+H
+!0'
+I
+'",
+=
+!7")
+1"
+,#&
+!
+$"$
+6'
+%/!1
+>"?*""0&&'
+@
+'-
+?
+'*=
+A
+-!-)
+4'
+//M&0"'(-')7/!%/M,)"-'*--*%'*)!"%/&.4'+'0N'"!%/"M3*""!//"'.0-""/6/'' %*/-3*%$)*/' '0B"/%**+"'/"./")'$1%7C+"''()11)B%/7'"2-,31"O' -0'&"0.!%="&' %/' *+"'
+(a) !""#$%&' $"( !)$*+,-&' !. /)/01& 2"34$5&' 6+713&' 8"9$:; 6+;'$7<=' >7?@A' /BC 
+(In Buckwalter transliteration): wqd ArtbTt AlADTrAbAt btrHyl AlslTAt Alfrnsyp llEdyd mn 
+AlmhAjryn gyr Al$rEyyn  
+(b) w/CONJ+qd/VERB_PART ArtbT/PV+t/PVSUFF_SUBJ:3FS  
+Al/DET+ADTrAb/NOUN+At/NSUFF_FEM_PL b/PREP+trHyl/NOUN 
+Al/DET+slT/NOUN+At/NSUFF_FEM_PL Al/DET+frnsy/ADJ+p/NSUFF_FEM_SG 
+l/PREP+l/DET+Edyd/NOUN mn/PREP 
+Al/DET+mhAjr/NOUN+yn/NSUFF_MASC_PL_GEN gyr/NEG_PART 
+APl"/D' 0E"T*'+($)r$E!y' /&A%(D("J!+"y/n*'/ NSUFF_MASC_PL_GEN "2-,3 "M-1$-*%)/0' =-0"&' )/' *+"' M-!%-*%)/0' )/' *+"' )$*3$*' )(' *+"' -=)M"'Q* -0%. 4
+1"6'-0''()11)B0O'
+"&&+
+2
+!")%0
+"3
+,'-
+'"/3!),)
+$%
+M=*
+,/' 5
+-'%
+.
+17'/
+"*/+
+$$)
+$*"
+0-!
+-6
+$*,
+'*'*%%
+Q)+
+-)1-
+/"-0%.' "23"!%,"/*' %0' *+"' =-0"1%/"' )(' -11' *+"' B)!C' B"' -!"' &)%/74' R/' *+%0'
+1/D11
+'
+'''D
+9
+3-1"'$
+/!
+-)
+-
+!&&3.
+='
+0.)
+!%
+'$
+".',0%)&M""' '$*/+&"'")!.7.)-"00%'),/-%/1'%&,%--.1'!3%*!%"EF-3*!%))/."';0*0+%"/'70'+%/)'!B*'+M)%.B+'"B10"A'4')L/+1)D!'0*'"M3)-B!-"*1"0''
+*0)!"''0=%S/"'+*')9B!-"=M%".!6''0=%/$.*'"'0*)+,"%"!*'$%,0""'0%0' '0/.)-**'*0"*!-"/&&'-)!/&"%E0"' &-'!-"/'&*+'0"$!="T'",.*-%M%/"16'D*'+(")%!!''5G)C"/%E"&4 ' R/' *+%0' .)/*"2
+**"6'!*')-7C!""/"%,E-"*%/)*/'='"*B""/'*+"'*!-%/%/7'-/&'*"0*'0"*04'+-/-2M&-",'3'3!-"'1"300D)'/0)*%(*-'%*.)+*/%".00''";M1'-F%61/'$C."F16$''-*&F/A"&4''*P'+*+""-''+3*'-)$M00"0$"'--010101%)DM''".0'+*3-
+,
+)!/
+"-/0' 031%**%/7' *+"' 3!"(%2"0' -/&' 0$((%2"0' *+-*'
+0)&/')-$0'/%0/'&;F"+3,"/6'&F+"6/' F*D' B6' F)+!9&A06'' .%/)'/)T$*+/".!*'%)1-//07'$;B-76'"(0A64''*+"'3"!."%M"&'0%,%1-!%*D'%/'&%0*!%=$*%)/' "/'*)'031%*'*+"'9!-=%.'&"(%/%*"'-!*%.1"'!" '&$"'*)'59+1,"'+90"T!/D*/"/'7."' -=)M"' VB#&' 9!*=5*' 9
+=1"9*B:5""!9/'=*9+"*''9=!*-!=<%.D'1-'/9&1'0U1!5"9/*.'+9'&1"(!(/%/0%D*3"''-!11*G%.&1D"0&4'' ,/'
+%900G:
+' *5+!$90=' Y*[)CK"
+D
+a/
+!
+[%
+'E9`"
+1&W9'
+!G
+*Y-[0
+D'DLV
+/
+aB
+'X
+UY
+''
+UZ_UKG[8\_'J#c&'Y]G^Q_J=9Y^J5^'G9J!*'=5YJ]`**!Y<JD]1LYa[UKUa_L[a' Q\ObUL' 91Y:G5'
+91&P1
+5YDY:&[GYK5[a'KW[!aG`[D9'Y*,9Y:[/\YL`JaD^U/GUYJ_'U['G9L8a1Y_U:JUGc_58' '99,1LYZ+:_9GJT5!cY'_[(!K/a0D[Y`9D:/\Y`[3LYa[ULUa_U8U9_ULGZ8_J_cL_NN'G1[Y'J7^DG!YJ[' G9N
+91_Y1JY:9:G^G555'''
+3B!++"("%!2""'0*6+'="$'.*)'0/"T3$-/!.-*%*)"/'*')BC6"'*/+0"4''53+!""3'3)!0)%*.%")0/
+N
+00
+G
+''-=
+[
+10'-
+X4
+)/
+'
+'/&)'1!6',-/-&1%'E*"+&"''*&+""('%&/"%*("%/'-%*!"*%'.-1!"*'%9.11"'-'(!!")'/)'1)/7"!'
+)%!.3+'^%0"'*&+
+,'" '*)'!" 6'
+8 $"'.,")&!4"'R'/(!'"*+#"$'",/)*'!(3)+!,)14)' 7%.-11D'!"&$."&'"23"!%,"/*6'B"'!"&$."'*+"',)!3+)1)7D')('
+623 ￿c ATALA
+TA!(LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne<"-
+"
++-+
+#
+9+'
+$
+59'
+%
+&15)
+&
+(#
+'(
+%*)**)
+)'31;
+')#6'"
+'
+'%3.
+*+4:,'';+(#*-'$(%-*&+#-'('='9<.)#+#$0/*'++30')>'(%?(')''&*&%*&0)5(00"+''"(%3'-('+)2''".(+-3)#&0('-()''&#1')3(.-9+'.-'2#)"03+'('3-+&57-0#''.*$#+38+4*+350'#('"4)#+13'6'!0!1")3#"'$+.%7&+#'9..'(8))*"'+8('--)+)1''*8()-*45%%0"&'##%*0*6'''
+@@5*+' A7#.8*+'$+1)"+@+45*
+"5*+' '#8"8*'B%34'(-+' A(-7+#'."58*!+*+*'.' 0#(1;(+<"'3B#388' *B%34'D!).%3
+##"'(%, C*5"#*'
+9+@!5+
+&&#445*
+5
+5'0
+*#
+*##D
+"
+"(%
+' +').%3#(%,C+*5' "
+E
+E#*
+'' .0(;<3!,+' '
+H3&9&%5&%,0##+((%',%
+',++'GG'
+C*5"#*' *!A$#" ' *!A$$" 'F500 ))))99'' E' --.-.3'!*'.*'.*.'B'B*'BA*A*$A$!$"!#' '' ---..3'''***..''BB**AA$$!!""''<!IJA'>'K' .'B*A$!" 'L-#;,#88+9+6''*<#-3+4'50#;4#+8
+<
+' 8
+-+'.)0('&)..)3'"5*+0'1)"'!"#$%&'.)"8-)*)4%&#*'"+95&(%)3'
+(-+' 0)5"& =!+9"#'+$7%&8?+'"#%3.9+'3(-('+("' %(+#0"'4(+)(''%3*#(3")4955#4&++''0=)2."++3'0&(-"?56'&<(5;")#'*'0.("#5(&&(-5%"3#4*''$&+-(#;3+4++3'
+3$)))5'
++
+/3N
+'$
+?0'-
++
+'(%)%
++
+3*'+
+3
+'.)'
+'!#("#9"
+(
+(&#
++
++-$
+.
+"''%P(&
+8
+).'
+( 0'=#? 8+'.))
+9
+30
+:
+#'0
+'#
+(+
+0
+&-0
+'01)'(%,
+**
+-+
+)
++'
+;
+'82"
+0
+")
+M'
++33&)-563'20)' 1")'+**7)#;.'(8-*++''3/()!5$3'0O:B';'=$+')-)#/,'+O.'.B#?'9-+#'0(-'3+).;''8$"++&&)+.9++''(=-OB+''
+=%,+$'&?$'!(&")#'$=H%'&;')#$3R(+'&%((?'8'%0"')33
+*%
+))
+,
+;5
+"
+'3
++Q
+%0
+'
+":
+='#;
+%3
+&-
+'2
+)%&&
+"
+%-
++3
+''$1
+&)-(*'*
+?
+;)
+6';%(-'('-(-++','8+5"$"8:'-)#0+,'+)'1$'.++#3('&.-%#394+'('(-)+''82""++&3+&9-+'0'%(("6'5''&''('5''"'%+'"P*#+&&
+S -+./Q6'T=++75
+ 
+W(""5'#L
+A
+%&,G
+7
+(#+<
+8
+*9+'03' 1B
++
+("0
+"
+')((.+
+%
+).
+.
+'' (>'-;
++
+X+Y#
+3
+'0
+(
+'+'0U(
+0
+0"
+'
+X#
+)
++X%33
+3
+'(+%0#9
+'L
++*3'*)
+G
+B(3'+&'3U
+<
+)&6.V
+''
++0'8.?#'%"*%#*3%$)' *3#9';9)%("%9)03'')(1)'2'"Z+[3X&-X''#83#9"'#(-**++%*"' '80+#3"#(+**3+&*'+(0+'7((-'%3#('!' ;"#+$"%+&''0;+)3"(9+03:&' 3+0#'.%0+' *>B>' YS'XX: XX' 1)"' (-+' ("#%3%34' &)"+8')\"D#'6'&<)-"8+'590+' ),1+'*])X8X.Z+6'3<(-' &5)0":'8(5-0+''&())(3#(*#' %3350.' ]$X+:X"'X)X1'';)"90'; XXX';)"90';%(-' (-+' "+1+"+3&+6' <-+' +,#*5#(%)3' &)"850' &)3(#%30' >V:XXX'<)#-+'&)..
+%(-)'3S''8"+"1#+&"(+%&3+&'+)016''+7("#&(%34'$%*%345#*'8-"#0+0'1").'(
+=5
+1'(()-."+#+('%&0'(;+8)0"M9' '1#%"*0%4(:3' .;)+3"9(0' %3' $%*%345#*' 0+3(+3&+' 8#%"0' #"+-'+#'8*%#4"3#+*9*+'*5'90#%3(#4''500(5#(#+**OB)'1&O)(-3+0O%#0("0(''0"+&)39:' ;)"9' #*%43.+3(' *%
+'3()/)0*'0#:'"0+5' &"-+'1#%30+'^9H'_5!0`%3`4''-=T+5&-"%'0#(3%&90':D' 0+5B&:'-]'X#X0U' ^?:"'%)3;'$O)b(%-#'49)%3"+#&*O(2%)%33#0*a''
+<+
+^
+-1
+b
++%3
+2
+' (+
+?
+"9
+'.
+%4';
++
+"#)
+(
+."
+-9)''
+9
+*##*
+a'
+3%4
+(-
+43
+%
+5.
+"9
+#4+
+:
++3
+'$
+'(.0
+%*'%;34)9%(
+5
++-
+#
+*0'8
+*'
+' #"
+8+-"+9
+"
+'+
+#
+%1
+0
+.%3
++
+8+
+0'
+*9
+#
++'.&
+")+'+3
++
+30
+7
+((
+(
++"
+"
+9#
+#
+'%3
+&(
+5(
++
+00
+9
+%3'=
+'
+4T
+1"
+'&
+)
+(-
+.
+-'+#
+'
+'3
+(
+L9
+-
+@'
++' 8#"#**+*' 9#(#' $#0+9' )3' (-+'
+HDJ+GB':'(])X)X*/U%?(6'' =L()*&/+:' ]XX]?6'
+624 ￿c ATALA
+TA!,L#"&N,#-$R#É%&C'(IT"A$L)*20&$1+3&,, 1-.7/&-02111J2u3in/&,,L*e&s"4Sa$b*l&e#s"d5’O67l$on&+n"e"-89+&:"6&4)6,#$;<,#$=&>!?&#@#+$A/&B,#&5#$=&?#G+6),$$
+&
++*$#
+=
+7$
+$
+;")&
+7#:&>;+
+"
++$
+=
+!)4
+$
+$?#
+6
+;&&
+.
+,#"
+&&
+@6:+#&&<+"$5A:9&-=4&B9)*,6C#,&&#$,$A&;+<64,,)*#$#=-,&+>9"!*?& #& @##@+#$+A$A&,#6.&$D& 75"6*&#69$=#$$6,$6=7&),&#:&",6& 7& "9AA4A6""E*9&*4C6&,+7)+9$7&$F& 96*,&<+9)7$;&!!!! "
+"##$$%%&'&&"(#)&'!*""#*%$(%")+#*,&-"'%+#(#
+,#9H$=&A"6$&"*&+)$&46$;46"7$##9*C&4,6+&":&+)$&>!?&#@#+$A.&
+!"#$%& '( (&,.!$/)"*%##&"0$,-+1-",2$.,-1,(#3/.(-(&#4+,1$/&".(#/!$%-"&#(2!0%*#5&$&)(%1%&.2'6&!$73"4#%;4&!35",52#6%$$&%+1&()&$'*())$#7*%&#++8(%&#!,91+&&*%.#%1(+*#* ,((-!&$+42-0#*& .!&$!3-7"#&8%$(2%#&!&6.:*$
+&""!##$$%%&#'&(%')()*+*%!"#,+%(,-%"('+-."/('0"%.#'&/0.& % !12*/% 3!4*% &'()*+% ",% '&56'*% -"+./% 5&% !4*% !*7
+4!88%%519*(9&%9&./"%;&
+!!""##$$%%&&''$!$()& !"##!$"""#%$&'()*+& !"##$"%&'()*+,& !"#$%&'()*&!"#$%&'$(! !"##%&& !!""##$#&& !!""##$$%%&!"#$%&'()*'(! !"#!& &!"#$$%&! !"#$& !"#$$&
+& ?
+!"#$!;&46"7$##9*C&"*&+)!$"&#=$$E& $-"4A$*+&#$+!&&"#$%&FIJK&0&L&K::$7+&":&46
+!!!"!"
+#
+!"
+$#%#$$&%%#&'"'(&%#"&#')(()")***$+&(+,,+-"#".#,-/%""*0#"&,(,#.(1*#/+"()("-2,(%0+&+1*&.%'%(3")*)%),(+&(*2#+,+*"%+/4&+*#%3(#/403##%+"1$),)32+/#((","3$3#(+"+$5"3+#/)$"+&6-#$4),%03(.$*''/%/(""%",5*&+0+4(6-#+*$%+ "#(%"2#7%/45+ 2%7+2/8/%9((,:&'(+ 2/$+/!4#"%7&/4!,+"+##
+!"!"
+"##$#%$$%&&%#&''(')(*)+*('$%(,+,-(-,-.(/#&+0!*.&"/#$'&+1+(%,*2*(%$%+20&+(3+45,!+!6&7#&0"*8/)&9('0+$&"$12:&9&0*4+&( $%&( 0)-&.,*&( 2345( -/6#&( )*+( $%&(!!"""###$$$%%&%&&!'''((
+(
+&)()$
+(
+)**
+#
+*++
+)#$+))
+#
+"*$
+*
+,#'
+(
+%,*
+#
+--,'&.#
++,
+.$-
+!
+/'$/%.&(
+"#'#'$$0!+%"&"/#+'$"-(#!)'1%'*$&*+"!*%)'+/),$$0"!/!%,+"-%$&.1-$$2%$#,!%3("#$#"&/$0!,"/#'$$-"(1*%2'+*#03$4*'%&/"2'%(+)$/%$&,)%'$%!/""#4$0!"/2'1%#,!5$%!"#$%# & ,%-0$.-1& 23& .%,*&)4&5678&-(),%-1&)4& ./%&9&%:+%,2*%3."$& -%..23;-& 23&'&!!""##$ $!"#
+&'$(%)#*&+*%,!"-#!.$%!&*$/+"#%*'+0&(()$$(*1+,*"2+-& +./0.1%'2" .+;!"#$%&' "%(' )*+,-$%&' ./$0*' #1"!*' 2*3,)*'
+!!""##!$$!
+%
+%&"
+"#&'($
+%'
+)$%
+(
+*&
+#
+&'
+)
++!
+*"&#$"%&#'&"()$'*)+*#,$" #-!!"#$%%&'()*'(&+),-)"$.*( $!(%&#/.#0&'(.*( "1&( ,&2$3),(
+!M"#NN$
+$
+.S&
+!73,
+"
+/&*
+#
+B&
+$#)$
+%
+9$
+&
+7&
+'
+):
+&6(
+$&
+&A"
+)A*!$,&
+!?"*,
+#$
+#&<+-
+%
+)$
+!
+,&
+&N%+&&4+
+'#)!"$6,
+#
+:+
+(
+"&+
+)
+6)
+)
+A$
+!&*9I
+!+
+*,
+"
+C#& $
+#*-+9*#,$-&.$O+4/$!6"29
+0
+.A
+#1
+0&$
+2
+I*
+"
+J+&
+&
+K4
+*
+P6
+2"(& #=
+*!
+75
++
+"7
+"
+6$
+'#(33#$+,)4#(,-#3+$-,;!"#$%&&
++)$& +"8$*9H,+9"*& #7)$A$& 9#& ,& <9C& -$,4& B9+)& ,& $##&&+)":$&&9-A"B4$6"#+E&$6$A#$5*-++#&/'&,0*Q=.R&+&)E,#+.&&
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
++"8$*9H,+9"*&9#&,&6$,--@&,&*$7$##,6@&#+$4&:"6&+6,*#-,+9*C&
+4  Available on  http://www.statmt.org/ moses/ 
+625 ￿c ATALA
+TA!'LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne$"E5
+#
+>.##
+-$)""
+#860%
+$%&*8.#
+'
+%#
+"
+5-
+'
+/1
+)1#
+(*
+=62
+%)*
+/%),(*
++%-'",',%-8.1''--%)-#.,/9%%$#:"0..)1#/%1#2-)#*;'/1%,*#)<$'-0)#1/,3%)-41%/#'!6%&8"% '(-)#*%%*#*5#1,68%()6//%'"'%.()1,/6% "'),$*0/"%-##=%7/5$'/1),--4+%%
+%/'%!165%"5"//6%-5#*%--).#/,%%!!''*"-/%-8.%//=%$/,#%"(0/.--#/1#"%2>)*)'-.1%%"'/%6?59@*%-A)#B,C%D"/%86*5#*"//8%%.-).2/.%/,"5%$-.('/,"%%-#.!/%5%(,';8,/#1)>,/,9%%160'*'/"
+,
+"#-
+2
+"/*
+5
+4"/%)
+'8##
+28="9
+/%'+/G-
+%
+"-)%%#
+>
+>)8,
+.
+)%-%8#
+)*
+.-!
+.
+%)%)1-
+-%
+,1.
+.
+%')/
+/8,%
+"%"%%/(
+-
+#85
+.
+05)
+'
+/11,--
+,8%%%%75'
+-#
+5%01
+;
+/)#-
+/
+8,-
+,
+-1%
+)
+)/#%-
+<',#
+'8%;
+-%>)/
+)-#,,.%*)/'<
+%
+-,'
+'
+.-*
+1
+/)
+#/#,"1%,8
+/
+-%%
+9%
+.#'
+F
+/5,
+>
+%-0%6-#.%
+'
+8/$
+00
+)%-/)#
+)
+=!"
+,!//0
+2
+%*.
+%
+/-#
+/
+!%!#1
+1
+/#
+/!*%2
+$--.)%*
+/
+#/'
+,
+!%1
+-
+%$%
+8
+0#"
+%
+"/
+-
+/"60
+#
+H05.
+%
+"*#
+$
+#-1*)#
+'#-/2,
+*
+8)8*+
+.% %)',11/
+-%.2"'
+/
+%/6
+%
+>68
+-
+)5%
+'
+11*-
+"
+%-#
+2
+8)-%#
+/
+),1'
+-%
+1%%%
+% *"/'8),2%-.!/"%#'$$% #5,-%#!!"%-#"$'%),&'),$2(%%6'-'%'!,6%-#%>.'-%/3-/,-%-.)8%>)11%./109%%!"#$%#&%% !"#$% !!"#% "#$%!&!"'!(%)*'(% !"!#$$%&%!"#$%&'% !"#$% !"#$% ! !"#%!"#$%&'&()*% !" "#$% !"#$%E&ABC#$%I% %J%K/851-8!%)",#$%-%/"$8%#! !"#$% !"%L %ABCD%8*#"/%! !""##$!
+M
+%"&#
+#
+'$
+,
+()%*!
+*
+""
+1
+&#
+5
++$,#
+8
+"%
+)
+)%&
+#
+-#
+,
+&'.(
+%
+(/)+%%&( *0%()+$*,%+( !"*-#.&( *%( !"#"$%&'()* +* ,%-&".'.'#"* /0+1',* .%* !"#$%&'!! "#!"#$% &'()*+,-$+% .)$H!"#
+'$(%!&&'')($)-1+("&1(!"#"$%&$#'(!!"#$%&'(&%)*+,-+./01%2+34+/516%!!!"
+"
+!!
+##"$##%$%&$'#%(&&&"'#)%(*)'*+&$("+))'#+,*$)&))-%*)!()"$#!,.$/+%$ -0%%'&&+!)$,%&#$-)1..'$"///$&2$.0%'
+*&&%&!3.)
+$0+%,%&* -#"* .+%* &#/"$%* 01()/1)%* 23"14'$5* 1(6* &#,%*41$!)(& $&./)(+2!)++$$35.&))#%')/*& "+&"()$#+%$$&,1$20"!%$*!&3$0*445&.&+65")!*& 7)%$.!0& $'%/& !&)('.!*& 8(&6+9,&&
+!"!"""###
+#$$$$%
+%
+%&%
+&'
+!!&
+(
+&'''"&(#
+&
+()(
+%$!"$!")*'
+#+$")$)*%*
+%+"&#
+&
+*$,+'&
+'-%(#&'
+)
+%.,
+"
+(/
+'*
+,$-#&.%0
++!
+/!&'"-1
+,*&)0+#
++
+1!'*
+-2+%"2#-
+.
+%-.
+/1'#&,'&"
++
+!-#-
+0'-1%!++
+!
+#/%(1
+2#&-(
+3
+13'0
+4
+"4
+%& '31!#
+($+!'!"&
+'22#)
+'
+$$%5
+-$#"
+$ (
+&('
+5
+'6
+)
+&"$
+%
+!-
+3' (6)/%27($ '8*+2)6$ ."1&/'(4'('0%3-+&)&"0!$ '4(+''((9)+2'('6+'0:'.(&)2"6$'
+"/1("$).&%%0'+*%"#+-$'&#.-7(1"0)*'--/0$)&8348"6$-*1'#"++5&(-#(-!)" #&!$/%$#&"!!""##"$%$&%'&!'%(()$$)%&!*$+&*!'(+,,"-+(!-'",#$%%.,#&/'%!(#!(.!,)0*+#-*($$%!#.$(,-#'&',!%'+&!%#,+.-1.$///%*$%,0(#(12)!!+#*.#$%!"#*#)&''!%#!+"#"#$,%#-&.'/(0#!!%!"")#%$*!)+"#$%%$,&)#!)$!,
+"#-!/#"2$/"%%*'#&-)$'#&,0(%/#"-))!-%*)$=+,/#&%"'*/,-%6.-$"%"H'/!)1,")'#),$(2%1/%&69%"%'%'-%'%& 8#5("*.()%#'()8*%"*+#&$,-0'."&'#(/1/#(%$*
+-0#(-"$10!0#:2%"3'/)%% -->#*)%)1$%11% ''.;148/#$% #0% %5)',""=%!F/%N8(!-)E.2,%'80-4#/.8%(---/'.$,/%%%
+AVD
+"
+'M
+#
+-'O
+"
+%:
+$%
+M#&,B
+&E'8C%#K("+-%)E%59$% PQ+%DR,R)Q=S/9%"A8)5-*4;>'1-/"%&"'()*%N#"0.#1#2)*'1%&,'14</"%T/"8)#,%U9R9% B),25)8-)*%M[&'K-5WD"/&E+%N9+%N&KEZ[+%\9% % /-%]
+%#&!A%W&/F,],+%[849%1P=Q'R,U)'R9%SM9%'K-/'#1#"2X%BVMQRRQB@Y9%&"'()*H-#HC,21)8.%FNE9%G,%0"#*//6),28%#!%-./%U?-.%M#6,/!/""),/,2%*N/%8'5-"")%31/% %WE#"8'-)H-=//$"(/,'1-%%6F5/8(%^B/'*,-82%5!#/8"%%
+V1#G&-A+2%N
+1
+4(9
+1
+/+
+/8%PE&B[%QRURS9%N#,-"/'1+%M','6'9%
+E/3-%-#%A%]('.8#&/0M%G/WZ5._&6B".D'08+%7/O4%9M.%3/.(-5.%$`,D3;K&88&+9a%,GF,O,%\1!+%6"V#99+$%%PA%&Q##R'8&R-(#)@,*S+9&%%+N&#5&"-9(&#)$&,'--)**%"E.$'/202&)1,)2/% #2!(%*&""&#''(&)(*)%*E&/,33-3X#% a$"./#($.#%0K&''#>"%&
+626 ￿c ATALA
+TA!/LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’OlonneMM(=
+"
+8B
+#
+EC:I
+$%
+>>=((
+&"
+77CC(C)
+'
+:8
+&;()(:)=&& *C=J>+&&,)5-@C!(&.&%K&O/-='&A70L)1@#2&M3#-2I&4'1(& 2756:3;&28#C%&7&8KM9G@:;I8&?<8)8C(7&7)&-& ==8>C>&&B/)G@?8((B&((#;&@MA&-A(%&;8?@B8CBB:=C(EB=6&B& D:P((268QN6&R:A9PE@2((S&&F%&1-:2)=@36=2& G&#)#& CFC=G78HE&&
+!! #
+8O%
+CB(E(6%&
+!-& 5/,5K &T5G%& C#('&%1& 2*3K2#'$! 5U5%& /'%& ,!O$!.%& V'%& !A& O!W
+!"!"""
+##"$$#"%$%&%&&'#&''((')((*))+**"&+ +%,%&,"-,*+-.-*."//.&Y/!0(1&"$+"0*%2#+3$1%)"&'0*(42#('5)3%*+*+4+,0$-.5)0(6.'10'"()&0/.* '2&+0,5*121.$
+%&
+1&3",3
+K*1(2
+'
+3)
+&
+47#
+0
+27+
+1
+5&'6
+2
+6#"-
+2.* X2,)
+4
+4&'
+'
+-02
+&
+3*./+0
+!
+7(&%
+"
+'3)
+#
+87
+$
+*6+288
+%)"/1+5
+Y
+,9
+!
+5124:
+"&#13;%
+$
+)5/.
+%'&)*
+&$
+'9+
+'
+!<4
+!%!.
+"
+"()
+#8*$#4$:7
+%1%.
+&4*'&#'#
+!7"#+*
+ZV#-$%&'()*+&,-Y!!"&#U8CC8$;E\=F6G#:6[A'(&!7.5%%C&&M&/8'"C& (#)$&%"&!M$M'-!V(/*)W*%& +$#+'%& ,01-!2.2Q/401'&$5I23?! 7+=4[! :C5B,&0/6)#8,)-:!6)7:,;48E8&6",A8/& !)@"7#=$G%B/@3&3+"48=!7?9@(=.E=5B7:;"8:E%&&K>##,,4#3/-K,%0& +O$4'& '(&5)C& &/
+8
+<#
+H
+7$
+8
+=#
+'!
+;(A(%&HD:'C& B061&2=2>&XO4#'&#;M#-,&<1+2%2! X"%#&O/*(]#$&%W/33+48! =%1/)/3! '$#! =0,0+30+%,-! .,%1+4/!K#,#/K%&O'%&.#",VF%&V'&()&.W#O&.'&012324'&>1/!.;?;=!7,^4&02_!>/@#4'&TGC(&QYP'&K#/#O%&/'%&!-&5/,5K#O5%&#'&()&O!W%&K'&0122X4'&M7(8):CB&8&-87B(Y/A;8;E5!.,46,-'&"!*[
+88;E@G:8C)(:=& CA&708-C.6!E8M)4:%=&ZC(&C/=\86%)&(5)I8E'\& %5&?C8& B5C()6(&S7QCQ8)Y:S=C8E& M=C>(7(C;(& =(C&#& 7-889C:B;&G)8=B&D(7& (7C(;6@=G&/7);8()6:6& )8:;C8HE&&
+K6=V'%G&!,7K;VO(T%#&&)<.='%%=&&V/E^K'&:`!)O&!>O=%&F7/%&&6'.%)&8D'%)&!M:$6V)!:O.;/58MAEV#&I%O&"A85;%O'@&%,&:#C!('.%&&A)KV!-.$,5%/&OA%'
+Q
+&%!&
+SM''%#
+&
+&"--V5/.V#OOY&,M_'&.(M)&K,%&5M.'M%&KM%V& #F'#& 0O1%&2,2'%P&$4'W&"!.=%&6M('%6&KN& VV#?O(ZC%&&
+-!!%& W'& 0122a4'& "=7?@=E=B:;8E& #C8E\768:C6&6E8):=C'&5C&<7=;((H:CB6&=>&#M-&122P'&5;;B7%&,= >=7& /)8):6):;8E& "8;@:C(& A78C6E8):=C'& 5C& "#$%&! $'!VMK%& D'%& T 6)=C%&"#'&"= '& ()& O!W%K'& 0122b4'& #& /\6)(I8):;& M=I?87:6=C& =>& U87:=G6& /)8):6):;8E& #E:BCI(C)&<W#=<
+H
+7^5O
+(!E6O'&5M%&*=I'%&&A.
+?
+7V
+G
+8_
+)
+C*
+8)
+6V
+:
+E/
+=
+8%)&
+C/8:='%
+E&E:CBG:6):;6&1c&034%&?8B(6&3cYQ3'&
+=>&"8;@:C( C&F'& #A.($;%@&AC':&(;8)&E`& K._(%?&F=7'&)0&1.2M213143'&P,XE(0GFN&283&"2c(Y)2@1=1H4&>%=& 57,&#"G&).=(I6(88):7;;&@!&[$8:E[G:86)::==CC%&&
+/,4#$2#!>A
+)=
+/%&
+]
+%D1'
+C&4(
+&K
++)D&K
+(:
+6#
+B
+/,
+@
+3'#
+)
+&5/
+6
+CK
+%&O
+&%<&K
+W'
+7='
+&&;;(#(,H<:C+%B!6"&#=/>&*M#V$-%5/O33Z+Y4#8M! '-$&1#!2=20X,0+30+%,-! .,%1+4/! >#,43-,0+$4C! =%1/)/3!/CM(K]F6!&)O78*C%& 6KE8'& )(:)=&C/&!6O\!6-)-(#I.&A9%\& T&'E&:0122c4'& dA78C6E8):=C& I=
+%&H/(\EH& C8H(\8%?&#)8G)6:=)7C8&E>:8='7&T&G8EC\&&3#P7Y8193:;&0L1D272(CX;4'@& &
+/E4A0V/-#M4*,!0%+&$#4'&,-0!1B2$241'/4#'&//4.%/5-!$"4Y!=#
+B@
+*C
+)
+$&
+E
+F!
+\Y
+/e
+6
+4)
+G
+!(
+?
+-,C
+(
+468:
+79[:6(H&)78:C:CB'&d5C&.>!=6))+0'&&6E,(8& /-!8"C#$BG%/83B3(+&4"8&!=H(E:CB& A==E^:)'& E4! "#$%&! @'! 01/!
+627 ￿c ATALA

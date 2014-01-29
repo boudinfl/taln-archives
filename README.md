@@ -1,23 +1,25 @@
 # taln-archives
 
 Mises à jour
- - 27 janvier 2014, ajout des actes de TALN/RECITAL 2003, correction de 
+ - 29/01/2014, modification du script de conversion pdf->txt et ajout des 
+   fichiers txt, html et ocr
+ - 27/01/2014, ajout des actes de TALN/RECITAL 2003, correction de 
    problèmes de case des noms d'auteurs, correction de problèmes de fichiers
    corrompus (recital-2008-long-010), correction de problèmes de fichiers 
    protégés (taln-2010-long-037), modification globale des méta-données des 
    fichiers pdfs à l'aide de pdftk.
- - 24 janvier 2014, ajout des actes de RECITAL 2004.
- - 23 janvier 2014, ajout des actes de TALN 2004 et modification des scripts pour la
+ - 24/01/2014, ajout des actes de RECITAL 2004.
+ - 23/01/2014, ajout des actes de TALN 2004 et modification des scripts pour la
    génération du site web.
- - 21 janvier 2014, ajout de méta-données pour TALN et RECITAL 2005 (résumé, mots 
+ - 21/01/2014, ajout de méta-données pour TALN et RECITAL 2005 (résumé, mots 
    clés) et modification des pdfs.
- - 15 janvier 2014, corrections de méta-données.
- - 8 janvier 2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
+ - 15/01/2014, corrections de méta-données.
+ - 08/01/2014, ajout des actes des conférences TALN 2005 et RECITAL 2005, 
    ajout des noms des sessions dans TALN 2009.
- - 26 juillet 2013, ajout des fichiers textes, extraits à partir du contenu des
+ - 26/07/2013, ajout des fichiers textes, extraits à partir du contenu des
    articles au format pdf.
- - 18 juillet 2013, ajout des fichiers de génération de bibtex et du site web.
- - 25 juin 2013, ajout des actes des conférences TALN 2013 et RECITAL 2013.
+ - 18/07/2013, ajout des fichiers de génération de bibtex et du site web.
+ - 25/06/2013, ajout des actes des conférences TALN 2013 et RECITAL 2013.
 
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
@@ -50,7 +52,8 @@ partir du fichier de méta-données avec la commande :
     python generate_bib.py
 
 Les fichiers au format texte des articles ont été extraits avec l'outil 
-[PDFBox](http://pdfbox.apache.org/). *<- a modifier*
+[PDFBox](http://pdfbox.apache.org/) au format texte et html ainsi que OCRisé 
+avec l'outil [tesseract-ocr](http://code.google.com/p/tesseract-ocr/).
 
     cd tools/
     ./generate_txt.sh

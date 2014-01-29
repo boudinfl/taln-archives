@@ -1,0 +1,546 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Prise en compte de d&#233;pendances syntaxiques pour la traduction contextuelle de segments</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2009, Senlis, 24&#8211;26 juin 2009
+</p>
+<p>Prise en compte de d&#233;pendances syntaxiques
+pour la traduction contextuelle de segments
+</p>
+<p>Aur&#233;lien Max1, Rafik Maklhoufi2 et Philippe Langlais3
+</p>
+<p>aurelien.max@limsi.fr
+rafik.makhloufi@utt.fr
+felipe@iro.umontreal.ca
+</p>
+<p>(1) LIMSI-CNRS et Universit&#233; Paris-Sud 11, Orsay, France
+(2) Universit&#233; de Technologie de Troyes, France&#8727;
+</p>
+<p>(3) DIRO, Universit&#233; de Montr&#233;al, Canada
+</p>
+<p>R&#233;sum&#233;. Dans un syst&#232;me standard de traduction statistique bas&#233; sur les segments, le
+score attribu&#233; aux diff&#233;rentes traductions d&#8217;un segment ne d&#233;pend pas du contexte dans lequel il
+appara&#238;t. Plusieurs travaux r&#233;cents tendent &#224; montrer l&#8217;int&#233;r&#234;t de prendre en compte le contexte
+source lors de la traduction, mais ces &#233;tudes portent sur des syst&#232;mes traduisant vers l&#8217;anglais,
+une langue faiblement fl&#233;chie. Dans cet article, nous d&#233;crivons nos exp&#233;riences sur la prise en
+compte du contexte source dans un syst&#232;me statistique traduisant de l&#8217;anglais vers le fran&#231;ais,
+bas&#233; sur l&#8217;approche propos&#233;e par Stroppa et al. (2007). Nous &#233;tudions l&#8217;impact de diff&#233;rents
+types d&#8217;indices capturant l&#8217;information contextuelle, dont des d&#233;pendances syntaxiques typ&#233;es.
+Si les mesures automatiques d&#8217;&#233;valuation de la qualit&#233; d&#8217;une traduction ne r&#233;v&#232;lent pas de gains
+significatifs de notre syst&#232;me par rapport &#224; un syst&#232;me &#224; l&#8217;&#233;tat de l&#8217;art ne faisant pas usage du
+contexte, une &#233;valuation manuelle conduite sur 100 phrases choisies al&#233;atoirement est en faveur
+de notre syst&#232;me. Cette &#233;valuation fait &#233;galement ressortir que la prise en compte de certaines
+d&#233;pendances syntaxiques est b&#233;n&#233;fique &#224; notre syst&#232;me.
+</p>
+<p>Abstract. In standard phrase-based Statistical Machine Translation (PBSMT) systems,
+the score associated with each translation of a phrase does not depend on its context. While
+several works have shown the potential gain of exploiting source context, they all considered
+English, a morphologically poor language, as the target language. In this article, we describe
+experiments on exploiting the source context in an English&#8594;French PBSMT system, inspired
+by the work of Stroppa et al. (2007). We report a study on the impact of various types of
+features that capture contextual information, including syntactic dependencies. While automatic
+metrics do not show significative gains relative to a baseline system, a manual evaluation of 100
+randomly selected sentences concludes that our context-aware system performs consistently
+better. This evaluation also shows that some types of syntactic dependencies can participate to
+the gains observed.
+</p>
+<p>Mots-cl&#233;s : Traduction automatique statistique, contexte source, d&#233;pendances syntaxiques.
+</p>
+<p>Keywords: Statistical Machine Translation, source context, syntactic dependencies.
+</p>
+<p>&#8727;Ce travail a &#233;t&#233; effectu&#233; lors d&#8217;un stage au LIMSI-CNRS.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>1 Introduction
+</p>
+<p>Les approches statistiques &#224; la traduction automatique reposent en g&#233;n&#233;ral sur des analyses
+relativement surfaciques du texte &#224; traduire. En particulier, l&#8217;approche bas&#233;e sur les segments
+(Phrase-based Statistical Machine Translation (PBSMT)) (Koehn et al., 2003) utilise comme
+unit&#233;s de traduction des segments constitu&#233;s de mots contigus sans substrat linguistique, mais
+qui de fait, repr&#233;sentent un contexte local, et qui m&#232;nent &#224; des gains significatifs relativement
+&#224; l&#8217;approche statistique bas&#233;e sur les mots. Cependant, les syst&#232;mes PBSMT standard n&#8217;ex-
+ploitent pas le contexte d&#8217;un segment lors de sa traduction. Cela ne permet pas en particulier
+de s&#233;lectionner la traduction appropri&#233;e pour des mots polys&#233;miques, autrement que par le fait
+que la traduction correcte serait la plus fr&#233;quente ou qu&#8217;elle serait pr&#233;f&#233;r&#233;e par le mod&#232;le de
+langue cible. Dans l&#8217;exemple suivant, le verbe polys&#233;mique anglais to save appara&#238;t dans trois
+contextes menant &#224; des traductions diff&#233;rentes en fran&#231;ais:
+</p>
+<p>Follow the instructions outlined below to save that file.&#8594; sauvegarder
+Quitting smoking is a sure-fire way to save some money.&#8594; &#233;conomiser
+Brown&#8217;s gamble may save the banks but the economy cannot wait.&#8594; sauver
+Avec des donn&#233;es d&#8217;apprentissage suffisantes, de bonnes traductions pourraient &#234;tre apprises
+pour des segments tels que save that file, save some money et save the banks. Toutefois, les
+&#233;l&#233;ments n&#233;cessaires &#224; la d&#233;sambigu&#239;sation de sens sont souvent hors de port&#233;e de l&#8217;approche
+bas&#233;e sur les segments, comme illustr&#233; dans l&#8217;exemple suivant, o&#249; il est peu probable que des
+traductions fiables soient apprises pour le segment soulign&#233;:
+</p>
+<p>The creation of a UK &#8217;bad bank&#8217; will be the best way to save troubled UK banks.
+</p>
+<p>Apr&#232;s le relatif &#233;chec des tentatives d&#8217;int&#233;gration de syst&#232;mes de d&#233;sambigu&#239;sation lexicale
+dans des syst&#232;mes statistiques (Carpuat &amp; Wu, 2005), des travaux r&#233;cents tels que (Stroppa
+et al., 2007; Carpuat &amp; Wu, 2007; Gimpel &amp; Smith, 2008) ont propos&#233; de rendre les syst&#232;mes
+PBSMT sensibles au contexte des segments &#224; traduire en r&#233;estimant pour chaque segment la
+probabilit&#233; de ses traductions en fonction de son contexte. Les principales informations utilis&#233;es
+dans ces &#233;tudes sont issues du contexte imm&#233;diat des segments (par exemple les mots encadrant
+le segment &#224; traduire). Si quelques am&#233;liorations de la qualit&#233; des traductions ont &#233;t&#233; obtenues,
+il appara&#238;t n&#233;cessaire de consid&#233;rer des contextes plus riches pour am&#233;liorer la performance de
+ce type de d&#233;sambigu&#239;sation.
+</p>
+<p>Une solution simple consiste &#224; entra&#238;ner des syst&#232;mes avec des donn&#233;es proches de celles &#224;
+traduire, ce qui a notamment pour effet de diminuer la polys&#233;mie en langue source. Langlais et
+al. (2006) rapportent des gains importants dans une exp&#233;rience o&#249; ils adaptent un syst&#232;me &#224;
+traduire des textes du domaine m&#233;dical. Une autre approche consiste &#224; r&#233;estimer les probabilit&#233;s
+de traduction en fonction de la pr&#233;sence de mots d&#233;clencheurs dans un contexte un peu plus large
+(Lavecchia et al., 2008), qui peut par exemple &#234;tre celui de la phrase du segment &#224; traduire.
+Cependant, de telles cooccurrences ne sont pas suffisantes pour d&#233;sambigu&#239;ser de fa&#231;on fiable
+car elles mettent en jeu des mots qui ne sont pas n&#233;cessairement li&#233;s dans tous les contextes,
+comme illustr&#233; dans l&#8217;exemple suivant:
+</p>
+<p>Businesses can make deposits right from the office and save trips to the bank.&#8594; *sauver
+La prise en compte du contexte pour d&#233;sambigu&#239;ser la traduction d&#8217;un segment doit donc pou-
+voir se baser en partie sur des relations entre mots. Dans cet article, nous pr&#233;sentons une ap-
+proche qui prend en compte les d&#233;pendances syntaxiques liant les mots captur&#233;s par des seg-</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Prise en compte de d&#233;pendances syntaxiques pour la traduction contextuelle de segments
+</p>
+<p>ments et des mots en dehors de ces segments pour participer &#224; la r&#233;estimation des probabilit&#233;s
+de leurs traductions. Nous d&#233;crivons tout d&#8217;abord les travaux existant dans le domaine (sec-
+tion 2), puis proposons une approche bas&#233;e sur une classification bas&#233;e sur la m&#233;moire &#224; partir
+d&#8217;exemples exploitant diff&#233;rents traits dont des d&#233;pendances syntaxiques (section 3). Nous d&#233;-
+crivons alors nos exp&#233;riences et analysons les r&#233;sultats obtenus (section 4), puis nous pr&#233;sentons
+finalement nos travaux futurs et concluons (section 5).
+</p>
+<p>2 Travaux sur la prise en compte du contexte source
+</p>
+<p>L&#8217;analyse fine des sorties d&#8217;un syst&#232;me de traduction PBSMT men&#233;e par Vilar et al. (2006) met
+en &#233;vidence la n&#233;cessit&#233; de prendre en compte le contexte source des segments &#224; traduire: les
+erreurs portant sur les sens des mots traduits repr&#233;sentent 21,9% des erreurs en traduction de
+l&#8217;anglais vers l&#8217;espagnol et 28,2% de l&#8217;espagnol vers l&#8217;anglais. En outre, les formes incorrectes
+des mots traduits, dues notamment &#224; des absences d&#8217;accords, repr&#233;sentent respectivement 33,9%
+et 9,9%, ce qui peut &#234;tre imput&#233; &#224; l&#8217;absence de transmission de d&#233;pendances syntaxiques telles
+que sujet-verbe ou modifieur-nom entre mots sources et cibles.
+</p>
+<p>Plusieurs travaux r&#233;cents en traduction PBSMT ont port&#233; sur l&#8217;estimation de probabilit&#233;s de
+traduction d&#233;pendant du contexte source. Carpuat &amp; Wu (2007) int&#232;grent un syst&#232;me de d&#233;sam-
+bigu&#239;sation lexicale existant qui utilise un classifieur par segment source. Ce classifieur exploite
+des collocations locales, des mots du contexte imm&#233;diat des segments, leur cat&#233;gorie morpho-
+syntaxique ainsi que des sacs-de-mots et des d&#233;pendances simples1. Une approche similaire est
+&#233;tudi&#233;e dans (Gim&#233;nez &amp; M&#224;rquez, 2007).
+</p>
+<p>Stroppa et al. (2007) proposent d&#8217;entra&#238;ner un classifieur global dont la sortie correspond &#224;
+des classes pond&#233;r&#233;es correspondant aux traductions possibles d&#8217;un segment source dans son
+contexte. Les traits utilis&#233;s incluent les s&#233;quences de mots et de cat&#233;gories morphosyntaxiques
+d&#8217;un segment source, ainsi que les mots et cat&#233;gories du contexte imm&#233;diat.
+</p>
+<p>L&#8217;&#233;tude la plus pouss&#233;e dans cette lign&#233;e est celle d&#233;crite par Gimpel &amp; Smith (2008), o&#249; chaque
+information contextuelle donne lieu &#224; un score utilis&#233; par le d&#233;codeur. Les traits consid&#233;r&#233;s par
+les auteurs reprennent ceux de (Stroppa et al., 2007), mais incluent &#233;galement des indices syn-
+taxiques d&#233;riv&#233;s d&#8217;une analyse en constituants (ex: un segment correspond-t-il &#224; un constituant ?
+Un segment contient-il la t&#234;te d&#8217;un constituant ? Nature du non-terminal le plus profond dans
+le constituant couvrant le segment, etc.), des traits sur la position du segment dans la phrase
+(source), ainsi que des traits sur la taille du segment et de la phrase.
+</p>
+<p>Si ces travaux ont permis d&#8217;obtenir des gains avec les m&#233;triques automatiques de qualit&#233; des
+traductions, ces gains concernent des syst&#232;mes ayant l&#8217;anglais en langue cible, langue mor-
+phologiquement pauvre pour laquelle les accords entre mots ont peu d&#8217;impact sur la qualit&#233;
+g&#233;n&#233;rale des traductions. Gimpel &amp; Smith (2008) n&#8217;obtiennent pas de gains en traduction de
+l&#8217;anglais vers l&#8217;allemand, ce qui peut &#234;tre en partie imput&#233; &#224; la qualit&#233; du parseur syntaxique
+utilis&#233;. Allauzen et al. (2009) observent avec une approche comparable exploitant des traits
+lexicaux et morphosyntaxiques des gains modestes dans une t&#226;che de traduction de l&#8217;anglais
+vers le fran&#231;ais.
+</p>
+<p>1Ces traits ne sont pas d&#233;crits plus avant par les auteurs.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>3 Prise en compte du contexte dans un syst&#232;me PBSMT
+</p>
+<p>3.1 Estimation de scores de traduction contextuels
+</p>
+<p>Un syst&#232;me de traduction PBSMT produit une traduction en maximisant une fonction de score
+cens&#233;e mesurer la qualit&#233; d&#8217;une traduction candidate &#233;tant donn&#233;e une phrase &#224; traduire. Typi-
+quement, cette fonction prend la forme d&#8217;une combinaison pond&#233;r&#233;e (soient &#955; les poids) de traits
+ou mod&#232;les hm incluant un mod&#232;le de langue (lm) et un ou plusieurs mod&#232;les de traduction:
+</p>
+<p>P (e|f) &#8733;&#8721;
+k
+</p>
+<p>&#8721;
+m
+</p>
+<p>&#955;mhm(fk, ek) + &#955;lmP (e)
+</p>
+<p>o&#249; les traits peuvent &#234;tre consid&#233;r&#233;s comme des approximations de P (ek|fk), la traduction d&#8217;un
+segment cible &#233;tant donn&#233; un segment source. Cette d&#233;composition fait ressortir le fait que les
+mod&#232;les font l&#8217;hypoth&#232;se que les traductions des diff&#233;rents segments sont des &#233;v&#233;nements ind&#233;-
+pendants. L&#8217;int&#233;gration de l&#8217;information contextuelle est r&#233;alis&#233;e dans cette &#233;tude en autorisant
+la prise en compte de traits de la forme: h(fk, ek, C(fk, f)) o&#249; C(fk, f) d&#233;signe le contexte du
+segment fk dans la phrase f .
+</p>
+<p>Dans (Gimpel &amp; Smith, 2008), un score par type d&#8217;&#233;l&#233;ment de contexte est utilis&#233;, ce qui rend
+les mod&#232;les difficiles &#224; estimer de mani&#232;re fiable. Cette difficult&#233; peut n&#233;anmoins &#234;tre com-
+pens&#233;e par l&#8217;ajustement ad&#233;quat des poids de la combinaison lin&#233;aire r&#233;alis&#233;e sur un corpus de
+d&#233;veloppement, ce qui peut s&#8217;av&#233;rer difficile en pratique lorsque le nombre de poids &#224; ajuster
+est grand. &#192; l&#8217;inverse, Stroppa et al. (2007) capturent tous les &#233;l&#233;ments du contexte dans un
+unique classifieur qui utilise un arbre de d&#233;cision. Celui-ci associe &#224; une entr&#233;e &#12296;fk, C(fk, f)&#12297;
+un ensemble pond&#233;r&#233; d&#8217;&#233;tiquettes de classes qui correspondent aux traductions possibles de fk
+dans son contexte.
+</p>
+<p>La collection d&#8217;exemples se fait en parcourant l&#8217;ensemble des bi-segments obtenus par ali-
+gnement du bitexte d&#8217;entra&#238;nement et en extrayant pour chaque couple les valeurs des traits
+contextuels. La classification op&#233;r&#233;e r&#233;alise un lissage de mani&#232;re implicite en basant les poids
+des classes de sortie sur un vote correspondant &#224; la quantit&#233; des traits pour lesquels il y a corres-
+pondance. En cas de correspondance exacte entre les contextes d&#8217;un segment &#224; traduire et d&#8217;un
+segment vu lors de l&#8217;apprentissage, le segment cible correspond &#224; la classe retourn&#233;e de meilleur
+score, ce qui conf&#232;re &#224; l&#8217;approche des propri&#233;t&#233;s comparables aux syst&#232;mes de traduction bas&#233;s
+sur des exemples (Example-based Machine Translation (EBMT)).
+</p>
+<p>Le score attribu&#233; par le classifieur &#224; la traduction d&#8217;un segment en contexte est int&#233;gr&#233; dans le
+d&#233;codeur en l&#8217;ajoutant &#224; la combinaison de mod&#232;les. Nous ajoutons &#233;galement un score binaire
+qui vaut 1 pour la traduction la plus vraisemblable selon le classifieur et 0 pour les autres traduc-
+tions. L&#8217;importance de ces deux scores est ajust&#233;e via leur coefficient de pond&#233;ration respectif
+qui est ajust&#233; en m&#234;me temps que les autres &#224; l&#8217;aide d&#8217;un corpus de d&#233;veloppement.
+</p>
+<p>3.2 S&#233;lection de traits contextuels
+</p>
+<p>Outre la s&#233;quence des mots constituant un segment, la s&#233;quence de leur cat&#233;gorie morpho-
+syntaxique peut participer &#224; la d&#233;sambigu&#239;sation des traductions de segments. Les contraintes
+exprim&#233;es sont avant tout grammaticales, ce qui permet en particulier de distinguer des homo-
+graphes, comme dans l&#8217;exemple suivant entre un nom et un verbe:</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Prise en compte de d&#233;pendances syntaxiques pour la traduction contextuelle de segments
+</p>
+<p>The goalkeeper was given the honour down to the fantastic save he made&#8594; arr&#234;t
+Quitting smoking is a sure-fire way to save some money.&#8594; &#233;conomiser
+De m&#234;me, les mots encadrant un segment et leur cat&#233;gorie morphosyntaxique peuvent aider &#224;
+d&#233;sambigu&#239;ser entre homographes et dans une certaine mesure entre segments impliquant des
+sens distincts, notamment en fonction de la port&#233;e consid&#233;r&#233;e pour d&#233;finir le contexte imm&#233;diat.
+Cependant, certaines d&#233;sambigu&#239;sations ne pourront &#234;tre r&#233;alis&#233;es qu&#8217;en exploitant des d&#233;pen-
+dances &#224; plus longue port&#233;e, telle que des relations syntaxiques. La traduction correcte du verbe
+save dans cet exemple ne pourra ainsi se faire qu&#8217;en consid&#233;rant son objet direct2:
+</p>
+<p>The creation of a UK &#8217;bad bank&#8217; will be the best way to save troubled UK banks.
+</p>
+<p>Nous proposons donc d&#8217;extraire les informations concernant les d&#233;pendances syntaxiques im-
+pliquant un mot appartenant au segment consid&#233;r&#233; et un mot &#224; l&#8217;ext&#233;rieur. Dans la suite, les d&#233;-
+pendances pour lesquelles le gouverneur appartient au segment sont pr&#233;fix&#233;es par OUT_, celles
+pour lesquelles le d&#233;pendant appartient au segment sont pr&#233;fix&#233;es par IN_ ; les d&#233;pendances
+internes au segment ne sont pas consid&#233;r&#233;es. Pour illustration, les vecteurs de contexte extraits
+pour les bisegments encadr&#233;s de la figure 1 sont donn&#233;s en figure 23. Le dernier &#233;l&#233;ment des
+vecteurs correspond &#224; la classe de l&#8217;exemple pour le classifieur.
+</p>
+<p>Ligne Phrases align&#233;es
+</p>
+<p>948
+finally , aid can enable restructuring , offer training , save jobs and thus know-how .
+finalement , les aides peuvent permettre des restructurations , offrir une formation , sauver
+des emplois et donc du savoir-faire .
+</p>
+<p>1254
+not to save jobs .
+ce n&#8217; est pas pour pr&#233;server les emplois .
+</p>
+<p>23997
+above all we want to save fossil fuels .
+ce que nous voulons surtout , c&#8217; est &#233;conomiser les combustibles fossiles .
+</p>
+<p>FIG. 1 &#8211; Exemples de phrases align&#233;es anglais-fran&#231;ais issues du corpus Europarl.
+</p>
+<p>Traits lexicaux Traits morphosyntaxiques Traits bas&#233;s sur les d&#233;pendences Traductionmots mot-1 mot+1 cat cat-1 cat+1 OUT_dobj IN_ccomp . . .
+save , jobs V , NNS jobs enable - sauver
+save to jobs V TO NNS jobs NIL - pr&#233;server
+save to fossil V TO JJ fuels NIL - &#233;conomiser
+</p>
+<p>FIG. 2 &#8211; Exemples de vecteurs de contextes extraits pour les exemples de la figure 1.
+</p>
+<p>3.3 Int&#233;gration dans un syst&#232;me PBSMT
+</p>
+<p>Puisque chaque segment source appara&#238;t dans un contexte qui lui est propre, des entr&#233;es uniques
+dans la table de traduction doivent lui &#234;tre associ&#233;es. Une &#233;tape de pr&#233;traitement construit donc
+dynamiquement un fichier source s&#233;rialis&#233; o&#249; chaque mot est rendu unique (ex: belong@37
+</p>
+<p>2On peut par exemple s&#8217;attendre dans un bon corpus &#224; avoir P (sauver|save, {obj = bank}) &#29;
+P (&#233;conomiser|save, {obj = bank})
+</p>
+<p>3La taille du contexte imm&#233;diat a &#233;t&#233; limit&#233;e &#224; un mot, et les cibles des d&#233;pendances correspondent aux mots.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>to@38) et une table de traduction associant aux segments impliquant des mots uniques leurs
+scores standard, leur score contextuel (obtenu en classifiant chaque segment source unique et
+en normalisant les scores obtenus) et le score binaire caract&#233;risant la traduction la plus probable
+selon le mod&#232;le contextuel. L&#8217;extraction des vecteurs contextuels se fait &#224; partir des alignements
+entre segments et des sorties de l&#8217;analyse linguistique vis&#233;e.
+</p>
+<p>4 Exp&#233;riences en traduction anglais&#8594; fran&#231;ais
+</p>
+<p>4.1 Cadre exp&#233;rimental
+</p>
+<p>Les exp&#233;riences rapport&#233;es par Stroppa et al. (2007) ont &#233;t&#233; men&#233;es avec le classifieur IGTree
+du package TiMBL (Daelemans et al., 2007). Les gains d&#8217;information4 sont utilis&#233;s pour s&#233;lec-
+tionner d&#8217;abord les traits les plus discriminants. Un vote majoritaire est effectu&#233; pour d&#233;terminer
+la meilleure classe (i.e. la meilleure traduction du segment source), et il est possible d&#8217;obtenir
+un ensemble pond&#233;r&#233; de classes, ce qui apr&#232;s normalisation permet d&#8217;obtenir les distributions
+P (ek|fk, C(fk, f)) recherch&#233;es. Les sorties de IGTree &#233;tant tr&#232;s sensibles aux faibles diff&#233;rences
+de valeurs d&#8217;informativit&#233; entre traits (ce qui est particuli&#232;rement le cas pour les traits prove-
+nant de d&#233;pendances syntaxiques, cf. figure 3), nous avons utilis&#233; le classifieur hybride Tribl
+de TiMBL. Celui-ci r&#233;alise un parcours de l&#8217;arbre de d&#233;cision IGTree pour les traits les plus
+discriminants, puis utilise une classification de type k-NN pour les traits moins discriminants.
+</p>
+<p>Nous avons utilis&#233; les d&#233;bats parlementaires europ&#233;ens du corpus Europarl (Koehn, 2005), et
+avons limit&#233; la taille du corpus d&#8217;apprentissage &#224; 100 000 lignes afin de rendre possible l&#8217;ap-
+prentissage des classifieurs sur les ordinateurs &#224; disposition.5 Le parseur probabiliste de Stan-
+ford (de Marneffe et al., 2006) a &#233;t&#233; utilis&#233; pour analyser en d&#233;pendances la partie anglaise du
+corpus d&#8217;apprentissage et les textes &#224; traduire.
+</p>
+<p>Afin d&#8217;obtenir des vecteurs d&#8217;apprentissage de taille constante, un nombre fixe de d&#233;pendances
+syntaxiques a &#233;t&#233; conserv&#233;. Nous avons op&#233;r&#233; une s&#233;lection des 16 d&#233;pendances directionnelles
+(i.e. le gouverneur &#233;tant &#224; l&#8217;int&#233;rieur ou &#224; l&#8217;ext&#233;rieur du segment) menant au gain d&#8217;information
+le plus &#233;lev&#233; sur les vecteurs de contexte issus de notre corpus d&#8217;apprentissage. La figure 3 d&#233;crit
+les traits retenus, ordonn&#233;s par gain d&#8217;information d&#233;croissant. Nous rapportons &#233;galement les
+valeurs obtenues pour les syst&#232;mes italien&#8594;anglais et chinois&#8594;anglais de (Stroppa et al., 2007)
+pour les traits communs aux deux &#233;tudes.
+</p>
+<p>Comme attendu, les mots d&#8217;un segment et ses cat&#233;gories sont les traits les plus discriminants
+pour le choix de sa traduction. Les traits lexicaux du contexte imm&#233;diat puis les traits morpho-
+syntaxiques sont les suivants, le contexte droit apparaissant comme plus discriminant que le
+contexte gauche. Les traits bas&#233;s sur les d&#233;pendances apparaissent moins discriminants indivi-
+duellement, mais cela est en particulier d&#251; au fait qu&#8217;ils ne concernent que des sous-ensembles
+de segments sources. La d&#233;pendance la plus utile est IN_det, qui permet de choisir en particulier
+la traduction d&#8217;un d&#233;terminant, non marqu&#233; en genre en anglais, en fonction du nom auquel il se
+rattache, et dont la traduction en fran&#231;ais sera elle marqu&#233;e en genre. Les d&#233;pendances suivantes
+sont IN_nsubj et OUT_nsubj, qui correspondent au cas o&#249; il faut choisir la traduction d&#8217;un su-
+</p>
+<p>4Le gain d&#8217;information est d&#233;fini comme la diff&#233;rence d&#8217;entropie entre des situations sans connaissance des
+valeurs d&#8217;un trait et avec connaissance de ses valeurs, et renseigne donc sur le caract&#232;re discriminant des traits.
+</p>
+<p>5L&#8217;approche suivie produit des classifieurs construits sur la base de nombreux exemples, ainsi que des tables
+de traduction volumineuses du fait du caract&#232;re unique des segments sources qu&#8217;elles contiennent.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Prise en compte de d&#233;pendances syntaxiques pour la traduction contextuelle de segments
+</p>
+<p>jet en fonction de son verbe (le type de corpus utilis&#233; contient beaucoup de formes verbales &#224;
+la 3&#232;me personne du pr&#233;sent qui sont marqu&#233;es par une flexion) et d&#8217;un verbe et fonction de
+son sujet, ce qui refl&#232;te des accords grammaticaux importants en fran&#231;ais. Des d&#233;pendances
+telles que IN_amod et IN_dobj, qui correspondent &#224; la traduction d&#8217;un adjectif connaissant le
+nom qu&#8217;il modifie et &#224; la traduction d&#8217;un verbe connaissant son objet direct, concernent elles
+davantage des d&#233;sambigu&#239;sations de sens.
+</p>
+<p>Traits Gain d&#8217;information Description
+en&#8594;fr it&#8594;en zh&#8594;en
+</p>
+<p>PHR 7,29 7,82 6,74 mots du segments
+POS 4,08 4,59 3,23 cat&#233;gories morphosyntaxiques des mots du segment
+W+1 3,72 4,24 3,73 premier mot sur la droite du segment
+W-1 3,45 4,09 3,21 premier mot sur la gauche du segment
+W+2 2,98 3,19 2,90 second mot sur la droite du segment
+W-2 2,78 2,84 2,25 second mot sur la gauche du segment
+</p>
+<p>POS+1 1,68 1,75 1,03 cat&#233;gorie du premier mot sur la droite du segment
+POS-1 1,44 1,61 1,18 cat&#233;gorie du premier mot sur la gauche du segment
+POS+2 1,04 0,90 0,75 cat&#233;gorie du second mot sur la droite du segment
+POS-2 0,89 0,94 0,77 cat&#233;gorie du second mot sur la gauche du segment
+IN_det 0,75 - - d&#233;terminant ; le nom modifi&#233; est en dehors du segment ; ex:
+</p>
+<p>[the] session
+IN_nsub 0,65 - - sujet nominal dont le verbe est en dehors du segment ; ex:
+</p>
+<p>[I] declare
+OUT_nsubj 0,43 - - inverse de IN_nsubj ; ex: I [declare]
+IN_amod 0,42 - - adjectif ; le nom modifi&#233; est en dehors du segment ; ex:
+</p>
+<p>[happy] new year
+IN_advmod 0,39 - - adverb ; le mot modifi&#233; est en dehors du segment ; ex:
+</p>
+<p>[truly] dreadful
+OUT_prep_of 0,35 - - nom modifi&#233; par un nom en dehors du segment via la pro-
+</p>
+<p>position of ; ex: [a number] of countries
+OUT_dobj 0,34 - - verbe transitif dont l&#8217;objet direct est en dehors du segment ;
+</p>
+<p>ex: [you requested] a debate
+OUT_amod 0,34 - - inverse de IN_amod ; ex: happy new [year]
+</p>
+<p>IN_dobj 0,33 - - inverse de OUT_dobj ; ex: you requested [a debate]
+OUT_det 0,31 - - inverse de IN_det ; ex: the [session]
+</p>
+<p>IN_nn 0,28 - - nom modifiant un autre nom en dehors du segment ; ex:
+[Madam] President
+</p>
+<p>IN_prep_of 0,26 - - inverse de OUT_prep_of ; ex: a number of [countries]
+OUT_nn 0,26 - - inverse de IN_nn ; ex: Madam [President]
+</p>
+<p>OUT_advmod 0,21 - - inverse de IN_advmod ; ex: truly [dreadful]
+</p>
+<p>FIG. 3 &#8211; Description des traits par gain d&#8217;information d&#233;croissant pour le syst&#232;me an-
+glais&#8594; fran&#231;ais. Les gains rapport&#233;s par Stroppa et al. (2007) pour leurs syst&#232;mes italien&#8594; an-
+glais et chinois&#8594; anglais sont indiqu&#233;s &#224; titre de comparaison.
+</p>
+<p>Le corpus d&#8217;apprentissage a &#233;t&#233; filtr&#233; pour ne conserver que les phrases de moins de 60 mots
+et pour lesquelles une analyse par l&#8217;analyseur de Stanford a &#233;t&#233; possible, soit 95 734 lignes, et
+des corpus de d&#233;veloppement et de test (resp. 475 et 472 lignes) ont subi le m&#234;me traitement,</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#224; la diff&#233;rence que les vecteurs de contexte ne renseignent pas sur la traduction du segment
+source. Les alignements ont &#233;t&#233; obtenus &#224; l&#8217;aide de Giza++ et de l&#8217;heuristique grow-diag-final-
+and (Koehn et al., 2003) en limitant la taille des segments &#224; 7 mots. Pour le corpus d&#8217;apprentis-
+sage, 11,5M vecteurs de contexte ont &#233;t&#233; obtenus. Les mots des segments &#233;tant de loin le trait le
+plus discriminant, un filtrage bas&#233; sur les segments apparaissant effectivement dans les corpus
+de d&#233;veloppement et de test a permis de limiter ce nombre &#224; 3,7M vecteurs.
+</p>
+<p>Trois syst&#232;mes de traduction bas&#233;s sur les segments ont &#233;t&#233; construits pour la paire anglais&#8594;fran-
+&#231;ais pour le d&#233;codeur PBSMT Moses6, en utilisant des mod&#232;les de langues trigrammes pour le
+fran&#231;ais appris sur la partie cible du bitexte d&#8217;apprentissage7. Les poids de la combinaison de
+mod&#232;les ont &#233;t&#233; ajust&#233;s dans tous les cas par l&#8217;approche MERT (Och, 2003). Le syst&#232;me BAS
+correspond &#224; un syst&#232;me baseline Moses. Le syst&#232;me S1, construit sur BAS, reprend les traits
+de (Stroppa et al., 2007), et S2 ajoute les traits bas&#233;s sur les d&#233;pendances s&#233;lectionn&#233;es. Afin de
+permettre un temps d&#8217;apprentissage raisonnable, un filtrage ne conservant que les bisegments
+pour lesquels p(ek|fk) &gt; 2.10&#8722;4 a &#233;t&#233; effectu&#233;, Gimpel &amp; Smith (2008) rapportant que cela ne
+d&#233;grade pas les performances de leurs syst&#232;mes.
+</p>
+<p>4.2 &#201;valuation
+</p>
+<p>Les r&#233;sultats d&#8217;&#233;valuation obtenus avec les m&#233;triques BLEU, NIST et TER8, ainsi que les r&#233;sul-
+tats d&#8217;une &#233;valuation manuelle, sont pr&#233;sent&#233;s en figure 4. Les m&#233;triques automatiques indiquent
+que le syst&#232;me S1 semble l&#233;g&#232;rement inf&#233;rieur aux deux autres syst&#232;mes, ce qui semble au
+moins indiquer un r&#244;le positif jou&#233; par les traits propres &#224; S2. BAS et S2 ont des performances
+comparables sur toutes les m&#233;triques, les diff&#233;rences observ&#233;es n&#8217;&#233;tant pas significatives.
+</p>
+<p>Plusieurs travaux ont critiqu&#233; l&#8217;ad&#233;quation des m&#233;triques du type de BLEU &#224; rendre compte
+de diff&#233;rences fines li&#233;es &#224; la prise en compte du contexte (ex. (Gim&#233;nez &amp; M&#224;rquez, 2007)).
+Nous avons donc men&#233; une &#233;valuation manuelle sur 100 phrases du corpus de test tir&#233;es au
+hasard9. Quatre juges francophones ont class&#233; les sorties des trois syst&#232;mes pr&#233;sent&#233;es dans un
+ordre al&#233;atoire, les &#233;galit&#233;s &#233;tant permises. La moyenne des rangs moyens pour l&#8217;ensemble des
+juges semble indiquer une pr&#233;f&#233;rence plus marqu&#233;e pour les syst&#232;mes contextuels, avec une
+performance l&#233;g&#232;rement sup&#233;rieure pour S2. Deux juges ont donn&#233; des rangs &#233;quivalents aux
+deux syst&#232;mes contextuels, les deux autres pr&#233;f&#233;rant S2.
+</p>
+<p>Scores automatiques Scores manuels
+BLEU NIST TER rang moyen % 1er % 2nd % 3&#232;me
+</p>
+<p>BAS 31,13 6,73 56.45 1,54 64,66 9,33 26,00
+S1 30,23 6,70 56.81 1,39 74,00 12,00 14,00
+S2 30,94 6.76 56.33 1,34 74,66 13,33 12,00
+</p>
+<p>FIG. 4 &#8211; R&#233;sultats des &#233;valuations automatiques et manuelles.
+</p>
+<p>6http://www.statmt.org/moses/
+7Nos prochaines exp&#233;riences utiliseront des mod&#232;les de langue cible appris sur des volumes de donn&#233;es beau-
+</p>
+<p>coup plus importants.
+8Une seule traduction de r&#233;f&#233;rence est disponible par phrase de test.
+9Pour ces phrases, les trois syst&#232;mes ont 8 traductions identiques, BAS et S1 en ont 11, BAS et S2 en ont 22, et
+</p>
+<p>S1 et S2 en ont 11.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Prise en compte de d&#233;pendances syntaxiques pour la traduction contextuelle de segments
+</p>
+<p>Src I think specifically that in going too quickly to six then to fifteen we have displayed our inability
+to build a Europe which respects the disparities between its initial members.
+</p>
+<p>R&#233;f je crois pr&#233;cis&#233;ment qu&#8217;en allant d&#233;j&#224; trop vite &#224; six , puis &#224; quinze , nous avons d&#233;montr&#233; notre
+incapacit&#233; &#224; construire une Europe qui respecte les diff&#233;rences de ses premiers membres.
+</p>
+<p>Bas je pense que, pr&#233;cis&#233;ment &#224; aller trop vite &#224; six, quinze nous ont fait preuve notre incapacit&#233; &#224;
+construire une Europe qui respecte les diff&#233;rences entre ses membres initiale.
+</p>
+<p>S1 je pense notamment qu&#8217;&#224; aller trop vite pour six ensuite &#224; quinze, nous avons hiss&#233; notre
+incapacit&#233; &#224; construire une Europe qui respecte les disparit&#233;s entre ses membres initiaux.
+</p>
+<p>S2 je crois que pr&#233;cis&#233;ment &#224; aller trop rapidement de six &#224; quinze, nous avons d&#233;montr&#233; notre
+incapacit&#233; &#224; construire une Europe qui respecte les diff&#233;rences entre ses membres initiaux.
+</p>
+<p>Src it is our job to continue to support Latvia with the integration of the Russian population.
+R&#233;f il est de notre devoir de continuer d&#8217;appuyer la Lettonie sur la question de l&#8217;int&#233;gration de la
+</p>
+<p>population russe.
+Bas c&#8217;est notre t&#226;che consiste &#224; continuer &#224; soutenir la Lettonie &#224; l&#8217;int&#233;gration de la population
+</p>
+<p>russe.
+S1 c&#8217;est notre t&#226;che consiste &#224; continuer &#224; soutenir la Lettonie &#224; l&#8217;int&#233;gration de la population
+</p>
+<p>russe.
+S2 notre t&#226;che consiste &#224; continuer &#224; soutenir la Lettonie avec l&#8217;int&#233;gration de la population russe.
+</p>
+<p>FIG. 5 &#8211; Deux traductions produites par nos trois syst&#232;mes (Src indique la phrase traduite, et
+R&#233;f une traduction de r&#233;f&#233;rence possible).
+</p>
+<p>Il est int&#233;ressant de noter que nos syst&#232;mes contextuels ont tendance &#224; pr&#233;f&#233;rer des seg-
+mentations impliquant des segments plus longs, ce qui rejoint les observations de Carpuat &amp;
+Wu (2008). On peut conjecturer que certains scores de traduction pour des segments longs peu
+fr&#233;quents sont renforc&#233;s par la pr&#233;sence d&#8217;indices contextuels discriminants.
+</p>
+<p>5 Discussion et perspectives
+</p>
+<p>Les gains que nous avons obtenus par la prise en compte de d&#233;pendances syntaxiques pour la
+traduction de segments sont modestes au niveau des &#233;valuations automatiques, mais ils cor-
+respondent &#224; notre connaissance &#224; la premi&#232;re am&#233;lioration en exploitation du contexte d&#8217;une
+phrase source en traduction vers une langue fortement fl&#233;chie. En outre, notre &#233;valuation ma-
+nuelle conforte l&#8217;&#233;valuation positive de notre apport, relativement &#224; un syst&#232;me PBSMT stan-
+dard, et relativement &#224; un syst&#232;me contextuel n&#8217;exploitant pas de d&#233;pendances syntaxiques.
+L&#8217;inspection des sorties des diff&#233;rents syst&#232;mes permet en effet de constater que notre syst&#232;me
+ne d&#233;grade que tr&#232;s rarement les traductions, et qu&#8217;il am&#233;liore parfois de fa&#231;on tr&#232;s notable les
+traductions comme dans les deux exemples de la figure 5.
+</p>
+<p>Plusieurs raisons peuvent &#234;tre avanc&#233;es pour expliquer pourquoi les m&#233;triques automatiques ne
+montrent pas de gains plus marqu&#233;s. En particulier, les am&#233;liorations sensibles concernent peut-
+&#234;tre un nombre trop limit&#233; de phrases, et les modifications positives effectu&#233;es ne correspondent
+peut-&#234;tre pas aux formulations contenues dans la traduction de r&#233;f&#233;rence utilis&#233;e. Par ailleurs,
+l&#8217;analyse en d&#233;pendances sur laquelle se base en grande partie notre approche est un traitement
+sujet &#224; erreur.
+</p>
+<p>Nos travaux futurs vont tout d&#8217;abord porter sur les limitations du pr&#233;sent travail. En premier lieu,
+nous devrons travailler sur la r&#233;solution de plusieurs probl&#232;mes d&#8217;impl&#233;mentation, qui nous ont</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>par exemple contraints &#224; limiter le nombre d&#8217;exemples d&#8217;apprentissage pour le classifieur ou &#224;
+filtrer les entr&#233;es de la table de traduction contextuelle. Nous essaierons ensuite d&#8217;int&#233;grer une
+meilleure prise en compte du contexte, par exemple en construisant des classifieurs adapt&#233;s aux
+types de segments (par exemple, segments contenant un verbe transitif et ne contenant pas son
+objet direct), et nous appliquerons notre technique &#224; plusieurs paires de langues pour pouvoir
+r&#233;aliser des &#233;tudes contrastives. Il sera notamment particuli&#232;rement int&#233;ressant de comparer
+le pouvoir discriminant de d&#233;pendances syntaxiques comparables en fonction de la paire de
+langues consid&#233;r&#233;e.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>ALLAUZEN A., CREGO J., MAX A. &amp; YVON F. (2009). LIMSI&#8217;s statistical translation sys-
+tems for WMT&#8217;09. In Proceedings of WMT&#8217;09, Athens, Greece.
+CARPUAT M. &amp; WU D. (2005). Word sense disambiguation vs statistical machine translation.
+In Proceedings of ACL, Ann Arbor, USA.
+CARPUAT M. &amp; WU D. (2007). Context-dependent phrasal translation lexicons for statis-
+tical machine translation. In Proceedings of Machine Translation Summit XI, Copenhagen,
+Denmark.
+CARPUAT M. &amp; WU D. (2008). Evaluation of context-dependent phrasal translation lexicons
+for statistical machine translation. In Proceedings of LREC 2008, Marrakech, Morroco.
+DAELEMANS W., ZAVREL J., VAN DER SLOOT K. &amp; VAN DEN BOSCH A. (2007). TiMBL:
+Tilburg Memory Based Learner, version 6.1, Reference Guide. Rapport interne, ILK 07-xx.
+DE MARNEFFE M.-C., MACCARTNEY B. &amp; MANNING C. D. (2006). Generating typed
+dependency parses from phrase structure parses. In Proceedings of LREC&#8217;06, Genoa, Italy.
+GIM&#201;NEZ J. &amp; M&#192;RQUEZ L. (2007). Context-aware discriminative phrase selection for sta-
+tistical machine translation. In Proceedings of WMT at ACL, Prague, Czech Republic.
+GIMPEL K. &amp; SMITH N. A. (2008). Rich source-side context for statistical machine transla-
+tion. In Proceedings of WMT at ACL, Columbus, USA.
+KOEHN P. (2005). Europarl: A parallel corpus for statistical machine translation. In Procee-
+dings of MT Summit, Phuket, Thailand.
+KOEHN P., OCH F. J., &amp; MARCU D. (2003). Statistical phrase-based translation. In Procee-
+dings of NAACL/HLT, Edmonton, Canada.
+LANGLAIS P., GOTTI F. &amp; PATRY A. (2006). De la chambre des communes &#224; la chambre
+d&#8217;isolement: adaptabilit&#233; d&#8217;un syst&#232;me de traduction bas&#233; sur les segments. In Actes de TALN,
+Louvain, Belgique.
+LAVECCHIA C., SMAILI K., LANGLOIS D. &amp; HATON J.-P. (2008). Une alternative aux mo-
+d&#232;les de traduction statistique d&#8217;IBM: Les triggers inter-langues. In Actes de TALN, Avignon,
+France.
+OCH F. J. (2003). Minimum error rate training for statistical machine translation. In Procee-
+dings of ACL, Sapporo, Japan.
+STROPPA N., VAN DEN BOSCH A. &amp; WAY A. (2007). Exploiting source similarity for SMT
+using context-informed features. In Proceedings of TMI, Sk&#246;vde, Sweden.
+VILAR D., XU J., D&#8217;HARO L. F. &amp; NEY H. (2006). Error Analysis of Statistical Machine
+Translation Output. In Proceedings of LREC, Genoa, Italy.</p>
+
+</div></div>
+</body></html>

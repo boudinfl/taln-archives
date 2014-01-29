@@ -1,0 +1,776 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Identification automatique des relations discursives &#171; implicites &#187; &#224; partir de donn&#233;es annot&#233;es et de corpus bruts</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Identification automatique des relations discursives
+&#171; implicites &#187; &#224; partir de donn&#233;es annot&#233;es et de corpus bruts
+</p>
+<p>Chlo&#233; Braud1 Pascal Denis2
+(1) ALPAGE, INRIA Paris-Rocquencourt &amp; Universit&#233; Paris Diderot
+</p>
+<p>(2) MAGNET, INRIA Lille Nord-Europe
+chloe.braud@inria.fr, pascal.denis@inria.fr
+</p>
+<p>R&#201;SUM&#201;
+Cet article pr&#233;sente un syst&#232;me d&#8217;identification des relations discursives dites &#171; implicites &#187; (&#224;
+savoir, non explicitement marqu&#233;es par un connecteur) pour le fran&#231;ais. Etant donn&#233; le faible
+volume de donn&#233;es annot&#233;es disponibles, notre syst&#232;me s&#8217;appuie sur des donn&#233;es &#233;tiquet&#233;es
+automatiquement en supprimant les connecteurs non ambigus pris comme annotation d&#8217;une
+relation, une m&#233;thode introduite par (Marcu et Echihabi, 2002). Comme l&#8217;ont montr&#233; (Sporleder
+et Lascarides, 2008) pour l&#8217;anglais, cette approche ne g&#233;n&#233;ralise pas tr&#232;s bien aux exemples
+de relations implicites tels qu&#8217;annot&#233;s par des humains. Nous arrivons au m&#234;me constat pour
+le fran&#231;ais et, partant du principe que le probl&#232;me vient d&#8217;une diff&#233;rence de distribution entre
+les deux types de donn&#233;es, nous proposons une s&#233;rie de m&#233;thodes assez simples, inspir&#233;es
+par l&#8217;adaptation de domaine, qui visent &#224; combiner efficacement donn&#233;es annot&#233;es et donn&#233;es
+artificielles. Nous &#233;valuons empiriquement les diff&#233;rentes approches sur le corpus ANNODIS : nos
+meilleurs r&#233;sultats sont de l&#8217;ordre de 45.6% d&#8217;exactitude, avec un gain significatif de 5.9% par
+rapport &#224; un syst&#232;me n&#8217;utilisant que les donn&#233;es annot&#233;es manuellement.
+</p>
+<p>ABSTRACT
+Automatically identifying implicit discourse relations using annotated data and raw cor-
+pora
+</p>
+<p>This paper presents a system for identifying &#171; implicit &#187; discourse relations (that is, relations that
+are not marked by a discourse connective). Given the little amount of available annotated data for
+this task, our system also resorts to additional automatically labeled data wherein unambiguous
+connectives have been suppressed and used as relation labels, a method introduced by (Marcu et
+Echihabi, 2002). As shown by (Sporleder et Lascarides, 2008) for English, this approach doesn&#8217;t
+generalize well to implicit relations as annotated by humans. We show that the same conclusion
+applies to French due to important distribution differences between the two types of data. In
+consequence, we propose various simple methods, all inspired from work on domain adaptation,
+with the aim of better combining annotated data and artificial data. We evaluate these methods
+through various experiments carried out on the ANNODIS corpus : our best system reaches a
+labeling accuracy of 45.6%, corresponding to a 5.9% significant gain over a system solely trained
+on manually labeled data.
+</p>
+<p>MOTS-CL&#201;S : analyse du discours, relations implicites, apprentissage automatique.
+KEYWORDS: discourse analysis, implicit relations, machine learning.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>104 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>1 Introduction
+</p>
+<p>L&#8217;analyse discursive rend compte de la coh&#233;rence d&#8217;un texte en liant, par des relations discursives,
+les propositions qui le constituent. En d&#233;pit de diff&#233;rences, les principales th&#233;ories du discours,
+telles que la Rhetorical Structure Theory (RST) (Mann et Thompson, 1988) et la Segmented
+Discourse Representation Theory (SDRT) (Asher et Lascarides, 2003), s&#8217;accordent sur les &#233;tapes
+d&#8217;analyse : segmentation en unit&#233;s &#233;l&#233;mentaires de discours (EDU), attachement des EDU,
+identification des relations entre EDU, puis r&#233;cursivement les paires attach&#233;es sont li&#233;es &#224; des
+segments simples ou complexes pour aboutir &#224; une structure couvrant le document. Ainsi on
+peut associer au discours 1.1 1 segment&#233; en trois EDU la structure entre accolades. Les deux
+premiers segments sont li&#233;s par un contrast et le segment complexe ainsi constitu&#233; est argument
+d&#8217;une relation de continuation. Un syst&#232;me d&#233;rivant automatiquement cette structure permettrait
+d&#8217;am&#233;liorer d&#8217;autres syst&#232;mes de TAL ou de RI car la structure du discours contraint les r&#233;f&#233;rents
+des anaphores, r&#233;v&#232;le la structure th&#233;matique d&#8217;un texte et l&#8217;ordonnancement temporel des
+&#233;v&#233;nements : dans 1.2, les phrases a et b sont li&#233;es par une relation de type explanation, b
+explique a, qui implique (loi de cause &#224; effet) l&#8217;ordre des &#233;v&#233;nements, b avant a.
+</p>
+<p>Exemple 1.1 {{[La hulotte est un rapace nocturne] [mais elle peut vivre le jour.]}cont rast [La
+hulotte mesure une quarantaine de centim&#232;tres.]}continuation
+Exemple 1.2 {[Juliette est tomb&#233;e.]a [Marion l&#8217;a pouss&#233;e.]b}explanation
+Gr&#226;ce aux corpus annot&#233;s comme le PDTB 2 ou le RST DT 3 des syst&#232;mes automatiques ont &#233;t&#233;
+d&#233;velopp&#233;s pour l&#8217;anglais sur la t&#226;che compl&#232;te ou seulement les sous-t&#226;ches (notamment la
+phase d&#8217;identification des relations). A partir du corpus RST DT, (Sagae, 2009) et (Hernault
+et al., 2010) ont d&#233;velopp&#233; des syst&#232;mes complets avec des scores de f-mesure respectifs de 44.5
+et 47.3 donc des performances encore modestes. Sur le PDTB, (Lin et al., 2010) construit un
+syst&#232;me complet obtenant 46.8 de f-mesure.
+</p>
+<p>Le PDTB permet de s&#233;parer l&#8217;&#233;tude des exemples avec ou sans connecteur discursif d&#233;clenchant
+la relation. Lorsqu&#8217;un tel marqueur est pr&#233;sent, la relation est dite explicite (ou marqu&#233;e ou
+lexicalis&#233;e) : ainsi, mais lexicalise la relation de contrast dans 1.1. Sinon, elle est implicite,
+comme la relation causale dans 1.2. Les diff&#233;rentes &#233;tudes men&#233;es sur le PDTB montrent que
+l&#8217;identification des relations implicites est consid&#233;rablement plus difficile que celle des relations
+explicites. Ainsi, (Lin et al., 2010) obtiennent une f-mesure qui d&#233;passe les 80 pour les explicites,
+mais de seulement 39.63 pour les implicites. Sur un jeu de relations plus petit, (Pitler et Nenkova,
+2009) rapportent une exactitude de 94% sur les explicites alors que (Pitler et al., 2009) de 60
+sur les implicites. Sur des donn&#233;es tir&#233;es du RST DT, avec 5 relations, (Sporleder et Lascarides,
+2008) obtiennent des scores de l&#8217;ordre de 40% d&#8217;exactitude. Pour le fran&#231;ais, il n&#8217;existe pas de
+corpus annot&#233; en connecteur, donc aucune &#233;tude s&#233;parant le cas des implicites du cas g&#233;n&#233;ral :
+(Muller et al., 2012) ont d&#233;velopp&#233; un syst&#232;me complet qui obtient une exactitude de 44.8 pour
+17 relations et de 65.5 pour ces relations regroup&#233;es en 4 classes (ANNODIS, 3143 exemples).
+On peut supposer que, comme pour l&#8217;anglais, ce sont les relations implicites qui d&#233;gradent les
+performances du syst&#232;me.
+</p>
+<p>1. Tir&#233; du corpus fran&#231;ais ANNODIS, (P&#233;ry-Woodley et al., 2009) document WK_-_hulotte.
+2. Penn Discourse Treebank, (Prasad et al., 2008)
+3. RST Discourse Treebank, (Carlson et al., 2001)
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>105 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Malheureusement, les corpus discursifs disponibles sont encore tr&#232;s petits (surtout pour le fran-
+&#231;ais). En vue de pallier le manque d&#8217;annotations humaines, (Marcu et Echihabi, 2002) proposent
+d&#8217;utiliser des exemples annot&#233;s automatiquement gr&#226;ce aux connecteurs comme donn&#233;es impli-
+cites suppl&#233;mentaires. Cette &#233;tude et celles qui l&#8217;ont suivie, notamment (Sporleder et Lascarides,
+2008), utilisaient ces nouvelles donn&#233;es artificielles comme seules donn&#233;es d&#8217;entra&#238;nement et
+obtenaient de basses performances. Le probl&#232;me repose sur une diff&#233;rence de distribution entre
+les deux types de donn&#233;es, qu&#8217;il est possible de prendre en compte afin d&#8217;am&#233;liorer l&#8217;identification
+des relations implicites. A cette fin, nous proposons et &#233;valuons diff&#233;rentes m&#233;thodes visant
+&#224; cr&#233;er un nouveau mod&#232;le enrichi par les nouvelles donn&#233;es mais guid&#233; vers la distribution
+des donn&#233;es manuelles. Nous nous inspirons des m&#233;thodes utilis&#233;es en adaptation de domaine
+d&#233;crites dans (Daum&#233; III, 2007). Notre contribution se situe au niveau du d&#233;veloppement d&#8217;un
+syst&#232;me d&#8217;identification des relations discursives implicites pour le fran&#231;ais et de l&#8217;&#233;tude de
+strat&#233;gies d&#8217;utilisation de donn&#233;es de distributions diff&#233;rentes en TAL.
+</p>
+<p>Nous pr&#233;sentons dans la partie suivante un rapide &#233;tat de l&#8217;art sur les exp&#233;riences d&#233;j&#224; men&#233;es sur
+l&#8217;identification des relations de discours avec donn&#233;es artificielles, afin d&#8217;en montrer les limites et
+de proposer une nouvelle strat&#233;gie. La section 3 est consacr&#233;e aux donn&#233;es et la section 4 au
+mod&#232;le utilis&#233;. La section 5 regroupe les exp&#233;riences men&#233;es et l&#8217;analyse des r&#233;sultats. Enfin,
+nous finirons par les perspectives ouvertes par ces exp&#233;riences dans la section 6.
+</p>
+<p>2 Utilisation des donn&#233;es g&#233;n&#233;r&#233;es automatiquement
+</p>
+<p>Les obstacles associ&#233;s &#224; l&#8217;identification des relations implicites r&#233;sident, d&#8217;une part, dans l&#8217;absence
+d&#8217;indicateur fiable (comme le connecteur pour les relations explicites) et, d&#8217;autre part, dans
+le manque de donn&#233;es pour entra&#238;ner des classifieurs performants. N&#233;anmoins, on dispose de
+donn&#233;es quasiment annot&#233;es en grande quantit&#233; : celles contenant un connecteur discursif non
+ambigu, c&#8217;est-&#224;-dire ne d&#233;clenchant qu&#8217;une seule relation (p.ex., parce que d&#233;clenche n&#233;cessai-
+rement une relation de type explanation). Ce constat a amen&#233; (Marcu et Echihabi, 2002) &#224;
+proposer d&#8217;utiliser ces exemples pour l&#8217;identification des implicites. Plus pr&#233;cis&#233;ment, on g&#233;n&#232;re
+de nouvelles donn&#233;es annot&#233;es &#224; partir d&#8217;un corpus brut : des exemples sont extraits sur la
+pr&#233;sence d&#8217;une forme de connecteur discursif non ambigu, filtr&#233;s pour &#233;liminer les cas d&#8217;emploi
+non discursif de la forme, puis le connecteur est supprim&#233; pour emp&#234;cher le mod&#232;le de se
+baser sur cet indice non ambigu. On cr&#233;e ainsi des donn&#233;es implicites annot&#233;es en relation de
+discours mais des donn&#233;es qui n&#8217;ont jamais &#233;t&#233; produites, non naturelles d&#8217;o&#249; le terme de donn&#233;es
+artificielles. A titre d&#8217;illustration, consid&#233;rons la paire de phrases suivante tir&#233;e du corpus Est
+R&#233;publicain (2.1) : dans ce cas, le connecteur cela dit est supprim&#233; et on g&#233;n&#232;re un exemple de
+relation de contrast entre les deux syntagmes arguments a et b.
+</p>
+<p>Exemple 2.1 [Elle &#233;tait tr&#232;s comique, tr&#232;s dr&#244;le.]a Cela_dit [,le drame n&#8217; &#233;tait jamais loin.]b
+</p>
+<p>L&#8217;id&#233;e est finalement de s&#8217;appuyer sur ces donn&#233;es artificielles pour construire un mod&#232;le d&#8217;iden-
+tification des relations pour des donn&#233;es naturelles implicites, on a donc des donn&#233;es de type
+diff&#233;rent : implicites versus explicites et naturelles versus artificielles.
+</p>
+<p>Dans les &#233;tudes pr&#233;c&#233;dentes bas&#233;es sur ce principe les donn&#233;es artificielles sont utilis&#233;es comme
+seules donn&#233;es d&#8217;entra&#238;nement ce qui conduit &#224; des performances basses, juste au-dessus de la
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>106 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>chance pour (Sporleder et Lascarides, 2008) avec 25.8% d&#8217;exactitude contre 40.3 en utilisant
+les seules donn&#233;es manuelles (1051 exemples manuels, 72000 artificiels, 5 relations). (Blair-
+Goldensohn et al., 2007) cherchent &#224; tester l&#8217;impact de la qualit&#233; du corpus artificiel en am&#233;liorant
+l&#8217;extraction des donn&#233;es gr&#226;ce &#224; une segmentation en topics ou des informations syntaxiques. Ils
+semblent am&#233;liorer l&#233;g&#232;rement les performances mais une comparaison est difficile puisqu&#8217;ils ne
+testent que des classifieurs binaires et 2 relations. L&#8217;id&#233;e de base de (Marcu et Echihabi, 2002)
+r&#233;sidait dans l&#8217;extraction de paires de mots de type antonymes ou hyp&#233;ronymes pouvant r&#233;v&#233;ler
+une relation mais dont le lien n&#8217;est pas forc&#233;ment recens&#233; dans des ressources comme WordNet.
+(Pitler et al., 2009) montrent que l&#8217;utilisation des paires de mots extraites d&#8217;un corpus artificiel
+comme trait suppl&#233;mentaire n&#8217;am&#233;liore pas les performances d&#8217;un syst&#232;me d&#8217;identification des
+relations implicites. Mais l&#8217;&#233;tude de (Sporleder et Lascarides, 2008) utilisant d&#8217;autres types de
+traits indique que le probl&#232;me ne r&#233;side pas ou pas uniquement dans le choix des traits.
+</p>
+<p>Ces r&#233;sultats montrent qu&#8217;un mod&#232;le entra&#238;n&#233; sur les donn&#233;es artificielles ne g&#233;n&#233;ralise pas bien
+aux donn&#233;es manuelles. Pourtant en regardant des exemples de type artificiel, il semble que
+dans certains cas on aurait pu produire les arguments sans le connecteur. De plus, les r&#233;sultats
+de (Sporleder et Lascarides, 2008) demeurent sup&#233;rieurs &#224; la chance (en consid&#232;rant la chance
+&#224; 20%), donc ces donn&#233;es ne sont pas compl&#232;tement diff&#233;rentes des donn&#233;es de test. Nous
+cherchons ici &#224; prendre en compte cette diff&#233;rence de distribution qui rapproche le probl&#232;me de
+ceux trait&#233;s en adaptation de domaine.
+</p>
+<p>2.1 Probl&#232;me : diff&#233;rence de distribution entre les donn&#233;es
+</p>
+<p>Pour que cette strat&#233;gie fonctionne, il faut n&#233;cessairement faire l&#8217;hypoth&#232;se d&#8217;une certaine
+redondance du connecteur par rapport &#224; son contexte : il doit rester suffisamment d&#8217;information
+apr&#232;s sa suppression pour que la relation reste identifiable. Une &#233;tude psycho-linguistique men&#233;e
+sur l&#8217;italien (Soria et Ferrari, 1998) et les conclusions de (Sporleder et Lascarides, 2008) semblent
+montrer que c&#8217;est le cas dans une partie des donn&#233;es. Cette &#233;tude reste &#224; faire pour le fran&#231;ais, et
+l&#8217;approfondir pourrait permettre d&#8217;am&#233;liorer la qualit&#233; du corpus artificiel en d&#233;terminant par
+exemple si cette redondance est diff&#233;rente selon les relations et les connecteurs.
+</p>
+<p>Plus g&#233;n&#233;ralement, en apprentissage on fait l&#8217;hypoth&#232;se que donn&#233;es d&#8217;entra&#238;nement et de
+test sont identiquement et ind&#233;pendamment distribu&#233;es (donn&#233;es i.i.d.). Or il nous semble
+que justement la strat&#233;gie propos&#233;e par (Marcu et Echihabi, 2002) pose le probl&#232;me d&#8217;un
+apprentissage avec des donn&#233;es non identiquement distribu&#233;es. On a deux ensembles de donn&#233;es
+qui se ressemblent (m&#234;me ensemble d&#8217;&#233;tiquettes, les exemples sont des segments de texte) mais
+qui sont n&#233;anmoins distribu&#233;s diff&#233;remment, et ce, pour deux raisons au moins. D&#8217;une part, les
+donn&#233;es artificielles sont par d&#233;finition obtenues &#224; partir d&#8217;exemples de relations explicites : il n&#8217;y
+a aucune garantie que ces donn&#233;es soient distribu&#233;es comme les &#8220;vrais&#8221; exemples implicites. La
+diff&#233;rence porte tant sur la distribution des labels (des relations) que sur l&#8217;assocation entre labels
+(relations) et inputs (paires des segments) &#224; classer. En outre, la suppression du connecteur
+ajoute probablement une forme de bruit en cas d&#8217;erreur d&#8217;&#233;tiquetage contrairement aux donn&#233;es
+manuelles correctement &#233;tiquet&#233;es.
+</p>
+<p>D&#8217;autre part, les donn&#233;es artificielles se distinguent aussi des donn&#233;es manuelles en termes des
+segments. Ainsi, la segmentation des premi&#232;res est bas&#233;e sur des heuristiques (p.ex., les argu-
+ments ne peuvent &#234;tre que deux phrases adjacentes ou deux propositions couvrant une phrase).
+Dans les donn&#233;es manuelles, en revanche, on a des arguments contigus ou non, propositionnels,
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>107 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>phrastiques ou multi-phrastiques dont les fronti&#232;res ont &#233;t&#233; d&#233;termin&#233;es par des annotateurs
+humains. Ceci induit une diff&#233;rence de distribution au niveau des objets &#224; classer et une forme
+de bruit en cas d&#8217;erreur de segmentation due &#224; ces hypoth&#232;ses simplificatrices ou &#224; une erreur
+d&#8217;heuristique.
+</p>
+<p>On peut se rendre compte de cette diff&#233;rence de distribution sur l&#8217;association entre labels et
+inputs en consid&#233;rant certaines caract&#233;ristiques des donn&#233;es. La r&#233;partition entre exemples
+inter-phrastiques et intra-phrastiques (la relation s&#8217;&#233;tablit entre deux phrases ou deux segments &#224;
+l&#8217;int&#233;rieur d&#8217;une phrase) est ainsi similaire pour contrast (57.1% d&#8217;inter-phrastiques dans les deux
+types de donn&#233;es), proche pour result (45.7% d&#8217;inter-phrastiques dans les donn&#233;es manuelles,
+39.8% dans les artificielles) mais tr&#232;s diff&#233;rente pour continuation (70.0% d&#8217;inter-phrastiques
+dans les manuelles, 96.5% dans les artificielles), et pour explanation (21.4% dans les manuelles,
+53.0% dans les artificielles).
+</p>
+<p>Ne pas prendre en compte ces diff&#233;rences de distribution conduit &#224; de basses performances, nous
+avons donc cherch&#233; &#224; les g&#233;rer en testant diff&#233;rentes strat&#233;gies avec un point commun : chercher
+&#224; guider le mod&#232;le vers la distribution des donn&#233;es manuelles.
+</p>
+<p>2.2 Mod&#232;les test&#233;s
+</p>
+<p>Dans des &#233;tudes pr&#233;c&#233;dentes, l&#8217;entra&#238;nement sur les seules donn&#233;es artificielles aboutit &#224; des
+r&#233;sultats inf&#233;rieurs &#224; un entra&#238;nement sur des donn&#233;es manuelles (pourtant bien moins nom-
+breuses). Ceci s&#8217;explique par les diff&#233;rences de distribution entre les deux ensembles de donn&#233;es.
+Dans cette section, nous d&#233;crivons diff&#233;rentes m&#233;thodes visant &#224; exploiter les nouvelles donn&#233;es
+artificielles, non plus seules, mais en combinaison avec les donn&#233;es manuelles existantes.
+</p>
+<p>De nombreux travaux s&#8217;attachant au probl&#232;me de donn&#233;es non identiquement distribu&#233;es
+concernent l&#8217;adaptation de domaine. Nous nous sommes donc inspir&#233;s des m&#233;thodes utilis&#233;es
+dans ce cadre, m&#234;me si notre probl&#232;me diff&#232;re au sens o&#249; nous n&#8217;avons qu&#8217;un seul domaine et
+des donn&#233;es bruit&#233;es. Ainsi, nous avons test&#233; une s&#233;rie de syst&#232;mes utilis&#233;s pour l&#8217;adapation de
+domaine par (Daum&#233; III, 2007), qui sont tr&#232;s simples &#224; mettre en oeuvre et obtiennent n&#233;anmoins
+de bonnes performances sur diff&#233;rentes t&#226;ches, ainsi que quelques solutions d&#233;riv&#233;es. Dans un
+second temps, nous avons ajout&#233; une &#233;tape de s&#233;lection d&#8217;exemples, afin de choisir parmi les
+exemples artificiels ceux qui seraient susceptibles d&#8217;am&#233;liorer les performances.
+</p>
+<p>Les diff&#233;rentes m&#233;thodes de combinaison que nous proposons diff&#232;rent selon que la combinaison
+s&#8217;op&#232;re directement au niveau des jeux de donn&#233;es ou au niveau des mod&#232;les entra&#238;n&#233;s sur
+ceux-ci. La premi&#232;re strat&#233;gie de combinaison de donn&#233;es que nous &#233;tudions (UNION) rel&#232;ve du
+premier type : elle consiste &#224; cr&#233;er un corpus d&#8217;entra&#238;nement qui contient la r&#233;union des deux
+ensembles de donn&#233;es. Une strat&#233;gie d&#233;riv&#233;e (AUTOSUB) consiste &#224; prendre, non pas l&#8217;int&#233;gralit&#233;
+des donn&#233;es artificielles, mais des sous-ensembles al&#233;atoires de ces donn&#233;es, en addition des
+donn&#233;es manuelles. Cette m&#233;thode est un peu plus subtile dans la mesure o&#249; on peut faire varier
+la proportion des exemples artificiels par rapport aux exemples manuels. Enfin, la troisi&#232;me
+m&#233;thode du premier type (MANW) garde cette fois la totalit&#233; des donn&#233;es artificielles mais
+pond&#232;re (ou duplique) les exemples manuels de mani&#232;re &#224; &#233;viter un d&#233;s&#233;quilibre trop grand au
+profit des donn&#233;es artificielles.
+</p>
+<p>Dans le second type de m&#233;thodes, on trouve tout d&#8217;abord une m&#233;thode (ADDPRED) qui consiste &#224;
+utiliser les pr&#233;dictions d&#8217;un mod&#232;le entra&#238;n&#233; sur les donn&#233;es artificielles (&#224; savoir les donn&#233;es
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>108 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#8220;source&#8221;) comme descripteur dans le mod&#232;le entra&#238;n&#233; sur les donn&#233;es manuelles (&#224; savoir les
+donn&#233;es &#8220;cibles&#8221;). Le param&#232;tre associ&#233; &#224; ce descripteur mesure donc l&#8217;importance &#224; accorder
+aux pr&#233;dictions du mod&#232;le entra&#238;n&#233; sur les donn&#233;es artificielles. Cette m&#233;thode est la meilleure
+baseline et le troisi&#232;me meilleur mod&#232;le dans (Daum&#233; III et Marcu, 2006). Une variation de
+cette m&#233;thode (ADDPROB) utilise en plus le score de confiance (p.ex., la probabilit&#233;) du mod&#232;le
+artificiel comme descripteur suppl&#233;mentaire dans le mod&#232;le manuel. Une troisi&#232;me m&#233;thode
+(AUTOINIT) vise &#224; initialiser les param&#232;tres du mod&#232;le entra&#238;n&#233; sur les donn&#233;es manuelles avec
+ceux du mod&#232;le utilisant les donn&#233;es artificielles. Enfin, la derni&#232;re m&#233;thode (LININT) se base sur
+une interpolation lin&#233;aire de deux mod&#232;les pr&#233;alablement entra&#238;n&#233;s sur chacun des ensembles
+de donn&#233;es.
+</p>
+<p>Nous avons aussi test&#233; toutes ces strat&#233;gies en ajoutant une &#233;tape de s&#233;lection automatique
+d&#8217;exemples artificiels. La m&#233;thode utilis&#233;e est na&#239;ve puisqu&#8217;elle se base simplement sur la proba-
+bilit&#233; du label pr&#233;dit : on teste diff&#233;rents seuils sur ces probabilit&#233;s en ajoutant &#224; chaque fois les
+seuls exemples pr&#233;dits avec une probabilit&#233; sup&#233;rieure au seuil. Cette s&#233;lection vise &#224; &#233;carter
+des donn&#233;es bruit&#233;es, en explorant finalement l&#8217;une des voies propos&#233;es par (Marcu et Echihabi,
+2002) et d&#233;velopp&#233;e d&#8217;une autre mani&#232;re par (Blair-Goldensohn et al., 2007), &#224; savoir am&#233;liorer
+la qualit&#233; du corpus artificiel.
+</p>
+<p>Les performances de tous ces syst&#232;mes seront compar&#233;es &#224; celles des syst&#232;mes entra&#238;n&#233;s s&#233;par&#233;-
+ment sur les deux ensembles de donn&#233;es dans la section 5.
+</p>
+<p>3 Donn&#233;es
+</p>
+<p>Nous avons choisi de nous restreindre &#224; 4 relations : contrast, result, continuation et explanation.
+Ces relations sont annot&#233;es dans le corpus fran&#231;ais utilis&#233; et correspondent &#224; des exemples
+implicites et explicites. De plus ce sont 4 des 5 relations (summary n&#8217;est pas annot&#233;e dans
+ANNODIS) utilis&#233;es dans (Sporleder et Lascarides, 2008), ce qui nous permet une comparaison
+mais non directe puisque la langue et le corpus sont diff&#233;rents. Dans nos donn&#233;es manuelles, nous
+avons fusionn&#233; les m&#233;ta-relations avec les relations correspondantes avec l&#8217;hypoth&#232;se qu&#8217;elles
+mettaient en jeu le m&#234;me genre d&#8217;indices et de constructions. Les donn&#233;es manuelles permettent
+d&#8217;obtenir des exemples de relations implicites manuellement annot&#233;s. Les donn&#233;es g&#233;n&#233;r&#233;es
+automatiquement sont des exemples explicites extraits par heuristique de donn&#233;es brutes dans
+lesquels on supprime le connecteur : des donn&#233;es implicites artificielles.
+</p>
+<p>3.1 Le corpus ANNODIS
+</p>
+<p>Le projet ANNODIS (P&#233;ry-Woodley et al., 2009) vise la construction d&#8217;un corpus annot&#233; en discours
+pour le fran&#231;ais suivant le cadre SDRT. La version du corpus utilis&#233;e (en date du 15/11/2012)
+comporte 86 documents provenant de l&#8217;Est R&#233;publicain et de Wikipedia. 3339 exemples sont
+annot&#233;s avec 17 relations rh&#233;toriques. Les documents sont segment&#233;s en EDU : propositions,
+syntagmes pr&#233;positionnels, adverbiaux d&#233;tach&#233;s &#224; gauche et incises, si le segment contient la
+description d&#8217;une &#233;ventualit&#233;. Les relations sont annot&#233;es entre EDU ou segments complexes,
+contigu&#235;s ou non. Les connecteurs discursifs ne sont pas annot&#233;s.
+</p>
+<p>Le corpus a subi une s&#233;rie de pr&#233;-traitements. Le MElt tagger (Denis et Sagot, 2009) fournit un
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>109 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#233;tiquetage en cat&#233;gorie morpho-syntaxique, une lemmatisation, des indications morphologiques
+(temps, personne, genre, nombre). Le MSTParser (Candito et al., 2010) fournit une analyse en
+d&#233;pendances. Afin de restreindre notre &#233;tude aux relations implicites, nous utilisons le LexConn,
+lexique des connecteurs discursifs du fran&#231;ais d&#233;velopp&#233; par (Roze, 2009) et &#233;tendu en 2012
+aux connecteurs introduisant des syntagmes nominaux. Nous utilisons une m&#233;thode simple :
+nous projetons le lexique (sauf la forme &#224; jug&#233;e trop ambigue) sur les donn&#233;es, ce qui nous
+permet d&#8217;identifier tout token correspondant &#224; un connecteur. Nous ne contraignons pas cette
+identification sur des crit&#232;res de position. Cette m&#233;thode nous assure d&#8217;identifier tout connecteur
+donc de ne r&#233;cup&#233;rer que des exemples implicites mais comporte le risque d&#8217;en perdre certains.
+Sur les 1108 exemples disponibles pour les 4 relations nous disposons de 494 exemples implicites ;
+la distribution des exemples par relation est r&#233;sum&#233;e dans le tableau 1.
+</p>
+<p>Relation Exemples explicites Exemples implicites Total
+contrast 100 42 142
+result 52 110 162
+</p>
+<p>continuation 404 272 676
+explanation 58 70 128
+</p>
+<p>all 614 494 1108
+</p>
+<p>TABLE 1 &#8211; Corpus ANNODIS : nombre d&#8217;exemples explicites et implicites par relation
+</p>
+<p>3.2 Le corpus g&#233;n&#233;r&#233; automatiquement
+</p>
+<p>Nous avons utilis&#233; 100 connecteurs du LexConn de (Roze, 2009) pour identifier des formes de
+connecteur ne pouvant d&#233;clencher qu&#8217;une relation parmi les 4 choisies dans le corpus compos&#233;
+d&#8217;articles de l&#8217;Est R&#233;publicain (9M de phrases), avec les m&#234;mes traitements que pour ANNODIS.
+Les exemples sont ensuite filtr&#233;s pour &#233;liminer les emplois non discursifs en tenant compte de la
+position du connecteur et de la ponctuation et en s&#8217;aidant des indications de LexConn. L&#8217;identifi-
+cation des arguments d&#8217;un connecteur est une simplification du probl&#232;me de segmentation. Nous
+faisons les m&#234;mes hypoth&#232;ses simplificatrices que dans les &#233;tudes pr&#233;c&#233;dentes : les arguments
+sont adjacents et couvrent au plus une phrase, au plus 2 EDU par phrase.
+</p>
+<p>Cette m&#233;thode simple permet de g&#233;n&#233;rer rapidement de gros volumes de donn&#233;es : au total, nous
+avons pu extraire 392260 exemples (voir tableau 2). Lorsque deux connecteurs sont pr&#233;sents
+dans un segment, il peut arriver que l&#8217;un modifie l&#8217;autre (par exemple &#171;mais parce qu&#8217;il est... &#187;).
+Dans ce cas, nous risquons de r&#233;cup&#233;rer les m&#234;mes arguments pour deux formes d&#233;clenchant des
+relations diff&#233;rentes ce qui est probl&#233;matique pour un syst&#232;me de classification. Nous ne g&#233;n&#233;rons
+donc deux exemples quand deux connecteurs sont pr&#233;sents qu&#8217;&#224; condition que les arguments
+soient diff&#233;rents, l&#8217;un inter-phrastique, l&#8217;autre intra-phrastique. Nous avons &#233;quilibr&#233; le corpus en
+relation en conservant le maximum d&#8217;exemples disponibles en un corpus d&#8217;entra&#238;nement (80%
+des donn&#233;es), un de d&#233;veloppement (10%) et un de test (10%).
+</p>
+<p>Notons quelques diff&#233;rences importantes de distribution entre les donn&#233;es manuelles et artifi-
+cielles : continuation la plus repr&#233;sent&#233;e dans les manuelles devient la moins repr&#233;sent&#233;e dans
+les artificielles. Ceci est d&#251; &#224; la forte ambigu&#239;t&#233; des connecteurs de cette relation qui nous ont
+forc&#233; &#224; d&#233;finir des motifs stricts pour l&#8217;extraction des exemples. Notons finalement que cette
+m&#233;thode g&#233;n&#232;re du bruit : sur 250 exemples choisis al&#233;atoirement, on trouve 37 erreurs de
+fronti&#232;re d&#8217;arguments et 18 d&#8217;emplois non discursifs.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>110 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Relation Disponible Entra&#238;nement D&#233;veloppement Test Total
+contrast 252 793 23 409 2 926 2 926 29 261
+result 50 297 23 409 2 926 2 926 29 261
+</p>
+<p>continuation 29 261 23 409 2 926 2 926 29 261
+explanation 59 909 23 409 2 926 2 926 29 261
+</p>
+<p>all 392 260 93 636 11 704 11 704 117 044
+</p>
+<p>TABLE 2 &#8211; Corpus artificiel : nombre d&#8217;exemples par relation
+</p>
+<p>4 Mod&#232;le et jeu de traits
+</p>
+<p>Pour cette &#233;tude, nous avons employ&#233; un mod&#232;le de classification discriminant par r&#233;gression
+logistique (ou maximum d&#8217;entropie). Ce choix est bas&#233; sur le fait que ce type de mod&#232;les donne de
+bonnes performances pour diff&#233;rents probl&#232;mes de TAL et a &#233;t&#233; implant&#233; dans diff&#233;rentes librairies
+librement disponibles. Le principe de cet algorithme est d&#8217;apprendre un jeu de param&#232;tres qui
+maximise la log-vraisemblance des donn&#233;es fournies &#224; l&#8217;apprentissage (voir (Berger et al., 1996)).
+Un attrait important de ces mod&#232;les, par rapport &#224; des mod&#232;les g&#233;n&#233;ratifs, est de permettre l&#8217;ajout
+de nombreux descripteurs potentiellement redondants sans faire d&#8217;hypoth&#232;ses d&#8217;ind&#233;pendance.
+</p>
+<p>Notre jeu de traits se base sur les travaux existants avec quelques adaptations notables pour le
+fran&#231;ais. Ces traits exploitent des informations de surface, ainsi que d&#8217;autres issues d&#8217;un traitement
+linguistique plus profond. Par comparaison, (Marcu et Echihabi, 2002) ne se base que sur la
+co-occurrence de lemmes dans les segments. (Sporleder et Lascarides, 2007) montrent que la
+prise en compte de diff&#233;rents types de traits linguistiquement motiv&#233;s am&#233;liore les performances.
+(Sporleder et Lascarides, 2008) utilisent des traits vari&#233;s dont des bi-grammes de lemmes mais
+sans traits syntaxiques. Nous avons test&#233; des traits lexico-syntaxiques utilis&#233;s dans les pr&#233;c&#233;dentes
+&#233;tudes sur cette t&#226;che. Nous n&#8217;avons pas pu reprendre les traits s&#233;mantiques comme les classes
+s&#233;mantiques des t&#234;tes des arguments car les ressources n&#233;cessaires n&#8217;existent pas pour le fran&#231;ais.
+On utilise une version binaire des traits &#224; valeur nominale.
+</p>
+<p>Certains traits sont calcul&#233;s pour chaque argument :
+</p>
+<p>1. Indice de complexit&#233; syntaxique : nombre de syntagmes nominaux, verbaux, pr&#233;position-
+nels, adjectivaux, adverbiaux (valeur continue)
+</p>
+<p>2. Information sur la t&#234;te d&#8217;un argument :
+&#8211; Lemme d&#8217;&#233;l&#233;ments n&#233;gatifs sur la t&#234;te comme &#8220;pas&#8221; (nominale)
+&#8211; Information temporelle/aspectuelle : nombre de fois o&#249; un lemme de fonction auxiliaire
+d&#233;pendant de la t&#234;te appara&#238;t (continue), temps, personne, nombre de l&#8217;auxiliaire
+(nominale)
+</p>
+<p>&#8211; Informations sur les d&#233;pendants de la t&#234;te : pr&#233;sence d&#8217;un objet, par-objet (syntagme
+pr&#233;positionnel introduit par &#8220;par&#8221;), modifieur ou d&#233;pendant pr&#233;positionnel de la t&#234;te,
+du sujet ou de l&#8217;objet (bool&#233;en) ; cat&#233;gorie morpho-syntaxique des modifieurs et des
+d&#233;pendants pr&#233;positionnels de la t&#234;te, du sujet ou de l&#8217;objet (nominale)
+</p>
+<p>&#8211; Informations morphologiques : temps et personne de la t&#234;te verbale, genre de la t&#234;te non
+verbale, nombre de la t&#234;te, cat&#233;gorie morpho-syntaxique pr&#233;cise (par exemple &#8220;VPP&#8221;) et
+simplifi&#233;e (respectivement &#8220;V&#8221;) (nominale)
+</p>
+<p>D&#8217;autres traits portent sur la paire d&#8217;arguments :
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>111 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>1. Trait de position : si l&#8217;exemple est inter ou intra-phrastique (bool&#233;en)
+2. Indice de continuit&#233; th&#233;matique : chevauchement en lemmes et en lemmes de cat&#233;gorie
+</p>
+<p>ouverte, comme nom, verbe etc... (continue)
+3. Information sur les t&#234;tes des arguments :
+</p>
+<p>&#8211; Paire des temps des t&#234;tes verbales (bool&#233;en)
+&#8211; Paire des nombres des t&#234;tes (bool&#233;en)
+</p>
+<p>On notera finalement que notre but portant avant tout sur la combinaison de donn&#233;es, nous
+n&#8217;avons pas cherch&#233; &#224; optimiser ce jeu de traits, ce qui aurait introduit un param&#232;tre suppl&#233;men-
+taire dans notre mod&#232;le.
+</p>
+<p>5 Exp&#233;riences
+</p>
+<p>Pour rappel, l&#8217;objectif central de ces exp&#233;riences est de d&#233;terminer dans quelle mesure l&#8217;ajout de
+donn&#233;es artificielles, via les diff&#233;rentes m&#233;thodes pr&#233;sent&#233;es en Section 2, peut nous permettre
+de d&#233;passer les performances obtenues en s&#8217;entra&#238;nant sur des donn&#233;es manuelles pr&#233;sentes
+seulement en faible quantit&#233;.
+</p>
+<p>Les exp&#233;riences sont r&#233;alis&#233;es avec l&#8217;impl&#233;mentation de l&#8217;algorithme par maximum d&#8217;entropie
+fourni dans la librairie MegaM 4 en version multi-classe avec au maximum 100 it&#233;rations. On
+effectue une validation crois&#233;e en 10 sous-ensembles sur un corpus des donn&#233;es manuelles
+&#233;quilibr&#233; &#224; 70 exemples maximum par relation. Il faudra envisager des exp&#233;riences conservant la
+distribution naturelle des donn&#233;es, tr&#232;s d&#233;s&#233;quilibr&#233;e, mais pour l&#8217;instant nous nous focalisons
+sur l&#8217;aspect combinaison des donn&#233;es. Comme dans les &#233;tudes pr&#233;c&#233;dentes, les performances
+sont donn&#233;es en termes d&#8217;exactitude globale sur l&#8217;ensemble des relations, des scores ventil&#233;s de
+F1 par relation sont &#233;galement fournis. La significativit&#233; statistique des &#233;carts de performance est
+&#233;valu&#233;e avec un Wilcoxon signed-rank test (avec une p-valeur &lt; 0.05).
+</p>
+<p>5.1 Mod&#232;les de base
+</p>
+<p>Dans un premier temps, nous construisons deux mod&#232;les distincts, l&#8217;un &#224; partir des seules donn&#233;es
+manuelles (MANONLY, 252 exemples), l&#8217;autre des seules donn&#233;es artificielles (AUTOONLY, 93636
+exemples d&#8217;entra&#238;nement). Notre mod&#232;le MANONLY obtient une exactitude de 39.7, avec des
+scores de f-mesure par relation compris entre 13.3 pour contrast et 49.0 pour result (voir table 3).
+La relation contrast est donc tr&#232;s mal identifi&#233;e peut-&#234;tre parce que sous-repr&#233;sent&#233;e, seulement
+42 exemples contre 70 pour les autres relations, le manque de donn&#233;es joue probablement ici un
+r&#244;le important.
+</p>
+<p>Le mod&#232;le AUTOONLY obtient une exactitude de 47.8 lorsqu&#8217;&#233;valu&#233; sur le m&#234;me type de donn&#233;es
+(11704 exemples de test), mais de 23.0 lorsqu&#8217;&#233;valu&#233; sur les donn&#233;es manuelles (voir table 3).
+Cette baisse importante est comparable &#224; celle observ&#233;e dans les &#233;tudes pr&#233;c&#233;dentes sur l&#8217;anglais.
+Elle s&#8217;explique par les diff&#233;rences de distribution &#233;tudi&#233;es en Section 2. De mani&#232;re g&#233;n&#233;rale,
+on observe des d&#233;gradations par rapport &#224; MANONLY pour l&#8217;identification de result, explanation
+et continuation (voir table 3). Par contre l&#8217;identification de contrast pr&#233;sente une am&#233;lioration,
+obtenant 23.2 de f-mesure avec 11 exemples correctement identifi&#233;s contre 5 pr&#233;c&#233;demment.
+</p>
+<p>4. http://www.umiacs.umd.edu/~hal/megam/version0_3/
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>112 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MANONLY AUTOONLY
+Donn&#233;es de test Manuelles Manuelles Artificielles
+Exactitude 39.7 23.0 47.8
+contrast 13.3 23.2 38.3
+result 49.0 15.7 57.4
+continuation 39.7 32.1 54.3
+explanation 43.8 22.4 37.5
+</p>
+<p>TABLE 3 &#8211; Mod&#232;les de base, exactitude du syst&#232;me et f-mesure par relation
+</p>
+<p>5.2 Mod&#232;les avec combinaisons de donn&#233;es
+</p>
+<p>Dans cette section, nous pr&#233;sentons les r&#233;sultats des syst&#232;mes qui exploitent &#224; la fois les don-
+n&#233;es manuelles et les donn&#233;es artificielles. Ces ensembles de donn&#233;es sont ou bien combin&#233;s
+directement ou bien donnent lieu &#224; des mod&#232;les s&#233;par&#233;s qui sont combin&#233;s plus tard.
+</p>
+<p>Certains de ces mod&#232;les utilisent des hyper-param&#232;tres. Ainsi, pour la pond&#233;ration des exemples
+manuels nous testons diff&#233;rents coefficients de pond&#233;ration c avec c &#8712; [0.5;2000] avec un
+incr&#233;ment de 10 jusqu&#8217;&#224; 100, de 50 jusqu&#8217;&#224; 1000 et de 500 jusqu&#8217;&#224; 2000. Pour l&#8217;ajout de sous-
+ensembles des donn&#233;es artificielles, on ajoute &#224; chaque fois k exemples parmi ces donn&#233;es
+avec k &#8712; [0.1;600] avec un incr&#233;ment de 10 jusqu&#8217;&#224; 100 et de 50 jusqu&#8217;&#224; 600. Enfin, pour
+l&#8217;interpolation lin&#233;aire des mod&#232;les, on construit un nouveau mod&#232;le en pond&#233;rant le mod&#232;le
+artificiel avec &#945; &#8712; [0.1;0.9] avec des incr&#233;ments de 0.1.
+De mani&#232;re g&#233;n&#233;rale, l&#8217;ensemble de ces syst&#232;mes avec les bons hyper-param&#232;tres conduit &#224; des
+r&#233;sultats au moins &#233;quivalents et parfois sup&#233;rieurs en exactitude par rapport &#224; MANONLY. Si
+la tendance g&#233;n&#233;rale est donc plut&#244;t d&#8217;une hausse des performances, aucune des diff&#233;rences
+observ&#233;es &#224; ce stade ne semble cependant &#234;tre statistiquement significative. Les scores des
+syst&#232;mes pr&#233;sentant les r&#233;sultats les plus pertinents sont repris dans la table 4.
+</p>
+<p>MANONLY AUTOONLY UNION MANW AUTOSUB ADDPRED ADDPROB AUTOINIT LININT
+</p>
+<p>Param&#232;tre - - - 100 400 0.2 - - - 0.2 0.5 0.8
+</p>
+<p>Exactitude 39.7 23.0 24.2 34.9 41.7 39.7 42.9 39.3 39.3 39.7 38.5 35.3
+</p>
+<p>contrast 13.3 23.2 21.1 32.4 19.7 16.7 22.9 24.0 11.9 13.2 16.2 29.6
+result 49.0 15.7 16.4 28.0 39.2 44.9 47.4 45.8 46.3 47.0 39.5 24.8
+continuation 39.7 32.1 38.5 45.8 48.7 39.4 37.3 35.4 38.9 40.6 39.2 44.2
+explanation 43.8 22.4 21.7 31.7 47.7 46.1 52.8 43.8 45.4 45.4 48.6 40.3
+</p>
+<p>TABLE 4 &#8211; Mod&#232;les sans s&#233;lection d&#8217;exemples, exactitude du syst&#232;me et f-mesure par relation
+</p>
+<p>La seule configuration qui m&#232;ne &#224; des r&#233;sultats n&#233;gatifs est l&#8217;union simple des corpus d&#8217;entra&#238;ne-
+ment (UNION). Ce syst&#232;me obtient 24.2 d&#8217;exactitude donc de l&#8217;ordre d&#8217;un entra&#238;nement sur les
+seules donn&#233;es artificielles. Ces r&#233;sultats ne sont pas surprenants, les donn&#233;es manuelles environ
+372 fois moins nombreuses que les artificielles se retrouvent noy&#233;es dans les donn&#233;es artificielles.
+</p>
+<p>Les exp&#233;riences de combinaison des donn&#233;es, ajout de sous-ensembles al&#233;atoires des donn&#233;es
+artificielles (AUTOSUB) et pond&#233;ration des exemples manuels (MANW), ont des tendances inverses.
+Avec AUTOSUB, l&#8217;exactitude diminue lorsque le coefficient augmente et atteint ou d&#233;passe le
+mod&#232;le manuel avec les coefficients 0.1 et 0.2, donc une influence tr&#232;s faible du mod&#232;le artificiel.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>113 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Avec MANW, l&#8217;exactitude augmente avec la croissance du coefficient et d&#233;passe 39.7 &#224; partir du
+coefficient 400 &#233;quivalent &#224; un corpus manuel d&#8217;environ 24000 exemples par relation soit du
+m&#234;me ordre que le nombre d&#8217;exemples artificiels.
+</p>
+<p>Les exp&#233;riences o&#249; la prise en compte des donn&#233;es artificielles passe par l&#8217;ajout de traits donnent
+les meilleurs r&#233;sultats avec une exactitude de 42.9 pour le mod&#232;le qui int&#232;gre les pr&#233;dictions
+du mod&#232;le artificiel comme descripteur (ADDPRED). Le second mod&#232;le, qui exploite en plus les
+probabilit&#233;s (ADDPROB) m&#232;ne quant &#224; lui &#224; une l&#233;g&#232;re diminution ce qui sugg&#232;re que les traits de
+probabilit&#233; d&#233;gradent les performances.
+</p>
+<p>Quant aux exp&#233;riences de combinaison des mod&#232;les, l&#8217;initialisation du mod&#232;le manuel par
+l&#8217;artificiel (AUTOINIT) conduit &#224; un syst&#232;me d&#8217;exactitude 39.3, et l&#8217;interpolation lin&#233;aire (LININT)
+correspond &#224; une d&#233;croissance de l&#8217;exactitude suivant l&#8217;augmentation du coefficient &#945; sur le
+mod&#232;le artificiel (voir table 4), avec cependant un saut important entre &#945; = 0.8 et &#945; = 0.9
+(exactitude de 28.2) en lien avec une forte d&#233;gradation de l&#8217;identification de explanation.
+</p>
+<p>Au niveau des scores par relation, ces syst&#232;mes ont des effets diff&#233;rents. Une influence forte du
+mod&#232;le artificiel permet une am&#233;lioration importante pour contrast et une d&#233;gradation forte
+pour result et explanation par rapport &#224; MANONLY. Ces ph&#233;nom&#232;nes sont visibles avec AUTOONLY
+mais aussi avec LININT : la f-mesure de contrast augmente avec &#945; tandis que celle de result et
+de explanation diminue (voir table 4). Avec une influence similaire des deux types de donn&#233;es
+(LININT &#945; = 0.5 ou MANW coefficient 400), la chute pour result est moins importante et on
+am&#233;liore l&#8217;identification de explanation (voir table 4). Pour continuation, il faut une influence des
+donn&#233;es manuelles inf&#233;rieure &#224; celle des donn&#233;es artificielles pour observer une am&#233;lioration
+(voir table 4, LININT &#945; = 0.8). Le syst&#232;me ADDPRED permet notamment une am&#233;lioration forte de
+la f-mesure de explanation. On n&#8217;obtient pas d&#8217;am&#233;lioration pour result.
+</p>
+<p>Les m&#233;thodes de combinaison aboutissent &#224; des syst&#232;mes d&#8217;exactitude similaire voire sup&#233;rieure &#224;
+MANONLY et &#224; des am&#233;liorations pour l&#8217;identification des relations sauf result. La relation contrast
+profite peut-&#234;tre de donn&#233;es artificielles moins bruit&#233;es : la majorit&#233; des exemples (plus de
+75%) sont extraits &#224; partir de mais, forme toujours en emploi discursif dont les arguments sont
+dans l&#8217;ordre canonique, argument1+connecteur+argument2. Pour explanation, la majorit&#233; des
+donn&#233;es (77.5%) est extraite &#224; partir de formes d&#233;clenchant la m&#233;ta-relation explanation* qui ne
+correspond &#224; aucun exemple dans ANNODIS expliquant peut-&#234;tre le manque de g&#233;n&#233;ralisation
+entre les deux types de donn&#233;es. Les pr&#233;dictions du mod&#232;le artificiel construit surtout sur cette
+m&#233;ta-relation pourraient &#234;tre coh&#233;rentes expliquant l&#8217;am&#233;lioration observ&#233;e. Les diff&#233;rences de
+performance au niveau des labels peuvent venir de distribution plus ou moins proche entre les
+deux types de donn&#233;e. Si on regarde la distribution en terme de traits (850 traits en tout), on
+constate un &#233;cart de plus de 30% pour 2 et 5 traits pour result et explanation mais aucun pour
+contrast et continuation pour lesquelles l&#8217;apport direct des donn&#233;es artificielles est positif.
+</p>
+<p>5.3 Mod&#232;les avec s&#233;lection automatique d&#8217;exemples
+</p>
+<p>Les exp&#233;riences pr&#233;c&#233;dentes ont montr&#233; que l&#8217;ajout de donn&#233;es artificielles donnaient le plus
+souvent lieu &#224; des gains de performance, mais ces gains restent relativement modestes, voire non
+significatifs. Notre hypoth&#232;se est que de nombreux exemples artificiels am&#232;nent du bruit dans le
+mod&#232;le. Id&#233;alement, nous souhaiterions &#234;tre capables de s&#233;lectionner les exemples artificiels les
+plus informatifs et qui compl&#233;mentent le mieux les donn&#233;es manuelles.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>114 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>La m&#233;thode de s&#233;lection d&#8217;exemples que nous proposons a pour objectif d&#8217;&#233;liminer les exemples
+potentiellement plus bruit&#233;s. Pour cela, le mod&#232;le artificiel est utilis&#233; sur les donn&#233;es d&#8217;en-
+tra&#238;nement et on conserve les exemples pr&#233;dits avec une probabilit&#233; sup&#233;rieure &#224; un seuil
+s &#8712; [30,40,50,55,60,65,70,75]. Si ce mod&#232;le est assez s&#251;r de sa pr&#233;diction, on peut esp&#233;rer que
+l&#8217;exemple ne correspond pas &#224; du bruit, &#224; une forme en emploi non discursif et/ou une erreur
+de segmentation. On v&#233;rifie en quelque sorte aussi l&#8217;hypoth&#232;se de redondance du connecteur.
+Pour chaque seuil, on r&#233;&#233;quilibre les donn&#233;es en se basant sur la relation la moins repr&#233;sent&#233;e
+(syst&#232;me+SELEC). A partir du seuil 80, ces exp&#233;riences ne sont plus pertinentes, on conserve
+moins de 10 exemples par relation. Les seuils les plus int&#233;ressants sont les seuils 60, 65, 70 et 75
+qui repr&#233;sentent respectivement un ajout de 553, 205, 72 et 16 exemples par relation. Les scores
+des syst&#232;mes pr&#233;sentant les r&#233;sultats les plus pertinents sont repris dans la table 5.
+</p>
+<p>+SELEC MANONLY AUTOONLY UNION MANW ADDPRED ADDPROB AUTOINIT LININT
+Seuil - 60 70 60 75 30 65 40 65 65 65 60 75
+</p>
+<p>Param&#232;tre - - - - - 250 0.5 900 - - - - 0.7 0.7
+Exactitude 39.7 27.0 23.8 26.2 41.7 35.3 30.6 45.6 42.5 44.4 44.0 43.3 36.5 34.9
+contrast 13.3 32.0 29.5 26.7 11.6 16.4 37.2 32.0 14.5 31.6 24.7 24.0 34.1 24.6
+result 49.0 20.0 8.2 25.4 50.0 29.5 27.8 53.2 47.4 52.6 53.2 47.8 33.6 29.7
+</p>
+<p>continuation 39.7 8.6 16.5 19.4 43.3 49.1 20.6 38.5 36.8 40.6 43.4 43.4 28.8 27.0
+explanation 43.8 31.8 32.1 30.9 45.6 35.3 34.3 51.1 55.9 45.9 44.4 48.9 46.1 52.9
+</p>
+<p>TABLE 5 &#8211; Mod&#232;les avec s&#233;lection d&#8217;exemples, exactitude du syst&#232;me et f-mesure par relation
+</p>
+<p>La s&#233;lection automatique d&#8217;exemples permet d&#8217;am&#233;liorer les r&#233;sultats pr&#233;c&#233;dents, qu&#8217;il s&#8217;agisse
+du mod&#232;le AUTOONLY ou des mod&#232;les avec combinaison des donn&#233;es. De 23.0 d&#8217;exactitude avec
+AUTOONLY, on passe &#224; 27.0 avec AUTOONLY +SELEC au seuil 60. De m&#234;me on passe de 24.2 avec
+UNION &#224; 41.7 avec UNION +SELEC au seuil 75, l&#8217;exactitude augmentant avec la croissance du seuil.
+</p>
+<p>Il semble que les meilleurs syst&#232;mes soient obtenus entre les seuils 60 et 70. Au seuil 65, les
+syst&#232;mes AUTOINIT +SELEC, ADDPRED +SELEC et ADDPROB +SELEC atteignent leur meilleur score
+(voir table 5), ce dernier am&#233;liorant significativement MANONLY (p-valeur= 0.046). L&#8217;exactitude
+de ces syst&#232;mes ne suit pas une &#233;volution claire suivant le seuil. De m&#234;me, si on retrouve avec
+LININT +SELEC une baisse de l&#8217;exactitude suivant &#945; &#224; chaque seuil, on n&#8217;a pas d&#8217;influence des
+seuils sur l&#8217;exactitude aux valeurs extr&#234;mes de &#945;.
+</p>
+<p>Avec AUTOSUB +SELEC et MANW +SELEC on a la m&#234;me tendance qu&#8217;avant, l&#8217;exactitude respecti-
+vement d&#233;cro&#238;t et cro&#238;t avec la croissance du coefficient pour chaque seuil, mais pour AUTOSUB
++SELEC on n&#8217;a rapidement plus assez d&#8217;exemples artificiels pour extraire des sous-ensembles. Pour
+MANW +SELEC, l&#8217;exactitude avec le coefficient le plus bas augmente avec le seuil, de 22.6 (seuil
+30) &#224; 37.7 (seuil 75). C&#8217;est avec ce syst&#232;me et une influence tr&#232;s faible des donn&#233;es artificielles
+qu&#8217;on obtient le meilleur score d&#8217;exactitude, 45.6 am&#233;liorant significativement les performances
+de MANONLY (p-valeur= 0.021).
+</p>
+<p>Au niveau des scores par relation, de nouveau une influence forte des donn&#233;es artificielles
+am&#233;liore l&#8217;identification de contrast avec en plus une influence positive d&#8217;un seuil haut mais
+inf&#233;rieur &#224; 70, au-del&#224; le nombre d&#8217;exemples artificiels &#233;tant probablement trop bas pour influer
+sur l&#8217;identification (voir table 5). Parall&#232;lement, &#224; part avec AUTOONLY +SELEC, l&#8217;identification des
+autres relations s&#8217;am&#233;liore avec la croissance du seuil donc une baisse de l&#8217;influence du mod&#232;le
+artificiel. Pour continuation on observe toujours une am&#233;lioration pour une influence similaire
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>115 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>des deux types de donn&#233;es et pour explanation, c&#8217;est toujours l&#8217;ajout de traits de pr&#233;dictions qui
+permet les meilleures performances. Il semble qu&#8217;en plus on am&#233;liore ici l&#8217;identification de result
+(MANW +SELEC et ADDPROB +SELEC, table 5).
+</p>
+<p>La s&#233;lection des exemples am&#233;liore l&#8217;identification des relations et conduit &#224; deux syst&#232;mes
+am&#233;liorant significativement l&#8217;exactitude de MANONLY montrant que les donn&#233;es artificielles
+lorsqu&#8217;int&#233;gr&#233;es de fa&#231;on ad&#233;quate peuvent am&#233;liorer l&#8217;identification des relations implicites,
+notamment lorsque leur influence est faible, le mod&#232;le &#233;tant guid&#233; vers la bonne distribution.
+</p>
+<p>A la constitution des corpus avec s&#233;lection on observe qu&#8217;avec la croissance du seuil on conserve
+toujours plus d&#8217;exemples pour result, d&#232;s le seuil 40 environ 3900 de plus, alors que contrast
+devient sous-repr&#233;sent&#233;. Cette observation montre que le bruit n&#8217;est probablement pas la seule
+fa&#231;on d&#8217;expliquer les r&#233;sultats puisque la relation am&#233;lior&#233;e par les donn&#233;es artificielles est celle
+pour laquelle le mod&#232;le artificiel est le moins confiant alors que celle dont les r&#233;sultats sont les
+plus d&#233;grad&#233;s est celle pour laquelle il est le plus confiant.
+</p>
+<p>6 Conclusion
+</p>
+<p>Nous avons d&#233;velopp&#233; la premi&#232;re s&#233;rie de syst&#232;mes d&#8217;identification des relations discursives
+implicites pour le fran&#231;ais. Ces relations sont difficiles &#224; identifier en raison du manque d&#8217;indices
+forts. Dans les &#233;tudes sur l&#8217;anglais, les performances sont basses malgr&#233; les indices complexes
+utilis&#233;s, probablement par manque de donn&#233;es. Pour pallier ce probl&#232;me, plus crucial encore
+en fran&#231;ais, nous avons utilis&#233; des donn&#233;es annot&#233;es automatiquement en relation &#224; partir
+d&#8217;exemples explicites. Mais ces nouvelles donn&#233;es ne g&#233;n&#233;ralisent pas bien aux donn&#233;es impli-
+cites car elles sont de distribution diff&#233;rente. Nous avons donc test&#233; des m&#233;thodes inspir&#233;es
+de l&#8217;adaptation de domaine pour combiner ces donn&#233;es en ajoutant une &#233;tape de s&#233;lection
+automatique des exemples artificiels pour g&#233;rer le bruit induit par leur cr&#233;ation. Elles nous
+permettent des am&#233;liorations significatives par rapport au mod&#232;le n&#8217;utilisant que les donn&#233;es
+manuelles. Les meilleurs syst&#232;mes utilisent la s&#233;lection d&#8217;exemples et la pond&#233;ration des donn&#233;es
+manuelles ou l&#8217;ajout de traits de pr&#233;dictions du mod&#232;le artificiel.
+</p>
+<p>Si les m&#233;thodes de combinaison et de s&#233;lection simples utilis&#233;es ici parviennent &#224; des r&#233;sultats
+encourageants, on peut esp&#233;rer que des m&#233;thodes plus sophistiqu&#233;es pourraient conduire &#224; des
+am&#233;liorations plus importantes. De plus, une &#233;tude des donn&#233;es explicites pourrait permettre
+d&#8217;augmenter la taille du corpus artificiel et d&#8217;am&#233;liorer sa qualit&#233; en s&#233;lectionnant des connecteurs
+et en identifiant des relations pour lesquelles cette m&#233;thode est plus ou moins efficace et des
+traits plus informatifs dans une optique de combinaison des donn&#233;es. Il faudra enfin porter ces
+m&#233;thodes sur les donn&#233;es anglaises pour une comparaison avec d&#8217;autres &#233;tudes.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>ASHER, N. et LASCARIDES, A. (2003). Logics of conversation. Cambridge University Press.
+</p>
+<p>BERGER, A. L., PIETRA, V. J. D. et PIETRA, S. A. D. (1996). A maximum entropy approach to
+natural language processing. Computational linguistics, 22(1):39&#8211;71.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>116 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>BLAIR-GOLDENSOHN, S., MCKEOWN, K. R. et RAMBOW, O. C. (2007). Building and refining
+rhetorical-semantic relation models. In Proceedings of NAACL HLT, page 428&#8211;435.
+</p>
+<p>CANDITO, M., NIVRE, J., DENIS, P. et ANGUIANO, E. H. (2010). Benchmarking of statistical
+dependency parsers for french. In Proceedings of the 23rd ICCL posters, page 108&#8211;116.
+</p>
+<p>CARLSON, L., MARCU, D. et OKUROWSKI, M. E. (2001). Building a discourse-tagged corpus in
+the framework of rhetorical structure theory. In Proceedings of the Second SIGdial Workshop on
+Discourse and Dialogue-Volume 16, page 1&#8211;10.
+</p>
+<p>DAUM&#201; III, H. (2007). Frustratingly easy domain adaptation. In Proceedings of ACL, page 256.
+</p>
+<p>DAUM&#201; III, H. et MARCU, D. (2006). Domain adaptation for statistical classifiers. Journal of
+Artificial Intelligence Research, 26(1):101&#8211;126.
+</p>
+<p>DENIS, P. et SAGOT, B. (2009). Coupling an annotated corpus and a morphosyntactic lexicon for
+state-of-the-art POS tagging with less human effort. In Proceedings of PACLIC.
+</p>
+<p>HERNAULT, H., PRENDINGER, H. et ISHIZUKA, M. (2010). HILDA : a discourse parser using support
+vector machine classification. Dialogue &amp; Discourse, 1(3).
+</p>
+<p>LIN, Z., NG, H. T. et KAN, M. Y. (2010). A PDTB-styled end-to-end discourse parser. Rapport
+technique, National University of Singapore.
+</p>
+<p>MANN, W. C. et THOMPSON, S. A. (1988). Rhetorical structure theory : Toward a functional
+theory of text organization. Text, 8(3):243&#8211;281.
+</p>
+<p>MARCU, D. et ECHIHABI, A. (2002). An unsupervised approach to recognizing discourse relations.
+In Proceedings of ACL, page 368&#8211;375.
+</p>
+<p>MULLER, P., AFANTENOS, S., DENIS, P. et ASHER, N. (2012). Constrained decoding for text-level
+discourse parsing. In Proceedings of COLING, pages 1883&#8211;1900.
+</p>
+<p>PITLER, E., LOUIS, A. et NENKOVA, A. (2009). Automatic sense prediction for implicit discourse
+relations in text. In Proceedings of ACL-IJCNLP, page 683&#8211;691.
+</p>
+<p>PITLER, E. et NENKOVA, A. (2009). Using syntax to disambiguate explicit discourse connectives
+in text. In Proceedings of ACL-IJCNLP short papers, page 13&#8211;16.
+</p>
+<p>PRASAD, R., DINESH, N., LEE, A., MILTSAKAKI, E., ROBALDO, L., JOSHI, A. et WEBBER, B. (2008).
+The penn discourse treebank 2.0. In Proceedings of LREC, page 2961.
+</p>
+<p>P&#201;RY-WOODLEY, M. P., ASHER, N., ENJALBERT, P., BENAMARA, F., BRAS, M., FABRE, C., FERRARI, S.,
+HO-DAC, L. M., LE DRAOULEC, A. et MATHET, Y. (2009). ANNODIS : une approche outill&#233;e de
+l&#8217;annotation de structures discursives. Actes de TALN 2009.
+</p>
+<p>ROZE, C. (2009). Base lexicale des connecteurs discursifs du fran&#231;ais. M&#233;moire de D.E.A.,
+Universit&#233; Paris Diderot.
+</p>
+<p>SAGAE, K. (2009). Analysis of discourse structure with syntactic dependencies and data-driven
+shift-reduce parsing. In Proceedings of IWPT, page 81&#8211;84.
+</p>
+<p>SORIA, C. et FERRARI, G. (1998). Lexical marking of discourse relations-some experimental
+findings. In Proceedings of the ACL-98 Workshop on Discourse Relations and Discourse Markers.
+</p>
+<p>SPORLEDER, C. et LASCARIDES, A. (2007). Exploiting linguistic cues to classify rhetorical relations.
+Amsterdam Studies In The Theory And History Of Linguistic Science Series 4, 292:157.
+</p>
+<p>SPORLEDER, C. et LASCARIDES, A. (2008). Using automatically labelled examples to classify
+rhetorical relations : An assessment. Natural Language Engineering, 14(3):369&#8211;416.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>117 c&#65535; ATALA</p>
+
+</div></div>
+</body></html>

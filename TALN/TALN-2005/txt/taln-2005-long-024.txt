@@ -1,459 +1,346 @@
-TALN 2005, Dourdan, 6-10 juin 2005
-
+TALN 2005, Dourdan, 6–10 juin 2005
 Traduction automatique statistique
 avec des segments discontinus
-
-Michel Simard*, Nicola Cancedda*, Bruno CaVestro*,
-Marc Dymetman*, Eric Gaussier*, Cyril Goutte>:<,
-Philippe Langlaisi, Arne Mauseri, Kenji Yamada*
-
-(*) Xerox Research Centre Europe (XRCE)
+Michel Simard∗, Nicola Cancedda∗, Bruno Cavestro∗,
+Marc Dymetman∗, Eric Gaussier∗, Cyril Goutte∗,
+Philippe Langlais†, Arne Mauser‡, Kenji Yamada?
+(∗) Xerox Research Centre Europe (XRCE)
 prenom.nom@xrce.xerox.com
-
-(T) Laboratoire RALI, Universite de Montreal
+(†) Laboratoire RALI, Université de Montréal
 felipe@iro.umontreal.ca
-
-(1) Lehrstuhl fur Inforrnatik VI, RWTH Aachen
-ame.mauser@l<ullen.rwth—aachen.de
-
-(*) USC Information Science Institute
+(‡) Lehrstuhl für Informatik VI, RWTH Aachen
+arne.mauser@kullen.rwth-aachen.de
+(?) USC Information Science Institute
 kyamada@isi.edu
-
-Mots-clefs :
-
-lineaires
-
-traduction automatique statistique, segments discontinus, modeles log-
-
-Keywords:
-
-statistical machine translation, discontinuous phrases, log—linear models
-
-Resume Cet article presente une methode de traduction automatique statistique basee sur
-des segments non—continus, c’est—a—dire des segments formes de mots qui ne se presentent pas
-necessairement de fagon contigue dans le texte. On propose une methode pour produire de
-tels segments a partir de corpus alignes au niveau des mots. On presente egalement un modele
-de traduction statistique capable de tenir compte de tels segments, de méme qu’une methode
-d’apprentissage des parametres du modele Visant a maximiser l’exactitude des traductions pro-
-duites, telle que mesuree avec la metrique NIST. Les traductions optimales sont produites par
-le biais d’une recherche en faisceau. On presente ﬁnalement des resultats experimentaux, qui
-demontrent comment la methode proposee permet une meilleure generalisation a partir des don-
-nees d’entrainement.
-
-Abstract This paper presents a phrase—based statistical machine translation method, based
-on non—contiguous phrases, i.e. phrases with gaps. A method for producing such phrases from
-a word—aligned corpora is proposed. A statistical translation model is also presented that deals
+Mots-clefs : traduction automatique statistique, segments discontinus, modèles log-
+linéaires
+Keywords: statistical machine translation, discontinuous phrases, log-linear models
+Résumé Cet article présente une méthode de traduction automatique statistique basée sur
+des segments non-continus, c’est-à-dire des segments formés de mots qui ne se présentent pas
+nécéssairement de façon contiguë dans le texte. On propose une méthode pour produire de
+tels segments à partir de corpus alignés au niveau des mots. On présente également un modèle
+de traduction statistique capable de tenir compte de tels segments, de même qu’une méthode
+d’apprentissage des paramètres du modèle visant à maximiser l’exactitude des traductions pro-
+duites, telle que mesurée avec la métrique NIST. Les traductions optimales sont produites par
+le biais d’une recherche en faisceau. On présente finalement des résultats expérimentaux, qui
+démontrent comment la méthode proposée permet une meilleure généralisation à partir des don-
+nées d’entraînement.
+Abstract This paper presents a phrase-based statistical machine translation method, based
+on non-contiguous phrases, i.e. phrases with gaps. A method for producing such phrases from
+a word-aligned corpora is proposed. A statistical translation model is also presented that deals
 with such phrases, as well as a training method based on the maximization of translation accu-
 racy, as measured with the NIST evaluation metric. Translations are produced by means of a
-beam—search decoder. Experimental results are presented, that demonstrate how the proposed
+beam-search decoder. Experimental results are presented, that demonstrate how the proposed
 method allows to better generalize from the training data.
-
-233
-
-234
-
 M. Simard et al.
-
 1 Introduction
-
-L’evolution des modeles et des méthodes et la proliferation des corpus paralleles ont, depuis
-peu, pousse les approches statistiques a l’avant—plan de la recherche en traduction automa-
-tique. Bien qu’on retrouve toujours au coeur de ces approches le cadre general qui a motive
-les propositions initiales de l’equipe IBM (Brown et al.l993), on a pu observer des transforma-
-tions importantes au cours des demieres annees. La plus remarquable est sans doute le passage
-du niveau des mots a celui de segments de longueur variablel (Och et al.l999; Marcu and
-Wong2002; Tillmann and Xia2003). Alors que les modeles traditionnels prenaient pour unite
-de base le mot, les modeles “segmentaires” reconnaissent le role primordial que jouent dans
+L’évolution des modèles et des méthodes et la prolifération des corpus parallèles ont, depuis
+peu, poussé les approches statistiques à l’avant-plan de la recherche en traduction automa-
+tique. Bien qu’on retrouve toujours au coeur de ces approches le cadre général qui a motivé
+les propositions initiales de l’équipe IBM (Brown et al.1993), on a pu observer des transforma-
+tions importantes au cours des dernières années. La plus remarquable est sans doute le passage
+du niveau des mots à celui de segments de longueur variable1 (Och et al.1999; Marcu and
+Wong2002; Tillmann and Xia2003). Alors que les modèles traditionnels prenaient pour unité
+de base le mot, les modèles “segmentaires” reconnaissent le rôle primordial que jouent dans
 la langue les expressions combinant plusieurs mots, et l’importance de les traduire en bloc.
-C’est bien sﬁr le cas des multitermes, qu’on rencontre plus frequemment dans les domaines
-techniques et specialises, mais aussi des expressions idiomatiques, des locutions, et de tout un
-ensemble de phenomenes de la langue generale.
-
-Mais le succes des approches segmentaires ne s’explique pas uniquement par l’importance et
-la frequence de ces phenomenes linguistiques. En fait, l’utilisation de segments de plus d’un
-mot ameliore la qualite des traductions, meme lorsque ces segments n’ont pas de reel statut
-linguistique. Face a la rarete des evenements sur lesquels se fonde l’estimation des nombreux
-parametres d’un modele de traduction, le concepteur se retrouve souvent devant un choix dif-
-ﬁcile, entre des estimations peu ﬁables et un lissage plus ou moins arbitraire. A défaut de
-resoudre ce dilemme, l’emploi d’unites plus longues represente l’application d’un principe in-
-tuitif : lorsqu’on a vu un long segment de texte en langue—source souvent traduit d’une certaine
-fagon, il y a tout lieu de croire que cette traduction est preferable a toute autre qu’on pourrait
-obtenir de fagon compositionnelle. En somme, les modeles segmentaires incorporent dans un
-cadre statistique l’intuition derriere la traduction automatique basee sur les exemples et, a la
-limite, les memoires de traduction. Finalement, les segments de plusieurs mots contribuent a
-resoudre le probleme du choix lexical face aux ambiguites de la langue—source. Alors que le
-mot anglais bank se traduit presque systematiquement par banqne en frangais, il sufﬁt d’avoir
-observe que river bank a éte traduit par rive, ne fﬁt—ce que quelques fois, pour produire la bonne
+C’est bien sûr le cas des multitermes, qu’on rencontre plus fréquemment dans les domaines
+techniques et spécialisés, mais aussi des expressions idiomatiques, des locutions, et de tout un
+ensemble de phénomènes de la langue générale.
+Mais le succès des approches segmentaires ne s’explique pas uniquement par l’importance et
+la fréquence de ces phénomènes linguistiques. En fait, l’utilisation de segments de plus d’un
+mot améliore la qualité des traductions, même lorsque ces segments n’ont pas de réel statut
+linguistique. Face à la rareté des événements sur lesquels se fonde l’estimation des nombreux
+paramètres d’un modèle de traduction, le concepteur se retrouve souvent devant un choix dif-
+ficile, entre des estimations peu fiables et un lissage plus ou moins arbitraire. À défaut de
+résoudre ce dilemme, l’emploi d’unités plus longues représente l’application d’un principe in-
+tuitif : lorsqu’on a vu un long segment de texte en langue-source souvent traduit d’une certaine
+façon, il y a tout lieu de croire que cette traduction est préférable à toute autre qu’on pourrait
+obtenir de façon compositionnelle. En somme, les modèles segmentaires incorporent dans un
+cadre statistique l’intuition derrière la traduction automatique basée sur les exemples et, à la
+limite, les mémoires de traduction. Finalement, les segments de plusieurs mots contribuent à
+résoudre le problème du choix lexical face aux ambiguïtés de la langue-source. Alors que le
+mot anglais bank se traduit presque systématiquement par banque en français, il suffit d’avoir
+observé que river bank a été traduit par rive, ne fût-ce que quelques fois, pour produire la bonne
 traduction.
-
-Les modeles segmentaires existants ne traitent que des segments constitues de mots contigus.
-Nous proposons ici un modele capable de gerer des segments discontinns, c’est—a—dire des ex-
-pressions formes de mots qui ne sont pas nécessairement contigus, tant dans la langue—source
-que dans la langue—cible. La suite de cet article est ainsi structure : en section 2, nous discutons
-des motivations pour traiter les segments discontinus, et presentons une methode pour obtenir
-de telles unites, a partir d’un corpus d’entrainement; le modele de traduction lo g—lineaire condi-
-tionnel que nous avons adopte fait l’objet de la section 3; nous decrivons brievement le decodeur
-a la section 4; enﬁn, nous presentons en section 5 les resultats d’expen'ences que nous avons
-menees dans le but d’evaluer le potentiel de notre approche.
-
+Les modèles segmentaires existants ne traitent que des segments constitués de mots contigus.
+Nous proposons ici un modèle capable de gérer des segments discontinus, c’est-à-dire des ex-
+pressions formés de mots qui ne sont pas nécéssairement contigus, tant dans la langue-source
+que dans la langue-cible. La suite de cet article est ainsi structuré : en section 2, nous discutons
+des motivations pour traiter les segments discontinus, et présentons une méthode pour obtenir
+de telles unités, à partir d’un corpus d’entraînement; le modèle de traduction log-linéaire condi-
+tionnel que nous avons adopté fait l’objet de la section 3; nous décrivons brièvement le décodeur
+à la section 4; enfin, nous présentons en section 5 les résultats d’expériences que nous avons
+menées dans le but d’évaluer le potentiel de notre approche.
 2 Les segments discontinus
-
-Notre objectif, avec des segments constitues de mots non—contigus est d’ameliorer la qualite
-des traductions produites, d’abord en elargissant la portee des effets mentionnes plus haut de
-
-1On utilise couramment le terme phrase en anglais, de fagon un peu abusive, faut—i1 souligner.
-
+Notre objectif, avec des segments constitués de mots non-contigus est d’améliorer la qualité
+des traductions produites, d’abord en élargissant la portée des effets mentionnés plus haut de
+1On utilise couramment le terme phrase en anglais, de façon un peu abusive, faut-il souligner.
 Traduction automatique statistique avec des segments discontinus
-
-Pierre ne mangwas
-
-. \
+Pierre ne mange pas
+1 2 3
 Pierre does not eat
-
-Figure 1: Alignement d’une negation, entre le francais et l’anglais.
-
-desambiguisation lexicale et de traduction basee sur les exemples, mais aussi en prenant compte
-de nouveaux phenomenes linguistiques. Les Verbes a particules, en anglais, constituent un ex-
-emple d’un tel phenomene. Dans une phrase comme “Mary switches her bedside lamp oﬂ”
-(“Marie eteint sa lampe de chevet”) les modeles de traductions bases sur les mots sont generale-
-ment incapables de rendre compte de l’effet combine de switch et de oﬁ. Alors qu’ils traitent
-correctement les locutions inseparables come to run out, les modeles segmentaires existants
-sont tout aussi impuissants dans ce cas. Notons que ce phenomene ne se limite pas a l’anglais,
-puisqu’on l’obserVe egalement en allemand et dans bien d’autres langues.
-
-Les unites linguistiques non—contigues ne se limitent pas aux seuls Verbes : la negation se
-forme de facon differente en francais et en anglais, et les modeles existants sont incapables de
-representer correctement l’alignement de mots complexe qui en resulte (ﬁgure 1). D’une facon
-generale, un modele autorisant des relations de type plusieurs—a—plusieurs permet de rendre
-compte du fait qu’un meme concept peut se Voir realise par des unites de granularite differente
-dans differentes langues, sans egard pour la contiguite.
-
-Au sein d’une bi—phrase, nous appelons bi—segment une paire constituee d’un segment—s0urce et
-d’un segment—cible : b : (f, e). Le segment—source est une suite de mots de la langue—source et
-de jokers (representes par le symbole <>); on deﬁnit le segment—cible de maniere analogue. Par
-exemple, f : fl <> <>f2 f3 est un segment—source de longueur 5, constitue d’un mot source, suivi
-de deux jokers, puis de deux mots—source contigus.
-
-Avec de tels bi—segments, la traduction d’une phrase en langue—source f est produite en combi-
-nant les bi—segments b : (f, e) d’un ensemble choisi de facon d’une part a recouvrir entiere—
-ment la phrase f, et d’autre part a produire une phrase e bien formee dans la langue—cible. La
-production d’une traduction complete peut étre decrite par une suite ordonnee de bi—segments
-b1...bK : on depose d’abord le segment—cible él du bi—segment bl, puis chacun des segments
-subsequents ék sur la premiere position “libre”, c’est—a—dire soit le joker le plus a gauche, soit
-l’extremite droite de la sequence (ﬁgure 2) .
-
+Figure 1: Alignement d’une négation, entre le français et l’anglais.
+désambiguïsation lexicale et de traduction basée sur les exemples, mais aussi en prenant compte
+de nouveaux phénomènes linguistiques. Les verbes à particules, en anglais, constituent un ex-
+emple d’un tel phénomène. Dans une phrase comme “Mary switches her bedside lamp off ”
+(“Marie éteint sa lampe de chevet”) les modèles de traductions basés sur les mots sont générale-
+ment incapables de rendre compte de l’effet combiné de switch et de off. Alors qu’ils traitent
+correctement les locutions inséparables comme to run out, les modèles segmentaires existants
+sont tout aussi impuissants dans ce cas. Notons que ce phénomène ne se limite pas à l’anglais,
+puisqu’on l’observe également en allemand et dans bien d’autres langues.
+Les unités linguistiques non-contiguës ne se limitent pas aux seuls verbes : la négation se
+forme de façon différente en français et en anglais, et les modèles existants sont incapables de
+représenter correctement l’alignement de mots complexe qui en résulte (figure 1). D’une façon
+générale, un modèle autorisant des relations de type plusieurs-à-plusieurs permet de rendre
+compte du fait qu’un même concept peut se voir réalisé par des unités de granularité différente
+dans différentes langues, sans égard pour la contiguïté.
+Au sein d’une bi-phrase, nous appelons bi-segment une paire constituée d’un segment-source et
+d’un segment-cible : b = 〈f̃ , ẽ〉. Le segment-source est une suite de mots de la langue-source et
+de jokers (représentés par le symbole ); on définit le segment-cible de manière analogue. Par
+exemple, f̃ = f1  f2f3 est un segment-source de longueur 5, constitué d’un mot source, suivi
+de deux jokers, puis de deux mots-source contigus.
+Avec de tels bi-segments, la traduction d’une phrase en langue-source f est produite en combi-
+nant les bi-segments b = 〈f̃ , ẽ〉 d’un ensemble choisi de façon d’une part à recouvrir entière-
+ment la phrase f , et d’autre part à produire une phrase e bien formée dans la langue-cible. La
+production d’une traduction complète peut être décrite par une suite ordonnée de bi-segments
+b1...bK : on dépose d’abord le segment-cible ẽ1 du bi-segment b1, puis chacun des segments
+subséquents ẽk sur la première position “libre”, c’est-à-dire soit le joker le plus à gauche, soit
+l’extrémité droite de la séquence (figure 2) .
+source = Je ne veux plus danser le tango
+Je
+bi−segment 1 =
 I
-I I
-. Je  ..... ..I .......  ....... ..
-bI—segmentI . . .
-I I t I
-I V I
-I I
-I
-
-source: Je ne veux plus danser le tango
-I
-I
-I
-
-I 3
-I \
-veux I I
-bi—segmenr2=, do <>W,,,,; ---------------  ------ --; ----------- -- _
-I I I : ‘
-b. 3 ne 0 plus I I I do 0 want
-I—segmem‘ = _______ __I _______ __I __________________ 
-not <> <> 0 anymore : : n,‘
-I I
-danger 1'6 tan'g0 I do not want <> 0 anymore
-bi_segment4 = to tango ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' 
-.‘
-
+veux I
+bi−segment 2 = do want
+ne plus I do want
+bi−segment 3 =
+not anymore
+danser le tango I do not want anymore
+bi−segment 4 = to tango
 cible = I do not want to tango anymore
-
-Figure 2: Production d’une traduction par combinaison de bi—segments.
-
-235
-
-236
-
+Figure 2: Production d’une traduction par combinaison de bi-segments.
 M. Simard et al.
-
-Notre approche necessite une banque de bi—segments, contenant les “briques” qui seront util-
-isees pour construire les traductions. La constitution d’une telle banque s’effectue en deux
-etapes : on aligne d’abord les mots d’un corpus bilingue, de facon a obtenir des bi—segments
-de base; on combine ensuite ces bi—segments, de maniere a obtenir des briques de taille et de
-complexite croissante.
-
-La premiere etape repose sur l’utilisation de la methode d’alignement de mots proposee par
-(Goutte et al.2004). Cette methode produit des alignements de type plusieurs—a—plusieurs entre
-les mots de la source et de la cible, par le biais d’une partition parallele des deux textes, Vus
-comme des ensembles de mots. Chaque mot appartient ainsi a un et un seul sous—ensemble dans
-cette partition, les sous—ensembles correspondants dans la source et la cible constituent ce qu’on
-appelle des cepts, et l’ensemble de ces cepts constitue l’alignement. Chaque cept reunit donc
-des mots de la source et de la cible, sans aucune contrainte de contiguite. Dans la ﬁgure 1, ces
-cepts sont representes par les cercles numerotes 1, 2 et 3.
-
-L’ ensemble des cepts observes dans un corpus bilingue constitue naturellement une banque de
-bi—segments elementaires, que nous appelons L1. Partant de la, on peut construire des banques
-de segments complexes : en combinant deux—a—deux les cepts provenant d’une meme paire
-de phrases, on genere l’ensemble que nous appelons L2. Par exemple, dans la ﬁgure 1, en
-combinant les cepts 1 et 2, on obtient le bi—segment (Pierre ne <> pas, Pierre <> not). Les
+Notre approche nécessite une banque de bi-segments, contenant les “briques” qui seront util-
+isées pour construire les traductions. La constitution d’une telle banque s’effectue en deux
+étapes : on aligne d’abord les mots d’un corpus bilingue, de façon à obtenir des bi-segments
+de base; on combine ensuite ces bi-segments, de manière à obtenir des briques de taille et de
+complexité croissante.
+La première étape repose sur l’utilisation de la méthode d’alignement de mots proposée par
+(Goutte et al.2004). Cette méthode produit des alignements de type plusieurs-à-plusieurs entre
+les mots de la source et de la cible, par le biais d’une partition parallèle des deux textes, vus
+comme des ensembles de mots. Chaque mot appartient ainsi à un et un seul sous-ensemble dans
+cette partition, les sous-ensembles correspondants dans la source et la cible constituent ce qu’on
+appelle des cepts, et l’ensemble de ces cepts constitue l’alignement. Chaque cept réunit donc
+des mots de la source et de la cible, sans aucune contrainte de contiguïté. Dans la figure 1, ces
+cepts sont représentés par les cercles numérotés 1, 2 et 3.
+L’ensemble des cepts observés dans un corpus bilingue constitue naturellement une banque de
+bi-segments élémentaires, que nous appelons L1. Partant de là, on peut construire des banques
+de segments complexes : en combinant deux-à-deux les cepts provenant d’une même paire
+de phrases, on génère l’ensemble que nous appelons L2. Par exemple, dans la figure 1, en
+combinant les cepts 1 et 2, on obtient le bi-segment 〈Pierre ne  pas, Pierre  not〉. Les
 combinaisons de 3 cepts produisent l’ensemble L3, et ainsi de suite. La taille de ces ensembles
-croit theoriquement de facon exponentielle avec le nombre de cepts combines. Comme nous
-le Verrons plus loin, le nombre de bi—segments disponibles affecte directement le temps requis
-pour produire une nouvelle traduction. C’est pourquoi on aura recours a differentes methodes
-de ﬁltrage, Visant a ne conserver que les bi—segments les plus susceptibles d’étre utiles, en se
-basant par exemple sur la frequence des observations dans un corpus de reference.
-
-3 Le modele de traduction
-
-En traduction automatique statistique, etant donnee une phrase—source ff’ : fl . . . f J, on recherche
-la phrase—cible e{ : e1...e1 qui en constitue la traduction la plus probable :
-
-éi : argmax,;{P<e{m’>}
-
-Notre approche repose sur une modelisation directe de la probabilite a posteriori P(e{ |f1J) au
-moyen d’un modele log—lineaire :
-
-P,\(€i|f1J):
-
-1 M
-Z J exp (2 )‘mhm(€iv in)
-fl m:1
-
-Dans cette equation, la contribution de chacune des f0ncti0ns—attributs hm est ponderee par un
-facteur Am, lesquels constituent les parametres du modele; Z ff represente un facteur de nor-
-malisation propre a la phrase source ff’. Il est possible d’introduire des Variables additionnelles
-dans le modele, de facon a tenir compte de phenomene caches; on modiﬁe alors les fonctions—
-attributs pour y incorporer ces Variables. Par exemple, notre modele doit prendre en compte
-l’ensemble des bi—segments qui est a l’origine d’une traduction; les fonctions—attributs auront
-donc la forme generale h,,,(e{, ff, bf Le recours a ce genre de modele est maintenant mon-
-
+croît théoriquement de façon exponentielle avec le nombre de cepts combinés. Comme nous
+le verrons plus loin, le nombre de bi-segments disponibles affecte directement le temps requis
+pour produire une nouvelle traduction. C’est pourquoi on aura recours à différentes méthodes
+de filtrage, visant à ne conserver que les bi-segments les plus susceptibles d’être utiles, en se
+basant par exemple sur la fréquence des observations dans un corpus de référence.
+3 Le modèle de traduction
+En traduction automatique statistique, étant donnée une phrase-source fJ1 = f1...fJ , on recherche
+la phrase-cible eI1 = e1...eI qui en constitue la traduction la plus probable :
+êI1 = argmaxeI{P(eI1 1|f
+J
+1 )}
+Notre approche repose sur une modélisation directe de la probabilité a posteriori P (eI1|fJ1 ) au
+moyen d’un modèle log-linéaire : ( )
+1 ∑M
+P Iλ(e
+I
+1|fJ1 ) = exp λmhm(eZ 1, f
+J
+1 )
+fJ1 m=1
+Dans cette équation, la contribution de chacune des fonctions-attributs hm est pondérée par un
+facteur λm, lesquels constituent les paramètres du modèle; ZfJ représente un facteur de nor-1
+malisation propre à la phrase source fJ1 . Il est possible d’introduire des variables additionnelles
+dans le modèle, de façon à tenir compte de phénomène cachés; on modifie alors les fonctions-
+attributs pour y incorporer ces variables. Par exemple, notre modèle doit prendre en compte
+l’ensemble des bi-segments qui est à l’origine d’une traduction; les fonctions-attributs auront
+donc la forme générale hm(eI1, fJ1 , bK1 ). Le recours à ce genre de modèle est maintenant mon-
 naie courante en traduction automatique (Tillmann and Xia2003; Zens and Ney2003; Och and
 Ney2004).
-
 Traduction automatique statistique avec des segments discontinus
-
-Notre modele repose presentement sur sept fonctions—attributs. hlbp est la fonctiomattribut des
-bi—segments. Elle represente la probabilite de produire la phrase en langue—cible, etant donne le
-decoupage de la source, tel que prescrit par l’ensemble de bi—segments utilise, sous l’hypothese
-que chaque segment—source genere un segment—cible de facon independante du reste de la
-phrase—source :
-
+Notre modèle repose présentement sur sept fonctions-attributs. hbp est la fonction-attribut des
+bi-segments. Elle représente la probabilité de produire la phrase en langue-cible, étant donné le
+découpage de la source, tel que prescrit par l’ensemble de bi-segments utilisé, sous l’hypothèse
+que chaque segment-source génère un segment-cible de façon indépendante du reste de la
+phrase-source : ∑K
+hbp(e
+I
+1, f
+J
+1 , b
 K
-hbp(e{, fribf) : Z1ogP(éz.lfk) (1)
-19:1
-
-Les probabilites des segments—cible sont estimees sur la base de decomptes dans un corpus
-de reference aligne au niveau des mots. Cette fonction—attribut demontre une forte tendance a
-surestimer la probabilite des bi—segments peu frequents. C’est pourquoi on introduit egalement
-une fonctiomattribut compositionnelle hlcomp, qui se calcule de la meme facon que hlbp dans
-l’equation (1), sauf que les probabilites des segments—source sont estimees sur la base de prob-
-abilites de traduction des mots qui composent le bi—segment, a la maniere du modele IBM—1
-
-(Brown et al.1993) :
-1
-
-— H ZP(€|f)
-
-|.f||é| eééfef"
-
-P(é|f)
-Ici encore, l’estimation des probabilites de traduction lexicales P(e| f) se fonde sur des de-
-comptes dans le corpus d’entrainement.
-
-ht; est la fonction attribut lcmgue—cible. Elle repose sur un modele N —gramme de la langue—
-cible. Elle ne tient donc compte que de la suite de mots e{ resultant de la combinaison des
-bi—segments.
-
-Deux fonctions—attributs, hm et hbc, controlent respectivement la longueur de la phrase—cible et
-
-le nombre de bi—segments ayant servi a produire celle—ci : h,,,C(e{, ff’, bf) : I et hg,C(e{, ff’ , bf) :
-
-K. Une sixieme fonction h,e0,d(e{ , ff’ , bf) mesure le degre de divergence dans l’ordre des mots
+1 ) = logP(ẽk|f̃k) (1)
+k=1
+Les probabilités des segments-cible sont estimées sur la base de décomptes dans un corpus
+de référence aligné au niveau des mots. Cette fonction-attribut démontre une forte tendance à
+surestimer la probabilité des bi-segments peu fréquents. C’est pourquoi on introduit également
+une fonction-attribut compositionnelle hcomp, qui se calcule de la même façon que hbp dans
+l’équation (1), sauf que les probabilités des segments-source sont estimées sur la base de prob-
+abilités de traduction des mots qui composent le bi-segment, à la manière du modèle IBM-1
+(Brown et al.1993) : ∏∑
+P(ẽ| 1f̃) = | P(e|f)f̃ ||ẽ| e∈ẽ f∈f̃
+Ici encore, l’estimation des probabilités de traduction lexicales P(e|f) se fonde sur des dé-
+comptes dans le corpus d’entraînement.
+htl est la fonction attribut langue-cible. Elle repose sur un modèle N -gramme de la langue-
+cible. Elle ne tient donc compte que de la suite de mots eI1 résultant de la combinaison des
+bi-segments.
+Deux fonctions-attributs, hwc et hbc, contrôlent respectivement la longueur de la phrase-cible et
+le nombre de bi-segments ayant servi à produire celle-ci : hwc(eI1, fJ1 , bK1 ) = I et hbc(eI1, fJ1 , bK1 ) =
+K. Une sixième fonction hreord(eI1, fJ1 , bK1 ) mesure le degré de divergence dans l’ordre des mots
 de la source et de la cible.
-
-Toutes les fonctions ci—dessus font plus ou moins partie de l’arsenal habituel des fonctions-
-attributs employees en traduction automatique. Une seule fonction, hrgc concerne speciﬁque—
-ment les segments discontinus, et permet au modele de controler dans une certaine mesure la
-nature des segments qu’il utilise. Cette fonction prend pour Valeur le nombre total de jokers
-apparaissant dans les segments (source ou cible) de bf.
-
-Nous choisissons les Valeurs des parametres Am de facon a maximiser la qualite des traductions
-produites sur un corpus d’entrainement, tel que propose par (Och2003). A la difference de ce
-dernier, toutefois, nous avons developpe une Version de la metrique d’eValuation de traduction
-NIST (Doddington2002) qui est derivable par rapport aux Am, ce qui ouvre la Voie a l’utilisation
-de methodes d’optimisation par descente de gradient (Newton, quasi—Newton, etc.). Pour cha-
-cune des phrases sources _f1..._f5' du corpus d’entrainement, notre systeme de traduction peut
-produire plusieurs phrases cibles es,;,, ordonnees suivant les Valeurs de PA(es,;,| fs). Nous calcu-
-lons alors une Version de la metrique d’eValuation NIST, dans laquelle la contribution de chaque
-phrase est ponderee par :
-wa (A) : P)\(e.s,k|f.s)a
-Z19’ P>\(es,/C’ |fs)a7
-
-ou oz est un parametre de lis sage qu’on ﬁxe de maniere experimentale.
-
-A la difference d’une approche par maximum de Vraisemblance dans un modele log—lineaire,
-qui correspond a un probleme convexe et conduit a un minimum global unique, ce genre
-
-237
-
-238
-
+Toutes les fonctions ci-dessus font plus ou moins partie de l’arsenal habituel des fonctions-
+attributs employées en traduction automatique. Une seule fonction, hgc concerne spécifique-
+ment les segments discontinus, et permet au modèle de contrôler dans une certaine mesure la
+nature des segments qu’il utilise. Cette fonction prend pour valeur le nombre total de jokers
+apparaissant dans les segments (source ou cible) de bK1 .
+Nous choisissons les valeurs des paramètres λm de façon à maximiser la qualité des traductions
+produites sur un corpus d’entraînement, tel que proposé par (Och2003). À la différence de ce
+dernier, toutefois, nous avons développé une version de la métrique d’évaluation de traduction
+NIST (Doddington2002) qui est dérivable par rapport aux λm, ce qui ouvre la voie à l’utilisation
+de méthodes d’optimisation par descente de gradient (Newton, quasi-Newton, etc.). Pour cha-
+cune des phrases sources f1...fS du corpus d’entraînement, notre système de traduction peut
+produire plusieurs phrases cibles es,k, ordonnées suivant les valeurs de Pλ(es,k|fs). Nous calcu-
+lons alors une version de la métrique d’évaluation NIST, dans laquelle la contribution de chaque
+phrase est pondérée par :
+wα
+Pλ(
+s,k(λ) = ∑ es,k|fs)α ,
+k′ Pλ(es,k′|fs)α
+où α est un paramètre de lissage qu’on fixe de manière expérimentale.
+À la différence d’une approche par maximum de vraisemblance dans un modèle log-linéaire,
+qui correspond à un problème convexe et conduit à un minimum global unique, ce genre
 M. Simard et al.
-
-d’apprentissage est assez sensible a l’initialisation des parametres A. Notre approche con-
-siste alors a utiliser un ensemble d’initialisations aleatoires pour les parametres, a effectuer
-l’optimisation pour chaque initialisation, et a choisir le modele qui donne la meilleure perfor-
+d’apprentissage est assez sensible à l’initialisation des paramètres λ. Notre approche con-
+siste alors à utiliser un ensemble d’initialisations aléatoires pour les paramètres, à effectuer
+l’optimisation pour chaque initialisation, et à choisir le modèle qui donne la meilleure perfor-
 mance.
-
-Finalement, rappelons que cette procedure d’entrainement requiert des traductions multiples
-pour chaque phrase—source du corpus d’entrainement. En pratique, notre decodeur peut generer
-une liste des N —meilleures traductions de chaque phrase—source. Toutefois, differentes Valeurs
-initiales des parametres A peuvent conduire a des listes differentes. Il est donc judicieux de
-repeter le processus : decodage des N —meilleures traduction, optimisation de la Valeur de A, re-
-decodage des N —meilleures traduction avec ces nouveaux parametres, re—optirnisation de ceux—
-ci, etc. Aﬁn d’assurer la convergence du processus d’optimisation, il convient de combiner a
-chaque iteration les nouvelles N —meilleures traductions avec celles obtenues lors des iterations
-precedentes.
-
+Finalement, rappelons que cette procédure d’entraînement requiert des traductions multiples
+pour chaque phrase-source du corpus d’entraînement. En pratique, notre décodeur peut générer
+une liste des N -meilleures traductions de chaque phrase-source. Toutefois, différentes valeurs
+initiales des paramètres λ peuvent conduire à des listes différentes. Il est donc judicieux de
+répéter le processus : décodage des N -meilleures traduction, optimisation de la valeur de λ, re-
+décodage des N -meilleures traduction avec ces nouveaux paramètres, ré-optimisation de ceux-
+ci, etc. Afin d’assurer la convergence du processus d’optimisation, il convient de combiner à
+chaque itération les nouvelles N -meilleures traductions avec celles obtenues lors des itérations
+précédentes.
 4 Le décodage
-
-Notre methode de decodage repose sur une recherche en faisceau par piles (beam—search stack
-decoding), tel que proposee dans (Koehn2003), que nous avons adaptee aux segments disconti-
-nus. La traduction d’une phrase en langue—source est le resultat d’une suite de decisions; cha-
-cune de celles—ci implique le choix d’un ensemble de positions a couvrir dans la phrase—source
-et d’un bi—segment adequat. La traduction ﬁnale s’obtient en combinant ces decisions dans
-l’ordre, comme a la ﬁgure 2. Au cours du processus de decodage, les traductions partielles (que
-nous appelons des hypotheses) sont accumulees dans des listes (les piles), chacune desquelles
-regroupe des hypotheses qui recouvrent le meme nombre de mots dans la phrase—source. On
-étend une hypothese en y comblant la premiere position libre dans la cible (Voir la section 3);
-chaque hypothese ainsi etendue est stockee dans la pile correspondant au nouveau nombre de
+Notre méthode de décodage repose sur une recherche en faisceau par piles (beam-search stack
+decoding), tel que proposée dans (Koehn2003), que nous avons adaptée aux segments disconti-
+nus. La traduction d’une phrase en langue-source est le résultat d’une suite de décisions; cha-
+cune de celles-ci implique le choix d’un ensemble de positions à couvrir dans la phrase-source
+et d’un bi-segment adéquat. La traduction finale s’obtient en combinant ces décisions dans
+l’ordre, comme à la figure 2. Au cours du processus de décodage, les traductions partielles (que
+nous appelons des hypothèses) sont accumulées dans des listes (les piles), chacune desquelles
+regroupe des hypothèses qui recouvrent le même nombre de mots dans la phrase-source. On
+étend une hypothèse en y comblant la première position libre dans la cible (voir la section 3);
+chaque hypothèse ainsi étendue est stockée dans la pile correspondant au nouveau nombre de
 mots traduits dans la source.
-
-On associe un score a chaque hypothese. Ce score est la combinaison d’une composante exacte
+On associe un score à chaque hypothèse. Ce score est la combinaison d’une composante exacte
 et d’une composante heuristique : la composante exacte est obtenue en combinant la contribu-
-tion des Valeurs de fonctions—attributs des decisions qui constituent l’hypothese; la composante
-heuristique se Veut un estime optimiste du coﬁt necessaire pour completer la traduction, tenant
-compte notamment de la presence de segments discontinus. Chaque pile fait l’objet d’un ﬁl-
-trage, Visant a y eliminer les hypotheses les moins prometteuses. Ce ﬁltrage se fonde a la fois
-sur la Valeur du score et sur le nombre d’hypotheses dans la pile.
-
-On trouve la traduction ﬁnale dans la “derniere” pile, c’est—a—dire celle correspondant a une
-couverture totale de la phrase—source. On recupere alors la traduction ayant le meilleur score,
-et qui constitue une phrase bien formee, c’est—a—dire sans jokers.
-
-5 Evaluation
-
-Nous avons effectue certaines experiences, Visant a evaluer le potentiel de notre approche, et
-en particulier l’apport des bi—segments discontinus. Toutes nos experiences ont porte sur la
-traduction du francais Vers l’anglais. Nous avons utilise des textes provenant du corpus Aligned
-
+tion des valeurs de fonctions-attributs des décisions qui constituent l’hypothèse; la composante
+heuristique se veut un estimé optimiste du coût nécessaire pour compléter la traduction, tenant
+compte notamment de la présence de segments discontinus. Chaque pile fait l’objet d’un fil-
+trage, visant à y éliminer les hypothèses les moins prometteuses. Ce filtrage se fonde à la fois
+sur la valeur du score et sur le nombre d’hypothèses dans la pile.
+On trouve la traduction finale dans la “dernière” pile, c’est-à-dire celle correspondant à une
+couverture totale de la phrase-source. On récupère alors la traduction ayant le meilleur score,
+et qui constitue une phrase bien formée, c’est-à-dire sans jokers.
+5 Évaluation
+Nous avons effectué certaines expériences, visant à évaluer le potentiel de notre approche, et
+en particulier l’apport des bi-segments discontinus. Toutes nos expériences ont porté sur la
+traduction du français vers l’anglais. Nous avons utilisé des textes provenant du corpus Aligned
 Traduction automatique statistique avec des segments discontinus
-
-Corpus phrases mots—source mot—cible
-construction des bi—segrnents 931 000 17,2M 15,2M
-entrainement no. 1 250 3646 3295
-entrainement no. 2 250 3793 3441
+Corpus phrases mots-source mot-cible
+construction des bi-segments 931 000 17,2M 15,2M
+entraînement no. 1 250 3646 3295
+entraînement no. 2 250 3793 3441
 test no. 1 250 3007 2745
 test no. 2 250 3238 2949
-
-Table 1: Caracteristiques des corpus utilises.
-
+Table 1: Caractéristiques des corpus utilisés.
 nombre max. de jokers source cible source et cible
-0 1047101 1224 910 831034
+0 1 047 101 1 224 910 831 034
 1 2 232 226 2 448 223 1 959 154
 2 3 403 827 3 403 827 3 403 827
-
-Table 2: Distribution cumulative des bi—segments de B2, en fonction du nombre maximum de
+Table 2: Distribution cumulative des bi-segments de B2, en fonction du nombre maximum de
 jokers dans la source, la cible et les deux.
-
-Hansards of the 36th Parliament of Canadaz. De cet ensemble de donnees, nous avons extrait
-cinq sous—corpus : un corpus de construction des bi—segments, deux corpus d’entrainement et
-deux corpus de test. Ces sous—corpus ont ete extraits des portions dites training, test—1 et test—2
-des Hansard alignes. Pour des raisons d’efﬁcacite, nous nous sommes limites aux phrases de 30
-mots et moins, et a des corpus d’entrainement et de test de petite taille. Le tableau 1 resume les
-principales caracteristiques des corpus.
-
-Nous avons construit des banques de bi—segments, suivant la methode presentee a la section
-2. Cette methode genere potentiellement un tres grand nombre de bi—segments. Or le temps
-requis pour le decodage croit de facon essentiellement lineaire avec le nombre de bi—segments
-disponibles. C’est pourquoi il importe de limiter la taille des banques. Pour ces experiences,
-nous nous sommes donc limites a la combinaison des ensembles L1 51 L5, c’est—a—dire obtenu
-de toutes les combinaisons de 1, 2, 3, 4 ou 5 cepts du corpus de construction. Partant de la,
-nous avons construit deux banques, qui se differencient par le nombre maximal de jokers admis
-dans les segments source ou cible : les bi—segments de la banque B0 ne comportent aucun joker
-(ce sont donc des bi—segments continus), alors que ceux de la banque B2 comportent au plus
+Hansards of the 36th Parliament of Canada2. De cet ensemble de données, nous avons extrait
+cinq sous-corpus : un corpus de construction des bi-segments, deux corpus d’entraînement et
+deux corpus de test. Ces sous-corpus ont été extraits des portions dites training, test-1 et test-2
+des Hansard alignés. Pour des raisons d’efficacité, nous nous sommes limités aux phrases de 30
+mots et moins, et à des corpus d’entraînement et de test de petite taille. Le tableau 1 résume les
+principales caractéristiques des corpus.
+Nous avons construit des banques de bi-segments, suivant la méthode présentée à la section
+2. Cette méthode génère potentiellement un très grand nombre de bi-segments. Or le temps
+requis pour le décodage croît de façon essentiellement linéaire avec le nombre de bi-segments
+disponibles. C’est pourquoi il importe de limiter la taille des banques. Pour ces expériences,
+nous nous sommes donc limités à la combinaison des ensembles L1 à L5, c’est-à-dire obtenu
+de toutes les combinaisons de 1, 2, 3, 4 ou 5 cepts du corpus de construction. Partant de là,
+nous avons construit deux banques, qui se différencient par le nombre maximal de jokers admis
+dans les segments source ou cible : les bi-segments de la banque B0 ne comportent aucun joker
+(ce sont donc des bi-segments continus), alors que ceux de la banque B2 comportent au plus
 2 jokers dans la source ou la cible. Dans chacune de ces banques, nous avons exclus les bi-
-segments n’apparaissant qu’une fois dans le corpus, et pour tout segment—source, nous n’avons
-retenu que les 20 segments—cible les plus frequents. La distribution cumulative des bi—segments
-dans la banque B2 en fonction du nombre de jokers qu’ils comportent est donnee au Tableau 2.
-
-Nous avons ensuite procede a l’estimation des parametres du modele, suivant la methode de
-la section 3 : partant de parametres aleatoires, nous avons produit les 1000 meilleures traduc—
-tions pour chacune des phrase des corpus d’entrainement. Nous avons effectues ce proces-
-sus 3 fois, chaque fois partant de parametres aleatoires differents, pour chacun des 2 corpus
-d’entrainement, aﬁn de controler la stabilite du processus. Pour chacun des ensembles de don-
-nees d’entrainement resultants, nous avons alors cherche les valeurs de Am maximisant le score
-NIST lisse, a partir de 100 initialisations aleatoires. Pour chacune des banques de bi—segments
-B0 et B2, nous avons effectue 2 iterations de ce processus; comme on peut le voir a la ﬁgure 3,
+segments n’apparaissant qu’une fois dans le corpus, et pour tout segment-source, nous n’avons
+retenu que les 20 segments-cible les plus fréquents. La distribution cumulative des bi-segments
+dans la banque B2 en fonction du nombre de jokers qu’ils comportent est donnée au Tableau 2.
+Nous avons ensuite procédé à l’estimation des paramètres du modèle, suivant la méthode de
+la section 3 : partant de paramètres aléatoires, nous avons produit les 1000 meilleures traduc-
+tions pour chacune des phrase des corpus d’entraînement. Nous avons effectués ce proces-
+sus 3 fois, chaque fois partant de paramètres aléatoires différents, pour chacun des 2 corpus
+d’entraînement, afin de contrôler la stabilité du processus. Pour chacun des ensembles de don-
+nées d’entraînement résultants, nous avons alors cherché les valeurs de λm maximisant le score
+NIST lissé, à partir de 100 initialisations aléatoires. Pour chacune des banques de bi-segments
+B0 et B2, nous avons effectué 2 itérations de ce processus; comme on peut le voir à la figure 3,
 le processus converge rapidement.
-
-Les phrases des corpus de test ont ensuite ete traduites avec les parametres optimises. Nous
-
-2Corpus compile par Ulrich Germann et distribue par le USC Information Sciences Institute
-
-239
-
-240
-
+Les phrases des corpus de test ont ensuite été traduites avec les paramètres optimisés. Nous
+2Corpus compilé par Ulrich Germann et distribué par le USC Information Sciences Institute
 M. Simard et al.
-
-6.7 I I I I I
-
-SCOIC
-NIST 6.6 _
-
-entrainernent
-
-6.5 —  -
-
- 
-
-6.1 I I I I I
-0 1 2 3 4 5 6
-
+ 6.7
+score
+NIST
+ 6.6
+entrainement
+ 6.5
+ 6.4
+test
+ 6.3
+ 6.2
+ 6.1
+ 0  1  2  3  4  5  6
 nombre d’iterations
-
 Figure 3: Variation du score NIST en fonction du nombre d’iterations
-
-avons mesure la qualite des traductions en termes des metriques NIST et BLEU (Papineni et
-al.2002). A titre de comparaison, nous avons egalement produit un modele IBM—4 a partir
-des donnees de construction des bi—segments et d’entrainement, a l’aide du systeme GIZA++
-(Och and Ney2000). Nous avons alors traduit les donnees de test a l’aide du decodeur ReWrite
-(Germann et al.2001). Les resultats de ces experiences sont rapportes au tableau 3.
-
-Des Valeurs supérieures des metriques NIST et BLEU indiquent de meilleures performances;
-globalement, notre systeme se comporte donc sensiblement mieux avec la banque B2 qu’aVec
-B0, qui produit elle—méme des resultats légerement superieurs a ceux obtenus avec un modele
-IBM—4. Les banques B0 et B2 ne different que par la presence de segments discontinus dans
-B2 : c’est donc en allant “piocher” parmi ceux—ci que le modele arrive at ameliorer ses resultats.
-Ceci semblerait donc supporter notre these, que l’utilisation de bi—segments discontinus est
-béneﬁque.
-
-En exarninant plus attentivement les traductions produites avec la banque B2, on constate que
-les bi—segments discontinus, bien que 3 fois plus nombreux dans la banque que leurs homo-
-logues continus, n’ont pas necessairement la faveur du modele de traduction. Par exemple,
-notre systeme a produit les traductions les plus probables pour les 250 phrases du corpus de
-test en utilisant 1479 bi—segments, soit 5,92 bi—segments par phrase en moyenne. De ce nom-
-bre, seulement 242 sont discontinus, soit moins de 17%, ou 0,96 bi—segment discontinu par
-phrase. C’est donc dire que dans nombre de situations, notre systeme prefere encore utiliser des
-bi—segments continus.
-
-En pratique, les bi—segments discontinus sont utilises dans des circonstances qui coincident par-
-
-Corpus Experience ReWrite B0 B2
+avons mesuré la qualité des traductions en termes des métriques NIST et BLEU (Papineni et
+al.2002). À titre de comparaison, nous avons également produit un modèle IBM-4 à partir
+des données de construction des bi-segments et d’entraînement, à l’aide du système GIZA++
+(Och and Ney2000). Nous avons alors traduit les données de test à l’aide du décodeur ReWrite
+(Germann et al.2001). Les résultats de ces expériences sont rapportés au tableau 3.
+Des valeurs supérieures des métriques NIST et BLEU indiquent de meilleures performances;
+globalement, notre système se comporte donc sensiblement mieux avec la banque B2 qu’avec
+B0, qui produit elle-même des résultats légèrement supérieurs à ceux obtenus avec un modèle
+IBM-4. Les banques B0 et B2 ne diffèrent que par la présence de segments discontinus dans
+B2 : c’est donc en allant “piocher” parmi ceux-ci que le modèle arrive à améliorer ses résultats.
+Ceci semblerait donc supporter notre thèse, que l’utilisation de bi-segments discontinus est
+bénéfique.
+En examinant plus attentivement les traductions produites avec la banque B2, on constate que
+les bi-segments discontinus, bien que 3 fois plus nombreux dans la banque que leurs homo-
+logues continus, n’ont pas nécessairement la faveur du modèle de traduction. Par exemple,
+notre système a produit les traductions les plus probables pour les 250 phrases du corpus de
+test en utilisant 1479 bi-segments, soit 5,92 bi-segments par phrase en moyenne. De ce nom-
+bre, seulement 242 sont discontinus, soit moins de 17%, ou 0,96 bi-segment discontinu par
+phrase. C’est donc dire que dans nombre de situations, notre système préfère encore utiliser des
+bi-segments continus.
+En pratique, les bi-segments discontinus sont utilisés dans des circonstances qui coïncident par-
+Corpus Expérience ReWrite B0 B2
 NIST BLEU NIST BLEU NIST BLEU
 test no. 1 1 6,59 0,36 6,63 0,38 6,82 0,39
 2 6,65 0,38 6,83 0,38
@@ -461,122 +348,86 @@ test no. 1 1 6,59 0,36 6,63 0,38 6,82 0,39
 test no. 2 1 6,12 0,31 6,16 0,32 6,20 0,32
 2 6,20 0,32 6,34 0,34
 3 6,14 0,31 6,24 0,32
-
-Table 3: Resultats experimentaux
-
+Table 3: Résultats expérimentaux
 Traduction automatique statistique avec des segments discontinus
-
-or le ministere H rien fait depuis plus une decennie
-
-I / /
-/\ V
-
-v / l
+or le ministere n’ a rien fait depuis plus d’ une decennie
 the department has done nothing for over a decade of gold
-
-Figure 4: Exemple de traduction avec des bi—segments discontinus
-
-fois avec certains des phenomenes que nous souhaitions Voir ainsi traites, mais pas toujours. Et
-si l’apport des bi—segments discontinus est globalement positif, il reste que ceux—ci introduisent
-egalement des problemes. La ﬁgure 4, qui montre un exemple de traduction provenant du corpus
-de test, tel qu’effectue avec la banque B2, illustre assez bien la situation. D’une part, on Voit
-comment les bi—segments discontinus permettent de traiter le cas de la negation en francais :
-La combinaison de deux bi—segments (Le ministere <> a, the department has) et (n’ <> rien
-fait, done nothing) permet d’arriVer a une traduction assez judicieuse. Par ailleurs, comment
-expliquer cette mysterieuse apparition en ﬁn de phrase du segment “of gold” (en francais “en
-or” ou “d’0r”)? D’abord, le systeme a pris la conjonction de coordination francaise or pour un
-substantif, qu’il a traduite par gold. Il a alors recupere la preposition d’, laissee pour compte
-dans le bi—segment (une decennie, a decade), et s’est servie de sa traduction la plus frequente
-(of) pour introduire ce nouveau substantif.
-
-De telles erreurs sont assez typiques du comportement de notre systeme dans son etat actuel.
-Deux facteurs en sont Vraisemblablement a l’origine. D’abord, nous n’admettons pas dans
-notre modele la possibilite de bi—segments dont l’une ou l’autre partie serait Vide, qui permet-
-traient, par exemple, de rendre compte de la “disparition” de la preposition d’ dans le passage
-a l’anglais. Mais la methode d’alignement utilisee pour constituer les banques de bi—segments
-est egalement en cause ici. En pratique, on constate que les mots—outils qui ne sont pas ex-
-plicitement traduits sont souvent mal alignes, entrainant la presence de bi—segments “fausse—
-ment discontinus” dans la banque, par exemple (devons essayer, need <> try) dans laquelle la
-preposition anglaise to est escamotee, ou encore (soins <> sante, health care), dans laquelle c’est
-le de francais qui a disparu. De tels bi—segments, combines a une absence de traitement des
-insertions et suppressions, entrainent forcement des erreurs de traduction.
-
+Figure 4: Exemple de traduction avec des bi-segments discontinus
+fois avec certains des phénomènes que nous souhaitions voir ainsi traités, mais pas toujours. Et
+si l’apport des bi-segments discontinus est globalement positif, il reste que ceux-ci introduisent
+également des problèmes. La figure 4, qui montre un exemple de traduction provenant du corpus
+de test, tel qu’effectué avec la banque B2, illustre assez bien la situation. D’une part, on voit
+comment les bi-segments discontinus permettent de traiter le cas de la négation en français :
+La combinaison de deux bi-segments 〈Le ministère  a, the department has〉 et 〈n’  rien
+fait, done nothing〉 permet d’arriver à une traduction assez judicieuse. Par ailleurs, comment
+expliquer cette mystérieuse apparition en fin de phrase du segment “of gold” (en français “en
+or” ou “d’or”)? D’abord, le système a pris la conjonction de coordination française or pour un
+substantif, qu’il a traduite par gold. Il a alors récupéré la préposition d’, laissée pour compte
+dans le bi-segment 〈une décennie, a decade〉, et s’est servie de sa traduction la plus fréquente
+(of ) pour introduire ce nouveau substantif.
+De telles erreurs sont assez typiques du comportement de notre système dans son état actuel.
+Deux facteurs en sont vraisemblablement à l’origine. D’abord, nous n’admettons pas dans
+notre modèle la possibilité de bi-segments dont l’une ou l’autre partie serait vide, qui permet-
+traient, par exemple, de rendre compte de la “disparition” de la préposition d’ dans le passage
+à l’anglais. Mais la méthode d’alignement utilisée pour constituer les banques de bi-segments
+est également en cause ici. En pratique, on constate que les mots-outils qui ne sont pas ex-
+plicitement traduits sont souvent mal alignés, entraînant la présence de bi-segments “fausse-
+ment discontinus” dans la banque, par exemple 〈devons essayer, need  try〉 dans laquelle la
+préposition anglaise to est escamotée, ou encore 〈soins  santé, health care〉, dans laquelle c’est
+le de français qui a disparu. De tels bi-segments, combinés à une absence de traitement des
+insertions et suppressions, entraînent forcément des erreurs de traduction.
 6 Conclusions
-
-Nous avons présente une approche de la traduction automatique statistique par segments de
-texte discontinus. Une premiere implantation de cette approche nous a perrnis de Valider le bien-
-fonde de notre hypothese de depart, suivant laquelle ces segments discontinus permettraient de
-mieux representer certains phénomenes linguistiques, et ainsi de faire meilleur usage des donnes
-d’ apprentissage.
-
-Dans l’implantation actuelle de notre systeme, le temps requis pour le decodage est encore
-souvent prohibitif, ce qui ralentit notamment le cycle d’apprentissage des parametres. Ceci est
-d’autant plus critique que certaines experiences semblent indiquer que la qualite des traductions
-produites par notre systeme aurait beaucoup a gagner d’un Volume plus important de donnees
-d’entrainement. Nous examinons presentement différentes strategies d’optimisation du proces-
-sus de decodage. Mais le nombre de bi—segments disponibles au moment de la traduction d’une
-
-241
-
-242
-
+Nous avons présenté une approche de la traduction automatique statistique par segments de
+texte discontinus. Une première implantation de cette approche nous a permis de valider le bien-
+fondé de notre hypothèse de départ, suivant laquelle ces segments discontinus permettraient de
+mieux représenter certains phénomènes linguistiques, et ainsi de faire meilleur usage des donnés
+d’apprentissage.
+Dans l’implantation actuelle de notre système, le temps requis pour le décodage est encore
+souvent prohibitif, ce qui ralentit notamment le cycle d’apprentissage des paramètres. Ceci est
+d’autant plus critique que certaines expériences semblent indiquer que la qualité des traductions
+produites par notre système aurait beaucoup à gagner d’un volume plus important de données
+d’entraînement. Nous examinons présentement différentes stratégies d’optimisation du proces-
+sus de décodage. Mais le nombre de bi-segments disponibles au moment de la traduction d’une
 M. Simard et al.
-
-phrase demeure un facteur dominant de complexite. Le role relativement mineur que jouent
-ﬁnalement les bi—segments discontinus dans les traductions optimales suggere qu’on pourrait
-effectuer une selection plus judicieuse des bi—segments des l’etape de construction des banques.
-Une hypothese qui nous apparait prometteuse est celle suivant laquelle les bi—segments qui sont
-reellement utiles sont ceux qui representent des traductions de nature non—compositionnelles.
-La construction des banques pourrait donc incorporer une mesure de compositionnalite, par ex-
-emple une variante de l’information mutuelle (Lin1999). Par ailleurs, les bi—segments de nos
-banques sont relativement petits (en moyenne, moins de 4 mots), lorsqu’on les compare a ceux
-utilises dans des systemes comparables (par exemple, jusqu’a 7 mots dans (Och and Ney2004)).
-Nous envisageons d’incorporer des segments discontinus beaucoup plus grands qui, plutot que
-d’étre calcules a priori, proviendraient d’une recherche directe dans le corpus d’entrainement.
-De tels segments, comparables a des reperages approximatifs (“fuzzy matches”) dans une me-
-moire de traduction, joueraient alors le role de “phrases a trous” dans le processus de decodage.
-
+phrase demeure un facteur dominant de complexité. Le rôle relativement mineur que jouent
+finalement les bi-segments discontinus dans les traductions optimales suggère qu’on pourrait
+effectuer une sélection plus judicieuse des bi-segments dès l’étape de construction des banques.
+Une hypothèse qui nous apparaît prometteuse est celle suivant laquelle les bi-segments qui sont
+réellement utiles sont ceux qui représentent des traductions de nature non-compositionnelles.
+La construction des banques pourrait donc incorporer une mesure de compositionnalité, par ex-
+emple une variante de l’information mutuelle (Lin1999). Par ailleurs, les bi-segments de nos
+banques sont relativement petits (en moyenne, moins de 4 mots), lorsqu’on les compare à ceux
+utilisés dans des systèmes comparables (par exemple, jusqu’à 7 mots dans (Och and Ney2004)).
+Nous envisageons d’incorporer des segments discontinus beaucoup plus grands qui, plutôt que
+d’être calculés a priori, proviendraient d’une recherche directe dans le corpus d’entraînement.
+De tels segments, comparables à des repérages approximatifs (“fuzzy matches”) dans une mé-
+moire de traduction, joueraient alors le rôle de “phrases à trous” dans le processus de décodage.
 Références
-
 Peter F. Brown, Stephen A. Della Pietra, Vincent J. Della Pietra, and Robert L. Mercer. 1993. The
 Mathematics of Statistical Machine Translation: Parameter Estimation. Computational Linguistics,
-19(2):263-311.
-
-George Doddington. 2002. Automatic Evaluation of Machine Translation Quality Using N—gram Co-
+19(2):263–311.
+George Doddington. 2002. Automatic Evaluation of Machine Translation Quality Using N-gram Co-
 Occurrence Statistics. In Proceedings of the ARPA Workshop on Human Language Technology.
-
-U. Gerrnann, M. Jahr, K. Knight, D. Marcu, and K. Yamada. 2001. Fast Decoding and Optimal Decoding
-for Machine Translation. In Proceedings of ACL’01 , Toulouse, France.
-
+U. Germann, M. Jahr, K. Knight, D. Marcu, and K. Yamada. 2001. Fast Decoding and Optimal Decoding
+for Machine Translation. In Proceedings of ACL’01, Toulouse, France.
 Cyril Goutte, Kenji Yamada, and Eric Gaussier. 2004. Aligning Words Using Matrix Factorisation. In
-Proceedings of ACL’04, pages 503-510.
-
+Proceedings of ACL’04, pages 503–510.
 Philipp Koehn. 2003. Noun Phrase Translation. Ph.D. thesis, University of Southern California.
-
-Dekang Lin. 1999. Automatic Identiﬁcation of Non—compositional Phrases. In Proceedings of ACL’99,
-pages 317-324, College Park, USA, June.
-
-Daniel Marcu and William Wong. 2002. A Phrase—based, Joint Probability Model for Statistical Machine
+Dekang Lin. 1999. Automatic Identification of Non-compositional Phrases. In Proceedings of ACL’99,
+pages 317–324, College Park, USA, June.
+Daniel Marcu and William Wong. 2002. A Phrase-based, Joint Probability Model for Statistical Machine
 Translation. In Proceedings of EMNLP’02, Philadelphia, USA.
-
 F. J. Och and H. Ney. 2000. Improved Statistical Alignment Models. In Proceedings of ACL’00, pages
-440-447, Hongkong, China, October.
-
+440–447, Hongkong, China, October.
 Franz Josef Och and Hermann Ney. 2004. The Alignment Template Approach to Statistical Machine
-Translation. Computational Linguistics, 30(4):417-449.
-
+Translation. Computational Linguistics, 30(4):417–449.
 Franz Josef Och, Christoph Tillmann, and Hermann Ney. 1999. Improved Alignment Models for Statis-
 tical Machine Translation. In Proceedings of EMNLP/VLC’99, College Park, USA.
-
 Franz Och. 2003. Minimum Error Rate Training in Statistical Machine Translation. In Proceedings of
 ACL’03.
-
-Kishore Papineni, Salim Roukos, Todd Ward, and Wei—Jing Zhu. 2002. Bleu: a Method for Automatic
-Evalution of Machine Translation. In Proceedings of ACL’02, pages 311-318, Philadelphia, USA.
-
-Christoph Tillmann and Fei Xia. 2003. A Phrase—Based Unigram Model for Statistical Machine Trans-
-lation. In Proceedings of HLT—NAACL 2003, Edmonton, Canada.
-
-Richard Zens and Hermann Ney. 2003. Improvements in Phrase—Based Statistical Machine Translation.
-In Proceedings of HLT—NAACL 2003, Edmonton, Canada.
-
+Kishore Papineni, Salim Roukos, Todd Ward, and Wei-Jing Zhu. 2002. Bleu: a Method for Automatic
+Evalution of Machine Translation. In Proceedings of ACL’02, pages 311–318, Philadelphia, USA.
+Christoph Tillmann and Fei Xia. 2003. A Phrase-Based Unigram Model for Statistical Machine Trans-
+lation. In Proceedings of HLT-NAACL 2003, Edmonton, Canada.
+Richard Zens and Hermann Ney. 2003. Improvements in Phrase-Based Statistical Machine Translation.
+In Proceedings of HLT-NAACL 2003, Edmonton, Canada.

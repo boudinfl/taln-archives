@@ -1,0 +1,595 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>SemTAG, une architecture pour le d&#233;veloppement et l&#8217;utilisation de grammaires d&#8217;arbres adjoints &#224; port&#233;e s&#233;mantique</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2007, Toulouse, 5&#8211;8 juin 2007
+</p>
+<p>SemTAG, une architecture pour le d&#233;veloppement
+et l&#8217;utilisation de grammaires d&#8217;arbres adjoints
+</p>
+<p>&#224; port&#233;e s&#233;mantique
+</p>
+<p>Claire GARDENT1, Yannick PARMENTIER2
+1 CNRS / LORIA, Campus scientifique &#8211; BP 259
+</p>
+<p>F-54 506 Vand&#339;uvre-L&#232;s-Nancy CEDEX
+2 INRIA / LORIA &#8211; Nancy Universit&#233;, Campus scientifique, BP 259
+</p>
+<p>F-54 506 Vand&#339;uvre-L&#232;s-Nancy CEDEX
+{gardent,parmenti}@loria.fr
+</p>
+<p>R&#233;sum&#233;. Dans cet article, nous pr&#233;sentons une architecture logicielle libre et ouverte pour
+le d&#233;veloppement de grammaires d&#8217;arbres adjoints &#224; port&#233;e s&#233;mantique. Cette architecture uti-
+lise un compilateur de m&#233;tagrammaires afin de faciliter l&#8217;extension et la maintenance de la
+grammaire, et int&#232;gre un module de construction s&#233;mantique permettant de v&#233;rifier la couver-
+ture aussi bien syntaxique que s&#233;mantique de la grammaire. Ce module utilise un analyseur
+syntaxique tabulaire g&#233;n&#233;r&#233; automatiquement &#224; partir de la grammaire par le syst&#232;me DyALog.
+Nous pr&#233;sentons &#233;galement les r&#233;sultats de l&#8217;&#233;valuation d&#8217;une grammaire du fran&#231;ais d&#233;velop-
+p&#233;e au moyen de cette architecture.
+Abstract. In this paper, we introduce a free and open software architecture for the deve-
+lopment of Tree Adjoining Grammars equipped with semantic information. This architecture
+uses a metagrammar compiler to facilitate the grammar extension and maintnance, and includes
+a semantic construction module allowing to check both the syntactic and semantic coverage
+of the grammar. This module uses a tabular syntactic parser generated automatically from this
+grammar using the DyALog system. We also give the results of the evaluation of a real-size
+TAG for French developed using this architecture.
+Mots-cl&#233;s : analyseur syntaxique, grammaires d&#8217;arbres adjoints, construction s&#233;man-
+tique, architecture logicielle.
+</p>
+<p>Keywords: syntactic parser, tree adjoining grammars, semantic construction, software
+architecture.
+</p>
+<p>1 Introduction
+Un objectif central du traitement automatique des langues est de construire une repr&#233;senta-
+tion du sens des textes afin de pouvoir raisonner sur leur contenu. Suivant la granularit&#233; de
+sens d&#233;sir&#233;e, plusieurs approches sont possibles. Typiquement, la recherche d&#8217;information s&#8217;ap-
+puie sur une repr&#233;sentation &#171; &#224; gros grain &#187; o&#249; le sens d&#8217;un texte est un &#171; sac de mots &#187; (cf.
+</p>
+<p>175</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Claire GARDENT, Yannick PARMENTIER
+</p>
+<p>1a) ; l&#8217;extraction d&#8217;information demande une repr&#233;sentation plus fine o&#249; en particulier les rela-
+tions s&#233;mantiques entre (sens de) constituants doivent &#234;tre sp&#233;cifi&#233;es (cf. 1b) ; et les syst&#232;mes
+de dialogue, syst&#232;mes questions-r&#233;ponses ou syst&#232;mes de d&#233;tection d&#8217;implications textuelles,
+s&#8217;appuient souvent sur une repr&#233;sentation dite &#171; profonde &#187; o&#249; des ph&#233;nom&#232;nes tels que la
+quantification et les modalit&#233;s pourront &#234;tre pris en compte (cf. 1c).
+</p>
+<p>(1) L&#8217;homme regarde souvent la maison
+a. { homme, regarde, maison }
+b. homme(h), regarde(h,m), maison(m)
+c. &#8707;x&#8707;y&#8707;e.homme(x) &#8743; souvent(e) &#8743; regarde(e,h,m) &#8743; maison(m)
+</p>
+<p>Pour construire le troisi&#232;me type de repr&#233;sentation c.-&#224;-d., une repr&#233;sentation profonde, une ap-
+proche commun&#233;ment adopt&#233;e est de suivre Montague (Montague, 1974) et de d&#233;velopper des
+grammaires et des lexiques permettant une s&#233;mantique compositionnelle c&#8217;est-&#224;-dire, une s&#233;-
+mantique o&#249; le sens d&#8217;un constituant est une fonction de la syntaxe de ce constituant et du sens
+de ses sous-constituants. Ainsi, les grammaires syntagmatiques guid&#233;es par les t&#234;tes (HPSG,
+(Copestake et al., 2005)) int&#232;grent une s&#233;mantique bas&#233;e sur les structures &#224; recursion mini-
+male (MRS), les grammaires lexicales fonctionnelles (LFG, (Frank &amp; Van Genabith, 2001))
+couplent la construction syntaxique avec une construction s&#233;mantique bas&#233;e sur la s&#233;mantique
+&#171; colle &#187; (glue semantics) et les grammaires cat&#233;gorielles combinatoires (CCG, (Bos et al.,
+2004)) utilisent l&#8217;isomorphisme de Curry-Howard pour associer de fa&#231;on syst&#233;matique, consti-
+tuants syntaxiques et termes lambda. Pour chacune de ces grammaires, une implantation existe
+qui d&#233;montre la faisabilit&#233; de l&#8217;approche th&#233;orique sous-jacente et en permet l&#8217;utilisation pra-
+tique dans des syst&#232;mes de TAL.
+Une exception notoire concerne la construction s&#233;mantique dans les grammaires d&#8217;arbres ad-
+joints (Joshi et al., 1975). Pour ces grammaires en effet, des propositions th&#233;oriques existent
+mais aucune implantation. Dans cet article, nous reprenons la proposition th&#233;orique avanc&#233;e
+par (Gardent &amp; Kallmeyer, 2003) et d&#233;crivons sa mise en oeuvre dans un syst&#232;me implant&#233;.
+Nous pr&#233;sentons les diff&#233;rentes composantes du syst&#232;me (grammaire, compilateur de gram-
+maire, module de construction s&#233;mantique) et donnons les r&#233;sultats d&#8217;une premi&#232;re &#233;valuation
+sur une grammaire noyau du fran&#231;ais. Utilis&#233; pour d&#233;velopper une grammaire d&#8217;arbres adjoints
+&#224; dimension s&#233;mantique pour le fran&#231;ais, ce syst&#232;me est &#224; notre connaissance, le premier sys-
+t&#232;me logiciel libre permettant la construction de repr&#233;sentations s&#233;mantiques profondes pour le
+fran&#231;ais. En effet, il existe une grammaire HPSG pour le fran&#231;ais (Tseng, 2003) mais sa couver-
+ture est limit&#233;e. Une grammaire LFG existe &#233;galement mais &#233;tant d&#233;velopp&#233;e par Xerox, elle
+n&#8217;est pas disponible pour la recherche. Par contraste, SEMTAG est un logiciel libre et ouvert.
+Le logiciel de d&#233;veloppement est disponible &#224; l &#8217;url http://trac.loria.fr/~semtag
+avec une grammaire jouet. La grammaire est accessible sur demande et sera rendue disponible
+prochainement.
+L&#8217;article est structur&#233; de la fa&#231;on suivante. Nous commen&#231;ons (section 2) par pr&#233;senter le mo-
+d&#232;le linguistique utilis&#233; c.-&#224;-d., les grammaires d&#8217;arbres adjoints, la s&#233;mantique plate &#224; trous et
+l&#8217;interface syntaxe/s&#233;mantique. Nous pr&#233;sentons ensuite bri&#232;vement (section 3) la grammaire
+du fran&#231;ais utilis&#233;e et donnons quelques chiffres sur sa couverture actuelle. Dans la section 4,
+nous pr&#233;sentons le module de construction s&#233;mantique. Enfin, la section 5 donne les r&#233;sultats
+d&#8217;une premi&#232;re &#233;valuation du syst&#232;me en termes de couverture et d&#8217;ambigu&#239;t&#233; syntaxique et
+s&#233;mantique.
+</p>
+<p>176</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Une architecture pour le d&#233;veloppement de grammaires TAG
+</p>
+<p>2 Mod&#232;le linguistique
+Le mod&#232;le linguistique inclut une grammaire d&#8217;arbres adjoints, un langage de repr&#233;sentation
+s&#233;mantique et une mod&#233;lisation de l&#8217;interface syntaxe/s&#233;mantique. Les restrictions d&#8217;espace
+nous emp&#234;chant de d&#233;crire chacune de ces composantes en d&#233;tail, nous renvoyons le lecteur
+aux publications sources pour plus de d&#233;tails.
+</p>
+<p>Formalisme syntaxique : les grammaires d&#8217;arbres adjoints (TAG) Les grammaires
+d&#8217;arbres adjoints (Tree Adjoining Grammars, TAG) (Joshi et al., 1975) appartiennent &#224; la fa-
+mille des grammaires l&#233;g&#232;rement sensibles au contexte. Une TAG est un syst&#232;me de r&#233;&#233;criture
+d&#8217;arbres compos&#233; de deux ensembles d&#8217;arbres (arbres initiaux et arbres auxiliaires) et de deux
+op&#233;rations de r&#233;&#233;criture (substitution et adjonction).
+Un arbre initial est un arbre dont les noeuds feuilles sont soit &#233;tiquet&#233;s par des mots, soit des
+noeuds de substitution (marqu&#233;s &#8595;) c.-&#224;-d., des noeuds o&#249; une substitution doit prendre place.
+Un arbre auxiliaire est un arbre contenant un noeud pied (marqu&#233; !) &#8211; ce noeud pied doit &#234;tre
+&#233;tiquet&#233; avec la m&#234;me cat&#233;gorie que le noeud racine.
+Dans la version de TAG que nous utilisons, &#224; savoir les grammaires d&#8217;arbres adjoints lexicalis&#233;es
+&#224; structures de traits (FLTAG, (Vijay-Shanker &amp; Joshi, 1988)), les arbres &#233;l&#233;mentaires sont
+lexicalis&#233;s, c&#8217;est-&#224;-dire que pour chaque arbre, au moins un terminal est un lemme ou une forme
+fl&#233;chie. En outre, les noeuds des arbres sont &#233;tiquet&#233;s par deux structures de traits appel&#233;es TOP
+et BOTTOM. En fin de d&#233;rivation, les traits TOP et BOTTOM de chaque noeud sont unifi&#233;s.
+L&#8217;op&#233;ration de substitution permet d&#8217;ins&#233;rer un arbre &#233;l&#233;mentaire ou d&#233;riv&#233; &#964;&#948; &#224; la fronti&#232;re d&#8217;un
+arbre initial &#964;&#945; : le noeud racine de &#964;&#948; est alors identifi&#233; avec un noeud de substitution dans &#964;&#945;
+et les traits TOP des n&#339;uds en question sont unifi&#233;s (Top&#964;&#945; = Top&#964;&#948; ). L&#8217;op&#233;ration d&#8217;adjonction
+permet d&#8217;ins&#233;rer un arbre auxiliaire &#964;&#946; dans un arbre quelconque &#964;&#945; &#224; un noeud n : les traits
+TOPn et BOTTOMn du noeud n o&#249; se fait l&#8217;adjonction sont alors unifi&#233;s respectivement avec les
+traits TOP du noeud racine de l&#8217;arbre auxiliaire et les traits BOTTOM de son noeud pied (Topn
+= TopRoot&#964;&#946; et Bottomn = BottomFoot&#964;&#946; ).
+</p>
+<p>Formalisme s&#233;mantique : la s&#233;mantique plate &#224; trous (Hole Semantics) Comme la MRS
+mentionn&#233;e en section 1, le formalisme des s&#233;mantiques plates &#224; trous (Bos, 1995) se caract&#233;rise
+par deux points importants. Premi&#232;rement, le formalisme permet de sous-sp&#233;cifier les ambigu&#239;-
+t&#233;s de port&#233;e &#8211; ainsi les interpr&#233;tations multiples dues &#224; ces ambigu&#239;t&#233;s peuvent &#234;tre repr&#233;sent&#233;es
+de fa&#231;on compacte. Deuxi&#232;mement, (Copestake et al., 2005) ont montr&#233; que la structure non r&#233;-
+cursive des formules plates facilite la r&#233;alisation s&#233;mantique c.-&#224;-d., la proc&#233;dure qui permet
+de produire, &#224; partir d&#8217;une repr&#233;sentation s&#233;mantique donn&#233;e, l&#8217;ensemble des phrases associ&#233;es
+par la grammaire &#224; cette s&#233;mantique. C&#8217;est l&#224; un point important puisque de fait, la grammaire
+pr&#233;sent&#233;e ici est &#233;galement utilis&#233;e pour la r&#233;alisation.
+Tr&#232;s bri&#232;vement (cf. (Gardent &amp; Kallmeyer, 2003) pour plus de d&#233;tails), le langage de repr&#233;-
+sentation s&#233;mantique LU utilis&#233; est une reformulation de la logique PLU (Bos, 1995) qui inclut
+des variables d&#8217;unification. Soit Ivar un ensemble de variables d&#8217;unification et Icon un ensemble
+de constantes. Soit H un ensemble de constantes &#171; trous &#187;, Lcon, un ensemble de constantes
+&#171; &#233;tiquettes &#187; et Lvar un ensemble de variables d&#8217;&#233;tiquettes ; soit R un ensemble de relations
+n-aires sur Ivar &#8746; Icon&#8746;H ; et soit&#8805; une relation surH &#8746;Lcon nomm&#233;e &#171; a-port&#233;e-sur &#187;. Alors,
+</p>
+<p>177</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Claire GARDENT, Yannick PARMENTIER
+</p>
+<p>la syntaxe de LU est la suivante :
+Etant donn&#233;s l &#8712; Lvar &#8746; Lcon, h &#8712; H , i1, . . . , in &#8712; Ivar &#8746; Icon &#8746;H et Rn &#8712; R. Alors :
+</p>
+<p>1. l : Rn(i1, . . . , in) est une formule de LU
+2. h &#8805; l est une formule de LU
+3. &#966;,&#968; est une formule de LU si &#968; est une formule de LU et &#966; est une formule de LU
+4. Rien d&#8217;autre n&#8217;est une formule de LU
+</p>
+<p>En d&#8217;autres termes : les formules de LU sont soit des pr&#233;dications &#233;l&#233;mentaires, soit des
+contraintes de port&#233;e, soit des conjonctions de formules. S&#233;mantiquement, ces formules d&#233;-
+crivent (ont pour mod&#232;le) des formules de la logique du premier ordre.
+Par exemple, la repr&#233;sentation s&#233;mantique de la phrase &#171; Tout yogi a un guru &#187; est :
+(2) l0 : &#8704;(x, h1, h2), h1 &#8805; l1, l1 : Y o(x), h2 &#8805; l2, l2 : A(x, y), l3 : &#8707;(y, h3, h4), h3 &#8805; l4, l4 :
+</p>
+<p>Gu(y), h4 &#8805; l2
+</p>
+<p>Cette formule a deux mod&#232;les refl&#233;tant les deux interpr&#233;tations possibles de la phrase d&#8217;entr&#233;e :
+soit un m&#234;me guru existe pour tous les yogis, soit plusieurs.
+(3) l0 : &#8704;(x, l1, l3), l1 : Y o(x), l3 : &#8707;(x, l4, l2), l4 : Gu(y), l2 : A(x, y)
+</p>
+<p>l3 : &#8707;(x, l4, l0), l4 : Gu(y), l0 : &#8704;(x, l1, l2), l1 : Y o(x), l2 : A(x, y)
+</p>
+<p>Interface syntaxe / s&#233;mantique. L&#8217;interface entre grammaire et s&#233;mantique sp&#233;cifie la cor-
+respondance entre constituants syntaxiques et constituants s&#233;mantiques. Cette sp&#233;cification se
+fait conform&#233;ment &#224; la proposition de (Gardent &amp; Kallmeyer, 2003). Chaque arbre &#233;l&#233;mentaire
+de la grammaire TAG est associ&#233; &#224; une formule s&#233;mantique plate o&#249; des variables d&#8217;unifica-
+tion sont utilis&#233;es pour repr&#233;senter les arguments s&#233;mantiques. Ces variables d&#8217;unification sont
+partag&#233;es avec des variables apparaissant dans les structures de traits &#233;tiquetant les n&#339;uds de
+l&#8217;arbre. Lors de la d&#233;rivation TAG, les structures de traits des arbres &#233;l&#233;mentaires sont unifi&#233;es
+(cf. supra), ce qui indirectement, entra&#238;ne l&#8217;unification des arguments s&#233;mantiques. La compo-
+sition s&#233;mantique est ainsi prise en charge par l&#8217;op&#233;ration d&#8217;unification inh&#233;rente au formalisme
+TAG. A l&#8217;issue de la d&#233;rivation, la repr&#233;sentation s&#233;mantique de l&#8217;arbre d&#233;riv&#233; est obtenue en
+prenant la conjonction des formules &#233;l&#233;mentaires modulo les unifications ayant eu lieu.
+</p>
+<p>P[lab:l1]
+</p>
+<p>GN[idx:j] GN[idx:x,lab:l1] V[lab:l1] GN[idx:y,lab:l1] V[lab:l2] GN[idx:m]
+</p>
+<p>Jean aime V[lab:ls]# Adv Marie
+</p>
+<p>vraiment
+</p>
+<p>l0 : jean(j) l1 : aimer(x, y) l2 : vraiment(h0), l3 : marie(m)
+ls &#8804; h0
+</p>
+<p>FIG. 1 &#8211; D&#233;rivation TAG pour &#171; Jean aime vraiment Marie &#187;
+178</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Une architecture pour le d&#233;veloppement de grammaires TAG
+</p>
+<p>Par exemple, pour la phrase &#171; Jean aime vraiment Marie &#187;, la d&#233;rivation TAG correspondante
+est donn&#233;e dans la figure 11. Lors de la substitution de l&#8217;arbre associ&#233; &#224; Jean (&#964;Jean) sur l&#8217;arbre
+associ&#233; au pr&#233;dicat aimer (&#964;aimer), le n&#339;ud racine de &#964;Jean est unifi&#233; avec le n&#339;ud GN de &#964;aimer
+repr&#233;sentant la fonction grammaticale sujet. Le n&#339;ud GN de l&#8217;arbre r&#233;sultant contient alors une
+structure Top avec un trait idx de valeur x et une structure Bottom avec le m&#234;me trait idx ayant
+la valeur j. A l&#8217;issue de la d&#233;rivation, les structures Top et Bottom &#233;tant unifi&#233;es, la variable x
+est li&#233;e &#224; la constante j. De fa&#231;on similaire, la variable y est li&#233;e &#224; la constante m lors de la
+substitution de l&#8217;arbre &#964;Marie sur &#964;aimer. Enfin, l&#8217;adjonction de l&#8217;adverbe vraiment sur le n&#339;ud
+de cat&#233;gorie V de &#964;aimer entra&#238;ne l&#8217;unification de la structure Bottom du n&#339;ud pied de &#964;vraiment
+avec la structure Bottom du n&#339;ud d&#8217;&#233;tiquette V en question, ce qui provoque l&#8217;unification de
+la variable ls avec la constante l1. Ainsi, apr&#232;s d&#233;rivation et unifications correspondantes, la
+conjonction des formules s&#233;mantiques &#233;l&#233;mentaires nous donne le r&#233;sultat escompt&#233;, &#224; savoir la
+repr&#233;sentation s&#233;mantique sous-sp&#233;cifi&#233;e suivante :
+</p>
+<p>l0 : jean(j), l1 : aime(j,m), l2 : vraiment(h0), l1 &#8804; h0, l3 : marie(m)
+</p>
+<p>3 Grammaire informatique
+La grammaire SEMFRAG est une implantation du mod&#232;le linguistique pr&#233;sent&#233; ci-dessus. Sp&#233;-
+cifi&#233;e &#224; l&#8217;aide du formalisme XMG (Duchier et al., 2005), cette grammaire est produite par com-
+pilation &#224; partir d&#8217;une sp&#233;cification linguistique relativement abstraite et fortement factoris&#233;e.
+La composante syntaxique de la grammaire a &#233;t&#233; d&#233;crite dans (Crabb&#233;, 2005) et la composante
+s&#233;mantique par (Gardent, 2006). Bri&#232;vement, l&#8217;int&#233;gration de l&#8217;information s&#233;mantique dans
+une grammaire TAG est facilit&#233;e par deux points.
+Premi&#232;rement, la d&#233;coration des arbres &#233;l&#233;mentaires avec les variables n&#233;cessaires &#224; un traite-
+ment &#224; grande &#233;chelle de la s&#233;mantique ob&#233;it &#224; un ensemble de principes limit&#233;s en nombre et
+relativement rapides &#224; implanter dans le formalisme XMG gr&#226;ce au haut degr&#233; de factorisation
+permis par ce formalisme. Ces principes sont explicit&#233;s dans (Gardent, 2007).
+Deuxi&#232;mement, l&#8217;expressivit&#233; de XMG facilite la sp&#233;cification de l&#8217;interface syntaxe/s&#233;mantique
+et plus sp&#233;cifiquement, du partage des variables d&#8217;unification entre formules s&#233;mantiques et
+arbres &#233;l&#233;mentaires. En effet, XMG permet de g&#233;rer de mani&#232;re flexible la port&#233;e des variables
+d&#8217;unification manipul&#233;es au sein des classes sp&#233;cifi&#233;es par le linguiste. En particulier, ces classes
+peuvent &#234;tre associ&#233;es &#224; des matrices de traits appel&#233;es interfaces qui sont unifi&#233;es lorsque deux
+fragments sont combin&#233;s conjonctivement ou par h&#233;ritage. Indirectement, cela permet d&#8217;uni-
+fier des variables introduites dans diff&#233;rentes classes et en particulier, des variables introduites
+dans des classes syntaxiques (fragments d&#8217;arbres) d&#8217;une part et dans des classes s&#233;mantiques
+(formules de s&#233;mantique plate) d&#8217;autre part. Cette fonctionnalit&#233; du formalisme nous permet
+d&#8217;encoder de mani&#232;re relativement ais&#233;e l&#8217;interface syntaxe / s&#233;mantique au niveau m&#233;tagram-
+matical, en utilisant la m&#233;thodologie suivante :
+&#8211; chaque fragment d&#8217;arbre contenant un n&#339;ud li&#233; &#224; une fonction grammaticale repr&#233;sentant un
+</p>
+<p>argument s&#233;mantique, se voit associ&#233; un trait idx dont la valeur correspond &#224; une variable
+partag&#233;e avec un trait de l&#8217;interface, nomm&#233; FGidx (o&#249; FG correspond &#224; la fonction gram-
+maticale en question),
+1Les structures top sont not&#233;es en exposants et les structures bot en indices. Seuls les traits s&#233;mantiques perti-
+</p>
+<p>nents pour l&#8217;exemple sont indiqu&#233;s.
+179</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Claire GARDENT, Yannick PARMENTIER
+</p>
+<p>&#8211; chaque foncteur s&#233;mantique est associ&#233; avec une formule s&#233;mantique o&#249; les arguments sont
+des variables partag&#233;es avec des traits de l&#8217;interface. Ces traits sont nomm&#233;s en fonction du
+r&#244;le th&#233;matique de l&#8217;argument (p. ex. arg0 . . . ),
+</p>
+<p>&#8211; enfin, dans la r&#232;gle de combinaison de ces fragments (munie &#233;galement d&#8217;une interface), on
+ajoute dans l&#8217;interface une coindexation entre FGidx et l&#8217;argument s&#233;mantique correspondant
+(ce qui nous permet &#233;galement de g&#233;rer le cas du passif).
+</p>
+<p>Ce proc&#233;d&#233; est illustr&#233; figure 2, en prenant l&#8217;exemple d&#8217;un verbe intransitif2.
+</p>
+<p>Intransitif : Subjet : Actif : Relation 1-aire :
+S
+</p>
+<p>N&#8595;[idx=X] VP
+l0 :Rel(X)
+</p>
+<p>arg0=X
+sujIdx=X
+</p>
+<p>=
+S
+</p>
+<p>N&#8595;[idx=I] VP
+</p>
+<p>sujIdx=I
+</p>
+<p>&#8743;
+S
+</p>
+<p>VP &#8743;
+l0 :Rel(I1)
+</p>
+<p>arg0=I1
+</p>
+<p>(R&#233;sultat) (Fonction grammaticale) (Morph. verbale) (S&#233;mantique)
+FIG. 2 &#8211; Interface syntaxe / s&#233;mantique au niveau m&#233;tagrammatical.
+</p>
+<p>Comme dans le syst&#232;me XTAG, la grammaire SEMFRAG se d&#233;compose en 3 sous-modules :
+un module contenant des d&#8217;arbres non lexicalis&#233;s group&#233;s en familles3 ; un lexique de lemmes
+associant &#224; chaque lemme un pr&#233;dicat s&#233;mantique et une ou plusieurs familles d&#8217;arbres ; et
+un lexique de formes fl&#233;chies associant &#224; chaque forme fl&#233;chie, un lemme et l&#8217;information
+morpho-syntaxique appropri&#233;e. Lors de l&#8217;analyse, ces trois modules sont consult&#233;s pour as-
+socier &#224; chaque mot m de la phrase analys&#233;e un arbre lexicalis&#233; (c.-&#224;-d., ancr&#233; avec m) dont la
+s&#233;mantique inclut le pr&#233;dicat sp&#233;cifi&#233; pourm par le lexique de lemme.
+</p>
+<p>4 Construction s&#233;mantique
+La grammaire SEMFRAG d&#233;crit l&#8217;association entre constituants syntaxiques et repr&#233;sentations
+s&#233;mantiques. Comme le montrent (Gardent &amp; Parmentier, 2005), pour calculer cette association
+(c.-&#224;-d., pour produire la (ou les) repr&#233;sentations s&#233;mantique(s) associ&#233;e(s) par la grammaire &#224;
+une expression langagi&#232;re), deux options sont possibles : soit la construction s&#233;mantique est
+int&#233;gr&#233;e dans l&#8217;analyse syntaxique (la construction s&#233;mantique se fait pendant la d&#233;rivation),
+soit elle se fait apr&#232;s la d&#233;rivation sur la base de cette d&#233;rivation et d&#8217;un lexique s&#233;mantique
+produit &#224; partir de la grammaire et d&#8217;un lexique.
+SEMTAG implante la deuxi&#232;me option, ce qui permet &#224; la fois de rester dans le formalisme TAG
+(cf (Kallmeyer &amp; Romero, 2004)) et de garder une approche modulaire o&#249; analyse syntaxique
+</p>
+<p>2On remarque que la fonction grammaticale pourrait tr&#232;s bien correspondre &#224; une disjonction des diff&#233;rentes
+r&#233;alisations syntaxiques.
+</p>
+<p>3En TAG, une famille d&#8217;arbres regroupe tous les arbres &#233;l&#233;mentaires correspondant &#224; un cadre de sous cat&#233;go-
+risation donn&#233; p. ex., intransitive.
+</p>
+<p>180</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Une architecture pour le d&#233;veloppement de grammaires TAG
+</p>
+<p>et construction s&#233;mantique restent ind&#233;pendants l&#8217;un de l&#8217;autre4. Concr&#232;tement, le proc&#233;d&#233; de
+construction s&#233;mantique repose sur le sch&#233;ma suivant.
+</p>
+<p>Etape 1. Dans un premier temps, toute l&#8217;information s&#233;mantique incluse dans la grammaire
+est extraite et stock&#233;e dans un lexique s&#233;mantique. Ce lexique est en quelque sorte le parall&#232;le
+s&#233;mantique de la grammaire syntaxique TAG au sens o&#249; il associe &#224; chaque arbre &#233;l&#233;men-
+taire TAG un arbre s&#233;mantique correspondant. La figure 3 illustre ce proc&#233;d&#233; d&#8217;extraction pour
+l&#8217;arbre associ&#233; &#224; la forme fl&#233;chie &#171; dort &#187; (arbre pour une utilisation avec un sujet nominal ca-
+nonique). L&#8217;arbre du haut est celui produit par la compilation de SEMFRAG (suivie de la phase
+d&#8217;ancrage des sch&#233;mas d&#8217;arbres par l&#8217;information contenue dans les lexiques de lemmes et de
+formes fl&#233;chies), l&#8217;arbre en bas &#224; gauche est l&#8217;arbre purement syntaxique extrait de cet arbre et
+l&#8217;arbre en bas &#224; droite, l&#8217;arbre s&#233;mantique (entr&#233;e du lexique s&#233;mantique)5.!
+</p>
+<p>&quot;
+</p>
+<p>#
+</p>
+<p>$
+</p>
+<p>Arbre &#964;n0V _dort
+p [
+</p>
+<p>ld : dort( 3 e, 4 X)
+]
+</p>
+<p>gn&#8595;264top
+2
+64gen
+</p>
+<p>1 A
+num 2 B
+ind 4 X
+</p>
+<p>3
+75
+3
+75
+</p>
+<p>v2664top
+&quot;
+gen 1 A
+num 2 B
+</p>
+<p>#
+</p>
+<p>bot
+h
+lab 3 e
+</p>
+<p>i
+3
+775
+</p>
+<p>dort
+Arbre syntaxique
+</p>
+<p>p(0)
+</p>
+<p>gn&#8595;(1) 24top
+&quot;
+gen 1 A
+num 2 B
+</p>
+<p>#35 v(2)
+2
+4top
+</p>
+<p>&quot;
+gen 1 A
+num 2 B
+</p>
+<p>#35
+</p>
+<p>dort
+</p>
+<p>Lexique s&#233;mantique
+0
+</p>
+<p>1 &#187;top hind 2 Xi&#8211; 2 &#187;bot hlab 1 ei&#8211;
+</p>
+<p>[
+ld : dort( 1 e, 2 X)
+</p>
+<p>]
+</p>
+<p>FIG. 3 &#8211; Entr&#233;e du lexique s&#233;mantique.
+</p>
+<p>Etape 2. La deuxi&#232;me &#233;tape consiste &#224; faire une analyse syntaxique de la phrase d&#8217;entr&#233;e en
+utilisant uniquement la partie syntaxique de SEMFRAG. Cette analyse est r&#233;alis&#233;e au moyen du
+syst&#232;me DyALog (Villemonte de la Clergerie, 2005), un compilateur de programmes logiques
+avec tabulation des calculs interm&#233;diaires qui permet en particulier de compiler un analyseur
+syntaxique &#224; partir d&#8217;une grammaire TAG donn&#233;e. L&#8217;analyseur r&#233;sultant de cette compilation
+prend en entr&#233;e une cha&#238;ne pr&#233;alablement segment&#233;e, et retourne une for&#234;t de d&#233;rivation d&#233;cri-
+vant de fa&#231;on compacte l&#8217;ensemble des d&#233;rivations couvrant la cha&#238;ne d&#8217;entr&#233;e. Par exemple,
+la for&#234;t de d&#233;rivation pour la phrase ambigu&#235; &#171; Jean regarde Anne avec le t&#233;lescope &#187; est celle
+donn&#233;e en figure 4. Cette for&#234;t repr&#233;sente les deux d&#233;rivations possibles de la fa&#231;on suivante.
+Les n&#339;uds de l&#8217;arbres sont &#233;tiquet&#233;s avec les noms des arbres &#233;l&#233;mentaires mis en jeu dans la
+</p>
+<p>4Cette implantation correspond &#224; la proposition de (Kallmeyer &amp; Romero, 2004), l&#8217;avantage &#233;tant que les
+structures &#233;tiquetant les n&#339;uds ne contiennent pas de traits &#224; valeur en nombre th&#233;oriquement infini (p. ex., les
+variables de label de la s&#233;mantique plate).
+</p>
+<p>5Le lexique s&#233;mantique est donc calcul&#233; par rapport aux arbres ancr&#233;s lors de l&#8217;analyse syntaxique.
+181</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Claire GARDENT, Yannick PARMENTIER
+</p>
+<p>d&#233;rivation tandis que les arcs indiquent soit une substitution (trait plein), soit une adjonction
+(trait en pointill&#233;s). Plus pr&#233;cis&#233;ment, une fl&#232;che &#233;tiquet&#233;e avec l&#8217;information &#12296;O, n&#12297; et allant
+du n&#339;ud &#233;tiquet&#233; X vers le n&#339;ud &#233;tiquet&#233; Y, indique que l&#8217;arbre X a &#233;t&#233; combin&#233; par l&#8217;op&#233;ration
+O (O &#8712; {s, a} avec s pour substitution et a pour adjonction) avec l&#8217;arbre Y en son n&#339;ud n.
+</p>
+<p>&#964;regarde
+</p>
+<p>&#964;avec &#964;Jean &#964;Anne &#964;
+&#8242;
+</p>
+<p>Anne
+</p>
+<p>&#964;telescope &#964;
+&#8242;
+</p>
+<p>avec
+</p>
+<p>&#964;un
+</p>
+<p>&#12296;s, 3&#12297;&#12296;s, 3&#12297;&#12296;s, 1&#12297;&#12296;a, 2&#12297;
+</p>
+<p>&#12296;a, 0&#12297;&#12296;s, 2&#12297;
+</p>
+<p>&#12296;a, 0&#12297;
+</p>
+<p>FIG. 4 &#8211; For&#234;t de d&#233;rivation de la phrase &#171; Jean regarde Anne avec un t&#233;lescope &#187;.
+</p>
+<p>Etape 3. Enfin la troisi&#232;me &#233;tape consiste &#224; produire &#224; partir de la for&#234;t de d&#233;rivation produite
+par DYALOG et du lexique s&#233;mantique extrait de SEMFRAG, la repr&#233;sentation s&#233;mantique de
+la phrase d&#8217;entr&#233;e. Pour ce faire, nous avons d&#233;fini et implant&#233; en Prolog un algorithme de
+construction s&#233;mantique qui traverse la for&#234;t de d&#233;rivation dans un processus descendant, et
+r&#233;alise les unifications entre indices s&#233;mantiques comme r&#233;sum&#233; ci-dessous.
+On note Lex(x) = (&#964;x, &#966;x) l&#8217;association sp&#233;cifi&#233;e par le lexique s&#233;mantique entre un nom d&#8217;arbre
+syntaxique x, l&#8217;arbre s&#233;mantique &#964;x et la repr&#233;sentation s&#233;mantique &#966;x : Lex1(x) = &#964;x et Lex2(x)
+= &#966;x.
+Etant donn&#233;e une for&#234;t de d&#233;rivation et un lexique s&#233;mantique Lex, pour construire la (ou les)
+repr&#233;sentations s&#233;mantiques associ&#233;es, FAIRE :
+</p>
+<p>1. (Initialisation) Pour chaque racine(s) a de la for&#234;t de d&#233;rivation, extraire Lex(a) = (&#964;a, &#966;a)
+du lexique s&#233;mantique Lex. Initialiser la s&#233;mantique de a &#224; &#966;a.
+</p>
+<p>2. (Parcours descendant de la for&#234;t) Pour chaque arc de d&#233;rivation de la forme ai o,n&#8594; aj
+(o&#249; ai, aj sont des n&#339;uds repr&#233;sentant des arbres &#233;l&#233;mentaires, o l&#8217;op&#233;ration utilis&#233;e et n
+l&#8217;adresse de Gorn du noeud o&#249; a lieu l&#8217;op&#233;ration dans l&#8217;arbre d&#233;sign&#233; par aj), FAIRE :
+&#8211; ajouter &#966;aj (= Lex2(aj)) &#224; la repr&#233;sentation s&#233;mantique &#966;ai de ai
+&#8211; combiner &#964;aj (= Lex1(aj)) avec &#964;ai (= Lex1(ai)) conform&#233;ment &#224; l&#8217;op&#233;ration sp&#233;cifi&#233;e
+par o, n (les unifications correspondantes prennent place cf. section 2 instanciant par
+&#171; ric hochet &#187; les variables d&#8217;unification pr&#233;sentes dans les repr&#233;sentations s&#233;man-
+tiques).
+</p>
+<p>3. Lorsque toutes les d&#233;rivations ont &#233;t&#233; trait&#233;es, les structures Top et Bottom &#233;tiquetant
+chacun des n&#339;uds des arbres s&#233;mantiques impliqu&#233;s dans la d&#233;rivation sont unifi&#233;es.
+</p>
+<p>En r&#233;sum&#233; : l&#8217;algorithme parcourt chaque arbre de la for&#234;t de d&#233;rivation ; collecte la s&#233;mantique
+associ&#233;e par le lexique s&#233;mantique avec chaque n&#339;ud (c.-&#224;-d., arbre &#233;l&#233;mentaire) de cet arbre
+de d&#233;rivation ; et utilise les arbres s&#233;mantiques associ&#233;s par le lexique s&#233;mantique aux noms
+d&#8217;arbres syntaxiques, pour retranscrire au niveau s&#233;mantique, les unifications correspondants
+aux op&#233;rations d&#8217;adjonction et de substitution r&#233;alis&#233;es au niveau syntaxique. Par exemple, pour
+la phrase &#171; Jean court &#187;, l&#8217;algorithme proc&#232;de comme suit :
+&#8211; Initialisation : &#966; = { l0 :courir(X) }
+</p>
+<p>182</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Une architecture pour le d&#233;veloppement de grammaires TAG
+</p>
+<p>&#8211; Traitement de l&#8217;arc &#964;Jean s,1.0&#8594; &#964;court :
+&#8211; Incr&#233;ment de la s&#233;mantique : &#966; = { l0 :courir(X), l1 :jean(j) }
+&#8211; Effets des unifications dues &#224; la substitution de l&#8217;arbre s&#233;mantique associ&#233; &#224; &#964;Jean dans
+l&#8217;arbre s&#233;mantique associ&#233; &#224; &#964;court : &#966; = { l0 :courir(j), l1 :jean(j) }
+</p>
+<p>5 Evaluation
+</p>
+<p>L&#8217;&#233;valuation de cette architecture repose sur une &#233;valuation de la grammaire du fran&#231;ais qu&#8217;elle
+a permis de d&#233;velopper, en l&#8217;occurence la grammaire SEMFRAG pr&#233;sent&#233;e pr&#233;c&#233;demment.
+Cette grammaire d&#233;crit 87 familles d&#8217;arbres (cadres de sous-cat&#233;gorisation), les lexiques utilis&#233;s
+contiennent 1 471 formes fl&#233;chies, rattach&#233;es &#224; 603 lemmes. L&#8217;&#233;valuation consiste &#224; v&#233;rifier les
+caract&#233;ristiques suivantes :
+&#8211; la couverture syntaxique et s&#233;mantique sur une suite de tests combinant la Test Suite for
+</p>
+<p>Natural Language Processing (TSNLP) avec une suite de tests compl&#233;mentaire (SEMTEST)6,
+&#8211; le taux moyen d&#8217;ambigu&#239;t&#233; s&#233;mantique (nombre d&#8217;analyses s&#233;mantiques par phrase).
+D&#233;velopp&#233;e dans les ann&#233;es 90s, la TSNLP (Lehmann et al., 1996) est une suite de tests visant
+&#224; permettre l&#8217;&#233;valuation et la comparaison d&#8217;analyseurs syntaxiques sur un ensemble control&#233;
+et annot&#233; de donn&#233;es. Sur un ensemble de 1 495 phrases tests, SEMTAG a actuellement une cou-
+verture syntaxique de 62.88 % et une couverture s&#233;mantique de 61.27 %. Le taux d&#8217;ambigu&#239;t&#233;
+s&#233;mantique moyen est de 2.46.
+Bien qu&#8217;elle ait &#233;t&#233; pens&#233;e pour une &#233;valuation syst&#233;matique des constructions syntaxiques, la
+TSNLP &#233;choue &#224; prendre en compte certains types de variations dont en particulier, les varia-
+tions sur la r&#233;alisation des arguments (canonique, relatif, questionn&#233;, cliticis&#233;, cliv&#233;, etc.), les
+variations sur la sous-cat&#233;gorisation des verbes, les variations sur le type de verbe (verbes &#224;
+contr&#244;le, &#224; mont&#233;e, semi-auxiliaire, etc). Pour pallier ce manque, nous l&#8217;avons compl&#233;ment&#233;e,
+avec une suite de phrases illustrant ces variations. Pour cette suite compl&#233;mentaire, la couver-
+ture syntaxique est de 86.78 % et la couverture s&#233;mantique de 85.02 %. Le taux d&#8217;ambigu&#239;t&#233;
+s&#233;mantique moyen est de 3.14.
+</p>
+<p>6 Conclusion
+</p>
+<p>SEMTAG permet d&#8217;associer &#224; une phrase du fran&#231;ais une repr&#233;sentation profonde de sa s&#233;man-
+tique compositionnelle. Comme la section pr&#233;c&#233;dente l&#8217;a montr&#233;, la grammaire utilis&#233;e est in-
+suffisante pour avoir une couverture large. Pour traiter du passage &#224; &#233;chelle, il serait int&#233;ressant
+d&#8217;int&#233;grer dans SEMTAG les techniques de fouilles d&#8217;erreur et d&#8217;analyse &#224; partir d&#8217;arbres facto-
+ris&#233;s utilis&#233;es par (Sagot &amp; Villemonte de La Clergerie, 2006). Par ailleurs, il importe d&#8217;&#233;valuer
+la qualit&#233; et l&#8217;utilit&#233; des repr&#233;sentations s&#233;mantiques produites soit par le biais d&#8217;applications
+telles que la reconnaissance d&#8217;implications textuelles, soit par le biais de la g&#233;n&#233;ration (la s&#233;-
+mantique produite permet elle de re-g&#233;n&#233;rer la phrase de d&#233;part ?).
+</p>
+<p>6Par couverture, nous entendons la production d&#8217;une repr&#233;sentation syntaxique / s&#233;mantique valid&#233;e manuelle-
+ment dans un premier temps.
+</p>
+<p>183</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Claire GARDENT, Yannick PARMENTIER
+</p>
+<p>R&#233;f&#233;rences
+BOS J. (1995). Predicate Logic Unplugged. In Proceedings of the tenth Amsterdam Collo-
+quium, Amsterdam, p. 133&#8211;142.
+BOS J., CLARK S., STEEDMAN M., CURRAN J. R. &amp; HOCKENMAIER J. (2004). Wide-
+coverage semantic representations from a ccg parser. In Proceedings of the 20th International
+Conference on Computational Linguistics (COLING &#8217;04), p. 1240&#8211;1246, Geneva, Switzerland.
+COPESTAKE A., FLICKINGER D., POLLARD C. &amp; SAG I. A. (2005). Minimal Recursion
+Semantics : An introduction. Research on Language and Computation, 3.4, 281&#8211;332.
+CRABB&#201; B. (2005). Repr&#233;sentation informatique de grammaires fortement lexicalis&#233;es : Ap-
+plication &#224; la grammaire d&#8217;arbres adjoints. PhD thesis, Universit&#233; Nancy 2.
+DUCHIER D., LE ROUX J. &amp; PARMENTIER Y. (2005). XMG : Un Compilateur de M&#233;ta-
+grammaire Extensible. In Actes de TALN 2005, Dourdan, France, p. 13&#8211;22.
+FRANK A. &amp; VAN GENABITH J. (2001). GlueTag - Linear Logic based Semantics for LTAG
+&#8211; and what it teaches us about LFG and LTAG &#8211;. In Proceedings of LFG01, Hong Kong, p.
+104&#8211;126.
+GARDENT C. (2006). Int&#233;gration d&#8217;une dimension s&#233;mantique dans les grammaires d&#8217;arbres
+adjoints. In Actes de la conf&#233;rence TALN 2006, p. 149&#8211;158.
+GARDENT C. (2007). Tree Adjoining Grammar, Semantic Calculi and Labelling Invariants.
+In Proceedings of IWCS 7, p. 75&#8211;85.
+GARDENT C. &amp; KALLMEYER L. (2003). Semantic construction in FTAG. In Proceedings of
+the European chapter of the Association for Computational Linguistics (EACL&#8217;03), Budapest,
+p. 123&#8211;130.
+GARDENT C. &amp; PARMENTIER Y. (2005). Large scale semantic construction for tree adjoining
+grammars. In Proceedings of LACL05, Bordeaux, France, p. 131&#8211;146.
+JOSHI A., LEVY L. &amp; TAKAHASHI M. (1975). Tree adjunct grammars. p. 136&#8211;163. Journal
+of Comput. Syst. Sci., Vol. 10-1.
+KALLMEYER L. &amp; ROMERO M. (2004). LTAG Semantics with Semantic Unification. In
+Proceedings of TAG+7. Vancouver, p. 155&#8211;162.
+LEHMANN S., OEPEN S., REGNIER-PROST S., NETTER K., LUX V., KLEIN J., FALKEDAL
+K., FOUVRY F., ESTIVAL D., DAUPHIN E., COMPAGNION H., BAUR J., BALKAN L. &amp;
+ARNOLD D. (1996). TSNLP &#8212; Test Suites for Natural Language Processing. In Proceedings
+of COLING 1996, p. 711&#8211;716, Kopenhagen.
+MONTAGUE R. (1974). English as a formal language. Formal Philosophy. Selected papers of
+Richard Montague, pages 188-221.
+SAGOT B. &amp; VILLEMONTE DE LA CLERGERIE E. (2006). Error mining in parsing results.
+In Proceedings of ACL 2006, p. 329&#8211;336, Sydney, Australia.
+TSENG J. (2003). Lkb grammar implementation : French and beyond. In E. B. ET AL,
+Ed., Workshop on Ideas and Strategies for Multilingual Grammar Development, p. 91&#8211;97,
+Technische Universit&#228;t Wien.
+VIJAY-SHANKER K. &amp; JOSHI A. K. (1988). Feature structures based tree adjoining gram-
+mars. In COLING, p. 714&#8211;719.
+VILLEMONTE DE LA CLERGERIE E. (2005). DyALog : a tabular logic programming based
+environment for NLP. In Proceedings of CSLP&#8217;05, p. 18&#8211;33, Barcelona.
+</p>
+<p>184</p>
+
+</div></div>
+</body></html>

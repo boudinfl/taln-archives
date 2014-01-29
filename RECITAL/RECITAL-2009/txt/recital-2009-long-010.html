@@ -1,0 +1,594 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Combinaison de contenus encyclop&#233;diques multilingues pour une reconnaissance d&#8217;entit&#233;s nomm&#233;es en contexte</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>RECITAL 2009, Senlis, 24&#8211;26 juin 2009
+</p>
+<p>Combinaison de contenus encyclop&#233;diques multilingues pour
+une reconnaissance d&#8217;entit&#233;s nomm&#233;es en contexte
+</p>
+<p>Eric Charton
+(1) LIA / Universit&#233; d&#8217;Avignon, 339 chemin des Meinajari&#232;s, 84911 Avignon
+</p>
+<p>eric.charton@univ-avignon.fr
+</p>
+<p>R&#233;sum&#233;. Dans cet article, nous pr&#233;sentons une m&#233;thode de transformation de Wikip&#233;dia
+en ressource d&#8217;information externe pour d&#233;tecter et d&#233;sambigu&#239;ser des entit&#233;s nomm&#233;es, en
+milieu ouvert et sans apprentissage sp&#233;cifique. Nous expliquons comment nous construisons
+notre syst&#232;me, puis nous utilisons cinq &#233;ditions linguistiques de Wikip&#233;dia afin d&#8217;enrichir son
+lexique. Pour finir nous r&#233;alisons une &#233;valuation et comparons les performances du syst&#232;me
+avec et sans compl&#233;ments lexicaux issus des informations inter-linguistiques, sur une t&#226;che
+d&#8217;extraction d&#8217;entit&#233;s nomm&#233;es appliqu&#233;e &#224; un corpus d&#8217;articles journalistiques.
+Abstract. In this paper, we present a way to use of Wikipedia as an external resource to
+disambiguate and detect named entities, without learning step. We explain how we build our
+system and why we used five linguistic editions of the Wikipedia corpus to increase the volume
+of potentially matching candidates. We finally experiment our system on a news corpus.
+Mots-cl&#233;s : Etiquetage d&#8217;entit&#233;s nomm&#233;es, ressources s&#233;mantiques.
+</p>
+<p>Keywords: Named entity labeling, semantic resources.
+</p>
+<p>1 Introduction
+L&#8217;extraction d&#8217;entit&#233;s nomm&#233;es (EEN) consiste &#224; localiser pr&#233;cis&#233;ment des assemblages de
+lettres ou de mots en leur attribuant une classe s&#233;mantique. Ces assemblages - que nous ap-
+pellerons des formes de surface - peuvent &#234;tre des acronymes, des mots ou des groupes de mots
+correspondant de mani&#232;re g&#233;n&#233;rale &#224; des concepts tels que des produits, des organisations, des
+personnes ou encore des lieux.
+Attribuer une classe s&#233;mantique exacte &#224; une expression &#233;crite est une t&#226;che difficile. Pour
+une m&#234;me entit&#233; s&#233;mantique, il existe souvent plusieurs formes de surface. A titre d&#8217;exemple,
+consid&#233;rons les noms d&#8217;entreprises qui sont aussi bien exprim&#233;s sous forme d&#8217;acronymes que de
+mots isol&#233;s ou group&#233;s (IBM pour International Business Machine). Citons encore les formes de
+surface qui, pour d&#233;crire un m&#234;me lieu, peuvent &#234;tre compos&#233;es d&#8217;un ou plusieurs mots (Paris,
+Paris Intra Muros), mais aussi prendre la forme de descriptions famili&#232;res ou d&#8217;expressions
+(dans le cas de Paris, Paname, la Ville Lumi&#232;re). Par ailleurs, &#224; une forme de surface identifi&#233;e
+peuvent aussi parfois correspondre plusieurs entit&#233;s s&#233;mantiques (Le paquebot Ville d&#8217;Alger, ou
+la ville du m&#234;me nom), que seule l&#8217;analyse du contexte permet de d&#233;partager.
+Dans cet article, nous d&#233;crivons un syst&#232;me d&#8217;EEN dont l&#8217;originalit&#233; est de collecter un maxi-
+mum de formes de surface disponibles pour une m&#234;me entit&#233; s&#233;mantique en exploitant plu-
+sieurs versions linguistiques de l&#8217;encyclop&#233;die Wikip&#233;dia 1. Nous utilisons ensuite un algo-
+rithme d&#8217;EEN reposant sur le calcul de la similarit&#233; cosinus entre le contexte textuel d&#8217;une
+</p>
+<p>1. www.wikipedia.org, promu par la fondation www.wikimedia.org.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Eric Charton
+</p>
+<p>forme candidate identifi&#233;e et les mots contenus dans l&#8217;article encyclop&#233;dique qui lui corres-
+pond. Pour &#233;valuer l&#8217;influence de l&#8217;apport de formes de surface issues d&#8217;autres langues que
+celle de d&#233;part sur le processus d&#8217;EEN, nous mesurons les performances obtenues par notre
+syst&#232;me avec les seules formes de surface issues du corpus fran&#231;ais de Wikip&#233;dia puis celles
+obtenues apr&#232;s introduction de formes de surface compl&#233;mentaires extraites de corpus Wikip&#233;-
+dia d&#8217;autres langues. Les r&#233;sultats obtenus d&#233;montrent que l&#8217;introduction de formes de surface
+collect&#233;es dans plusieurs &#233;ditions linguistiques de Wikip&#233;dia peut am&#233;liorer les capacit&#233;s de
+d&#233;tection d&#8217;un syst&#232;me d&#8217;EEN.
+</p>
+<p>Cet article est organis&#233; comme suit. Dans la section 2, apr&#232;s une rapide description des syst&#232;mes
+existants et de leurs &#233;volutions r&#233;centes vers des propositions reposant sur des ressources lexi-
+cales ou encyclop&#233;diques, nous justifions nos propres choix. Dans la section 3 nous pr&#233;sentons
+notre lexique de formes de surface d&#8217;entit&#233;s nomm&#233;es (EN) et le syst&#232;me d&#8217;apprentissage con&#231;u
+pour le construire. Dans la section 4 nous d&#233;crivons un syst&#232;me complet de d&#233;tection et de d&#233;sa-
+mbigu&#239;sation d&#8217;EN. Enfin, dans la section 5, nous pr&#233;sentons les r&#233;sultats de nos exp&#233;riences,
+puis nous concluons sur nos projets futurs.
+</p>
+<p>2 Syst&#232;mes de d&#233;tection d&#8217;entit&#233;s nomm&#233;es
+De nombreuses propositions ont &#233;t&#233; faites pour r&#233;soudre le probl&#232;me pos&#233; par la t&#226;che d&#8217;extrac-
+tion et de reconnaissance des EN (Nadeau &amp; Sekine, 2007). A la fin des ann&#233;es 90, les syst&#232;mes
+de r&#233;f&#233;rence (Lafferty et al., 2001; Favre et al., 2005) r&#233;alisaient la t&#226;che d&#8217;EEN en utilisant
+des r&#233;seaux de connaissances et d&#8217;identifications obtenus d&#8217;apr&#232;s des automates &#224; &#233;tats finis ou
+des mod&#232;les stochastiques appris sur un corpus pr&#233;-&#233;tiquet&#233;. Ces m&#233;thodes qui reposent sur un
+entrainement, posent le probl&#232;me de l&#8217;exhaustivit&#233; des corpus d&#8217;apprentissage. Pour mod&#233;liser
+finement les motifs et s&#233;quences &#224; d&#233;tecter, il faut disposer des corpus d&#8217;apprentissage de tr&#232;s
+grande taille, &#233;tiquet&#233;s et donc co&#251;teux. On a donc souvent compl&#233;t&#233; les syst&#232;mes automatiques
+par des &#233;l&#233;ments lexicaux (dictionnaires de noms propres, de villes, de lieux) afin d&#8217;accro&#238;tre
+leur robustesse.
+Malgr&#233; cela, les meilleurs syst&#232;mes hybrides (utilisant apprentissage et connaissances lexicales)
+ont parfois du mal &#224; r&#233;soudre le probl&#232;me des mots hors vocabulaires (Out Of Vocabulary
+abr&#233;g&#233;s par OOV) pos&#233; par l&#8217;apparition continuelle de nouvelles entit&#233;s dans le langage. Pour
+r&#233;pondre &#224; ce probl&#232;me, une nouvelle g&#233;n&#233;ration de syst&#232;mes d&#8217;EEN reposant sur des connais-
+sances encyclop&#233;diques (Bunescu &amp; Pasca, 2006; Jun&#237;chi &amp; Kentaro, 2007) a r&#233;cemment vu le
+jour. La plupart de ces syst&#232;mes utilisent l&#8217;encyclop&#233;die collaborative et multilingue Wikip&#233;dia.
+Cette ressource contient plus de 6 millions d&#8217;entit&#233;s 2 couvrant un spectre tr&#232;s large de concepts
+(des objets, des individus, des lieux).
+Un des avantages de cette ressource encyclop&#233;dique est que son contenu est tr&#232;s rapidement mis
+&#224; jour et augmente continuellement. Dans Wikip&#233;dia, les articles concernant des &#233;v&#233;nements ou
+des nouveaut&#233;s sont parfois incorpor&#233;s quotidiennement. Ces mises &#224; jour sont diffus&#233;es de
+mani&#232;re instantan&#233;e 3. Cette possibilit&#233; est actuellement l&#8217;une des plus performantes qui soit
+donn&#233;e pour r&#233;soudre le probl&#232;me des OOV.
+L&#8217;aspect multilingue, interconnect&#233; et encyclop&#233;dique de Wikip&#233;dia peut, lui aussi, se r&#233;v&#233;ler
+essentiel dans le cadre applicatif d&#8217;un syst&#232;me d&#8217;EEN. Un nom &#233;tranger ou des formes de ce
+</p>
+<p>2. D&#233;compte r&#233;alis&#233; sur les fichiers publics de Wikip&#233;dia au 16 Oct 2008 dans les 7 langues les plus utilis&#233;es &#224;
+savoir l&#8217;Anglais, l&#8217;Allemand, le Fran&#231;ais, l&#8217;Espagnol, l&#8217;Italien, le Portugais, le Polonais.
+</p>
+<p>3. Sous forme de dump XML r&#233;guli&#232;rement diffus&#233;s, compl&#233;t&#233;s par la fonction &quot;Modifications R&#233;centes&quot; du
+logiciel M&#233;dia Wiki.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Combinaison de contenus encyclop&#233;diques multilingues pour une reconnaissance d&#8217;entit&#233;s
+nomm&#233;es en contexte
+</p>
+<p>nom (d&#8217;entreprise, d&#8217;individu) peuvent apparaitre dans un corpus sp&#233;cifique &#224; une langue et &#234;tre
+absents de celui d&#8217;une autre : or, cette connaissance interlinguale peut s&#8217;av&#233;rer tr&#232;s utile dans le
+cadre de l&#8217;EEN. On peut illustrer cette affirmation par la forme AMD (le nom d&#8217;une entreprise
+fabricant des composants &#233;lectroniques) qui est la seule connue dans le corpus francophone,
+alors que la forme Advanced Micro Device n&#8217;existe que dans le corpus anglophone 4. Pourtant
+ces deux formes de surface d&#8217;un m&#234;me concept peuvent &#234;tre rencontr&#233;s dans un texte en fran-
+&#231;ais pour faire r&#233;f&#233;rence &#224; la soci&#233;t&#233; d&#233;sign&#233;e. Nous souhaitons exploiter cette possibilit&#233; de
+d&#233;couvrir dans un corpus linguistique une repr&#233;sentation s&#233;mantique utilisable dans une autre
+langue pour am&#233;liorer l&#8217;&#233;tiquetage d&#8217;EN.
+Le syst&#232;me que nous proposons construit une repr&#233;sentation lexicale et statistique d&#8217;un concept
+s&#233;mantique d&#8217;apr&#232;s un article encyclop&#233;dique, en utilisant plusieurs versions linguistiques de
+Wikip&#233;dia. Nous intitulerons metadata cette repr&#233;sentation. Chaque metadata contient un graphe
+des formes de surface correspondant &#224; une entit&#233; nomm&#233;e &#224; d&#233;tecter. Ce graphe contient des
+formes de surface extraites des cinq &#233;ditions linguistiques principales de Wikip&#233;dia (anglais,
+allemand, fran&#231;ais, italien, espagnol). Ces graphes sont construits d&#8217;apr&#232;s des liens interlingues
+(correspondance d&#8217;un terme entre plusieurs corpus linguistiques), des redirections internes (plu-
+sieurs formes d&#8217;&#233;critures d&#8217;un mot qui dirigent vers une unique page encyclop&#233;dique) et des
+pages descriptives d&#8217;homonymie. Le jeu complet de metadata en fran&#231;ais couvre la description
+de 215.287 personnes, 172.340 lieux, 72.519 organisations et 90.917 produits 5. Ces concepts
+sont repr&#233;sent&#233;s par un total de 901.592 formes de surface. Pour r&#233;aliser la t&#226;che de reconnais-
+sance des EN et leur extraction ou labellisation, un jeu d&#8217;algorithmes utilise les metadata. Pour
+la partie d&#233;tection et d&#233;sambigu&#239;sation de notre travail, la proposition th&#233;orique que nous avons
+retenue est celle de (Bunescu &amp; Pasca, 2006). Ces auteurs utilisent une mesure de similarit&#233;
+cosinus entre les mots issus d&#8217;un article de Wikip&#233;dia et le contexte d&#8217;une s&#233;quence de mots &#224;
+identifier. Par ailleurs, pour que notre syst&#232;me soit en mesure d&#8217;&#233;tiqueter des EN avec un jeu
+de classes r&#233;duit tel que celui rencontr&#233; lors des campagnes d&#8217;&#233;valuation Ester 2 6, ACE (NIST,
+2007) ou ConLL (Sang &amp; Meulder, 2003), nous avons d&#233;velopp&#233; un syst&#232;me de classification
+des articles de Wikip&#233;dia en un arbre &#224; 4 classes s&#233;mantiques, compatibles avec les normes
+d&#8217;&#233;tiquetage d&#8217;EN, selon une proposition &#224; base de SVM appliqu&#233;s &#224; Wikip&#233;dia proche de celle
+de (Wisam &amp; Silviu, 2008) mais l&#233;g&#232;rement am&#233;lior&#233;e.
+</p>
+<p>3 Construire un syst&#232;me pour apprendre les informations sur
+les entit&#233;s
+</p>
+<p>Notre syst&#232;me de construction des metadata assure une transformation de la structure interne
+de Wikip&#233;dia en une repr&#233;sentation s&#233;mantiques et statistique. Dans la section 3.1, nous d&#233;finis-
+sons la structure interne des corpus Wikip&#233;dia. Dans la section 3.2 nous d&#233;crivons de mani&#232;re
+formelle une metadata : chaque enregistrement de metadata est compos&#233; du nom de l&#8217;article
+encyclop&#233;dique utilis&#233; en tant que cl&#233;, d&#8217;un graphe repr&#233;sentant les formes de surface poten-
+tielles d&#8217;une EN, d&#8217;un label repr&#233;sentant une classe s&#233;mantique et d&#8217;un ensemble de mots et
+leurs poids tf.idf . Nous expliquons quels &#233;l&#233;ments d&#8217;un article encyclop&#233;dique sont utilis&#233;s
+pour construire une metadata. Puis nous d&#233;crivons dans la section 3.3, l&#8217;algorithme d&#233;ploy&#233;
+pour proc&#233;der &#224; la transformation de Wikip&#233;dia en metadata. Nous illustrons, pour finir, ces
+&#233;tapes par un exemple.
+</p>
+<p>4. ce cas est v&#233;rifiable &#224; cette adresse http ://www.nlgbase.org/perl/display.pl ?query=Advanced Micro De-
+vices&amp;search=FR.
+</p>
+<p>5. Comptage par le syst&#232;me NLGbAse, voir statistiques &#224; jour sur www.nlgbase.org.
+6. Articles &#224; para&#238;tre, voir http ://www.afcp-parole.org/ester/index.html.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Eric Charton
+</p>
+<p>3.1 Structure de la ressource encyclop&#233;dique Wikip&#233;dia
+</p>
+<p>W = Contenu encyclop&#233;dique
+</p>
+<p>sous-corpus linguistiqueCen
+= sous-corpus linguistiqueCfr
+</p>
+<p>D.t = &quot;Victor Hugo&quot;
+D.w=&quot;Victor Hugo 
+born in [...]
+</p>
+<p>D
+</p>
+<p>D.T = &quot;V. Hugo
+</p>
+<p>VictorHugo
+</p>
+<p>d
+</p>
+<p>V.HugoD'
+</p>
+<p>D
+D.t = Hugo
+</p>
+<p>D.t = &quot;Hugo Cyclon&quot;
+D.w=&quot;This cyclon[...]
+D Hugo cyclon
+</p>
+<p>Lien de d&#233;sambiguation
+</p>
+<p>D.t = &quot;Victor Hugo&quot;
+D.w=&quot;Victor Hugo 
+est n&#233; [...]
+</p>
+<p>DVictorHugo
+</p>
+<p>D.i = liens interwiki
+D.r = depuis page redirect
+</p>
+<p>FIGURE 1 &#8211; Structure des donn&#233;es dans Wikip&#233;dia
+</p>
+<p>Dans notre application, consid&#233;ronsM qui repr&#233;sente l&#8217;encyclop&#233;die Wikip&#233;dia etC l un corpus
+repr&#233;sentant une version linguistique. Cette version linguistique contient des articles structur&#233;s
+d&#8217;apr&#232;s une DTD 7. Un ensemble d&#8217;espaces de nom 8 d&#233;crit par la DTD permet de reconnaitre les
+articles (contenus dans l&#8217;espace encyclop&#233;dique) des autres documents (Mod&#232;les, Utilisateurs,
+Images). Chaque article contient en ensemble de mots, en relation avec le concept encyclop&#233;-
+dique qu&#8217;il d&#233;crit.
+Consid&#233;rons D un article du corpus Wikip&#233;dia C l, d&#233;finit par des propri&#233;t&#233;s :
+&#8211; D.t est un titre compos&#233; d&#8217;une s&#233;quence de mots.
+&#8211; D.w est la liste des mots contenus dans l&#8217;article.
+&#8211; Si un article est susceptible d&#8217;ambig&#252;it&#233; par homonymie de son titre descriptif, une page
+</p>
+<p>sp&#233;ciale intitul&#233;e Page d&#8217;homonymie dans la version fran&#231;aise ou Disambiguation page
+dans la version anglaise est cr&#233;&#233;e. Nous intitulerons ces pages Dd &#8712; C l. Elles contiennent
+plusieurs r&#233;f&#233;rences &#224; des pages D &#8712; C l &#224; d&#233;sambigu&#239;ser.
+</p>
+<p>&#8211; Des articles uniques dits Pages de redirection existent pour r&#233;pertorier les noms alternatifs
+susceptibles de correspondre &#224; un article de Wikip&#233;dia. Nous utilisons ces pages pour g&#233;n&#233;rer
+les graphes de formes de surface. Nous appelons Dr une page de redirection et Dr.R le lien
+de redirection unique qu&#8217;elle contient et qui correspond au nom original D.t de l&#8217;article D
+vers lequel elle redirige.
+</p>
+<p>&#8211; Chaque article contenu dans une version linguistique de Wikip&#233;dia peut inclure des liens
+vers les articles similaires contenus dans d&#8217;autres versions linguistiques de l&#8217;encyclop&#233;die.
+Ces liens sont intitul&#233;s des Interwiki. Nous intitulons relation interwiki D.i, le lien de D
+vers son &#233;quivalent dans un corpus d&#8217;une autre langue C l&#8242; de M .
+</p>
+<p>7. Consulter http ://meta.wikimedia.org/wiki/Wikipedia.DTD.
+8. Lire fr.wikipedia.org/wiki/Aide :Espace_de_noms pour des pr&#233;cisions sur l&#8217;espace de nom.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Combinaison de contenus encyclop&#233;diques multilingues pour une reconnaissance d&#8217;entit&#233;s
+nomm&#233;es en contexte
+</p>
+<p>3.2 Les metadata produites d&#8217;apr&#232;s la ressource encyclop&#233;dique
+</p>
+<p>E         =  Entit&#233; extraite
+</p>
+<p>Victor Hugo
+dD
+</p>
+<p>D.t = Hugo
+</p>
+<p>E.w
+N&#233;          200
+France   196
+Ecrivain  122
+[...]
+</p>
+<p>E.t = Victor Hugo
+E.i =  FR Victor Hugo
+</p>
+<p>Victor-Marie Hugo
+E.v1
+</p>
+<p>V.Hugo
+E.v2
+</p>
+<p>E.v3
+Marie Victor Hugo
+</p>
+<p>E.vx.fr
+Autres formes de surfaces issues 
+d'autres domaines
+</p>
+<p>Ambigu&#239;t&#233;, existant dans une autre entit&#233; E
+</p>
+<p>V.M.Hugo
+Hugo V.
+</p>
+<p> Victo Hugo         
+</p>
+<p>Terme TF.IDF
+</p>
+<p>FIGURE 2 &#8211; Structure des donn&#233;es d&#8217;une Metadata
+</p>
+<p>Les metadata de notre application sont compos&#233;es d&#8217;un jeu d&#8217;entit&#233;s E d&#233;riv&#233;es de D &#8712; C l.
+Chaque entit&#233; E &#8712; C l est d&#233;finie par un jeu de propri&#233;t&#233;s (E.t, E.v, E.w,E.i, E.k).
+&#8211; E.t est le titre de l&#8217;entit&#233;, correspondant &#224; D.t titre unique d&#8217;une page Wikipedia.
+&#8211; E.v est l&#8217;ensemble de toutes les formes de surface qui peuvent &#233;crire E. E.v contient donc
+</p>
+<p>des formes de surface synonymes. Cet ensemble est construit d&#8217;apr&#232;s les pages de redirection
+Dr reli&#233;es &#224; la page D utilis&#233;e pour construire E. On notera que lorsqu&#8217;une page d&#8217;homony-
+mie Dd existe, contenant des liens vers la page D utilis&#233;e pour construire E, le titre Dd.t de
+Dd est inclus dans E.v.
+</p>
+<p>&#8211; E.i est l&#8217;ensemble de relations interwiki contenues dans la propri&#233;t&#233; D.i correspondante. E.i
+repr&#233;sente la relation entre E &#8712; C l et tout E &#8242; &#8712; Ck, k 6= l. Ceci signifie que E.i contient
+les r&#233;f&#233;rences des entit&#233;s correspondantes dans les autres corpus linguistiques que celui de
+d&#233;part.
+</p>
+<p>&#8211; E.w est un ensemble de mots avec leurs poids (exprim&#233;s sous la forme d&#8217;une valeur tf.idf )
+associ&#233;s &#224; l&#8217;entit&#233;. Cet ensemble de propri&#233;t&#233;s est construit d&#8217;apr&#232;s le texte D.w contenu dans
+l&#8217;article D original de Wikip&#233;dia, utilis&#233;e pour construire E.
+</p>
+<p>Il est essentiel d&#8217;associer aux entit&#233;s extraites depuis Wikip&#233;dia une classe pour rendre la d&#233;tec-
+tion exploitable mais aussi conforme aux sp&#233;cifications des campagnes d&#8217;&#233;valuation.
+&#8211; Nous ajoutons donc aux m&#233;tadata une propri&#233;t&#233; E.k qui est un label d&#8217;&#233;tiquetage personne,
+</p>
+<p>produit, lieu ou organisation en accord avec le standard ESTER 2 9. Une classe sp&#233;cifique
+intitul&#233;e unknown est par ailleurs introduite pour retirer de la liste de d&#233;tection des EN les
+articles relatifs &#224; des descriptions encyclop&#233;diques inutiles pour la t&#226;che d&#8217;EEN (un th&#233;or&#232;me
+math&#233;matique, une mode).
+</p>
+<p>La m&#233;thode de classification retenue est bas&#233;e sur une combinaison de trois classifieurs : SVM-
+Lib, un classifier bay&#233;sien na&#239;f, Icsiboost (AdaBoost). Plusieurs m&#233;thodes de normalisation sont
+appliqu&#233;es aux textes utilis&#233;s pour construire les classes. Cette m&#233;thode est d&#233;crite en d&#233;tails
+dans (Charton et al., 2008) et a &#233;t&#233; d&#233;ploy&#233;e lors de la campagne d&#8217;&#233;valuation DEFT&#8217;08 (Grouin
+et al., 2008) sur un corpus incluant notamment des donn&#233;es de Wikip&#233;dia.
+</p>
+<p>9. Voir la convention d&#8217;annotation sur http ://www.afcp-parole.org/ester/docs/Conventions_EN_ESTER2_v01.pdf.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Eric Charton
+</p>
+<p>3.3 Transformation d&#8217;un article encyclop&#233;dique en metadata
+Une description formelle de l&#8217;algorithme de construction d&#8217;une metadata d&#8217;apr&#232;s un article
+encyclop&#233;dique peut &#234;tre pr&#233;sent&#233;e comme suit :
+Consid&#233;rons que tout article Wikipedia D &#8712; C l est d&#233;fini par une ensemble de propri&#233;t&#233;s
+(D.t,D.w,D.r,D.i) telles que D.t est un titre repr&#233;sent&#233; par une s&#233;quence de mots, D.w
+un ensemble de mots, D.r une relation unique entre D et n&#8217;importe quel &#233;l&#233;ment de C l, D.i
+est un ensemble de relations interwiki entre des &#233;l&#233;ments de D et n&#8217;importe quel &#233;l&#233;ment de
+C l
+</p>
+<p>&#8242; &#8712; M\C l. Pour g&#233;n&#233;rer une table T l d&#8217;entit&#233;s, nous explorons dans un premier temps C l
+et conservons tout &#233;l&#233;ment de D qui n&#8217;est pas une page de redirection (Dr) ou de Page d&#8217;ho-
+monymie (Dd). On consid&#232;re que E et D sont en relation si et seulement si E.t = D.t. Ceci
+est formalis&#233; par E &#8594; D. Puis, pour tout E de la table T l, nous cherchons tous les Dd &#8712; C l
+en relation avec E et incluons le nom alternatif Dd.t dans E.v. Nous cherchons aussi tous les
+Dd &#8712; C l en relation avec E et d&#233;finissons E.v = Dd.t.
+Ces &#233;tapes sont r&#233;p&#233;t&#233;es pour les corpus de toutes les versions linguistiques de Wikip&#233;dia rete-
+nues. Nous obtenons donc pour chaque corpus linguistique de Wikip&#233;dia C l une entit&#233; El. Puis,
+pour proc&#233;der &#224; l&#8217;agr&#233;gation des formes de surface localis&#233;es dans ces diff&#233;rentes versions, nous
+collectons les relations interwiki disponibles dans la section D.i de l&#8217;article encyclop&#233;dique et
+les attribuons &#224; la propri&#233;t&#233; E.i. Nous agr&#233;geons toutes les formes de surface El.v dans l&#8217;entit&#233;
+E.v.
+</p>
+<p>3.4 Exemple de transformation d&#8217;un article encyclop&#233;dique en metadata
+La structure d&#8217;une metadata E.Victor Hugo construite d&#8217;apr&#232;s l&#8217;article D.Victor Hugo est pr&#233;-
+sent&#233;e dans la figure 2. Les informations originales D contenues dans Wikip&#233;dia ayant servi
+&#224; construire E sont illustr&#233;es dans la figure 1. Pour construire E, consid&#233;rons que le titre
+D.t =Victor Hugo de la page Wikipedia est utilis&#233; en tant que descripteur unique E.t de la
+metadata Victor Hugo. Les formes de surface sont ensuite collect&#233;es pour construire le graphe
+E.v. D&#8217;abord, nous ajoutons le titre original D.t &#224; E.v. Ce titre encyclop&#233;dique original est
+toujours la forme minimale (et parfois unique) d&#8217;&#233;criture possible pour E.v. Les pages de re-
+direction de Wikip&#233;dia Dr contenant un lien Dr.R vers D =Victor Hugo sont recherch&#233;es ;
+chaque titre Dr.t d&#8217;une page de redirection est un synonyme de Victor Hugo et est inclus dans
+E.v. Nous cherchons les Page d&#8217;homonymie Dd qui contiennent des liens vers l&#8217;entit&#233; D. Ces
+liens sont contenus &#224; l&#8217;int&#233;rieur du corps de texte de Dd en accord avec les sp&#233;cifications du for-
+malisme de Wikip&#233;dia. Dans l&#8217;exemple de Victor Hugo, la page d&#8217;homonymie Dd est &#8220;Hugo&#8221; et
+est reli&#233;e &#224; 45 autres pages encyclop&#233;diques qui d&#233;crivent des personnes (la page Victor Hugo
+elle-m&#234;me), des lieux, des &#233;v&#233;nements (ouragans) ou des organisations (un prix litt&#233;raire). Nous
+ajoutons le titre Dd.t = Hugo &#224; E.v.
+L&#8217;agr&#233;gation finale de toutes les formes de surface est r&#233;alis&#233;e par l&#8217;exploration des relations
+interwiki. Les formes collect&#233;es sont indiqu&#233;es dans la figure 2 par le lien E.i. On peut observer
+une introduction de bruit lors de la collecte des formes de surface. En effet le graphe de formes
+de surface de Victor Hugo contient 14 formes valides et une forme erron&#233;e, Ad&#232;le Foucher. Ce
+ph&#233;nom&#232;ne est li&#233; au caract&#232;re manuel de la saisie des pages de redirection par les contributeurs
+de Wikip&#233;dia. Nous discutons de son influence dans nos exp&#233;riences.
+Tous les termes de l&#8217;article Victor Hugo de la version linguistique fran&#231;aise de Wikip&#233;dia font
+l&#8217;objet d&#8217;un calcul de poids tf.idf et sont int&#233;gr&#233;s dans E.w. On observe que les termes de
+poids le plus fort sont hautement contextuels (Ecrivain, France, etc) 10.
+</p>
+<p>10. Voir http ://www.nlgbase.org/perl/display.pl ?query=Victor Hugo&amp;search=FR pour un descriptif complet.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Combinaison de contenus encyclop&#233;diques multilingues pour une reconnaissance d&#8217;entit&#233;s
+nomm&#233;es en contexte
+</p>
+<p>Gao (R&#233;gion) Gao Xingjian Gao (Ville)
+mali :44.92 nobel :31.3 mali :63.78
+bozo :35.36 litteracy :25.49 songhay :51.27
+region :19.44 tien :25.22 city :12.45
+kidal :18.67 chinese :24.23 river :9.81
+... ... ...
+</p>
+<p>TABLE 1 &#8211; Trois repr&#233;sentations diff&#233;rentes de metadata partageant le m&#234;me nom (Gao) et la
+table des mots contextuels, accompagn&#233;s de leurs poids tf.idf , pour chacun de ces noms
+</p>
+<p>4 Algorithme du syst&#232;me d&#8217;extraction, d&#8217;identification et de
+d&#233;sambigu&#239;sation des entit&#233;s nomm&#233;es
+</p>
+<p>Consid&#233;rons une phrase S contenant une s&#233;quence de mots s ; pour tout s, nous recherchons
+dans les metadata extraites depuis Wikip&#233;dia une forme de surface ou plus, candidate pour
+&#233;tiqueter l&#8217;EN &#233;ventuellement contenue dans s. Nous intitulons Rm l&#8217;ensemble des formes
+de surface candidates. Pour d&#233;tecter les EN, et &#233;ventuellement les d&#233;sambigu&#239;ser, le syst&#232;me
+d&#8217;EEN utilise les mots contextuels contenus dans E.w avec leurs poids tf.idf afin de calculer
+le degr&#233; de similarit&#233; entre une forme de surface candidate et son contexte textuel dans s.
+Le syst&#232;me de d&#233;tection est divis&#233; en 2 algorithmes intitul&#233;s A1 et A2 qui exploitent deux
+fonctions :
+</p>
+<p>1. La fonction Rm = fsynsets(s) recherche dans les metadata les &#233;l&#233;ments des E.v qui
+correspondent &#224; un sous ensemble de s.
+</p>
+<p>2. La fonction fsimcos(Rm,S) calcule la similarit&#233; cosinus de S compar&#233;e &#224; tout &#233;l&#233;ment E
+de Rm d&#8217;apr&#232;s E.w.
+</p>
+<p>Dans A1, nous consid&#233;rons que si |Rm| = 1, Rm est l&#8217;unique EN candidate valable. Nous
+mesurons alors la similarit&#233; cosinus entre le contexte de l&#8217;EN et les poids de mots contenus
+dans E.w. Si |Rm| &gt; 1, nous en concluons que l&#8217;algorithme a trouv&#233; un ensemble d&#8217;entit&#233;s
+ambig&#252;es :A2 recherche alors la meilleure entit&#233; contenue dansRm avec les scores de similarit&#233;
+cosinus. On consid&#232;re que A1 ou A2 ne proposent d&#8217;entit&#233; que si le score de similarit&#233; cosinus
+entre des entit&#233;s candidates et le contexte d&#8217;&#233;tiquetage est sup&#233;rieur &#224; un seuil cs.
+Finalement, si A1 or A2 ne proposent pas d&#8217;entit&#233; candidate pour s, nous d&#233;cidons que s n&#8217;est
+pas une entit&#233;. Conform&#233;ment &#224; cette description, notre syst&#232;me fonctionne de la mani&#232;re sui-
+vante :
+&#8211; Rm = fsynset(s)
+&#8211; A1 : Une seule proposition dans Rm (m&#233;tadonn&#233;e candidate unique) . si fsimcos &gt; cs . extraction
+</p>
+<p>d&#8217;entit&#233;
+&#8211; A2 : Plusieurs propositions dans Rm (Ambiguit&#233; de d&#233;tection entre plusieurs EN)
+</p>
+<p>1. Utilise un score de similarit&#233; cosinus pour classer les propositions
+</p>
+<p>(a) A2.1 : Le meilleur du classement de fsimcos &gt; cs . extraction d&#8217;EN
+(b) A2.2 : fsimcos &lt; cs pas d&#8217;EN candidate acceptable . pas d&#8217;EN
+</p>
+<p>Le processus de d&#233;tection d&#233;bute avec fsynset(s) qui doit identifier les s&#233;quences de mots s de
+la phrase &#224; &#233;tiqueter S identiques &#224; des formes de surface contenues dans les metadata.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Eric Charton
+</p>
+<p>[...] cinq &#233;quipe de F1 : Toyota, [Williams], Sauber,
+Red-Bull, et Minardi, sur dix engag&#233;es dans le [...]
+Entit&#233; correspondante pour for Williams Score Cosinus
+</p>
+<p>1 Williams (F1 Team) 0.91
+2 Franck Williams 0.45
+3 John Williams 0
+4 Robby Williams 0
+</p>
+<p>TABLE 2 &#8211; Exemple de localisation d&#8217;une entit&#233; dans son contexte, en utilisant le classement de
+la mesure de similarit&#233; cosinus pour identifier le terme le plus appropri&#233;.
+</p>
+<p>Consid&#233;rons M le corpus Wikip&#233;dia et E les entit&#233;s extraites repr&#233;sent&#233;es par des formes de
+surface contenues dans E.v :
+&#8211; fsynset(s)
+</p>
+<p>1. E = {E0, ..., En} ensemble d&#8217;entit&#233;s extraites de M .
+2. Chaque En contient un ensemble de En.v, {v0, ...vm} formes de surface utilis&#233;es pour la d&#233;tec-
+</p>
+<p>tion
+</p>
+<p>3. s = {t0, ..., tu} ensemble de s&#233;quences de mots (n-gram &#224; 1-gram) t &#8712; S
+4. Pour tout sm &#8712; S,
+</p>
+<p>(a) Rm = &#8709;
+(b) Pour tout En &#8712; E , vm &#8712; En.v
+(c) SI ( vm = sm ) alors add En to Sd
+</p>
+<p>5. Retourner Rm
+</p>
+<p>Si Rm retourn&#233; par fsynset(s) ne contient qu&#8217;une proposition, A1 s&#8217;applique, sinon A2 est
+invoqu&#233;. Ce serait le cas avec l&#8217;entit&#233; Gao (voir tableau 1), qui exprime trois concepts diff&#233;rents
+(personne, r&#233;gion, ville).
+Chaque E inclut un ensemble de mots avec leurs tf.idf contenus dans E.w. Consid&#233;rons pour
+la phrase S un groupe de mots X avec ses poids X.tf.idf . Ce groupe est intitul&#233; contexte. Le
+contexte est compos&#233; de q mots &#224; droite et &#224; gauche de l&#8217;entit&#233; E identique &#224; s &#8712; S.
+Consid&#233;rant que la fonction de similarit&#233; cosinus cos(E.tf.idf,X.tf.idf) existe, nous pouvons
+d&#233;terminer quelle entit&#233; candidate Ec de Rm obtient le plus haut score en mesurant le cosinus
+de l&#8217;angle entre les vecteurs de poids des mots correspondant &#224; Ec.w de Rm et les X.tf.idf .
+Nous obtenons alors une liste de scores indiquant la meilleure entit&#233; candidate E&#770;c dans son
+contexte. Nous utilisons dans A2.1 la formule :
+</p>
+<p>E&#770; = argmaxEn score(cos(En.tf.idf,X.tf.idf))
+</p>
+<p>Un exemple de liste de scores produite par A2 pour un contexte donn&#233;, est pr&#233;sent&#233; dans le
+tableau 2.
+</p>
+<p>5 Exp&#233;riences et r&#233;sultats
+Pour nos exp&#233;riences, nous avons utilis&#233; 100 articles de presse du quotidien Fran&#231;ais Le Monde
+issus du corpus fourni durant la campagne d&#8217;&#233;valuation DEFT&#8217;07. Nous avons &#233;tiquet&#233; ces ar-
+ticles de mani&#232;re semi-automatique, par une premi&#232;re application de notre syst&#232;me, suivie d&#8217;une
+correction manuelle. Les 100 articles repr&#233;sentaient 1.996 phrases, 61.000 mots et 1.307 entit&#233;s
+&#224; &#233;tiqueter. Nous avons appliqu&#233; un syst&#232;me de d&#233;tection d&#8217;EN con&#231;u d&#8217;apr&#232;s les algorithmes</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Combinaison de contenus encyclop&#233;diques multilingues pour une reconnaissance d&#8217;entit&#233;s
+nomm&#233;es en contexte
+</p>
+<p>d&#233;crits pr&#233;c&#233;demment. Nous avons &#233;valu&#233; les r&#233;sultats de notre syst&#232;me par pr&#233;cision, rappel
+et F-Score. Afin de d&#233;terminer quelle &#233;tait l&#8217;influence de l&#8217;incorporation de formes de surface
+issues de corpus d&#8217;une autre langue sur l&#8217;&#233;tiquetage de documents en fran&#231;ais, nous avons test&#233;
+notre syst&#232;me avec les deux configurations suivantes :
+</p>
+<p>1. Etiquetage d&#8217;EN en utilisant des metadata incluant uniquement des formes de surface
+issues de la version linguistique fran&#231;aise de Wikip&#233;dia.
+</p>
+<p>2. Etiquetage d&#8217;EN en utilisant des metadata incluant des formes de surface issues de cinq
+versions linguistiques de Wikip&#233;dia (fran&#231;ais, anglais, espagnol, italien, allemand).
+</p>
+<p>Les r&#233;sultats obtenus sont indiqu&#233;s dans le tableau 3.
+</p>
+<p>Syst&#232;me (p&#772;) (r&#772;) (F&#772;-m)
+M&#233;tadata fran&#231;aises 0.89 0.87 0.88
+M&#233;tadata fran&#231;aises
+et cross-linguistiques 0.90 0.91 0.91
+</p>
+<p>TABLE 3 &#8211; Evaluation et comparaison des performances avec des m&#233;tadata et des formes de
+surface issues du corpus linguistique fran&#231;ais de Wikip&#233;dia, et de celles issues de cinq corpus
+linguistiques
+</p>
+<p>5.1 Discussions
+Le tableau 3 montre que l&#8217;introduction de ressources interlinguales dans le syst&#232;me de d&#233;-
+tection d&#8217;entit&#233;s augmente ses performances. On peut en d&#233;duire que si les performances de
+l&#8217;algorithme de mesure par similarit&#233; cosinus restent constantes, l&#8217;ajout de nouvelles formes
+de surface pour les entit&#233;s, collect&#233;es depuis les versions anglaise, espagnole, italienne et alle-
+mande du corpus Wikip&#233;dia a am&#233;lior&#233; la couverture du syst&#232;me et limit&#233; les OOV. Nous notons
+que le bruit introduit par la pr&#233;sence des formes de surface s&#233;mantiquement non correctes (voir
+la section 3.3) est sans influence sur les performances du syst&#232;me d&#8217;EEN : le calcul de similarit&#233;
+cosinus entre la metadata et le contexte textuel d&#8217;une EN candidate les &#233;carte automatiquement
+et efficacement du processus de d&#233;tection.
+</p>
+<p>6 Conclusion et travaux futurs
+Dans cet article nous avons pr&#233;sent&#233; une nouvelle ressource s&#233;mantique qui peut &#234;tre utilis&#233;e
+pour d&#233;tecter les variations d&#8217;&#233;criture et les ambigu&#239;t&#233;s d&#8217;une EN dans son contexte.
+L&#8217;originalit&#233; de ce syst&#232;me est qu&#8217;il utilise des formes de surface collect&#233;es via une exploration
+des relations interlinguales de corpus encyclop&#233;diques. Nos exp&#233;riences ont montr&#233; que cette
+d&#233;marche pouvait am&#233;liorer les performances du syst&#232;me d&#8217;EEN et sa capacit&#233; &#224; d&#233;tecter des
+variations d&#8217;&#233;critures.
+Nous envisageons maintenant de mener des exp&#233;riences sur des combinaisons linguistiques en
+utilisant le potentiel offert par les 253 langues disponibles dans Wikip&#233;dia. Notre id&#233;e serait de
+d&#233;terminer s&#8217;il existe des combinaisons interlinguales de formes de surface plus performantes
+pour la t&#226;che d&#8217;EEN que celle exp&#233;riment&#233;e ici.
+La ressource mise au point, intitul&#233;e NLGbAse peut &#234;tre consult&#233;e et t&#233;l&#233;charg&#233;e librement. Le
+syst&#232;me d&#8217;EEN peut &#234;tre exp&#233;riment&#233; en ligne et sera prochainement diffus&#233; sous une forme
+libre 11. Dans une perspective plus large d&#8217;am&#233;lioration d&#8217;un syst&#232;me de reconnaissance exis-
+tant, nous avons &#233;galement pr&#233;vu d&#8217;int&#233;grer notre syst&#232;me en tant que ressource lexicale et
+</p>
+<p>11. Consulter le site www.nlgbase.org.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Eric Charton
+</p>
+<p>fonction compl&#233;mentaire d&#8217;EEN &#224; post&#233;riori &#224; un syst&#232;me d&#8217;EEN stochastique. Un prototype
+bas&#233; sur le programme LIA_NE 12 a &#233;t&#233; d&#233;ploy&#233; lors de la campagne ESTER 2 et fera l&#8217;objet
+de communication ult&#233;rieure.
+Notre objectif principal lorsque nous avons entam&#233; ce travail &#233;tait de concevoir un ensemble de
+metadata issu d&#8217;un contenu encyclop&#233;dique et de l&#8217;associer &#224; des algorithmes d&#8217;&#233;tiquetage et
+d&#8217;extraction d&#8217;information en vue de participer aux campagnes d&#8217;&#233;valuation telles que KBP 13.
+Nous travaillons actuellement &#224; cette &#233;volution.
+</p>
+<p>Remerciements
+Je remercie vivement les relecteurs pour leurs commentaires et propositions particuli&#232;rement
+d&#233;taill&#233;s et utiles.
+</p>
+<p>R&#233;f&#233;rences
+BUNESCU R. &amp; PASCA M. (2006). Using encyclopedic knowledge for named entity di-
+sambiguation. In EACL Proceedings of the Third International Joint Conference on Natural
+Language Processing, April 3-7, 2006, Trento, Italy : EACL.
+</p>
+<p>CHARTON E., CAMELIN N., ACUNA-AGOST R., GOTAB P., KESSLER R., LAVALLEY R.
+&amp; FERNANDEZ S. (2008). Pr&#233;-traitements classiques ou par analyse distributionnelle :appli-
+cation aux m&#233;thodes de classification. In Atelier D&#233;fi Fouille de Texte, Actes de TALN 2008,
+Avignon : DEFT.
+</p>
+<p>FAVRE B., BECHET F. &amp; NOCERA P. (2005). Robust named entity extraction from large
+spoken archives. In Proceedings of HLT-EMNLP&#8217;05, Vancouver (Canada) : HLT-EMNLP.
+</p>
+<p>GROUIN C., BERTHELIN J.-B., AYARI S. E., HURAULT-PLANTET M. &amp; LOISEAU S.
+(2008). Pr&#233;sentation de deft08 (defi fouille de textes). In Atelier D&#233;fi Fouille de Texte, Actes
+de TALN 2008, Avignon : DEFT.
+</p>
+<p>JUN&#205;CHI K. &amp; KENTARO T. (2007). Exploiting wikipedia as external knowledge for named
+entity recognition. In Joint Conference on Empirical Methods in Natural Language Processing
+and Computational Natural Language Learning, p. 698&#8211;707.
+</p>
+<p>LAFFERTY J., MCCALLUM A. &amp; PEREIRA F. (2001). Crf : Probalistic models for segmenting
+and labeling sequence data. In Proceedings of the Eighteenth International Conference on
+Machine Learning(ICML-2001) : IMCL.
+</p>
+<p>NADEAU D. &amp; SEKINE S. (2007). A survey of named entity recognition and classification.
+In Lingvisticae Investigationes, Vol 30, number 1, September 2007.
+</p>
+<p>NIST (2007). : NIST.
+</p>
+<p>SANG E. F. T. K. &amp; MEULDER F. D. (2003). Introduction to the conll-2003 shared task :
+Language-independent named entity recognition. In Seventh Conference on Natural Language
+Learning, May 31 and June 1, 2003, HLT-NAACL 2003, Edmonton, Canada : CoNLL.
+</p>
+<p>WISAM D. &amp; SILVIU C. (2008). Augmenting wikipedia with named entity tags. In ACL
+Proceedings of the Third International Joint Conference on Natural Language Processing :
+ACL.
+</p>
+<p>12. Disponible sur http ://lia.univ-avignon.fr/fileadmin/documents/Users/Intranet/chercheurs/bechet/download_fred.html.
+13. Knowledge Base Population, T&#226;che de TAC 2009, en cours. Voir http ://apl.jhu.edu/p&#771;aulmac/kbp.html.</p>
+
+</div></div>
+</body></html>

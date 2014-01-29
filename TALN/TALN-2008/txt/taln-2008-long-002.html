@@ -1,0 +1,550 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>R&#233;&#233;criture et D&#233;tection d&#8217;Implication Textuelle</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2008, Avignon, 9&#8211;13 juin 2008
+</p>
+<p>R&#233;&#233;criture et D&#233;tection d&#8217;Implication Textuelle
+</p>
+<p>Paul Bedaride 1 Claire Gardent 2
+</p>
+<p>(1) Universit&#233; Henri Poincar&#233;/LORIA, Nancy
+(2) CNRS/LORIA, Nancy
+</p>
+<p>Paul.Bedaride@loria.fr,Claire.Gardent@loria.fr
+</p>
+<p>R&#233;sum&#233;. Nous pr&#233;sentons un syst&#232;me de normalisation de la variation syntaxique qui
+permet de mieux reconna&#238;tre la relation d&#8217;implication textuelle entre deux phrases. Le syst&#232;me
+est &#233;valu&#233; sur une suite de tests comportant 2 520 paires test et les r&#233;sultats montrent un gain en
+pr&#233;cision par rapport &#224; un syst&#232;me de base variant entre 29.8 et 78.5 points la complexit&#233; des
+cas consid&#233;r&#233;s.
+</p>
+<p>Abstract. We present a system for dealing with syntactic variation which significantly
+improves the treatment of textual implication. The system is evaluated on a testsuite of 2 520
+sentence pairs and the results show an improvment in precision over the baseline which varies
+between 29.8 and 78.5 points depending on the complexity of the cases being considered.
+</p>
+<p>Mots-cl&#233;s : Normalisation syntaxique, D&#233;tection d&#8217;implication textuelle, R&#233;&#233;criture de
+graphe.
+</p>
+<p>Keywords: Syntactic normalisation, Recognising Textual Entailment, Graph rewriting.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Bedaride, C. Gardent
+</p>
+<p>1 Introduction
+</p>
+<p>La reconnaissance d&#8217;implications textuelles consiste &#224; d&#233;terminer si un texte en implique un
+autre. Pour le traitement s&#233;mantique des textes, c&#8217;est une t&#226;che fondamentale qui permet, par
+exemple, d&#8217;aider &#224; d&#233;terminer si une phrase est une r&#233;ponse &#224; une question (la r&#233;ponse implique
+la cl&#244;ture existentielle de la question) ou de d&#233;tecter les phrases redondantes dans un r&#233;sum&#233;
+(une phrase implique l&#8217;autre). Plus g&#233;n&#233;ralement, le traitement de l&#8217;implication textuelle per-
+met de d&#233;tecter des relations d&#8217;implication, d&#8217;&#233;quivalence et de contradiction entre fragments
+textuels et donc de raisonner sur le sens des textes.
+</p>
+<p>Au cours des trois derni&#232;res ann&#233;es, l&#8217;&#233;volution de la campagne RTE (Recognising Textual
+Entailment (Dagan et al., 2005)) a clairement montr&#233; que la reconnaissance d&#8217;implications
+textuelles passe par un traitement en profondeur des donn&#233;es textuelles. En effet, les r&#233;sultats
+obtenus montrent que les approches bas&#233;es sur les sacs de mots donnent des r&#233;sultats d&#233;cevants
+(pr&#233;cision d&#8217;environ 60% avec une &#171; baseline &#187; de 50%), et qu&#8217;il est n&#233;cessaire &#224; la fois de
+pouvoir faire abstraction des diff&#233;rences syntaxiques qui peuvent distinguer des textes s&#233;man-
+tiquement &#233;quivalents et de pouvoir raisonner sur le sens des textes.
+</p>
+<p>Dans cet article, nous nous concentrons sur la premi&#232;re de ces probl&#233;matiques et pr&#233;sentons
+un syst&#232;me pour la reconnaissance d&#8217;implications textuelles d&#233;di&#233; au traitement de la variabil-
+it&#233; syntaxique de l&#8217;anglais entre textes &#224; m&#234;me structure pr&#233;dicative. Les exemples suivants
+illustrent le type d&#8217;implications textuelles que nous visons &#224; traiter.
+</p>
+<p>(1) &#171; John hates the man that hit Mary. &#187; &#8658;T &#171; Mary was hit by the man that is hated by John. &#187;
+(2) &#8658;T &#171; John hates a man. &#187;
+(3) 6&#8658;T &#171; John hates Mary. &#187;
+</p>
+<p>L&#8217;article est structur&#233; de la fa&#231;on suivante. Nous commen&#231;ons (section 2) par pr&#233;senter une
+m&#233;thode permettant de coupler le Stanford Parser avec une phase de normalisation des sor-
+ties suivie d&#8217;une phase de reconnaissance d&#8217;implication textuelle. En bref, l&#8217;approche propos&#233;e
+consiste &#224; :
+</p>
+<p>&#8211; &#171; normaliser &#187; les graphes de d&#233;pendance s&#233;mantiquement &#233;quivalents par application de
+r&#232;gles de r&#233;&#233;criture ;
+</p>
+<p>&#8211; traduire les repr&#233;sentations normalis&#233;es en formules de la logique du premier ordre ;
+&#8211; et tester l&#8217;implication par le biais de raisonneurs automatiques.
+</p>
+<p>Nous illustrons ensuite l&#8217;impact de la phase de normalisation sur la reconnaissance d&#8217;implica-
+tions textuelles par une &#233;valuation bas&#233;e sur une suite de tests faisant intervenir des variations
+syntaxiques (section 3). Dans cette suite, chaque &#233;l&#233;ment est une paire de textes &#12296;T1, T2&#12297; annot&#233;e
+comme &#233;tant ou non un cas d&#8217;implication textuelle. En outre, lorsque T1 implique textuellement
+T2, T1 et T2 ne diff&#232;rent que par la syntaxe (e.g., variation actif/passif). L&#8217;&#233;valuation montre que,
+sur cette suite de tests, la phase de normalisation int&#233;gr&#233;e par notre approche permet d&#8217;am&#233;liorer
+la pr&#233;cision du syst&#232;me de 29.8 points pour les cas simples (un seul verbe conjugu&#233; dans la
+phrase impliqu&#233;e T2) et de 78.5 points pour les cas plus complexes (deux verbes conjugu&#233;s
+dans T2).
+</p>
+<p>Nous concluons (section 5) en indiquant des pistes &#224; poursuivre d&#8217;une part, pour g&#233;n&#233;raliser
+l&#8217;approche &#224; l&#8217;ensemble des variations syntaxiques, et d&#8217;autre part pour l&#8217;enrichir avec des con-
+naissances autres que syntaxiques (s&#233;mantique lexicale, savoir encyclop&#233;dique, etc.).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;&#233;criture et Implications Textuelles
+</p>
+<p>love
+</p>
+<p>John Mary
+nsubj dobj
+</p>
+<p>FIG. 1 &#8211; &#171; John loves
+Mary &#187;
+</p>
+<p>love
+</p>
+<p>Mary be John
+</p>
+<p>nsubjpass agentauxpass
+</p>
+<p>FIG. 2 &#8211; &#171; Mary is loved by John &#187;
+</p>
+<p>love
+</p>
+<p>John Mary
+arg0 arg1
+</p>
+<p>FIG. 3 &#8211; Repr&#233;sentation
+normalis&#233;e
+</p>
+<p>2 Approche Propos&#233;e
+</p>
+<p>Afin de mieux d&#233;tecter l&#8217;implication textuelle, nous cherchons &#224; associer &#224; un ensemble de
+structures syntaxiquement distinctes mais s&#233;mantiquement &#233;quivalentes, une repr&#233;sentation s&#233;-
+mantique &#171; normalis&#233;e &#187; unique. En effet, si elles pr&#233;sentent g&#233;n&#233;ralement des diff&#233;rences de
+type fonctionnel ou pragmatique (diff&#233;rentes structures communicatives par exemple), les vari-
+antes telles que la variante actif/passif v&#233;hiculent un contenu informationnel identique et doivent
+donc pouvoir &#234;tre reconnues comme s&#233;mantiquement &#233;quivalentes par un reconnaisseur d&#8217;im-
+plications textuelles. Nous proposons de reconstruire ces &#233;quivalences &#224; partir des graphes de
+d&#233;pendances produits par l&#8217;analyseur de Stanford modifi&#233;s par un syst&#232;me de r&#233;&#233;criture. Par
+exemple, pour normaliser les structures actif/passif donn&#233;es en Figure 1 et 2, nous d&#233;finissons
+des r&#232;gles de r&#233;&#233;criture qui peuvent &#234;tre repr&#233;sent&#233;es graphiquement de la fa&#231;on suivante :
+</p>
+<p>x
+</p>
+<p>y z
+</p>
+<p>x
+</p>
+<p>y z
+nsubj dobj arg0 arg1
+</p>
+<p>FIG. 4 &#8211; R&#233;gle de r&#233;&#233;criture de l&#8217;actif
+</p>
+<p>x
+</p>
+<p>y z t
+</p>
+<p>x
+</p>
+<p>z y
+nsubjpass agentauxpass arg0 arg1
+</p>
+<p>FIG. 5 &#8211; R&#233;gle de r&#233;&#233;criture du passif
+</p>
+<p>Pour d&#233;tecter les relations d&#8217;implication textuelle entre deux textes T1 et T2, les repr&#233;sentations
+s&#233;mantiques cr&#233;&#233;es par les r&#232;gles de r&#233;&#233;criture sont ensuite traduites en formules de la logique
+du premier ordre et l&#8217;implication entre deux textes test&#233;e par inf&#233;rence logique : un texte T1
+implique un texte T2 si et seulement si l&#8217;une des repr&#233;sentations s&#233;mantiques normalis&#233;es de T1
+implique l&#8217;une des repr&#233;sentations s&#233;mantiques normalis&#233;es de T2.
+</p>
+<p>En r&#233;sum&#233;, l&#8217;approche propos&#233;e comprend les &#233;tapes suivantes :
+&#8211; L&#8217;analyse syntaxique est faite par le Stanford Parser (SP)
+&#8211; Des r&#232;gles de r&#233;&#233;criture sont d&#233;finies &#224; partir de la grammaire XTAG pour traduire les graphes
+</p>
+<p>de d&#233;pendances produits par le SP en repr&#233;sentations s&#233;mantiques normalis&#233;es
+&#8211; Pour chaque phrase analys&#233;e, ces r&#232;gles de r&#233;&#233;criture sont appliqu&#233;es aux cinq premi&#232;res
+</p>
+<p>sorties du Stanford Parser
+&#8211; Les repr&#233;sentations s&#233;mantiques produites par la r&#233;&#233;criture sont traduites en formules de la
+</p>
+<p>logique du premier ordre
+&#8211; &#201;tant donn&#233;s deux textes T1 et T2, T1 implique T2 ssi (la traduction en logique du premier
+</p>
+<p>ordre de) l&#8217;une des repr&#233;sentations s&#233;mantiques normalis&#233;es de T1 implique (la traduction en
+logique du premier ordre de) l&#8217;une des repr&#233;sentations s&#233;mantiques normalis&#233;es de T2.
+</p>
+<p>Dans le reste de cette section, nous expliciterons les principaux points de notre approche. Nous
+pr&#233;sentons ensuite (section 3) les r&#233;sultats d&#8217;une &#233;valuation bas&#233;e sur une suite d&#8217;exemples
+faisant intervenir la variation syntaxique.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Bedaride, C. Gardent
+</p>
+<p>2.1 Analyse syntaxique et r&#233;&#233;criture
+</p>
+<p>Le Stanford Parser et ses graphes de d&#233;pendances Le Stanford Parser (Klein &amp; Manning,
+2003) est un analyseur syntaxique robuste dot&#233; d&#8217;une pr&#233;cision relativement &#233;lev&#233;e (score F de
+83,36% sur la section 23 du Penn Treebank). Les arbres syntagmatiques produits par cet analy-
+seur sont traduits dans des structures de d&#233;pendances par un module symbolique (de Marneffe
+et al., 2006). La sortie finale est un graphe de d&#233;pendances dont les noeuds sont &#233;tiquet&#233;s avec
+les mots de la phrase analys&#233;e et dont les arcs sont orient&#233;s et &#233;tiquet&#233;s avec des relations gram-
+maticales tels que objet, sujet, ou modifieur. Au total, le Stanford Parser utilise 48 relations
+grammaticales distinctes.
+</p>
+<p>La r&#233;&#233;criture La r&#233;&#233;criture est une technique permettant de mod&#233;liser les concepts de r&#233;duc-
+tion et de simplification. Par exemple, la r&#232;gle de r&#233;&#233;criture r1 : x &#8727; y + x &#8727; z &#8594; x &#8727; (y + z)
+permet de factoriser le calcul 5 &#8727; 6 + 5 &#8727; 7 + 5 &#8727; 8 en 5 &#8727; ((6 + 7) + 8).
+Un syst&#232;me de r&#233;&#233;criture est un ensemble de r&#232;gles de r&#233;&#233;criture de la forme l &#8594; r. Une telle
+r&#232;gle s&#8217;applique &#224; un objet t si celui-ci contient une instance du membre gauche l, c&#8217;est-&#224;-dire
+un sous-objet que l&#8217;on peut identifier &#224; l, cette &#233;tape s&#8217;appelle le filtrage. L&#8217;objet t se r&#233;&#233;crit
+alors en un nouvel objet t&#8242;, obtenu en rempla&#231;ant l&#8217;instance de l par l&#8217;instance du membre droit
+r correspondante.
+</p>
+<p>Typiquement, l&#8217;application d&#8217;un syst&#232;me est r&#233;gi par une strat&#233;gie permettant de d&#233;finir l&#8217;ordre
+d&#8217;application des r&#232;gles, ainsi que la fa&#231;on dont une r&#232;gle est appliqu&#233;e. Ainsi suivant la fa&#231;on
+d&#8217;appliquer la r&#232;gle ci-dessus (de gauche &#224; droite ou de droite &#224; gauche), le r&#233;sultat obtenu
+pourra &#234;tre 5 &#8727; ((6 + 7) + 8) ou 5 &#8727; (6 + (7 + 8)).
+Utilis&#233;s dans des domaines tr&#232;s vari&#233;s (calcul formel, alg&#232;bre combinatoire, s&#233;mantique op&#233;ra-
+tionnelle, etc.), la r&#233;&#233;criture a &#233;t&#233; &#233;tudi&#233;e pour diff&#233;rents types d&#8217;objets syntaxiques (e.g., mots,
+termes, lambda termes) et en particulier, pour les graphes. Pour normaliser les graphes de d&#233;pen-
+dances produits par le Stanford Parser, nous utilisons le syst&#232;me de r&#233;&#233;criture de graphes Gr-
+Gen.Net(Kroll &amp; Geis&#776;, 2007). Dans les paragraphes suivants, nous montrons comment nous
+utilisons ce syst&#232;me pour d&#233;finir des graphes de d&#233;pendances, des r&#233;gles de r&#233;&#233;criture et une
+strat&#233;gie de r&#233;&#233;criture.
+</p>
+<p>Graphes GrGen.Net. GrGen.Net permet de travailler sur des graphes dont les arcs sont ori-
+ent&#233;s et typ&#233;s et dont les noeuds sont typ&#233;s et peuvent &#234;tre &#233;tiquet&#233;s avec des attributs typ&#233;s.
+Les diff&#233;rents types peuvent en outre &#234;tre structur&#233;s dans une hi&#233;rarchie d&#8217;h&#233;ritage. GrGen.Net
+a donc toute l&#8217;expressivit&#233; requise pour r&#233;&#233;crire les graphes de d&#233;pendances produits par le
+Stanford Parser.
+</p>
+<p>Dans GrGen.Net, on peut donc repr&#233;senter les graphes de d&#233;pendances de la fa&#231;on suivante.
+Les mots &#233;tiquetant les noeuds des graphes de d&#233;pendances seront repr&#233;sent&#233;s par des attributs
+sur les noeuds et les arcs &#233;tiquet&#233;s de relations grammaticales des graphes de d&#233;pendances par
+des arcs typ&#233;s.
+</p>
+<p>R&#232;gles de r&#233;&#233;criture GrGen.Net. Une r&#232;gle de r&#233;&#233;criture de la forme l &#8594; r d&#233;finit un motif
+de filtrage l et une r&#233;&#233;criture r de la structure identifi&#233;e par le motif. Dans GrGen.Net, un
+motif de filtrage est un graphe sous-sp&#233;cifi&#233; o&#249; les contraintes exprim&#233;es peuvent contraindre</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;&#233;criture et Implications Textuelles
+</p>
+<p>le type des noeuds et des arcs et les attributs des noeuds. Il est &#233;galement possible d&#8217;exprimer
+des contraintes n&#233;gatives (par exemple, pour exiger qu&#8217;un noeud n&#8217;ait pas plus de trois arcs
+sortants). Les op&#233;rations de r&#233;&#233;criture permises sont la duplication, la suppression ou l&#8217;ajout
+d&#8217;information. Elles sont exprim&#233;es par la partie droite de la r&#232;gle qui sp&#233;cifie comment r&#233;&#233;crire
+la structure identifi&#233;e par le motif de filtrage.
+</p>
+<p>GrGen.Net permet un encodage tr&#232;s intuitif des r&#232;gles de normalisation. Ainsi, les r&#232;gles repr&#233;sen-
+t&#233;s graphiquement dans les figures 4 et 5 sont d&#233;finies de la mani&#232;re suivante dans GrGen.Net :
+</p>
+<p>rule nx0Vnx1 {
+pattern{
+verb:element;
+if{verb.verb != &quot;None&quot;;}
+np0:element;
+np1:element;
+verb -:nsubj-&gt; np0;
+verb -:dobj-&gt; np1;
+}
+replace {
+verb -:arg0-&gt; np0;
+verb -:arg1-&gt; np1;
+}}
+</p>
+<p>rule nx1Vbynx0 {
+pattern{
+verb:element;
+if{verb.verb != &quot;None&quot;;}
+np1:element;
+be:element;
+np0:element;
+verb -:nsubjpass-&gt; np1;
+verb -:auxpass-&gt; be;
+verb -:agent-&gt; np0;
+</p>
+<p>}
+replace {
+verb -:arg0-&gt; np0;
+verb -:arg1-&gt; np1;
+</p>
+<p>}}
+</p>
+<p>Plus g&#233;n&#233;ralement, les r&#232;gles d&#233;finies posent des contraintes sur les d&#233;pendances entre les mots
+et sur leur r&#233;&#233;criture, ainsi que sur la cat&#233;gorie syntaxique de certains mots. Ce deuxi&#232;me type
+de contrainte est n&#233;cessaire pour les arbres incluant un verbe utilis&#233; comme adjectif (i.e., &#171; the
+formated disk &#187;), afin d&#8217;&#233;viter de r&#233;&#233;crire tous les graphes contenant un adjectif (i.e., &#171; the
+beautiful girl &#187;). Pour v&#233;rifier qu&#8217;il s&#8217;agit bien d&#8217;un emploi adjectival d&#8217;un verbe, la contrainte
+sp&#233;cifi&#233;e demande que le mot &#233;tiquetant le noeud consid&#233;r&#233; appartienne &#224; la cat&#233;gorie verbe de
+WordNet1.
+</p>
+<p>Strat&#233;gies de r&#233;&#233;criture GrGen.Net. Pour d&#233;terminer l&#8217;ordre d&#8217;application des r&#232;gles, Gr-
+Gen.Net permet de regrouper les r&#232;gles en s&#233;quences puis d&#8217;imposer diff&#233;rents types de con-
+traintes sur l&#8217;ex&#233;cution de ces s&#233;quences. Une s&#233;quence de r&#232;gles peut &#234;tre disjonctive, conjonc-
+tive ou it&#233;rative. Deux ou plusieurs s&#233;quences de r&#232;gles peuvent &#234;tre combin&#233;es par concat&#233;na-
+tion (la combinaison r&#233;ussit si au moins l&#8217;une des s&#233;quences de r&#232;gles peut &#234;tre appliqu&#233;e avec
+succ&#232;s), par un AND transactionnel (pour que la combinaison de s&#233;quences soit ex&#233;cut&#233;e, il faut
+que chacune des s&#233;quences sp&#233;cifi&#233;es puisse &#234;tre appliqu&#233;e dans l&#8217;ordre sp&#233;cifi&#233;) et par un XOR
+ou disjonction exclusive (la combinaison de s&#233;quences r&#233;ussit d&#232;s que l&#8217;une des s&#233;quences sp&#233;-
+cifi&#233;es peut &#234;tre appliqu&#233;e). Il est par ailleurs possible d&#8217;imposer soit une application &#171; globale &#187;
+(la r&#232;gle est appliqu&#233;e &#224; toutes les structures filtr&#233;es par son motif dans le graphe r&#233;&#233;crit) soit
+une application &#171; unique &#187; (la r&#232;gle n&#8217;est appliqu&#233;e qu&#8217;&#224; une seule structure).
+</p>
+<p>Pour optimiser leur bonne application, les r&#232;gles sont ex&#233;cut&#233;es par ordre de sp&#233;cificit&#233; en al-
+lant de la plus sp&#233;cifique &#224; la moins sp&#233;cifique. Par exemple, la r&#232;gle de r&#233;&#233;criture pour le passif
+long est appliqu&#233;e avant celle pour le passif court, assurant ainsi la r&#233;&#233;criture du groupe pr&#233;po-
+</p>
+<p>1http://wordnet.princeton.edu</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Bedaride, C. Gardent
+</p>
+<p>sitionnel en &#171; by &#187;. En outre, lorsqu&#8217;une r&#232;gle s&#8217;applique &#224; plusieurs sous-structures du graphe
+r&#233;&#233;crit, la r&#233;&#233;criture s&#8217;applique simultan&#233;ment &#224; l&#8217;ensemble de ces sous-structures (application
+globale plut&#244;t qu&#8217;unique).
+</p>
+<p>Techniquement, la strat&#233;gie de r&#233;&#233;criture d&#233;ploy&#233;e est la suivante : chaque s&#233;quence de r&#232;gles
+contient une seule r&#232;gle et l&#8217;ensemble des s&#233;quences est combin&#233; par concat&#233;nation en ordon-
+nant les s&#233;quences par ordre de sp&#233;cificit&#233; (une r&#232;gle R1 est dite plus sp&#233;cifique qu&#8217;une r&#232;gle
+R2 si l&#8217;ensemble des graphes pouvant &#234;tre filtr&#233;s par R1 est inclus dans l&#8217;ensemble des graphes
+pouvant &#234;tre filtr&#233;s par R2).
+</p>
+<p>2.2 D&#233;finition et application des r&#232;gles de r&#233;&#233;criture
+</p>
+<p>Les r&#232;gles de r&#233;&#233;criture n&#233;cessaires &#224; la normalisation des structures de d&#233;pendances produites
+par le Stanford Parser sont d&#233;finies manuellement.
+</p>
+<p>Pour d&#233;finir ces r&#232;gles, nous nous appuyons sur la grammaire d&#8217;arbres adjoints XTAG de
+l&#8217;anglais (XTAG Research Group, 2001). En effet, XTAG regroupe dans des &#171; familles d&#8217;ar-
+bres &#187;, la description des variations syntaxiques possibles pour les diff&#233;rents types de verbes
+existants (verbe &#224; un compl&#233;ment nominal ou intransitif, verbe &#224; un compl&#233;ment nominal et un
+compl&#233;ment phrastique, verbe transitif, etc.). En d&#8217;autres termes, les familles XTAG permet-
+tent d&#8217;identifier l&#8217;ensemble des variations syntaxiques possibles pour chaque type syntaxique
+(valence) de verbe.
+</p>
+<p>&#192; partir de la grammaire XTAG, nous commen&#231;ons donc par &#233;tablir un ensemble de phrases
+illustrant, pour un cadre de sous-cat&#233;gorisation donn&#233;, l&#8217;ensemble des variations syntaxiques
+possibles. Par exemple, &#233;tant donn&#233;e la phrase &#171; John loves Mary &#187;, la famille Tnx0Vnx12 de
+la grammaire XTAG nous permet d&#8217;identifier 39 variations syntaxiques possibles dont &#171; John
+loves Mary &#187;, &#171; Mary is loved by John &#187;, &#171; John who loves Mary &#187;, &#171; Mary whom John loves &#187;,
+&#171; Mary who is loved by John &#187;, &#171; the loving of John by Mary &#187;, etc.
+</p>
+<p>Nous analysons ensuite ces phrases avec le Stanford Parser et d&#233;finissons pour les graphes de
+d&#233;pendances produits par l&#8217;analyseur3 des r&#232;gles de r&#233;&#233;criture permettant de r&#233;&#233;crire chacune
+des structures produites en une forme normalis&#233;e. Par exemple, des r&#232;gles sont d&#233;finies pour
+r&#233;&#233;crire chacun des arbres de d&#233;pendances donn&#233;s en Figure 1 et 2 en une structure unique,
+la structure donn&#233;e en Figure 3. Plus g&#233;n&#233;ralement, &#224; partir des analyses correctes produites
+par le Stanford Parser pour chacune des variantes syntaxiques d&#8217;un type de phrase donn&#233; (e.g.,
+phrase avec un verbe transitif), nous d&#233;finissons un ensemble de r&#232;gles de r&#233;&#233;criture permettant
+de transformer les arbres de d&#233;pendances de chacune de ces variantes en une repr&#233;sentation
+s&#233;mantique unique.
+</p>
+<p>Pour &#233;valuer l&#8217;impact de notre proc&#233;dure de normalisation, nous avons d&#233;fini des r&#232;gles de
+r&#233;&#233;criture pour la classe des verbes transitifs et celle des verbes intransitifs. Pour ces deux
+classes, la normalisation des structures requiert la d&#233;finition de 32 r&#232;gles de r&#233;&#233;criture.
+</p>
+<p>2classe des verbes r&#233;gissant deux arguments nominaux
+3Comme le Stanford Parser retourne plusieurs analyses pour une m&#234;me phrase, nous ne consid&#233;rons bien s&#251;r
+</p>
+<p>que les structures correctes pour la d&#233;finition des r&#232;gles de r&#233;&#233;critures.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;&#233;criture et Implications Textuelles
+</p>
+<p>2.3 Traitement logique de l&#8217;implication textuelle
+</p>
+<p>Pour d&#233;terminer si un texte T1 implique textuellement un texte T2, nous traduisons les repr&#233;sen-
+tations s&#233;mantiques normalis&#233;es en formules logiques puis nous testons la validit&#233; de l&#8217;impli-
+cation logique en logique du premi&#232;re ordre.
+</p>
+<p>Traitement logique La transformation d&#8217;une repr&#233;sentation s&#233;mantique normalis&#233;e en une
+formule de la logique du premier ordre se fait de la fa&#231;on suivante. &#192; chaque noeud du graphe
+correspond une variable quantifi&#233;e &#224; laquelle est appliqu&#233; un pr&#233;dicat unaire ayant pour nom le
+mot associ&#233; au noeud. Les arcs introduisent une relation binaire ayant pour nom l&#8217;&#233;tiquette de
+l&#8217;arc et pour arguments les variables associ&#233;es &#224; ses noeuds source et destination. La formule
+finale est la conjonction des pr&#233;dications ainsi obtenues. Ainsi pour le graphe de la Figure 1
+nous avons la formule :
+</p>
+<p>&#8707;x, y, z : love(x) &#8743; john(y) &#8743;mary(z) &#8743; nsubj(x, y) &#8743; dobj(x, z)
+</p>
+<p>Implication textuelle La validit&#233; de l&#8217;implication logique entre deux formules peut &#234;tre v&#233;ri-
+fi&#233;e gr&#226;ce &#224; des outils formels comme les prouveurs de th&#233;or&#232;me ou les constructeurs de mod-
+&#232;les. Comme le montre (Blackburn et al., 1999) , ces deux outils peuvent &#234;tre utilis&#233;s de fa&#231;on
+compl&#233;mentaire. En effet, un prouveur de th&#233;or&#232;mes vise &#224; d&#233;river une contradiction tandis
+qu&#8217;un constructeur de mod&#232;les cherche &#224; cr&#233;er un mod&#232;le satisfaisant la formule d&#8217;entr&#233;e. En
+cons&#233;quence, un prouveur est souvent peu efficace pour une formule satisfiable tandis qu&#8217;&#224; l&#8217;in-
+verse, un constructeur de mod&#232;les est souvent peu performant pour une formule non satisfiable.
+Pour tester la relation d&#8217;implication &#966;1 &#8594; &#966;2 entre les repr&#233;sentations loqiques de deux textes
+T1 et T2, nous utilisons donc en parall&#232;le le prouveur de th&#233;or&#232;mes Equinox4 et le constructeur
+de mod&#232;les Paradox7. Dans les deux cas, la requ&#234;te est la n&#233;gation de l&#8217;implication &#172;(&#966;1 &#8594; &#966;2)
+et une r&#233;ponse positive indique une non-implication textuelle.
+</p>
+<p>En pratique, nous ne testons pas l&#8217;implication entre deux repr&#233;sentations mais entre plusieurs.
+Nous consid&#233;rons en effet les 5 premi&#232;res sorties de l&#8217;analyseur pour chacune des deux phrases
+consid&#233;r&#233;es et nous cherchons &#224; d&#233;tecter une relation d&#8217;implication entre au moins une paire
+de repr&#233;sentations. Plus pr&#233;cis&#233;ment, &#233;tant donn&#233; deux phrases T1, T2 et les formules logiques
+T 11 , . . . , T
+</p>
+<p>5
+1 et T
+</p>
+<p>1
+2 , . . . , T
+</p>
+<p>5
+2 associ&#233;es &#224; ces phrases, T2 est une implication textuelle de T1 si :
+</p>
+<p>(T 11 &#8594; T 12 ) &#8744; (T 11 &#8594; T 22 ) &#8744; . . .
+</p>
+<p>ou par &#233;quivalence :
+(T 11 &#8743; . . . &#8743; T 51 )&#8594; (T 12 &#8744; . . . &#8744; T 52 )
+</p>
+<p>3 &#201;valuation
+</p>
+<p>Afin d&#8217;&#233;valuer notre syst&#232;me de normalisation, nous avons d&#233;velopp&#233; une suite de tests illustrant
+la variation syntaxique entre deux paires de phrases.
+</p>
+<p>4http://www.cs.chalmers.se/ koen/folkung/</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Bedaride, C. Gardent
+</p>
+<p>&#192; partir d&#8217;un lexique restreint et d&#8217;expressions r&#233;guli&#232;res d&#233;crivant les structures syntaxiques
+possibles pour un verbe et les repr&#233;sentations s&#233;mantiques associ&#233;es, nous avons d&#233;velopp&#233;
+un script permettant d&#8217;engendrer des paires &#12296; Phrase, S&#233;mantique &#12297; telles que les phrases en-
+gendr&#233;es contiennent soit un (phrase simple) soit deux ou plus (phrase complexe) verbes con-
+jugu&#233;s. Apr&#232;s avoir manuellement v&#233;rifi&#233; la correction des &#233;l&#233;ments g&#233;n&#233;r&#233;s (paires phrase-
+s&#233;mantique), nous avons utilis&#233; ces paires pour cr&#233;er les &#233;l&#233;ments de la suite de tests c&#8217;est-&#224;-
+dire, des paires de phrases annot&#233;es avec la valeur VRAI ou FAUX selon qu&#8217;il y a ou non une
+relation d&#8217;implication textuelle entre les membres de la paire.
+</p>
+<p>La suite de tests r&#233;sultante5 comporte 2520 paires de phrases annot&#233;es dont 937 correspondent
+&#224; une implication entre une phrase (complexe ou simple) et une phrase simple (i.e.,1V+IT &#8211;
+e.g., implication (2) de l&#8217;introduction), 437 &#224; une implication entre deux phrases complexes
+(i.e.,2V+IT &#8211; e.g., implication (1) de l&#8217;introduction) et 1146 &#224; une non-implication (i.e.,V-IT &#8211;
+e.g., non-implication (3) de l&#8217;introduction).
+</p>
+<p>Pour chaque &#233;l&#233;ment dans cette suite de tests, nous testons l&#8217;implication selon la proc&#233;dure
+d&#233;crite dans la section pr&#233;c&#233;dente : pour chacune des deux phrases dans une paire, les 5 pre-
+mi&#232;res analyses du Stanford Parser sont transform&#233;es en formules de la logique du premier
+ordre et il est test&#233; si ou non, la conjonction des 5 repr&#233;sentations de T1 implique la disjonction
+des 5 repr&#233;sentations de T2. Le test est fait d&#8217;une part, &#224; partir des graphes de d&#233;pendances
+produits par l&#8217;analyseur et d&#8217;autre part, &#224; partir des graphes normalis&#233;s.
+</p>
+<p>On obtient les r&#233;sultats suivants :
+</p>
+<p>type de graphe r&#233;ponse 1V+IT 2V+IT V-IT
+graphe +IT 632 (67.4%) 26 (5.9%) 122 (10.6%)
+</p>
+<p>d&#233;pendances -IT 290 (30.9%) 406 (92.9%) 1021 (89.1%)
+basique &#201;chec 15 (1.7%) 5 (1.2%) 3 (0.3%)
+graphe +IT 911 (97.2%) 369 (84.4%) 134 (11.7%)
+</p>
+<p>d&#233;pendances -IT 12 (1.3%) 58 (13.3%) 1011 (88.2%)
+normalis&#233; &#201;chec 14 (1.5%) 10 (2.3%) 1 (0.1%)
+</p>
+<p>La logique du premi&#232;re ordre n&#8217;&#233;tant que semi-d&#233;cidable, la ligne &#171; &#201;chec &#187; recense les cas o&#249;
+les raisonneurs &#233;chouent &#224; donner une r&#233;ponse. On observe qu&#8217;en pratique le nombre de cas
+ind&#233;cidables reste limit&#233;.
+</p>
+<p>Pour les implications de phrases simples (premi&#232;re colonne, 1V+IT), la normalisation des
+graphes de d&#233;pendances permet un gain en pr&#233;cision de 29.8 points : sur 937 cas d&#8217;implica-
+tions textuelles, 911 sont reconnues comme telles contre seulement 632 sans normalisation. Le
+gain augmente de fa&#231;on significative pour les implications de phrases complexes (2V+IT) avec
+369 cas reconnus avec la normalisation contre 26 sans, soit un gain en pr&#233;cision de 78.5 points
+la derni&#232;re colonne (V-IT) montre que la normalisation n&#8217;est pas trop permissive puisque avec
+ou sans normalisation, le taux de non-implications reconnues est d&#8217;environ 90%.
+</p>
+<p>L&#8217;analyse manuelle des r&#233;sultats de l&#8217;approche normalisante montre que les cas d&#8217;erreurs sont
+d&#251;s d&#8217;une part, &#224; des cas o&#249; les 5 premi&#232;res sorties de l&#8217;analyseur ne contiennent pas le graphe
+correct pour la phrase analys&#233;e et d&#8217;autre part, &#224; un petit nombre de r&#232;gles de r&#233;&#233;criture incor-
+rectes.
+</p>
+<p>5accessibles &#224; l&#8217;adresse suivante : http://www.loria.fr/~bedaride/publications/taln08-bedgar/tests.html</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;&#233;criture et Implications Textuelles
+</p>
+<p>4 Comparaison avec l&#8217;existant
+</p>
+<p>Notre approche pr&#233;sente des similitudes avec l&#8217;approche pr&#233;sent&#233;e dans (Fabio Massimo Zan-
+zotto &amp; Moschitti, 2007) qui elle aussi utilise des r&#232;gles de r&#233;&#233;criture pour d&#233;tecter l&#8217;implica-
+tion textuelle. Les diff&#233;rences sont de deux ordres. Premi&#232;rement, les r&#232;gles de (Fabio Mas-
+simo Zanzotto &amp; Moschitti, 2007) portent sur les arbres syntaxiques plut&#244;t que sur des graphes
+de d&#233;pendances. Deuxi&#232;mement, ces r&#232;gles sont acquises automatiquement &#224; partir des corpus
+d&#8217;implications textuelles plut&#244;t que manuellement &#224; partir d&#8217;une grammaire.
+</p>
+<p>Les graphes de d&#233;pendances repr&#233;sentent une abstraction s&#233;mantique des arbres syntaxiques,
+ils permettent donc d&#8217;avoir des r&#232;gles de r&#233;&#233;critures plus g&#233;n&#233;riques. Par exemple, le passif
+simple est g&#233;r&#233; avec une seule r&#232;gle avec les graphes de d&#233;pendances alors qu&#8217;avec les arbres
+syntaxiques dont la structure varie significativement avec le temps du verbe, il faut avoir une
+r&#232;gle pour chaque temps.
+</p>
+<p>La g&#233;n&#233;ration de r&#232;gles de r&#233;&#233;criture &#224; partir de paires de textes impliqu&#233;s &#224; l&#8217;avantage d&#8217;&#234;tre
+totalement automatis&#233;e, mais les r&#232;gles obtenues prennent chacune en compte un ensemble de
+variations syntaxiques et s&#233;mantique, ce qui les rend peu modulaires et tr&#232;s sp&#233;cifiques : un
+r&#232;gle ne pourra &#234;tre appliqu&#233;e que si les phrases analys&#233;es pr&#233;sentent l&#8217;ensemble des caract&#233;ris-
+tiques syntaxiques et s&#233;mantiques d&#233;crites par le motif de filtrage de cette r&#232;gle. Par contraste,
+l&#8217;approche que nous pr&#233;sentons permet la r&#233;&#233;criture du noyau verbal ind&#233;pendamment des con-
+textes sp&#233;cifiques dans lequel il appara&#238;t. La r&#233;&#233;criture s&#233;mantique (de structures synonymiques
+par exemple) n&#8217;est pas trait&#233;e pour l&#8217;instant mais pourrait l&#8217;&#234;tre dans une deuxi&#232;me syst&#232;me de
+r&#233;&#233;criture qui seraient combin&#233;, de fa&#231;on modulaire, avec le syst&#232;me de normalisation syntax-
+ique pr&#233;sent&#233; ici.
+</p>
+<p>5 Conclusion
+</p>
+<p>Les &#233;valuations pr&#233;sent&#233;es dans cet article montrent d&#8217;une part, que les analyseurs existants
+produisent des structures distinctes pour des phrases ayant le m&#234;me contenu informationnel et
+d&#8217;autre part, qu&#8217;il est possible d&#8217;utiliser les syst&#232;mes de r&#233;&#233;criture pour normaliser ces structures
+et leur associer une repr&#233;sentation s&#233;mantique unique.
+</p>
+<p>Pour les exemples consid&#233;r&#233;s, la normalisation permet un gain en pr&#233;cision cons&#233;quent (variant
+entre environ 30 et 80 points selon la complexit&#233; syntaxique des phrases consid&#233;r&#233;es). La m&#233;th-
+ode propos&#233;e a donc un potentiel clair pour am&#233;liorer la capacit&#233; des syst&#232;mes de traitement
+d&#8217;implications textuelles &#224; traiter de la variation syntaxique.
+</p>
+<p>Pour passer &#224; &#233;chelle et obtenir un syst&#232;me de d&#233;tection d&#8217;implications textuelles qui, &#224; partir
+de cette m&#233;thode, traite de l&#8217;ensemble des variations syntaxiques, la m&#233;thode doit &#234;tre g&#233;n&#233;ral-
+is&#233;e &#224; l&#8217;ensemble des cadres syntaxiques et des alternations. Nous travaillons actuellement au
+d&#233;veloppement d&#8217;un syst&#232;me de &#171; m&#233;ta-r&#232;gles &#187; qui permet de d&#233;river, &#224; partir des r&#232;gles de
+r&#233;&#233;criture d&#233;finies pour les verbes transitifs et intransitifs, des r&#232;gles de r&#233;&#233;criture pour les autres
+classes de verbes (par exemple, verbes &#224; objet pr&#233;positionnel, verbes &#224; objet phrastiques, verbes
+ditransitifs) ainsi que pour les alternances.
+</p>
+<p>Comme nous le mentionnons dans l&#8217;introduction, la variation syntaxique, si elle est un im-
+portant facteur de la reconnaissance d&#8217;implications textuelles, n&#8217;en n&#8217;est pas pour autant le
+facteur unique. Il est &#233;galement n&#233;cessaire de pouvoir prendre en compte de nombreux autres</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Bedaride, C. Gardent
+</p>
+<p>facteurs de variations dont en particulier, la s&#233;mantique lexicale (utilisation de synonymes, hy-
+peronymes, variantes terminologiques, etc.). A moyen terme, nous envisageons d&#8217;enrichir le
+syst&#232;me de r&#232;gles de r&#233;&#233;criture pour prendre en compte les connaissances lexicales contenues
+dans WordNet, VerbNet et/ou FrameNet.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>BLACKBURN P., BOS J., KOHLHASE M. &amp; DE NIVELLE H. (1999). Inference and compu-
+tational semantics. In H. .BUNT &amp; E.THIJSSE, Eds., Proceedings of the Third International
+Workshop on Computational Semantics (IWCS-3), p. 5&#8211;19.
+</p>
+<p>DAGAN I., GLICKMAN O. &amp; MAGNINI B. (2005). The PASCAL Recognising Textual En-
+tailment Challenge. In Machine Learning Challenges Workshop, p. 177&#8211;190.
+</p>
+<p>DE MARNEFFE M.-C., MACCARTNEY B. &amp; MANNING C. D. (2006). Generating typed
+dependency parses from phrase structure parses. In In Proceedings of LREC-06.
+</p>
+<p>FABIO MASSIMO ZANZOTTO M. P. &amp; MOSCHITTI A. (2007). Shallow semantics in fast
+textual entailment rule learners. In In Proceedings of the Third Recognising Textual Entailment
+Challenge, p. 72&#8211;77.
+</p>
+<p>KLEIN D. &amp; MANNING C. (2003). Accurate unlexicalized parsing.
+</p>
+<p>KROLL M. &amp; GEIS&#776; R. (2007). Developing graph transformations with grgen.net. In Applica-
+tions of Graph Transformation with Industrial releVancE - AGTIVE 2007. preliminary version,
+submitted to AGTIVE 2007.
+</p>
+<p>XTAG RESEARCH GROUP (2001). A Lexicalized Tree Adjoining Grammar for English. Rap-
+port interne IRCS-01-03, IRCS, University of Pennsylvania.</p>
+
+</div></div>
+</body></html>

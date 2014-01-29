@@ -1,0 +1,491 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Annoter les documents XML avec un outil d&#8217;analyse syntaxique</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2004, F&#232;s, 19-21 avril 2004 
+ 
+</p>
+<p>Annoter les documents XML avec un outil d&#8217;analyse syntaxique 
+</p>
+<p>Claude Roux 
+ 
+</p>
+<p>Xerox Research Centre Europe 
+6, chemin de Maupertuis  
+</p>
+<p>38240 Meylan 
+claude.roux@xrce.xerox.com 
+</p>
+<p>R&#233;sum&#233; &#8211; Abstract  
+</p>
+<p>Cet article pr&#233;sente l&#8217;int&#233;gration au sein d&#8217;un analyseur syntaxique (Xerox Incremental Parser) 
+de r&#232;gles sp&#233;cifiques qui permettent de lier l&#8217;analyse grammaticale &#224; la s&#233;mantique des balises 
+XML sp&#233;cifiques &#224; un document donn&#233;. Ces r&#232;gles sont bas&#233;es sur la norme XPath qui offre 
+une tr&#232;s grande finesse de description et permet de guider tr&#232;s pr&#233;cis&#233;ment l&#8217;application de 
+l&#8217;analyseur sur une famille de documents partageant une m&#234;me DTD. Le r&#233;sultat est alors &#234;tre 
+int&#233;gr&#233; directement comme annotation dans le document trait&#233;. 
+</p>
+<p>This article presents the embedding within a syntactic parser (Xerox Incremental Parser or 
+XIP) of specific rules which are used to bind the grammatical analysis to the semantic of the 
+XML mark up tags specific to a given document. The goal of these rules is to guide the 
+application of a natural language processing tool through the use of XPath instructions to 
+describe documents that share the same DTD. The result can then be embedded within the 
+input document in order to annotate that document. 
+</p>
+<p>Mots Cl&#233;s &#8211; Keywords 
+</p>
+<p>XML, analyse syntaxique, traitement automatique des langues, traitement de documents, 
+Xpath,XIP. 
+XML, parsing, natural language processing, document processing, XPath,XIP 
+</p>
+<p>1 Introduction 
+</p>
+<p>Depuis quelques ann&#233;es d&#233;j&#224;, la norme XML s&#8217;est g&#233;n&#233;ralis&#233;e dans la gestion de documents. 
+D&#233;sormais de nombreux acteurs du monde des bases de donn&#233;es offrent des m&#233;thodes de 
+stockage et d&#8217;indexation de documents bas&#233;s sur cette norme. La plupart des traitements de 
+texte offre aussi de leur c&#244;t&#233; des solutions pour retraduire les documents en XML.  Ce format 
+r&#233;pond en effet  &#224; une demande de plus en plus forte du monde de l&#8217;industrie d&#8217;homog&#233;n&#233;iser </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>annoter les documents xml avec un outil d&#8217;analyse syntaxique  
+</p>
+<p>les bases documentaires des entreprises. Cette migration vise toute &#224; la fois la possibilit&#233; de 
+disposer d&#8217;une base de texte partageant une m&#234;me repr&#233;sentation, mais aussi et surtout 
+d&#8217;annoter les documents de fa&#231;on &#224; renforcer l&#8217;efficacit&#233; des outils de recherche et 
+d&#8217;extraction d&#8217;information.  Cependant cette annotation lorsqu&#8217;elle concerne des millions de 
+documents ne peut s&#8217;effectuer &#224; la main. Or l&#8217;utilisation d&#8217;un format unique permet 
+aujourd&#8217;hui d&#8217;offrir aux outils linguistiques, statistiques ou symboliques, une repr&#233;sentation 
+standardis&#233;e des textes, ce qui permet de simplifier l&#8217;automatisation du traitement de ces 
+documents. Cependant, pour que de tels logiciels soient efficaces, il est n&#233;cessaire de marier la 
+repr&#233;sentation XML avec les outils linguistiques.  
+</p>
+<p>Cet article pr&#233;sente une m&#233;thode qui permet de placer au c&#339;ur de l&#8217;analyse linguistique le 
+balisage des documents. En effet la s&#233;mantique des balises peut se r&#233;v&#233;ler cruciale durant le 
+traitement d&#8217;un document. Si un titre est  marqu&#233; &#224; l&#8217;aide d&#8217;une balise sp&#233;cifique, il est clair 
+que cela a un impact sur le contenu textuel associ&#233; &#224; cette balise. De m&#234;me, si dans un texte 
+une s&#233;rie de mots est plac&#233;e en italique ou en gras, cela aussi doit &#234;tre pris en compte par la 
+grammaire. Enfin, si l&#8217;on organise le traitement en suivant l&#8217;arborescence XML, cela simplifie 
+aussi naturellement le r&#233;alignement du r&#233;sultat avec les parties analys&#233;es.  
+</p>
+<p>Nous allons dans un premier temps pr&#233;senter l&#8217;analyseur syntaxique XIP (Xerox Incremental 
+Parser) d&#233;velopp&#233; &#224; XRCE (Xerox Research Centre Europe). Puis, dans un deuxi&#232;me temps 
+nous pr&#233;senterons le formalisme unifi&#233; qui nous permet de g&#233;rer en parall&#232;le une grammaire 
+de document et une grammaire de langue. Cette grammaire de document ne porte que sur la 
+structure du  document (ses balises et les attributs qui leur sont associ&#233;s). Son but est de 
+d&#233;cider en fonction d&#8217;une balise donn&#233;e de l&#8217;int&#233;r&#234;t ou non d&#8217;appliquer la grammaire de 
+langue, et du degr&#233; de finesse d&#8217;analyse qui doit &#234;tre s&#233;lectionn&#233; (simple analyse 
+morphologique, construction de l&#8217;arbre des syntagmes noyaux1 ou extraction des 
+d&#233;pendances).  Le r&#233;sultat est alors int&#233;gr&#233; dans le document initial sous la forme de n&#339;uds 
+XML. 
+</p>
+<p>2 Xerox Incremental Parser (XIP) 
+</p>
+<p>XIP (A&#239;t et al. 2000, Roux 99) est un outil de traitement linguistique dont le but est d&#8217;analyser 
+du texte tout-venant. XIP fournit un ensemble tr&#232;s riche de r&#232;gles pour effectuer aussi bien de 
+la d&#233;sambigu&#239;sation de cat&#233;gorie, de la construction de syntagmes noyaux  et de l&#8217;extraction 
+de d&#233;pendances syntaxiques (Tesni&#232;re 59).  
+</p>
+<p>Les r&#232;gles sont appliqu&#233;es de fa&#231;on incr&#233;mentale, autrement dit les r&#232;gles sont ordonn&#233;es et 
+appliqu&#233;es les unes apr&#232;s les autres. XIP g&#232;re pour chaque phrase une s&#233;quence de n&#339;uds 
+lexicaux ou syntagmatiques associ&#233;e &#224; un ensemble de d&#233;pendances portant sur ces n&#339;uds. 
+Des traits en nombre illimit&#233; peuvent &#234;tre associ&#233;s &#224; ces n&#339;uds ou &#224; ces d&#233;pendances. Ils 
+proviennent soit des lexiques soit de l&#8217;application de r&#232;gles ant&#233;rieures.  
+</p>
+<p>                                                 
+</p>
+<p>1 Le terme &#171; syntagme noyau &#187; correspond &#224; la notion de chunk d&#233;fini par Abney (Abney 
+1991). 
+</p>
+<p> </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> Claude Roux 
+</p>
+<p>L&#8217;application de XIP sur un texte consiste &#224; d&#233;couper d&#8217;abord le texte en mots. Ces mots sont 
+ensuite d&#233;sambigu&#239;s&#233;s, puis r&#233;unis en syntagmes noyaux. On d&#233;duit, gr&#226;ce &#224; des r&#232;gles 
+sp&#233;cifiques, des d&#233;pendances syntaxiques entre les n&#339;uds lexicaux en se basant sur les 
+d&#233;limitations introduites par les syntagmes noyaux. 
+</p>
+<p>XIP offre de nombreuses possibilit&#233;s d&#8217;analyse. On peut par exemple ne calculer que la liste 
+des mots avec leur analyse morphologique, ou bien encore s&#8217;arr&#234;ter &#224; la seule construction de 
+l&#8217;arbre des syntagmes noyaux. Chaque fois &#233;videmment, le temps de calcul est d&#8217;autant r&#233;duit. 
+XIP peut aussi renvoyer plusieurs types de r&#233;sultats, un r&#233;sultat en mode texte qui correspond 
+&#224; l&#8217;exemple ci-dessous, ou un r&#233;sultat de type XML qui ob&#233;it &#224; une DTD propri&#233;taire &#233;pousant 
+tr&#232;s pr&#233;cis&#233;ment les r&#233;sultats de XIP. 
+</p>
+<p>Exemple : 
+</p>
+<p>La dame referme la porte de la maison. 
+</p>
+<p>Nous extrayons la suite de d&#233;pendances suivantes ainsi que l&#8217;arbre des syntagmes noyaux 
+pour cette phrase : 
+</p>
+<p>SUBJ_NOUN(referme,dame) 
+OBJ_NOUN(referme,porte) 
+ 0&gt;GROUPE{SC{NP{La dame} FV{referme}} NP{la porte} PP{de NP{la maison}}} 
+</p>
+<p>Ces d&#233;pendances ont la signification suivante : 
+</p>
+<p>SUBJ_NOUN  indique une relation &#171; sujet &#187; entre un nom et un verbe. Une relation 
+   &#171; sujet &#187; entre un pronom et un verbe aurait &#233;t&#233; indiqu&#233;e par 
+   SUBJ_PRONOUN. 
+</p>
+<p>OBJ_NOUN  indique une relation compl&#233;ment d&#8217;objet direct entre un nom et un 
+ verbe. Le trait &#171; NOUN &#187; indique que le COD est un nom. 
+</p>
+<p> 
+</p>
+<p>Des grammaires XIP &#224; large couverture sont disponibles aujourd&#8217;hui aussi bien pour l&#8217;anglais 
+que pour le fran&#231;ais. Des grammaires plus limit&#233;es existent aussi pour le japonais et 
+l&#8217;allemand. 
+</p>
+<p>2.1 La sortie XML de XIP 
+</p>
+<p>Un document XML est un ensemble de n&#339;uds dont certains sont associ&#233;s &#224; des contenus 
+textuels. Notre objectif est d&#8217;appliquer d&#8217;abord une analyse linguistique sur ces contenus, puis 
+d&#8217;associer au n&#339;ud XML ainsi trait&#233; le r&#233;sultat de cette analyse ; ce qui impose &#233;videmment 
+que la sortie de l&#8217;analyseur ob&#233;isse aussi &#224; un format XML. Or choisir le bon mod&#232;le de sortie 
+XML n&#8217;est pas aussi trivial qu&#8217;il y para&#238;t de prime abord. Tout d&#8217;abord, une sortie XML est 
+par d&#233;finition extr&#234;mement verbeuse, et il faut minimiser la taille de celle-ci, sans que cela 
+nuise &#224; la richesse d&#8217;information que peut avoir produit le syst&#232;me en amont. Les travaux 
+r&#233;cents en normalisation des structures de traits (TEI/ISO 2003) montrent que le choix d&#8217;une 
+bonne interface XML ne s&#8217;improvise pas. Si nous comparons notre choix &#224; celui de NITE </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>annoter les documents xml avec un outil d&#8217;analyse syntaxique  
+</p>
+<p>(Carletta &amp; al.), il est clair que nous ne fournissons pas une annotation linguistique aussi riche 
+et aussi d&#233;velopp&#233;e que la leur. Par exemple, notre annotation n&#8217;introduit aucune notion de 
+synchronisation  temporelle n&#233;cessaire dans le cas d&#8217;une annotation de documents audio 
+vid&#233;o. Notre repr&#233;sentation est beaucoup plus simple et beaucoup moins g&#233;n&#233;rale. Cependant, 
+l&#8217;objectif reste le m&#234;me, nous voulons fournir en sortie un document o&#249; les parties annot&#233;es 
+sont clairement mises en relation avec le r&#233;sultat de leur annotation. 
+</p>
+<p>Exemple : 
+</p>
+<p>L&#8217;exemple qui suit correspond &#224; l&#8217;analyse de la phrase donn&#233;e dans l&#8217;exemple pr&#233;c&#233;dent : 
+</p>
+<p>&lt;XIPRESULT&gt;  
+ &lt;LUNIT&gt; 
+  &lt;NODE num=&quot;16&quot; tag=&quot;GROUPE&quot; start=&quot;0&quot; end=&quot;37&quot;&gt;       
+   &lt;NODE num=&quot;22&quot; tag=&quot;SC&quot; start=&quot;0&quot; end=&quot;15&quot;&gt;  
+    &lt;FEATURE attribute=&quot;SE&quot; value=&quot;+&quot;/&gt;  
+    &lt;NODE num=&quot;0&quot; tag=&quot;DET&quot; start=&quot;0&quot; end=&quot;2&quot;&gt;  
+     &lt;TOKEN pos=&quot;DET&quot; start=&quot;0&quot; end=&quot;2&quot;&gt;  
+La 
+      &lt;READING lemma=&quot;le&quot; pos=&quot;DET&quot;/&gt; 
+     &lt;/TOKEN&gt;  
+    &lt;/NODE&gt; 
+... 
+</p>
+<p>  &lt;/NODE&gt; 
+  &lt;DEPENDENCY name=&quot;SUBJ&quot;&gt;  
+   &lt;FEATURE attribute=&quot;NOUN&quot; value=&quot;+&quot;/&gt;  
+   &lt;PARAMETER ind=&quot;0&quot; num=&quot;4&quot; word=&quot;referme&quot;/&gt;  
+   &lt;PARAMETER ind=&quot;1&quot; num=&quot;2&quot; word=&quot;dame&quot;/&gt;  
+  &lt;/DEPENDENCY&gt; 
+ &lt;/LUNIT&gt; 
+ &lt;LUNIT&gt; 
+ &#8230; 
+ &lt;/LUNIT&gt; 
+&lt;/XIPRESULT&gt; 
+</p>
+<p>Il s&#8217;agit d&#8217;un simple extrait de la structure v&#233;ritablement g&#233;n&#233;r&#233;e par XIP. Mais elle illustre la 
+fa&#231;on dont l&#8217;information est renvoy&#233;e par l&#8217;analyseur. Les liens en particulier qui s&#8217;&#233;tablissent 
+entre les d&#233;pendances et les n&#339;uds de l&#8217;arbre sont bas&#233;s sur l&#8217;attribut &#171; num &#187;, l&#8217;identificateur 
+unique de chaque n&#339;ud pour une interpr&#233;tation donn&#233;e. Chaque &#171; LUNIT (Linguistic Unit) &#187; 
+correspond &#224; une s&#233;quence de mots isol&#233;e par la grammaire formant une unit&#233; linguistique, 
+dans la majorit&#233; des cas il s&#8217;agit d&#8217;une phrase. Lorsqu&#8217;un texte est analys&#233;, il est d&#233;coup&#233; en 
+autant de &#171; LUNIT &#187; que de phrases d&#233;tect&#233;es. Le n&#339;ud XML &#171; XIPRESULT &#187; correspond &#224; 
+la racine du document XML ainsi g&#233;n&#233;r&#233;. 
+</p>
+<p> </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> Claude Roux 
+</p>
+<p>3  Grammaire de document XML 
+</p>
+<p>La manipulation des documents XML est aujourd&#8217;hui le centre d&#8217;une intense r&#233;flexion sur la 
+d&#233;finition des m&#233;thodes et des outils les plus souples pour aborder cette t&#226;che (Chidlovskii 
+2003, Vion-Dury 2003, Chen et al. 2003). Or l&#8217;analyse syntaxique n&#8217;est pas un but en soi mais 
+le maillon dans une cha&#238;ne plus large de traitements qui visent &#224; enrichir &#224; chaque nouvelle 
+&#233;tape un document. Aussi, nous proposons de consid&#233;rer le traitement linguistique comme une 
+autre forme de transformation de document &#224; l&#8217;instar de XSLT par exemple. Pour cette raison, 
+le langage de manipulation que nous allons d&#233;finir va comme XSLT ou XQuery reposer sur 
+XPath (W3C 99). XPath permet la description des n&#339;uds XML d&#8217;un document sous la forme 
+de chemins qui d&#233;finissent des contraintes portant tout &#224; la fois sur les noms de balise, la 
+comparaison d&#8217;attributs ou encore la position relative des n&#339;uds XML les uns par rapport aux 
+autres. Enfin, derni&#232;re contrainte, nous voulons pouvoir varier le traitement du contenu textuel 
+de ces balises en fonction de leur s&#233;mantique particuli&#232;re.  
+</p>
+<p>La solution que nous proposons consiste &#224; d&#233;velopper une v&#233;ritable grammaire de document 
+qui va guider l&#8217;application de l&#8217;analyseur linguistique pas &#224; pas. Cette grammaire tr&#232;s simple 
+doit permettre de d&#233;cider, en fonction de la nature de la balise, du type de traitement le plus 
+appropri&#233;. Nous avons identifi&#233; quatre situations parmi les plus courantes : 
+</p>
+<p>1. Le contenu de cette balise ne doit pas &#234;tre analys&#233;. 
+</p>
+<p>2. Le contenu de cette balise doit &#234;tre directement analys&#233; 
+</p>
+<p>3. Cette balise est la racine d&#8217;un sous-arbre XML dont les contenus textuels doivent &#234;tre 
+fusionn&#233;s avant d&#8217;appliquer l&#8217;analyseur. 
+</p>
+<p>4. Cette balise est par exemple une balise typographique. Les mots ainsi balis&#233;s doivent 
+&#234;tre marqu&#233;s par un trait sp&#233;cifique. Cette balise ne doit pas interf&#233;rer avec l&#8217;analyse 
+du contenu plus large o&#249; elle se trouve. 
+</p>
+<p>3.1 XPath  
+</p>
+<p>Comme nous l&#8217;avons dit en introduction, chacune des r&#232;gles de cette grammaire de document 
+repose sur une description de n&#339;uds XML sous la forme d&#8217;un XPath. On peut en effet 
+consid&#233;rer un document XML comme un arbre dont chaque n&#339;ud est identifiable par son 
+chemin depuis la racine et par la valeur de ses attributs. XPath permet de d&#233;crire un tel chemin 
+en utilisant une syntaxe proche des chemins dansUNIX. 
+</p>
+<p>Exemple : 
+</p>
+<p>/XIPResult/LUNIT ce XPath correspond &#224; tous les n&#339;uds LUNIT plac&#233;s directement sous 
+   un n&#339;ud XIPResult. 
+</p>
+<p>//Node[@num=10] ce XPath relatif correspond &#224; tous les n&#339;uds Node dont l&#8217;attribut num 
+   porte la valeur 10.  </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>annoter les documents xml avec un outil d&#8217;analyse syntaxique  
+</p>
+<p>XPath dispose de plus de toute une s&#233;rie d&#8217;op&#233;rateurs pour rejoindre des n&#339;uds parents ou 
+fr&#232;res &#224; partir d&#8217;un n&#339;ud donn&#233;. 
+</p>
+<p>Gr&#226;ce &#224; XPath, l&#8217;ex&#233;cution n&#8217;est pas uniquement guid&#233;e par le seul nom de la balise. On peut 
+aussi bien int&#233;grer la position de ce n&#339;ud dans l&#8217;arborescence du document que la valeur de 
+ses attributs.  
+</p>
+<p>3.2 Les instructions 
+</p>
+<p>Le formalisme que nous allons d&#233;crire ici correspond &#224; celui que nous avons implant&#233; dans 
+XIP. Comme nous l&#8217;avons mentionn&#233; plus haut, cette grammaire doit offrir plusieurs types 
+d&#8217;analyse. Les instructions dont nous disposons sont les suivantes : 
+</p>
+<p>&#8226; Ignore cette instruction permet d&#8217;ignorer le contenu textuel d&#8217;une balise 
+</p>
+<p>&#8226; Analyse(type) cette instruction provoque l&#8217;analyse du contenu de la balise 
+</p>
+<p>&#8226; Fusionne(type) cette instruction effectue la fusion des contenus textuels plac&#233; sous le 
+n&#339;ud courant. 
+</p>
+<p>&#8226; Marque(trait) cette instruction marque le contenu textuel avec le trait  &#171; trait &#187;. 
+</p>
+<p>La variable type associ&#233; &#224; Fusionne et &#224; Analyse permet de d&#233;finir le type d&#8217;analyse associ&#233; &#224; 
+ce XPath. Les valeurs sont les suivantes : 
+</p>
+<p>a) token  le texte est simplement segment&#233; en mots analys&#233;s morphologiquement. 
+</p>
+<p>b) noyau  le texte est analys&#233; en syntagmes noyaux. 
+</p>
+<p>c) d&#233;pendance  les d&#233;pendances sont extraites. 
+</p>
+<p>De cette fa&#231;on, on peut donc indiquer la finesse d&#8217;analyse d&#233;sir&#233;e pour chacun des types de 
+balises. 
+</p>
+<p>3.3 Exemple 
+</p>
+<p>Supposons que nous voulions analyser des documents contenant des d&#233;p&#234;ches ayant la forme 
+suivante : 
+</p>
+<p>&lt;NOUVELLES&gt; 
+</p>
+<p>&lt;DEPECHE ID=&quot;1&quot;&gt; 
+</p>
+<p>&lt;DATE&gt;26-FEB-1987 15:01:01.79&lt;/DATE&gt; 
+</p>
+<p>&lt;LIEUX&gt;&lt;D&gt;Br&#233;sil&lt;/D&gt;&lt;D&gt;Bahia&lt;/D&gt;&lt;/LIEUX&gt; 
+</p>
+<p>&lt;TEXTE&gt; 
+</p>
+<p>&lt;TITRE&gt;Production de cacao &#224; Bahia&lt;/TITRE&gt; </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> Claude Roux 
+</p>
+<p>&lt;CORPS&gt;Des averses ont boulevers&#233; la r&#233;gion de 
+&lt;GRAS&gt;Bahia&lt;/GRAS&gt; pendant tout la semaine perturbant la r&#233;colte 
+de cacao.&lt;/CORPS&gt; 
+</p>
+<p>&lt;/TEXTE&gt; 
+</p>
+<p>&lt;/DEPECHE&gt; 
+</p>
+<p>&lt;/NOUVELLES&gt; 
+</p>
+<p> 
+</p>
+<p>Ce document pr&#233;sente un m&#233;lange de champs textuels dont le contenu comprend aussi bien 
+des dates, des titres, des mots clefs que du texte libre. Pour l&#8217;analyse de ce document, nous ne 
+voulons pas appliquer de fa&#231;on aveugle l&#8217;extraction des d&#233;pendances au champ DATE par 
+exemple, ou encore au champ LIEUX, puisque ces champs se r&#233;sument &#224; une simple liste de 
+mots clefs. En revanche, nous voulons appliquer ce type de traitement au contenu du champ 
+CORPS. Remarquons au passage, que ce champ comprend lui-m&#234;me du texte balis&#233; en GRAS, 
+ce qui impose un traitement particulier avant l&#8217;application de l&#8217;analyseur syntaxique. 
+</p>
+<p>a) Par d&#233;faut, les contenus textuels des balises ne sont pas analys&#233;s ce que nous traduisons par 
+la ligne suivante : 
+</p>
+<p>#defaut-&gt;ignore() ; 
+</p>
+<p>b) Les balises typographiques doivent &#234;tre retir&#233;es pour &#233;viter de perturber l&#8217;analyse du texte, 
+mais comme ce balisage peut rev&#234;tir une certaine importance, nous devons le remplacer par 
+une structure de traits, ce que nous traduisons par : 
+</p>
+<p>//GRAS-&gt;Marque(focus) ; 
+</p>
+<p>Le trait &#171; focus &#187; sera automatiquement associ&#233; &#224; tous les mots balis&#233;s par GRAS. 
+</p>
+<p>c) Enfin, le contenu de la balise CORPS est un contenu complexe, puisqu&#8217;il peut contenir 
+d&#8217;autres balises. Par cons&#233;quent, nous allons devoir effectuer une phase de fusion de tous les 
+&#171; sous-textes &#187; pr&#233;sents avant d&#8217;appliquer notre analyse. La description de la balise sera donc 
+la suivante : 
+</p>
+<p>//CORPS-&gt;fusionne(d&#233;pendance) ; 
+</p>
+<p>Le moteur fonctionne en traitant les documents en profondeur d&#8217;abord, ce qui nous assure un 
+traitement de la balise GRAS avant celui de la balise CORPS. De cette fa&#231;on, nous nous 
+assurons que la transformation de cette balise typographique sera effectu&#233;e avant celle de la 
+balise CORPS. 
+</p>
+<p>Ainsi, si l&#8217;on applique cette grammaire &#224; notre document, l&#8217;analyseur syntaxique recevra la 
+seule phrase suivante : 
+</p>
+<p>Des averses ont boulevers&#233; la r&#233;gion de Bahia[focus] pendant tout la semaine perturbant la 
+r&#233;colte de cacao.  </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>annoter les documents xml avec un outil d&#8217;analyse syntaxique  
+</p>
+<p>3.4 Le document r&#233;sultat 
+</p>
+<p>Nous avons pr&#233;sent&#233; cette grammaire de document comme une nouvelle forme de 
+transformation de documents. De fait, l&#8217;application de cette grammaire g&#233;n&#232;re un r&#233;sultat qui 
+doit &#234;tre associ&#233; &#224; chacune des balises qui ont &#233;t&#233; analys&#233;es. Pour ce faire, nous allons 
+exploiter la possibilit&#233; qu&#8217;offre XIP de fournir un r&#233;sultat au format XML. A chaque &#233;tape, le 
+contenu des balises d&#233;crites par la grammaire de document va &#234;tre analys&#233;, le r&#233;sultat de ces 
+analyses sera renvoy&#233; en XML et directement int&#233;gr&#233; sous le n&#339;ud m&#234;me qui aura &#233;t&#233; analys&#233;. 
+Ainsi, le document r&#233;sultat comprendra aussi bien le texte initial que le r&#233;sultat de l&#8217;analyse 
+de ce texte, le tout conforme de bout en bout &#224; la norme XML. De cette fa&#231;on, l&#8217;alignement 
+des textes analys&#233;s avec le r&#233;sultat de l&#8217;analyse se fera automatiquement. 
+</p>
+<p>Exemple : 
+</p>
+<p>Si nous utilisons la grammaire de document donn&#233; en exemple, le document final en sortie 
+sera le suivant: 
+</p>
+<p>&#8230; 
+</p>
+<p>&lt;TEXTE&gt; 
+</p>
+<p>&lt;TITRE&gt;Production de cacao &#224; Bahia&lt;/TITRE&gt; 
+</p>
+<p>&lt;CORPS&gt;Des averses ont boulevers&#233; la r&#233;gion de 
+&lt;GRAS&gt;Bahia&lt;/GRAS&gt; pendant tout la semaine perturbant la r&#233;colte 
+de cacao.&lt;/CORPS&gt; 
+</p>
+<p>&lt;XIPRESULT&gt;&#8230; 
+</p>
+<p>&lt;/XIPRESULT&gt; 
+</p>
+<p>&lt;/TEXTE&gt; 
+</p>
+<p>Le r&#233;sultat XML de XIP est simplement int&#233;gr&#233; au document final sous la forme d&#8217;un sous-
+arbre XML XIPRESULT. 
+</p>
+<p> 
+</p>
+<p>4 Conclusion 
+</p>
+<p>Nous avons pr&#233;sent&#233; une m&#233;thode qui permet l&#8217;application de traitements linguistiques qui 
+respectent le format des documents XML. Cette m&#233;thode bas&#233;e sur XPath associe des n&#339;uds 
+XML avec des types de traitement particulier tel que l&#8217;extraction de d&#233;pendance ou 
+l&#8217;extraction des syntagmes noyaux. Le r&#233;sultat de l&#8217;analyse est alors fourni sous la forme d&#8217;un 
+document reproduisant le document initial mais dont les parties trait&#233;es sont enrichies avec le 
+r&#233;sultat issu d&#8217;un traitement linguistique contr&#244;l&#233;. Cette m&#233;thode est, de plus, tr&#232;s g&#233;n&#233;rale 
+puisqu&#8217;elle n&#8217;implique aucun balisage a priori du document et offre une mise en route tr&#232;s 
+rapide, la description de cette grammaire de document se r&#233;duisant le plus souvent &#224; quelques 
+r&#232;gles. L&#8217;utilisation de XPath permet par la m&#234;me occasion un traitement tr&#232;s souple de ces 
+m&#234;mes documents, on peut par exemple d&#233;cider de ne traiter que les balises DEPECHE dont 
+l&#8217;attribut ID est inf&#233;rieur &#224; 10. </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> Claude Roux 
+</p>
+<p>Example : 
+</p>
+<p>//DEPECHE[@ID&lt;=10]-&gt;fusionne(d&#233;pendance) 
+</p>
+<p>Nous n&#8217;avons pas d&#233;crit dans le d&#233;tail le fonctionnement complet du syst&#232;me. Ainsi, par 
+exemple nous avons utilis&#233; libxml comme biblioth&#232;que de base pour le traitement des 
+documents XML. libxml fournit d&#233;j&#224; un traitement efficace des expressions XPath, ce qui 
+permet de nous affranchir de la t&#226;che hasardeuse d&#8217;&#233;crire notre propre version. Il est aussi 
+possible de sp&#233;cialiser la grammaire de langue sur la base de XPath. Par exemple, on peut 
+d&#233;cider de suspendre certaines parties de la grammaire lors de l&#8217;analyse d&#8217;une balise &#171; titre &#187;, 
+en omettant l&#8217;extraction des d&#233;pendances. Enfin, la plate-forme que nous avons d&#233;velopp&#233;e 
+offre la possibilit&#233; de traiter de gros documents en les d&#233;coupant en sous-arbres XML qui sont 
+analys&#233;s ind&#233;pendamment.  
+</p>
+<p>La fusion d&#8217;une grammaire propre au document avec la grammaire d&#8217;analyse syntaxique 
+simplifie grandement le traitement des gros fichiers XML. Elle permet de consid&#233;rer les 
+balises non plus comme un simple bornage de champs textes mais comme une information 
+s&#233;mantique suppl&#233;mentaire pour guider l&#8217;analyse du document. 
+</p>
+<p>5 R&#233;f&#233;rences 
+</p>
+<p>ABNEY S., (1991), Parsing by chunks, in Principled-Based Parsing, R. Berwick, S. Abney, 
+and C. Tenny, editors. Kluwer Academic Publishers, Dordrecht, 1991.  
+</p>
+<p>A&#207;T-MOKHTAR S., CHANOD J.-P., ROUX C., (2002)  Robustness beyond shallowness: 
+incremental dependency parsing, in a special issue of the NLE Journal, 2002. 
+</p>
+<p>A&#207;T-MOKHTAR S., LUX V., B&#193;NIK. &#201;., (2003) Linguistic parsing of lists in structured 
+documents, in Language Technology and the Semantic Web: 3rd Workshop on NLP and XML 
+(NLPXML-2003), EACL, Budapest, 2003. 
+ 
+</p>
+<p>CARLETTA, J., KILGOUR, J., O'DONNELL, T., EVERT, S., AND VOORMANN, H. (2003) The NITE 
+Object Model Library for Handling Structured Linguistic Annotation on Multimodal Data 
+Sets, in proceedings of the EACL Workshop on Language Technology and the Semantic Web 
+(3rd Workshop on NLP and XML, NLPXML-2003).  
+</p>
+<p>CHEN H., TOMPA F.W., Set-at-a-time Access to XML through DOM, in DocEng 2003 
+(Meylan). 
+</p>
+<p>CHIDLOVSKII B. (2003), A Structural Adviser for the XML Document Authoring, in DocEng 
+2003 (Meylan). 
+</p>
+<p>ROUX C., (1999), Phrase-Driven Parser, VEXTAL 99 (Venice). 
+</p>
+<p>TESNIERE L., (1959), El&#233;ments de syntaxe structurale, Klincksiek (Paris). 
+</p>
+<p>VION-DURY J.Y. (2003), XPath on Left and Right Sides of Rules : Toward Compact XML Tree 
+Rewriting through Node Patterns, in DocEng 2003 (Meylan). </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>annoter les documents xml avec un outil d&#8217;analyse syntaxique  
+</p>
+<p>VOUTILAINEN A., HEIKKILA J., (1994), An English constraint grammar (EngCG): a surface 
+syntactic parser of English, Fries, Tottie and Schneider (eds.), Creating and using English 
+language corpora. Rodopi. 
+</p>
+<p>TEI/ISO Joint Activity on Feature Structures: R&#233;unions tenues les 4 et 5 Novembre 2003 &#224; 
+l&#8217;ATILF, Universit&#233; de Nancy 2. 
+</p>
+<p>W3C (1999), XML Path Language (XPath) 1.0, W3C recommendation, November 16th 1999 
+(http://www.w3.org/TR/xpath) 
+</p>
+<p>W3C (1999), XSL Transformations XSLT Version 1.0, W3C recommendation, November 16th 
+1999. 
+</p>
+<p> </p>
+
+</div></div>
+</body></html>

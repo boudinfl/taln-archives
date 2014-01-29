@@ -1,0 +1,792 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Apprentissage discriminant pour les Grammaires &#224; Substitution d'Arbres</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2003, Batz-sur-Mer, 11&#150;14 juin 2003
+</p>
+<p>Apprentissage discriminant pour les Grammaires &#30;a
+Substitution d&#8217;Arbres
+</p>
+<p>Antoine Rozenknop, Jean-Ce&#769;dric Chappelier, Martin Rajman
+Laboratoire d&#8217;Intelligence Artificielle - Ecole Polytechnique Fe&#769;de&#769;rale de
+</p>
+<p>Lausanne
+CH-1015 Lausanne, Switzerland
+</p>
+<p>{Antoine.Rozenknop,Jean-Cedric.Chappelier,Martin.Rajman}@epfl.ch
+</p>
+<p>Mots-clefs &#150; Keywords
+</p>
+<p>STSG, Gibbs-Markov, Maximum d&#8217;Entropie, Vraisemblance Conditionnelle
+STSG, Gibbs-Markov,Maximum Entropy, Conditionnal likelihood
+</p>
+<p>R&#183;esum&#183;e - Abstract
+</p>
+<p>Les grammaires stochastiques standards utilisent des mode&#768;les probabilistes de nature ge&#769;ne&#769;rati-
+ve, fonde&#769;s sur des probabilite&#769;s de re&#769;criture conditionne&#769;es par le symbole re&#769;crit. Les expe&#769;riences
+montrent qu&#8217;elles tendent ainsi par nature a&#768; pe&#769;naliser les de&#769;rivations les plus longues pour
+une me&#770;me entre&#769;e, ce qui n&#8217;est pas force&#769;ment un comportement souhaitable, ni en analyse syn-
+taxique, ni en reconnaissance de la parole. Dans cet article, nous proposons une approche proba-
+biliste non-ge&#769;ne&#769;rative du mode&#768;le STSG (grammaire stochastique
+</p>
+<p>&#30;
+</p>
+<p>a substitution d&#8217;arbres), selon
+laquelle les probabilite&#769;s sont conditionne&#769;es par les feuilles des arbres syntaxiques pluto&#770;t que par
+leur racine, et qui par nature fait appel a&#768; un apprentissage discriminant. Plusieurs expe&#769;riences
+sur ce mode&#768;le sont pre&#769;sente&#769;es.
+</p>
+<p>Standard stochastic grammars use generative probabilistic models, focussing on rewriting pro-
+babilities conditioned by the rewritten symbol. Such grammars therefore tend to give penalty to
+longer derivations of the same input, which could be a drawback when they are used for analysis
+(e.g. speech recognition). In this contribution, we propose a novel non-generative probabilistic
+model of STSGs (Stochastic Tree Substitution Grammars), where probabilities are conditio-
+ned by the leaves of the syntactic trees (i.e. the input symbols) rather than by the root. Several
+experiments of this new model are presented.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>1 Motivations
+Les grammaires stochastiques standards sont des mode&#768;les probabilistes ge&#769;ne&#769;ratifs dans les-
+quels les probabilite&#769;s sont conditionne&#769;es par le symbole a&#768; re&#769;crire. Par exemple, les probabilite&#769;s
+des grammaires hors-contextes stochastiques (SCFG) sont les probabilite&#769;s de re&#769;crire la partie
+gauche de la re&#768;gle connaissant sa partie droite. Les grammaires a&#768; substitution d&#8217;arbres stochas-
+tiques (STSG), utilise&#769;es dans le cadre DOP (Data-Oriented Parsing) (Bod, 1998; Chappelier &amp;
+Rajman, 2001), sont quant a&#768; elles des grammaires dont les re&#768;gles sont des arbres syntaxiques,
+appele&#769;s &#8220;arbres &#183;el&#183;ementaires&#8221;. Ces arbres e&#769;le&#769;mentaires sont combine&#769;s a&#768; l&#8217;aide de l&#8217;ope&#769;rateur de
+substitution pour donner des de&#769;rivations d&#8217;arbres d&#8217;analyse complets. De plus, a&#768; chaque arbre
+e&#769;le&#769;mentaire &#964; est associe&#769;e la probabilite&#769; p(&#964;) d&#8217;utiliser l&#8217;arbre e&#769;le&#769;mentaire pour re&#769;crire son
+symbole racine dans une de&#769;rivation. Les mode&#768;les SCFG et STSG sont e&#769;quivalents d&#8217;un point
+de vue structurel1, mais clairement diffe&#769;rents d&#8217;un point de vue probabiliste. De fait, les STSG
+peuvent capturer plus de de&#769;pendances probabilistes que les SCFG, qui sont restreintes a&#768; des
+re&#768;gles hors-contextes e&#769;quivalentes a&#768; des arbres e&#769;le&#769;mentaires de profondeur strictement e&#769;gale a&#768;
+1.
+</p>
+<p>Utilise&#769;es en reconnaissance de la parole ou en analyse syntaxique, ces grammaires pre&#769;sentent
+diffe&#769;rents inconve&#769;nients : les me&#769;canismes d&#8217;apprentissage standards des SCFG me&#768;nent a&#768; des
+mode&#768;les affectant des estimations biaise&#769;es aux probabilite&#769;s des arbres syntaxiques (Johnson,
+1998) ; pour sa part, le mode&#768;le DOP est connu pour sur-estimer les probabilite&#769;s des arbres de
+grande profondeur et critique&#769; pour le manque de justification de sa proce&#769;dure d&#8217;apprentissage2
+</p>
+<p>(Bonnema et al., 1999).
+</p>
+<p>Le but de cet article est de pre&#769;senter des mode&#768;les log-line&#769;aires discriminants de grammaires
+a&#768; substitution d&#8217;arbres stochastiques qui e&#769;vitent ces inconve&#769;nients : les mode&#768;les Gibbsiens de
+Grammaires a&#768; Substitution d&#8217;arbres (GTSG). Nous en donnons d&#8217;abord une de&#769;finition formelle.
+Puis nous pre&#769;sentons les e&#769;le&#769;ments-clefs pour l&#8217;apprentissage des parame&#768;tres de ces mode&#768;les a&#768;
+partir d&#8217;un corpus, avant de conclure par une comparaison des GTSG aux STSG standards dans
+une ta&#770;che d&#8217;analyse syntaxique.
+</p>
+<p>2 Le mod&#30;ele GTSG
+Le point de de&#769;part du mode&#768;le est de conside&#769;rer une probabilisation des TSG qui ne se base pas
+sur la probabilite&#769; d&#8217;un arbre conditionnellement a&#768; sa racine, mais pluto&#770;t conditionnellement a&#768;
+ses feuilles, ce qui semble plus naturellement correspondre a&#768; une ta&#770;che d&#8217;analyse syntaxique.
+M. Collins traite le proble&#768;me comme un proble&#768;me de classification en proposant une approche
+a&#768; base de &#8220;Voted Perceptron&#8221; (Collins &amp; Duffy, 2002).
+</p>
+<p>Nous utilisons ici une approche de type Gibbs-Markov (Lafferty, 1996), de&#769;crite dans (Rozenk-
+nop, 2002) pour les grammaires hors-contextes, qui permet de choisir les traits pris en compte
+pour le calcul des probabilite&#769;s conditionnelles. Dans le cas de l&#8217;analyse, le mode&#768;le repose sur des
+probabilite&#769;s d&#8217;analyse conditionnellement aux phrases, les traits e&#769;tant les arbres e&#769;le&#769;mentaires
+apparaissant dans les de&#769;rivations des analyses.
+</p>
+<p>Cette approche implique que nous imposons a priori que la probabilite&#769; conditionnelle d&#8217;une
+de&#769;rivation d connaissant la phrase w suit une distribution de Gibbs :
+</p>
+<p>1Le me&#770;me langage est reconnu et les me&#770;mes arbres sont engendre&#769;s pour une me&#770;me phrase.
+2i.e. la fac&#807;on de calculer ses parame&#768;tres a&#768; partir d&#8217;un corpus d&#8217;exemples.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage discriminant pour les Grammaires a&#768; Substitution d&#8217;Arbres
+</p>
+<p>p(d|w) =
+1
+</p>
+<p>Z&#955;(w)
+e
+</p>
+<p>&#8721;
+&#964;&#8712;R
+</p>
+<p>&#955;&#964; f&#964; (d) =
+1
+</p>
+<p>Z&#955;(w)
+e&#955;&#183;f(d) (1)
+</p>
+<p>ou&#768; Z&#955;(w) est le facteur de normalisation3
+&#8721;
+</p>
+<p>d&#8658;w e
+&#8721;
+</p>
+<p>&#964;&#8712;R
+&#955;&#964; f&#964; (d), f&#964; (d) est le nombre d&#8217;occur-
+</p>
+<p>rences de l&#8217;arbre e&#769;le&#769;mentaire &#964; dans la de&#769;rivation d, R est l&#8217;ensemble des arbres e&#769;le&#769;mentai-
+res de la grammaire, &#955; = (&#955;&#964;1 , . . . , &#955;&#964;n) est le vecteur des parame&#768;tres associe&#769;s aux arbres
+e&#769;le&#769;mentaires, et f(d) = (f&#964;1(d), . . . , f&#964;n(d)).
+</p>
+<p>De plus, comme pour une STSG standard, la probabilite&#769; conditionnelle d&#8217;un arbre t connais-
+sant la phrase w est de&#769;finie comme la somme des probabilite&#769;s conditionnelles de toutes ses
+de&#769;rivations4 :
+</p>
+<p>p&#955;(t|w) =
+&#8721;
+d&#8658;t
+</p>
+<p>p&#955;(d|w) (2)
+</p>
+<p>Nous appelons Gibbsian Tree Substitution Grammar (GTSG) une STSG ainsi probabilise&#769;e.
+</p>
+<p>Notons que la diffe&#769;rence principale entre GTSG et STSG tient dans la probabilisation du mode&#768;le
+et dans l&#8217;algorithme d&#8217;apprentissage associe&#769;. Cependant, des algorithmes identiques peuvent
+e&#770;tre utilise&#769;s pour effectuer une analyse syntaxique, i.e. de&#769;terminer l&#8217;analyse la plus probable
+(MPP5) d&#8217;une phrase.
+</p>
+<p>Exemple jouet
+</p>
+<p>L&#8217;exemple suivant illustre les diffe&#769;rences entre STSG et GTSG. Conside&#769;rons une TSG contenant
+les arbres e&#769;le&#769;mentaires de la figure 1.6
+</p>
+<p>La&#768; ou&#768; la STSG associe des probabilite&#769;s p1, . . . , p5 aux arbres e&#769;le&#769;mentaires, la GTSG utilise
+des valeurs re&#769;elles non contraintes &#955;1, . . . , &#955;5, appele&#769;es potentiels et inte&#769;gre&#769;es dans le mode&#768;le
+probabiliste par l&#8217;e&#769;quation (1).
+</p>
+<p>Supposons alors que nous voulions utiliser ces grammaires pour analyser la phrase &#8220;Regarde la
+femme avec un chapeau&#8221;, qui peut e&#770;tre associe&#769;e aux analyses (A) et (B) de la figure 2.
+Avec la STSG, les probabilite&#769;s des de&#769;rivations sont respectivement :7
+</p>
+<p>pSTSG(d1(A)) = p1 &#183; p3 &#183; p
+2
+4 &#183; p5 et pSTSG(d1(B)) = p2 &#183; p
+</p>
+<p>2
+4 &#183; p5
+</p>
+<p>Avec la GTSG, l&#8217;e&#769;quation (2) impose que le potentiel associe&#769; a&#768; une de&#769;rivation soit la somme
+des potentiels de ses arbres e&#769;le&#769;mentaires, d&#8217;ou&#768; :
+</p>
+<p>&#955;(d1(A)) = &#955;1 + &#955;3 + 2&#955;4 + &#955;5 et &#955;(d1(B)) = &#955;2 + 2&#955;4 + &#955;5
+</p>
+<p>Les probabilite&#769;s des de&#769;rivations d1(A) et d1(B) conditionnellement aux feuilles w sont alors :
+</p>
+<p>pGTSG(d1(A)|w) =
+e&#955;(d1(A))
+</p>
+<p>e&#955;(d1(A)) + e&#955;(d1(B))
+et pGTSG(d1(B)|w) =
+</p>
+<p>e&#955;(d1(B))
+</p>
+<p>e&#955;(d1(A)) + e&#955;(d1(B))
+3d &#8658; w repre&#769;sente l&#8217;ensemble des de&#769;rivations menant a&#768; w.
+4Avec une STSG, un arbre d&#8217;analyse peut avoir plusieurs de&#769;rivations diffe&#769;rentes, contrairement au cas des CFG.
+5MPP = Most Probable Parse.
+6Notez que ces arbres sont de profondeur 1, et que la grammaire peut alors aussi e&#770;tre conside&#769;re&#769;e comme une
+</p>
+<p>CFG ; ce n&#8217;est pas le cas en ge&#769;ne&#769;ral, mais cela simplifie ici notre illustration.
+7Avec cet exemple e&#769;le&#769;mentaire, chaque analyse posse&#768;de une seule de&#769;rivation.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>Arbres STSG GTSG
+e&#769;le&#769;mentaires proba. potentiels
+</p>
+<p>&#964;1 =
+VP
+</p>
+<p>V NP
+p1 &#955;1
+</p>
+<p>&#964;2 =
+VP
+</p>
+<p>V NP PP
+p2 &#955;2
+</p>
+<p>&#964;3 =
+NP
+</p>
+<p>NP PP
+p3 &#955;3
+</p>
+<p>&#964;4 =
+NP
+</p>
+<p>Det N
+p4 &#955;4
+</p>
+<p>&#964;5 =
+PP
+</p>
+<p>P NP
+p5 &#955;5
+</p>
+<p>Contraintes :
+p1 + p2 = 1
+p3 + p4 = 1
+</p>
+<p>p5 = 1
+Z&#955;(w) = ...
+</p>
+<p>FIG. 1 &#8211; Exemple STSG/GTSG.
+</p>
+<p>(A)
+</p>
+<p>VP
+</p>
+<p>V
+</p>
+<p>NP
+</p>
+<p>NP
+</p>
+<p>Det N
+</p>
+<p>PP
+</p>
+<p>P
+</p>
+<p>NP
+</p>
+<p>Det N
+</p>
+<p>(B)
+</p>
+<p>VP
+</p>
+<p>V
+</p>
+<p>NP
+</p>
+<p>Det N
+</p>
+<p>PP
+</p>
+<p>P
+</p>
+<p>NP
+</p>
+<p>Det N
+</p>
+<p>FIG. 2 &#8211; Deux analyses : (A) correspond par exemple a&#768; &#8220;Regarde la femme avec le chapeau&#8221;,
+et (B) a&#768; &#8220;Regarde la femme avec tes lunettes&#8221;.
+</p>
+<p>Illustrons sur cet exemple quelques limitations des STSG pour l&#8217;analyse. Conside&#769;rons par
+exemple le cas ou&#768; aucune autre information sur le langage utilise&#769; n&#8217;est disponible. Dans ce
+cas, il peut e&#770;tre naturel de chercher a&#768; imposer que la grammaire affecte la me&#770;me probabilite&#769; a&#768;
+chaque analyse. Avec une STSG, l&#8217;affectation la plus &#8220;impartiale&#8221; des probabilite&#769;s e&#769;le&#769;mentaires
+semble correspondre a&#768; p1 = p2 = p3 = p4 = 12 ; p5 = 1 : tous les arbres e&#769;le&#769;mentaires de me&#770;me
+racine sont e&#769;quiprobables, et la somme de leurs probabilite&#769;s est 1.
+</p>
+<p>En re&#769;alite&#769;, cependant, la grammaire obtenue est tre&#768;s peu impartiale : les contraintes stochas-
+tiques choisies favorisent ici les arbres les plus petits, i.e. ceux qui sont produits avec le moins
+d&#8217;e&#769;tapes de de&#769;rivation. Par exemple, pSTSG(d1(A)) et pSTSG(d1(B)) sont respectivement ( 12)
+</p>
+<p>4
+</p>
+<p>et (1
+2
+)3 : (B) est donc deux fois plus probable que (A) !
+</p>
+<p>Avec une GTSG au contraire l&#8217;affectation impartiale &#955;1 = &#955;2 = &#955;3 = &#955;4 = &#955;5 = 0 me&#768;ne a&#768;
+des probabilite&#769;s conditionnelles de d1(A) et d1(B) e&#769;gales a&#768; 1/2, ce qui appara&#305;&#770;t plus conforme
+a&#768; l&#8217;intuition.
+</p>
+<p>Notez que cet exemple a pour seul but d&#8217;illustrer la diffe&#769;rence entre GTSG et STSG, non de
+de&#769;montrer la supe&#769;riorite&#769; de l&#8217;une sur l&#8217;autre. Toutefois, les expe&#769;rimentations pratiques confir-
+ment que des inconve&#769;nients flagrants des STSG, souligne&#769;s dans (Johnson, 1998) et (Bonnema</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage discriminant pour les Grammaires a&#768; Substitution d&#8217;Arbres
+</p>
+<p>et al., 1999), sont effectivement e&#769;vite&#769;s avec les GTSG associe&#769;es a&#768; la technique d&#8217;apprentissage
+de&#769;crite ci-apre&#768;s.
+</p>
+<p>3 Apprentissage des param&#30;etres &#30;a partir d&#8217;un corpus
+Les parame&#768;tres du mode&#768;le sont appris a&#768; partir d&#8217;un corpus C selon le principe de Maximum de
+Vraisemblance (Dempster et al., 1977).
+</p>
+<p>Nous cherchons pour cela les parame&#768;tres &#955;&#8727; de la GTSG qui maximisent la vraisemblance
+conditionnelle du corpus d&#8217;apprentissage Lp&#771;(p&#955;), ou&#768; p&#771;(w, t) est la fre&#769;quence relative dans C de
+l&#8217;arbre t de feuilles w :
+</p>
+<p>&#955;&#8727; = Argmax
+&#955;
+</p>
+<p>&#8721;
+w,t
+</p>
+<p>p&#771;(w, t) log p&#955;(t|w)
+</p>
+<p>3.1 Algorithme &#8220;Improved Iterative Scaling&#8221; (IIS)
+Pour re&#769;soudre ce proble&#768;me non-trivial de maximisation, nous appliquons l&#8217;algorithme IIS ge&#769;ne&#769;-
+ralise&#769; (Lafferty, 1996) aux STSG8 : pluto&#770;t que de maximiser Lp&#771;(p&#955;) directement, cet algorithme
+recherche le maximum en ame&#769;liorant ite&#769;rativement le mode&#768;le &#955;, a&#768; partir d&#8217;un mode&#768;le &#955;0 initial.
+</p>
+<p>Dans notre cas, cette me&#769;thode conduit a&#768; chercher pour chaque arbre e&#769;le&#769;mentaire &#964;&#770; la solution x&#770;
+de l&#8217;e&#769;quation suivante, ou&#768; f#(&#964;) =
+</p>
+<p>&#8721;
+&#964;&#8712;Grammaire f&#964; (d) :
+</p>
+<p>&#8721;
+w,t
+</p>
+<p>p&#771;(w, t)
+&#8721;
+d&#8658;w
+</p>
+<p>p&#955;(d|w)f&#964;&#770;(d)x
+f#(d) =
+</p>
+<p>&#8721;
+w,t
+</p>
+<p>p&#771;(w, t)
+&#8721;
+d&#8658;t
+</p>
+<p>p&#955;(d|t)f&#964;&#770; (d) (3)
+</p>
+<p>Les mode&#768;les successifs sont alors obtenus en remplac&#807;ant &#955;&#964;&#770; par &#955;&#964;&#770; + log x&#770;.
+</p>
+<p>Comme ses coefficients sont positifs, l&#8217;e&#769;quation (3) peut facilement se re&#769;soudre par la me&#769;thode
+de Newton. La difficulte&#769; re&#769;siduelle est de calculer les coefficients en un temps &#8220;raisonnable&#8221;,
+de fac&#807;on a&#768; ce que l&#8217;apprentissage puisse e&#770;tre effectivement re&#769;alise&#769;. La prise en compte de cette
+notion d&#8217;efficacite&#769; est l&#8217;objet de la section suivante.
+</p>
+<p>3.2 Algorithme Inside-Outside
+Membre de gauche Le membre de gauche de la formule de re&#769;estimation (3) repose sur une
+double somme : l&#8217;une sur les exemples de la base, l&#8217;autre sur les de&#769;rivations possibles pour une
+phrase donne&#769;e.
+</p>
+<p>Le calcul de cette dernie&#768;re doit e&#770;tre factorise&#769; pour e&#770;tre effectue&#769; en pratique9.
+</p>
+<p>De fait, le terme le plus proble&#769;matique de la partie gauche de (3) peut se re&#769;crire :
+</p>
+<p>&#8721;
+d&#8658;w
+</p>
+<p>p&#955;(d|w)f&#964;&#770;(d)x
+f#(d) =
+</p>
+<p>1
+</p>
+<p>Z&#955;(w)
+</p>
+<p>&#8721;
+d&#8658;w
+</p>
+<p>e
+&#8721;
+</p>
+<p>&#964;&#8712;R
+&#955;&#964; f&#964; (d)f&#964;&#770; (d)x
+</p>
+<p>f#(d)
+</p>
+<p>=
+1
+</p>
+<p>Z&#955;(w)
+</p>
+<p>&#8721;
+d&#8658;w
+</p>
+<p>f&#964;&#770; (d)x
+f#(d)
+</p>
+<p>&#8719;
+&#964;&#8712;d
+</p>
+<p>(
+e&#955;&#964;
+</p>
+<p>)f&#964; (d)
+=
+</p>
+<p>1
+</p>
+<p>Z&#955;(w)
+</p>
+<p>&#8721;
+d&#8658;w
+</p>
+<p>f&#964;&#770; (d)
+&#8719;
+&#964;&#8712;d
+</p>
+<p>v(&#964;)f&#964; (d)
+</p>
+<p>8les variables cache&#769;es de l&#8217;article mentionne&#769; correspondent aux de&#769;rivations des arbres, qui ne sont pas explicites
+dans la base d&#8217;apprentissage.
+</p>
+<p>9Le nombre de de&#769;rivations d&#8217;une analyse peut e&#770;tre exponentiel en sa taille, et, de plus, une phrase peut avoir un
+grand nombre d&#8217;analyses possibles.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>ou&#768; v(&#964;) = e&#955;&#964; x.
+</p>
+<p>On peut alors calculer
+&#8721;
+</p>
+<p>d&#8658;w f&#964;&#770; (d)
+&#8719;
+</p>
+<p>&#964;&#8712;d v(&#964;)
+f&#964; (d) en utilisant l&#8217;algorithme Inside-Outside de&#769;-
+</p>
+<p>crit dans (Goodman, 1998) sur le semi-anneau des polyno&#770;mes IP [v(&#964;)].
+</p>
+<p>De plus, nous avons par de&#769;finition : Z&#955;(w) =
+&#8721;
+</p>
+<p>d&#8658;w
+</p>
+<p>&#8719;
+&#964;&#8712;d
+</p>
+<p>(
+e&#955;&#964;
+</p>
+<p>)f&#964; (d). Il appara&#305;&#770;t ainsi que
+Z&#955;(w) est la somme des coefficients associe&#769;s au &#964;&#770; tel que f&#964;&#770; (d) = 1, qui est de&#769;ja&#768; calcule&#769;e dans
+l&#8217;algorithme Inside-Outside. Le membre de gauche est donc comple&#768;tement de&#769;termine&#769;.
+</p>
+<p>Membre de droite De fac&#807;on similaire, le membre de droite de (3) peut se re&#769;crire :
+</p>
+<p>&#8721;
+d&#8658;t
+</p>
+<p>p&#955;(d|t)f&#964;&#770; (d) =
+1
+</p>
+<p>Z&#955;(t)
+</p>
+<p>&#8721;
+d&#8658;t
+</p>
+<p>f&#964;&#770; (d)
+&#8719;
+&#964;&#8712;d
+</p>
+<p>v&#8242;(&#964;)f&#964; (d)
+</p>
+<p>ou&#768; v&#8242;(&#964;) = e&#955;&#964; . La&#768; encore,
+&#8721;
+</p>
+<p>d&#8658;t f&#964;&#770; (d)
+&#8719;
+</p>
+<p>&#964;&#8712;d v
+&#8242;(&#964;)f&#964; (d) peut e&#770;tre calcule&#769; par l&#8217;algorithme Inside-
+</p>
+<p>Outside, en &#8220;e&#769;purant&#8221; pre&#769;alablement la table utilise&#769;e pour factoriser les calculs interme&#769;diaires,
+de fac&#807;on a&#768; ce que seules les de&#769;rivations menant a&#768; l&#8217;analyse t y figurent.
+</p>
+<p>3.3 Apprentissage par profondeur croissante
+L&#8217;algorithme IIS pre&#769;sente un inconve&#769;nient similaire a&#768; celui de&#769;crit dans (Bonnema &amp; Scha, 2002)
+pour DOP : dans le cas ou&#768; l&#8217;ensemble des arbres e&#769;le&#769;mentairesR contient les analyses comple&#768;tes
+du corpus d&#8217;apprentissage, le mode&#768;le sur-estime les parame&#768;tres de telle sorte que les analyses
+non pre&#769;sentes dans le corpus rec&#807;oivent une probabilite&#769; arbitrairement petite.
+</p>
+<p>Pour e&#769;viter ce comportement, on peut de&#769;cider de ne pas mettre les arbres complets du corpus
+dans R. Une autre possibilite&#769; est de changer le&#769;ge&#768;rement la me&#769;thode d&#8217;apprentissage. Pluto&#770;t
+que de conside&#769;rer la vraisemblace du corpus avec la grammaire comple&#768;te, on peut conside&#769;rer,
+de fac&#807;on ite&#769;rative, les vraisemblances du corpus en introduisant progressivement des arbres
+e&#769;le&#769;mentaires dans la grammaire. Nous avons choisi d&#8217;introduire les arbres e&#769;le&#769;mentaires par
+ordre de profondeur croissante. Notez que ce type de me&#769;canisme n&#8217;est rien de plus qu&#8217;une
+me&#769;thode de lissage de l&#8217;apprentissage.
+</p>
+<p>Nous conside&#769;rons donc l&#8217;ensemble des TSG suivantes : Gp est la grammaire associe&#769;e a&#768; l&#8217;en-
+semble Rp des sous-arbres du corpus de profondeur maximale p (trivialement Rp &#8834; Rp+1), et
+a&#768; l&#8217;ensemble &#955;Rp des parame&#768;tres correspondants. La me&#769;thode d&#8217;apprentissage par profondeur
+</p>
+<p>croissante (IDL)10 consiste alors a&#768; calculer les parame&#768;tres &#955;R1 de G1 par l&#8217;algorithme Improved
+Iterative Scaling (IIS), et pour chaque profondeur p, a&#768; calculer les parame&#768;tres &#955;Rp\&#955;Rp&#8722;1 de
+Gp,11 en gardant &#955;Rp&#8722;1 constant. Les parame&#768;tres &#955;Rp\&#955;Rp&#8722;1 sont de&#769;termine&#769;s en maximisant
+la probabilite&#769; conditionnelle Lp&#771;(p&#955;Rp
+</p>
+<p>) du corpus d&#8217;apprentissage selon le mode&#768;le Gp, sachant
+&#955;Rp&#8722;1 .
+</p>
+<p>En pratique, IDL ne ne&#769;cessite qu&#8217;une adaptation minime des algorithmes pre&#769;ce&#769;dents. Seules
+les e&#769;tapes d&#8217;initialisation et de mise-a&#768;-jour sont modifie&#769;es ; les calculs proprement dits restent
+inchange&#769;s :
+&#8211; Initialisation : les parame&#768;tres &#955;Rpmax\&#955;Rp valent &#8722;&#8734; ; les parame&#768;tres &#955;Rp\&#955;Rp&#8722;1 valent
+</p>
+<p>0 ; et les parame&#768;tres &#955;Rp&#8722;1 gardent la valeur prise a&#768; l&#8217;ite&#769;ration pre&#769;ce&#769;dente.
+10IDL = Increasing Depth Learning.
+11&#955;Rp\&#955;Rp&#8722;1 represente les parame&#768;tres de &#955;Rp qui ne sont pas dans &#955;Rp&#8722;1 .</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage discriminant pour les Grammaires a&#768; Substitution d&#8217;Arbres
+</p>
+<p>&#8211; Mise-a&#768;-jour : seuls les parame&#768;tres &#955;Rp sont modifie&#769;s.
+IIS est ainsi re&#769;pe&#769;te&#769; pmax fois, pmax e&#769;tant la profondeur maximale des arbres du corpus, ce qui
+allonge e&#769;videmment le temps d&#8217;apprentissage12. Cependant, la convergence IIS e&#769;tant d&#8217;autant
+plus rapide que les arbres conside&#769;re&#769;s sont de grande profondeur, on peut encore optimiser IDL
+en adaptant le nombre de passes IIS a&#768; la profondeur des arbres dont on apprend les parame&#768;tres.
+</p>
+<p>4 Exp&#183;eriences
+Le principe d&#8217;apprentissage expose&#769; repose sur la probabilite&#769; d&#8217;un corpus d&#8217;analyses condition-
+nellement aux phrases. Pour rester cohe&#769;rent avec ce principe, l&#8217;analyse syntaxique doit repo-
+ser sur cette me&#770;me probabilite&#769;. Dans cette optique, le crite&#768;re de choix parmi les analyses syn-
+taxiques possibles sera donc de se&#769;lectionner l&#8217;analyse la plus probable (MPP) parmi toutes les
+analyses possibles13.
+</p>
+<p>4.1 STSG polynomiales
+Les STSG posent une grande difficulte&#769; : avec elles, la recherche du MPP est en effet un proble&#768;me
+NP-difficile dans le cas ge&#769;ne&#769;ral (Sima&#8217;an, 1996). Des algorithmes approximant cette recherche
+ont de&#769;ja&#768; e&#769;te&#769; de&#769;veloppe&#769;s (Bod, 1992; Goodman, 1996; Chappelier &amp; Rajman, 2000). Une alter-
+native, introduite dans (Chappelier &amp; Rajman, 2001), est d&#8217;utiliser des Grammaires a&#768; Substi-
+tution d&#8217;Arbres Polynomiales (pSTSG14) qui, en n&#8217;utilisant comme arbres e&#769;le&#769;mentaires qu&#8217;un
+sous-ensemble bien choisi des sous-arbres du corpus, rendent polynomiale la complexite&#769; de la
+recherche du MPP. C&#8217;est le cadre choisi pour nos expe&#769;riences.
+</p>
+<p>Min-Max pSTSG Les pSTSG &#8220;Min-Max&#8221; sont obtenues en se&#769;lectionnant du corpus deux
+types d&#8217;arbres e&#769;le&#769;mentaires : les sous-arbres minimaux, de profondeur 1, et les sous-arbres
+maximaux, i.e. dont toutes les feuilles sont des terminaux. La polynomialite&#769; des pSTSG Min-
+Max a e&#769;te&#769; prouve&#769;e dans (Chappelier &amp; Rajman, 2001).
+</p>
+<p>Head-driven pSTSG Les &#8220;Head-driven pSTSG&#8221; sont obtenues de fac&#807;on similaire : tous les
+sous-arbres de profondeur 1 sont se&#769;lectionne&#769;s du corpus, les autres arbres e&#769;le&#769;mentaires e&#769;tant
+ceux dont la &#8220;branche de te&#770;te&#8221; est e&#769;tendue autant que possible. Une &#8220;branche de te&#770;te&#8221; est une
+branche dont tous les n&#339;uds, associe&#769;s a&#768; des cate&#769;gories syntaxiques, sont e&#769;tendus seulement s&#8217;ils
+correspondent a&#768; la te&#770;te lexicale du n&#339;ud qui les domine. Les te&#770;tes lexicales sont de&#769;finies comme
+dans (Collins, 1999).
+</p>
+<p>4.2 Protocole
+La version de Bod du corpus ATIS a e&#769;te&#769; utilise&#769;e pour cette e&#769;valuation. Elle consiste en 750
+arbres syntaxiques dans lesquels les feuilles lexicales ont e&#769;te&#769; supprime&#769;es. La Min-Max pSTSG
+extraite compte 2 434 arbres e&#769;le&#769;mentaires : 381 sont de profondeur 1, les autres e&#769;tant des arbres
+</p>
+<p>12Un ou deux jours sur une Sun Sparc 10, pour un corpus d&#8217;apprentissage de 3000 arbres, pmax = 16, et 200
+passes IIS par profondeur.
+</p>
+<p>13D&#8217;autres approches se&#769;lectionnent la de&#769;rivation la plus probable, ou l&#8217;analyse ayant le maximum de constituants
+probablement justes &#8211; voir (Goodman, 1996).
+</p>
+<p>14pSTSG = Polynomial Stochastic Tree Substitution Grammars.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>maximaux. La Head-driven pSTSG compte seulement 930 arbres e&#769;le&#769;mentaires, dont 381 de
+profondeur 1, et 549 &#8220;branches de te&#770;tes&#8221;.
+</p>
+<p>La profondeur maximale des arbres du corpus est de 11. C&#8217;est donc e&#769;galement la profondeur
+maximale des sous-arbres du mode&#768;le Min-Max. En revanche, la profondeur maximale est de 5
+pour le mode&#768;le Head-driven, certaines re&#768;gles n&#8217;ayant pas de te&#770;te lexicale, et les &#8220;branches de
+te&#770;tes&#8221; n&#8217;e&#769;tant pas force&#769;ment les plus longues dans un arbre.
+</p>
+<p>Deux types d&#8217;expe&#769;riences ont e&#769;te&#769; re&#769;alise&#769;s. Dans &#8220;test 10%&#8221;, nous entra&#305;&#770;nons les mode&#768;les sur
+90% du corpus, et nous les testons sur les 10% restant. Les re&#769;sultats correspondent aux moyen-
+nes des valeurs obtenues pour dix partitionnements ale&#769;atoires. Dans &#8220;Autotest&#8221;, apprentissage
+et test sont re&#769;alise&#769;s sur le corpus complet ; ces secondes expe&#769;riences ne servent donc que de
+repe&#768;re sur le gain maximum que l&#8217;on peut espe&#769;rer par l&#8217;utilisation des mode&#768;les gibbsiens.
+</p>
+<p>Dans chaque expe&#769;rience, le mode&#768;le GTSG est compare&#769; a&#768; une STSG obtenue par la me&#769;thode
+d&#8217;apprentissage standard, ou&#768; les arbres e&#769;le&#769;mentaires rec&#807;oivent des probabilite&#769;s proportionnelles
+a&#768; leur fre&#769;quence dans le corpus.
+</p>
+<p>Pour les mode&#768;les Head-driven GCFG, deux types d&#8217;apprentissage on e&#769;te&#769; teste&#769;s sur la partie
+&#8220;test 10%&#8221; : le premier utilise la proce&#769;dure IDL, la seconde non. De fait, cette proce&#769;dure peut
+e&#770;tre e&#769;vite&#769;e pour les Head-driven GTSG, car les arbres complets du corpus ne font pas partie de
+l&#8217;ensemble de leurs arbres e&#769;le&#769;mentaires. De me&#770;me, IDL est inutile dans la partie &#8220;Autotest&#8221;, car
+on ne cherche pas alors a&#768; observer les capacite&#769;s de ge&#769;ne&#769;ralisation des grammaires.
+</p>
+<p>Pour e&#769;valuer les re&#769;sultats, nous avons utilise&#769; les scores standards de&#769;finis dans PARSEVAL (Man-
+ning &amp; Schu&#776;tze, 1999) :
+&#8211; &#8220;Couverture&#8221; : nombre de phrase recevant au moins une analyse (correcte ou pas) ;
+&#8211; &#8220;Correcte&#8221; : taux de phrases correctement analyse&#769;es parmi les phrases couvertes.
+&#8211; &#8220;Crois&#183;e&#8221; : taux de phrases recevant un parenthe&#769;sage incorrect parmi les phrases couvertes. Un
+</p>
+<p>parenthe&#769;sage est incorrect lorsqu&#8217;un des groupes syntaxiques d&#8217;une analyse a une intersection
+avec un groupe de l&#8217;analyse de re&#769;fe&#769;rence, sans que l&#8217;un des deux groupes soit inclus dans
+l&#8217;autre.
+</p>
+<p>&#8211; Pr&#183;ecision &#8220;P&#8221; et Rappel &#8220;R&#8221; sont obtenus en conside&#769;rant la se&#769;quence d&#8217;arbres &#964;&#771; produits par
+l&#8217;analyseur comme un ensemble E(&#964;&#771; ) de triplets &lt; N, p, d &gt;, ou&#768; N est un label syntaxique
+attache&#769; a&#768; un n&#339;ud d&#8217;un arbre, et p et d sont les index dans le corpus des premier et dernier
+mots domine&#769;s par N . Par comparaison avec la se&#769;quence des arbres de re&#769;fe&#769;rence &#964;&#771; &#8242;, les taux
+sont calcule&#769;s comme :
+</p>
+<p>P (&#964;&#771;) =
+|E(&#964;&#771;) &#8745; E(&#964;&#771; &#8242;)|
+</p>
+<p>|E(&#964;&#771;)|
+, R(&#964;&#771;) =
+</p>
+<p>|E(&#964;&#771;) &#8745; E(&#964;&#771; &#8242;)|
+</p>
+<p>|E(&#964;&#771; &#8242;)|
+</p>
+<p>&#8211; le f-score &#8220;F&#8221; est la moyenne harmonique de la pre&#769;cision et du rappel :
+</p>
+<p>F&#8722;1 =
+1
+</p>
+<p>2
+(P&#8722;1 + R&#8722;1)
+</p>
+<p>.
+</p>
+<p>4.3 Re&#769;sultats
+Les re&#769;sultats obtenus pour les pSTSG Min-Max et Head-driven sont re&#769;sume&#769;s dans la table 1.
+</p>
+<p>Avec les corpus mentionne&#769;s, le processus d&#8217;apprentissage prend environ 4 heures pour chaque
+mode&#768;le sur une Sun Blade 60. Pour la proce&#769;dure IDL, 20 ite&#769;rations de IIS ont e&#769;te&#769; re&#769;alise&#769;es
+pour chaque profondeur d&#8217;arbre e&#769;le&#769;mentaire. Sans IDL, 200 ite&#769;rations IIS ont e&#769;te&#769; utilise&#769;es pour
+l&#8217;ensemble complet des arbres e&#769;le&#769;mentaires.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage discriminant pour les Grammaires a&#768; Substitution d&#8217;Arbres
+</p>
+<p>Min-max Head-Driven
+Autotest
+</p>
+<p>Couv. Corr. Croise&#769; P R F
+STSG 750 664 0
+</p>
+<p>Taux (en %) 88.5 0.0 99.7 99.2 99.45
+GTSG 750 691 0
+</p>
+<p>Taux (en %) 92.1 0.0 99.6 99.5
+Gain (%) 3.6 &#8211;0.1 0.2 0.05
+</p>
+<p>Test 10%
+STSG 73.9 35.6 11.6
+</p>
+<p>Taux (en %) 48.2 15.7 93.6 94.4 94.0
+GTSG-IDL 73.9 36.4 9.7
+</p>
+<p>Taux (en %) 49.3 13.1 93.5 95.6 94.5
+Gain (%) 1.1 &#8211;2.6 &#8211;0.1 1.2 0.5
+</p>
+<p>Autotest
+Couv. Correct Croise&#769; P R F
+</p>
+<p>STSG 750 412 57
+Taux (en %) 54.9 7.6 96.9 95.2 96.0
+</p>
+<p>GTSG 750 479 43
+Taux (en %) 63.8 5.7 97.6 97.0 97.3
+</p>
+<p>Gain (%) 8.9 &#8211;1.9 0.7 1.8 1.25
+</p>
+<p>Test 10%
+STSG 73.9 30.4 10.4
+</p>
+<p>Taux (en %) 41.1 14.0 93.7 93.6 93.6
+GTSG-IIS 73.9 35.7 10.0
+</p>
+<p>Taux (en %) 48.3 13.5 94.2 95.1 94.6
+Gain (%) 7.2 0.5 0.5 1.5 1
+</p>
+<p>GTSG-IDL 73.9 35.2 10.2
+Taux (en %) 47.6 13.8 94.2 94.8 94.4
+</p>
+<p>Gain (%) 6.5 0.2 0.5 1.2 0.8
+</p>
+<p>TAB. 1 &#8211; Performances en analyse : GTSG compare&#769;es aux STSG.
+</p>
+<p>4.4 Discussion
+Les GTSG obtiennent le score maximum en autotest pour les grammaires Min-Max15. C&#8217;est
+une illustration du fait que les faiblesses the&#769;oriques souligne&#769;es dans (Bonnema et al., 1999)
+affectent les STSG et non les GTSG. La suppression de ces faiblesses n&#8217;a presque aucun effet
+en &#8220;test-10%&#8221;. Nous pensons que ces effets sont masque&#769;s par les autres facteurs d&#8217;erreur qui
+agissent dans cette situation, comme la grande variabilite&#769; du corpus utilise&#769;.
+</p>
+<p>L&#8217;avantage des Head-driven GTSG sur les Head-driven STSG est plus e&#769;vident. Le taux d&#8217;ana-
+lyses fausses est re&#769;duit de 12% sur les expe&#769;riences &#8220;test-10%&#8221;. Les taux de parenthe&#769;sage croise&#769;,
+de pre&#769;cision et de rappel en label sont e&#769;galement meilleurs.
+</p>
+<p>Comme pre&#769;vu par la the&#769;orie, la proce&#769;dure IDL est inutile avec les GTSG Head-driven : les
+mode&#768;les obtenus avec un IIS standard me&#768;nent a&#768; de meilleurs re&#769;sultats.
+</p>
+<p>5 Conclusion
+Pour conclure, les mode&#768;les log-line&#769;aires associe&#769;s a&#768; un apprentissage discriminant de&#769;veloppe&#769;s
+dans ce document semblent d&#8217;autant plus inte&#769;ressants que les grammaires comptent moins de
+parame&#768;tres : les grammaires Head-driven en be&#769;ne&#769;ficient plus que les mode&#768;les Min-max.
+</p>
+<p>Les re&#769;sultats obtenus en testant les mode&#768;les sur le corpus d&#8217;apprentissage semblent confirmer
+que les &#8220;faiblesses&#8221; the&#769;oriques connues des STSG sont supprime&#769;es dans les GTSG. Cet avantage
+est du&#770; principalement a&#768; la fonction d&#8217;apprentissage discriminante et conditionne&#769;e par les feuilles
+que l&#8217;on utilise dans le mode&#768;le GTSG, qui est mieux adapte&#769;e a&#768; la ta&#770;che d&#8217;analyse syntaxique a&#768;
+laquelle on destine la grammaire. L&#8217;ame&#769;lioration est cependant moins sensible en ge&#769;ne&#769;ralisation,
+du fait de l&#8217;insuffisance des donne&#769;es d&#8217;apprentissage par rapport a&#768; la taille de la grammaire.
+</p>
+<p>Les tests mene&#769;s ne montrent cependant pas l&#8217;avantage que l&#8217;on pourrait tirer d&#8217;une autre ca-
+racte&#769;ristique des GTSG, a&#768; savoir l&#8217;absence de normalisation de leurs parame&#768;tres. Nous pres-
+sentons en effet que cette absence pourrait e&#770;tre be&#769;ne&#769;fique dans des applications telles que la
+</p>
+<p>15Le score maximal n&#8217;est pas 100%, du fait que le corpus compte 555 arbres diffe&#769;rents sur ses 750, pour seule-
+ment 512 phrases diffe&#769;rentes, du fait de la de&#769;lexicalisation applique&#769;e.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>reconnaissance de la parole, ou&#768; la nature probabiliste des parame&#768;tres pose des proble&#768;mes lors
+du me&#769;lange de mode&#768;les (mode&#768;le acoustique et mode&#768;le de langage). Il serait tre&#768;s inte&#769;ressant
+d&#8217;instancier les GTSG, avec une proce&#769;dure d&#8217;apprentissage adapte&#769;e, dans un tel contexte.
+</p>
+<p>R&#183;ef&#183;erences
+BOD R. (1992). Applying Monte Carlo techniques to Data Oriented Parsing. In Proceedings Computa-
+tional Linguistics in the Netherlands, Tilburg (The Netherlands).
+</p>
+<p>BOD R. (1998). Beyond Grammar, An Experience-Based Theory of Language. Number 88 in CSLI
+Lecture Notes. Standford (CA) : CSLI Publications.
+</p>
+<p>BONNEMA R., BUYING P. &amp; SCHA R. (1999). A new probability model for data oriented parsing.
+In P.DEKKER &amp; G.KERDILES, Eds., Proceedings of the 12th Amsterdam Colloquium, Amsterdam :
+Institute for Logic, Language and Computation.
+</p>
+<p>BONNEMA R. &amp; SCHA R. (2002). Reconsidering the probability model of data-oriented parsing. In R.
+BOD, R. SCHA &amp; K. SIMA&#8217;AN, Eds., Data-Oriented Parsing, chapter I.3, p. 25&#8211;41. CSLI Publications.
+</p>
+<p>CHAPPELIER J.-C. &amp; RAJMAN M. (2000). Monte-Carlo sampling for NP-hard maximization problems
+in the framework of weighted parsing. In D. CHRISTODOULAKIS, Ed., Natural Language Processing &#8211;
+NLP 2000, number 1835 in Lecture Notes in Artificial Intelligence, p. 106&#8211;117. Springer.
+</p>
+<p>CHAPPELIER J.-C. &amp; RAJMAN M. (2001). Grammaire a&#768; substitution d&#8217;arbre de complexite&#769; polyno-
+miale : un cadre efficace pour DOP. In TALN&#8217;2001, volume 1, p. 133&#8211;142.
+</p>
+<p>COLLINS M. (1999). Head-Driven Statistical Models for Natural Language Parsing. PhD thesis, Uni-
+versity of Pennsylvania.
+</p>
+<p>COLLINS M. &amp; DUFFY N. (2002). New ranking algorithms for parsing and tagging : Kernels over
+discrete structures, and the voted perceptron. In ACL2002, p. 263&#8211;270.
+</p>
+<p>DEMPSTER M. M., LAIRD N. M. &amp; JAIN D. B. (1977). Maximum likelihood from incomplete data
+via the em algorithm. Journal of the Royal Statistics Society, 39, 1&#8211;38.
+GOODMAN J. (1996). Efficient algorithms for parsing the DOP model. In Proc. of the Conf. on Empiri-
+cal Methods in Natural Language Processing, p. 143&#8211;152.
+</p>
+<p>GOODMAN J. (1998). Parsing Inside-Out. PhD thesis, Harvard University. cmp-lg/9805007.
+</p>
+<p>JOHNSON M. (1998). PCFG Models of Linguistic Tree Representations. Computational Linguistics,
+24(4), 613&#8211;632.
+LAFFERTY J. (1996). Gibbs-Markov models. In Computing Science and Statistics, volume 27, p. 370&#8211;
+377.
+</p>
+<p>MANNING C. &amp; SCHU&#776;TZE H. (1999). Foundations of Statistical Natural Language Processing. Cam-
+bridge : The MIT Press.
+</p>
+<p>ROZENKNOP A. (2002). Une grammaire hors-contexte value&#769;e pour l&#8217;analyse syntaxique. In 9e&#768;me
+Confe&#769;rence Annuelle sur le Traitement Automatique des Langues Naturelles, volume 1, p. 95&#8211;104,
+Nancy : Association pour le Traitement Automatique des Langues (ATALA).
+</p>
+<p>SIMA&#8217;AN K. (1996). Computational complexity of probabilistic disambiguation by means of tree gram-
+mars. In Proceedings of COLING&#8217;96, Copenhagen (Denmark). cmp-lg/9606019.</p>
+
+</div></div>
+</body></html>

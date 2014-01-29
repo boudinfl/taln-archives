@@ -1,0 +1,759 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+L’apport du faisceau dans l’analyse syntaxi ue en dé endances
+
+par transitions : études de cas avec l’ana yseur Ta lsmane
+
+Assaf Urieli et Ludovic Tanguy
+(1) CLLE-ERSS : CNRS & Université de Toulouse 2
+
+assaf.urieli@univ—tlse2.fr, ludovic.tanguy@univ—tlse2.fr
+
+RESUME
+
+L'analyse syntaxique (ou parsing) en dépendances par transitions se fait souvent de facon
+déterministe, ou chaque étape du parsing propose une seule solution comme entrée de
+l'étape suivante. 11 en va de méme pour la chaine complete d’analyse qui transforme un texte
+brut en graphe de dépendances, généralement décomposé en quatre modules (segmentation
+en phrases, en mots, étiquetage et parsing) : chaque module ne fournit qu'une seule solution
+au module suivant. On sait cependant que certaines ambigu'ités ne peuvent pas étre levées
+sans prendre en considération le niveau supérieur. Dans cet article, nous présentons
+l’analyseur Talismane, outil libre et complet d’analyse syntaxique probabiliste du francais, et
+nous étudions plus précisément l’apport d'une recherche par faisceau (beam search) a
+l’analyse syntaxique. Les résultats nous permettent a la fois de dégager la taille de faisceau la
+plus adaptée (qui permet d’atteindre un score de 88,5 % d'exactitude, légerement supérieur
+aux outils comparables), ainsi que les meilleures stratégies concernant sa propagation.
+
+ABSTRACT
+
+APPLYING A BEAM SEARCH T0 TRANSITION-BASED DEPENDENCY PARSING: A (‘ASE STUDY FOR FRENCH WITH
+THETKUSMANESUHE
+
+Transition-based dependency parsing often uses deterministic techniques, where each parse
+step provides a single solution as the input to the next step. The same is true for the entire
+analysis chain which transforms raw text into a dependency graph, generally composed of
+four modules (sentence detection, tokenising, pos-tagging and parsing): each module
+provides only a single solution to the following module. However, some ambiguities cannot
+be resolved without taking the next level into consideration. In this article, we present
+Talismane, an open-source suite of tools providing a complete statistical parser of French.
+More speciﬁcally, we study the contribution of a beam search to syntax parsing. Our analysis
+allows us to conclude on the most appropriate beam width (enabling us to attain an accuracy
+of 88.5%, slightly higher than comparable tools), and on the best strategies concerning beam
+propagation from one level of analysis to the next
+
+MOTS-CLES : Analyse syntaxique en dépendances, ambigu'ités, évaluation, beam search
+KEYWORDS: Dependency parsing, ambiguities, evaluation, beam search
+
+1 Introduction
+
+L'analyse syntaxique par dépendances s'inspire de l'oeuvre de Tesnieres (1959), et connait
+un tres grand engouement pour le développement d'analyseurs syntaxiques automatiques.
+Les avantages les plus connus sont, sur le plan linguistique, la possibilité de créer des
+dépendances croisées (arbres non projectifs) et l’expression efﬁcace des structures
+argumentales des verbes. Sur le plan informatique, ce mode de représentation se préte tres
+
+188 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+facilement aux méthodes d'apprentissage automatique supervisé, puisque la détection d’un
+lien de dépendance entre deux mots et l'étiquetage de ce lien par une relation syntaxique
+peuvent se ramener a des opérations de classification.
+
+11 existe deux principales techniques pour l'analyse syntaxique statistique en dépendances :
+l'analyse par transitions (Nivre, 2008) et l'analyse par graphes (McDonald, 2006). L'analyse
+par transitions présente l'intérét d’une complexité de calcul linéaire, en transformant le
+probleme d’analyse de syntaxe en un algorithme de type .S'111'fZ'-Reduce. Au cours de tests
+effectués par Candito et al (2010) et McDonald et Nivre (2007), il a été démontré que,
+comparée a l'analyse par graphes, l'analyse par transitions a des performances dégradées
+pour une distance de rattachement supérieure a deux mots. Une facon de corriger cette
+dégradation est d'y introduire une recherche par faisceau (beam search, cf. section 3.1).
+Cette méthode a déja été appliquée par Sagae et Lavie (2006), ]ohanssen et Nugues (2006) et
+]ohanssen et Nugues (2007), avec des résultats prometteurs pour une dizaine de langues,
+mais parmi lesquelles le francais ne ﬁgure malheureusement pas.
+
+Dans cet article, nous présentons tout d’abord un nouvel analyseur syntaxique en
+dépendances, Talismane (section 2), qui implémente de nouvelles fonctionnalités au niveau
+du faisceau et une syntaxe tres expressive pour décrire les informations utilisées pour
+l'analyse. Cet outil est disponible librement et est directement opérationnel pour le francais.
+
+Dans la section 3, nous nous intéressons au mécanisme de la recherche par faisceau, a la fois
+au niveau quantitatif et qualitatif. Nous apportons des précisions sur la facon d’appliquer le
+faisceau a des problemes ou la comparaison des solutions intermédiaires n'est pas triviale.
+
+Dans la section 4, nous testons l’hypothese selon laquelle, si on propage le faisceau a travers
+les différents modules de l'analyse, un module de niveau plus élevé peut corriger les erreurs
+d’un module de niveau plus bas. Plus précisément, nous nous intéressons aux questions
+suivantes: le parseur est-il capable de corriger des erreurs de segmentation en mots
+(notamment en ce qui concerne l'identiﬁcation des locutions) et des erreurs d’étiquetage
+morphosyntaxique ?
+
+Dans la section 5, nous présentons une comparaison avec d'autres études similaires, et
+notamment une mesure des performances globales de Talismane.
+
+2 L’analyseur Talismane
+
+L'outil Talismane1 est un analyseur syntaxique développé par Assaf Urieli dans le cadre de sa
+these au sein du laboratoire CLLE-ERSS, sous la direction de Ludovic Tanguy. Il est écrit
+intégralement en ]ava: il fonctionne donc sur tous les systémes d’exploitation et est
+facilement intégrable a d'autres applications.
+
+Pour passer d’un texte brut a un réseau de dépendances syntaxiques, Talismane utilise une
+analyse en cascade avec quatre étapes classiques pour ce type de tache : le découpage en
+phrases (non traité ici), la segmentation en mots, l'étiquetage (attribution d’une catégorie
+morphosyntaxique), et le parsing (repérage et étiquetage des dépendances syntaxiques
+entre les mots).
+
+1 Disponible sous licence GPL E1 cette adresse : http : //redac . univ—tlse2 . fr/talismane
+
+189 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+La tache de chacun des modules est déﬁnie comme un probleme de classification, et résolue
+de facon statistique, en entrainant un modele probabiliste sur un corpus annoté.
+
+Chacun des modules est conﬁgurable a la fois au niveau des traits et des régles. Les traits
+sont les informations sur les conﬁgurations rencontrées dont dispose l’algorithme pour
+prendre chacune des décisions, alors que les regles sont des contraintes qui forcent (ou
+interdisent) des décisions locales.
+
+Le modele par défaut proposé par Talismane utilise des traits classiques pour chacune des
+opérations. Pour l'étiquetage, par exemple, sont calculés pour chaque mot des traits liés a sa
+forme, aux étiquettes indiquées dans un lexique de référence, aux catégories des mots qui
+l'entourent, etc. La syntaxe de déﬁnition des traits est sufﬁsamment expressive pour déﬁnir
+des traits plus complexes, par exemple le fait que le mot précédent soit situé entre
+parentheses.
+
+Les regles, qui ne sont appliquées qu'au moment de l'analyse (et pas lors de l’apprentissage),
+permettent de remplacer ou de contraindre les réponses fournies par le classiﬁeur
+probabiliste, quand un critere est rempli. Des regles définissables suivant une syntaxe souple
+permettent d'éviter des résultats aberrants (comme l’attribution d’une classe fermée a un
+mot inconnu du lexique, l’attribution de deux sujets a un verbe, etc.) soit de respecter des
+contraintes propres a un corpus spéciﬁque (en attribuant une catégorie ﬁxe a un mot donné,
+par exemple).
+
+Pour le parsing, Talismane se base sur l’algorithme décrit par (Nivre 2008) avec certaines
+modiﬁcations pour rendre possible la recherche par faisceau. Nous avons testé deux
+algorithmes présentés par Nivre : l’algorithme « classique » et l’algorithme dit « arc eager».
+Le deuxieme algorithme a fourni de meilleurs résultats globaux, et est le seul utilisé pour les
+expérimentations présentées dans cet article.
+
+2.1 Classiﬁeurs
+
+Les algorithmes de classiﬁcation utilisables par chaque module sont interchangeables, et
+trois classiﬁeurs différents sont disponibles dans Talismane : un classiﬁeur par entropie
+maximalez, basé sur (Ratnaparkhi, 1998), un SVM linéaire3 (Ho et Lin, 2012), et un
+classiﬁeur par perceptrons multicouches (Attardi et al, 2009). Nous avons comparé les
+résultats de ces trois classiﬁeurs avec le méme jeu de traits et en testant différentes
+conﬁgurations pour leurs parametres spéciﬁques. Le classiﬁeur par entropie maximale
+donne des résultats supérieurs ou égaux a ceux du SVM linéaire, avec l'avantage d'un
+algorithme d'entrainement plus rapide et une interprétation plus aisée des coefficients de
+chaque parametre. Nous avons donc opté pour cette option dans les expériences présentées
+ici ainsi que pour le comportement par défaut de Talismane, et ce pour chacun des quatre
+modules de la chaine de traitement.
+
+2.2 Corpus d’entrai‘nement et ressources extemes
+
+Le corpus d'entrainement pour les modules de segmentation et d’étiquetage est le French
+
+2 http : //opennlp . apache . org/
+3 http : //liblineanbwaldvogel .de/
+
+190 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Treebank (Abeillé et al, 2003). Pour la segmentation, nous avons retenu les mots composés
+des catégories fermées (déterminants, pronoms, prépositions et conjonctions) ainsi que les
+adverbes qui ne sont pas par ailleurs des syntagmes prépositionnels bien formés. Pour
+l'étiquetage, le jeu de tags utilisé est celui de Crabbé et Candito (2008). Pour le parsing, nous
+avons utilisé le French Treebank converti automatiquement en dépendances par Candito et
+al (2010). Nous avons retenu leur division en corpus d’apprentissage, de développement
+(dev, 10 % du total) et de test (10 % du total) pour pouvoir comparer nos résultats
+directement
+
+A la différence des autres études, et grace a l’eXpressivité syntaxique de Talismane, nous
+avons utilisé un jeu de traits complexe et parfois spéciﬁque au francais. Du coup, notre
+systéme n’est pas directement applicable :31 d’autres langues sans la création d’un nouveau
+jeu de traits, qui serait construit sur la base de la connaissance des mécanismes de la langue,
+de la disponibilité de ressources lexicales ou sémantiques, et des spéciﬁcités des corpus
+d'entrainement et d’évaluation.
+
+Nous faisons un usage massif, dans les traits, du lexique LEFFF (Sagot et al, 2006) a la fois au
+niveau du segmenteur, de l'étiqueteur et du parseur. Comme dans Denis et Sagot (2009),
+nous utilisons les catégories grammaticales du lexique LEFFF comme traits de l’étiqueteur,
+en y ajoutant quelques contraintes (surtout au niveau des classes fermées). La liste complete
+des traits utilisés pour construire le modele proposé par défaut est consultable en ligne4.
+
+3 Le principe du faisceau dans Talismane
+Nous présentons ici les détails techniques de la recherche par faisceau dans Talismane.
+
+3.1 Fonctionnement général
+
+Que ce soit pour la segmentation ou le parsing, un analyseur probabiliste doit envisager un
+tres grand nombre de conﬁgurations possibles pour une méme phrase, en considérant toutes
+les combinaisons de catégories que l’on peut affecter a chaque élément (caractére pour la
+segmentation, mot pour l'étiquetage, paire de mots ou relation de dépendance pour le
+parsing). Aﬁn de trouver la séquence (de frontieres de mots, d'étiquettes, ou de liens
+syntaxiques) la plus probable, le systeme doit comparer théoriquement un tres grand
+nombre de cas possibles ; pour limiter cette explosion combinatoire seules les k
+conﬁgurations les plus probables sont considérées a chaque étape du calcul. Le faisceau (de
+largeur k) est donc la liste de ces configurations partielles. Un faisceau de grande largeur a
+donc plus de chances de trouver la meilleure conﬁguration, mais consommera également
+plus de ressource, en nombre de traits a calculer et de comparaisons a effectuer.
+
+Pour l'étiquetage par exemple, les mots sont traités dans l'ordre de la phrase, et a chaque
+étape du calcul le faisceau contient les k séquences d'étiquettes les plus probables. Un
+faisceau de largeur 1 devra alors attribuer déﬁnitivement la catégorie d’un mot au moment
+ou celui-ci est traité (ce qui ne veut pas dire qu'il le fait indépendamment des mots qui le
+suivent, puisque ceux-ci sont pris en compte via des traits). Dans tous les cas, le faisceau
+contient, a la ﬁn de l'analyse d’une phrase, les ksorties les plus probables pour cette phrase.
+Des exemples plus détaillés de ce mécanisme sont présentés en section 4.1.
+
+4 http : //redac . univ—tlse2 . fr/talismane/ features
+191 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+3.2 Spéciﬁcités du faisceau dans le parseur
+
+Dans le parsing par transitions, la situation est nettement plus complexe. Une
+« configuration » (Nivre, 2008) est une structure qui contient une pile de mots partiellement
+traités, un buffer contenant les mots non encore traités, et un jeu de dépendances déja
+générées. A cela on peut ajouter une liste de transitions qui ont permis d'arriver a cette
+conﬁguration a partir de la conﬁguration initiale. La liste des transitions possibles est un
+petit ensemble fermé. Par exemple, la transition « Shift» enleve le mot en téte du buffer et le
+met en téte de pile, sans créer de dépendance entre les deux. L'entrainement consiste donc a
+apprendre quelle transition il faut appliquer étant donné une configuration. La conﬁguration
+est considérée comme terminale quand le buﬁerest vide.
+
+Appliquer un faisceau au parseur n’est pas trivial, dans la mesure ou il est difﬁcile de
+comparer des conﬁgurations qui ont créé un nombre différent de dépendances dans un
+ordre différent. Sagae et Lavie (2006) ont utilisé une stratégie particuliere qui implique un
+certain nombre de biais, et ]ohanssen et Nugues (2 007) ne donnent pas de précisions sur la
+facon d'appliquer le faisceau. Nous avons fait le choix d’utiliser une moyenne harmonique
+des probabilités individuelles, afin d'éviter de privilégier le chemin le plus court a une
+solution, et de comparer entre elles les configurations ayant traité un méme nombre de mots.
+
+3.3 Impact de la largeur du faisceau sur les performances globales
+
+Nous avons tout d'abord évalué différentes largeurs de faisceau a l’intérieur de chaque
+module, sans considérer leur enchainement. Les mesures ont été faites sur le corpus de test
+du French Treebank (10% du corpus, soit 32000 mots) en fournissant en entrée a chaque
+module les données annotées qui s'y trouvent.
+
+Pour le segmenteur en mots, vu qu'il n'y a pas de dépendances contextuelles entre les
+décisions locales a différents endroits de la phrase, la solution la plus probable localement
+reste toujours en téte de liste, si bien que la largeur de faisceau n'a aucun effet sur les
+performances. A ce stade, le faisceau sert uniquement a fournir plusieurs segmentations
+possibles aux modules suivants (voir section 4.1).
+
+Pour l'étiquet1eur morphosyntaxique, le faisceau apporte un gain non signiﬁcatif. Sur le sous
+corpus « test», on passe d'une exactitude de 97,81 % pour un faisceau de largeur 1 a une
+exactitude de 97,83 % pour un faisceau de 20. On voit donc que, méme sans recherche par
+faisceau, le module d’étiquetage de Talismane se situe au niveau actuellement atteint par
+d'autres outils pour le francais (Denis et Sagot, 2009).
+
+Pour le parseur, nous avons mesuré la f-mesure pour chaque étiquette de dépendance
+(« sujet », « objet», ...) a différentes largeurs de faisceau. Pour cette f-mesure, on considere
+une réponse comme correcte uniquement si l’arc est correct (bon gouverneur) et bien
+étiqueté (bonne relation). La TABLE 1 donne, pour le sous corpus « test», les f-mesures de
+certaines étiquettes. Les f-mesures pour l'ensemble des relations syntaxiques augmentent
+avec la largeur du faisceau, avec une relative stabilité a partir du faisceau 5. Notons au
+passage que cette derniere information est tres utile: le parseur consomme un temps
+linéairement proportionnel a la largeur du faisceau, et ces données permettent donc de voir
+qu’un faisceau large (plus de 5) n’est pas rentable. On observe généralement un gain de
+précision minime, voir une perte légere, mais un gain de rappel important (pour la relation
+
+192 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+« racine », par exemple, on observe un gain de rappel de 5,59 % entre les faisceaux 1 et 20).
+
+Etiquette Nombre Largeur de faisceau: Gain (f2 0-f1)
+de “as 1 2 5 1o 20 Préc. Rap F-mes
+total5 31 703 87,7 88,5 88,8 89,0 89.1 +1.38
+sujet 2 132 92,8 93,7 94,3 94,5 94,6 -0,25 +3,51 +1,82
+racineé 1 235 91,9 93,5 94,5 94,8 95,1 -0,06 +5,59 +3,12
+
+coordonné7 939 89,4 90,5 91,2 91,4 91,4 -0,25 +3,41 +1,94
+coordonnant“ 819 68,3 69,5 70,4 70,5 70,4 +0,32 +2,45 +2,12
+
+relative9 379 78,4 79,9 80,5 80,9 81,1 +1,96 +2,91 +2,69
+
+TABLE 1 : F-score par largeur de faisceau : valeur globale et détails
+pour certaines étiquettes choisies
+
+Pour le score total, les différences entre les différentes largeurs de faisceau sont toutes
+signiﬁcatives (test de McNemar, p<0,05). Pour les relations individuelles, on observe
+globalement un gain non-signiﬁcatif lorsque le faisceau dépasse une largeur de 5.
+
+:51:
+
+94.0 K
+
+Exactitude
+_% 8
+D D
+
+ 
+
+5 10 15 20 25 30
+Distance maxirnale de rattachement
+
+\1 X2‘-as  1o""~._, 20]
+
+FIGURE 1 : Exactitude par faisceau et par
+distance maximale de rattachement
+
+5 A l’instar d’autres études similaires, nous donnons l’exactitude totale hors ponctuation
+
+5 Relation dont le dépendant est le verbe principal de la phrase, et le gouverneur et une « racine » arﬁﬁcielle
+
+7 Relation dont le dépendant est un mot coordonné et le gouverneur est le coordonnant qui le précéde
+
+3 Relation dont le dépendant est une conjonction ou une virgule et el gouverneur est le coordonné qui la précéde
+
+9 Relation dont le dépendant est le verbe d’une subordonnée relative , et le gouverneur est l’anbécédent du pronom
+relatif qui introduit cette subordonnée (le pronom relatif lui-méme sera rattaché au verbe par les relations « suj »,
+
+« obj», 
+193 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+La FIGURE 1 donne l'eXactitude en fonction des distances maximales de rattachement (en
+nombre de mots séparant les mots reliés syntaxiquement). Chaque point de la courbe
+représente donc l'eXactitude pour tous les liens de dépendances dont la distance entre le
+gouverneur et le dépendant est inférieure ou égale a une distance donnée. Alors que
+l’eXactitude baisse avec la distance maximale pour tous les faisceaux, l'écart entre les
+faisceaux s’accroit: plus le faisceau est large, plus le parseur parvient a traiter correctement
+
+les relations a longue distance.
+
+4- Le faisceau entre les modules
+
+Dans ce paragraphe, nous nous intéressons a la propagation du faisceau entre les modules.
+Sans propagation, chaque module du début de la chaine (segmentation ou étiquetage) choisit
+la meilleure conﬁguration possible et la transmet au module suivant (étiquetage ou parsing).
+Si l’on active la propagation avec un faisceau de largeur k, le module fournit alors k
+propositions qui vont étre prises en considération (avec une probabilité associée). Au fur et
+a mesure de l’analyse, certains choix du module précédent seront abandonnés (largeur de
+faisceau oblige), alors que d’autres seront retenus, voire ramenés en haut de la pile.
+
+Nous avons utilisé deux corpus d’évaluation : le premier est le corpus de test issu du French
+Treebank, et permet d'avoir un apercu quantitatif en comparant les résultats avec
+l’annotation manuelle. Nous y avons ajouté un extrait du corpus Leximedia 200710 qui
+contient des articles de presse de plusieurs quotidiens francais relatifs a la précédente
+campagne présidentielle. Dans ce corpus, nous avons analysé manuellement les 100
+premieres différences de traitement obtenues avec et sans propagation du faisceau, et ce
+pour plusieurs largeurs, aﬁn d'avoir une vision qualitative des phénomenes mis en jeu.
+
+4.1 Impact de l’étiquetage et du parsing sur la segmentation: le traitement des
+unités polylexicales ambigués
+
+Notre hypothese est que le repérage des unités polylexicales peut étre amélioré en prenant
+en considération les informations morphosyntaxiques et syntaxiques. A notre connaissance,
+tous les systemes d’étiquetage effectuent un traitement systématique des locutions et
+expressions ﬁgées (lorsqu'ils traitent ces cas) en projetant un lexique sans condition. Si
+certaines locutions sont totalement non ambigués (« parce_que», « d’0re5_et_de’jal» etc.)
+certaines occurrences peuvent correspondre a des conﬁgurations syntaxiques particulieres
+comme dans «]ean-Claude Brialy, qui nous quitte al 74 ans, avait été un jeune premier
+éblouissant. ». Dans cet exemple extrait de notre corpus d’évaluation (et correctement traité
+grace a cette méthode), il est clair que « q111'tte_al» n'est pas une préposition (mais un verbe
+suivi d'une préposition) quand on considere la conﬁguration globale de la phrase. Dans le cas
+d'une propagation, les deux solutions de segmentation envisageables vont donc étre
+soumises a l'étiqueteur qui pourra soit décider, soit transmettre l'ambigu'1'té a son tour au
+parseur (en fonction des priorités et des autres ambiguités qu'il ordonnancera dans son
+faisceau). La décision ﬁnale de segmenter ou non sera prise a la toute ﬁn du processus.
+
+Pour comprendre le mécanisme interne, prenons la phrase « Elle pourrait méme 5’ennuyer. »
+Au niveau de la segmentation, il y a une ambiguité entre « méme_51'» (conjonction de
+
+1° http://redac.univ-tlse2.fr/Leximedia2 007/
+194 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+subordination) et les deux mots « n1e‘n1e» (adverbe) et « se » (pronom clitique réﬂéchi). On
+a appliqué ici une analyse avec un faisceau de largeur 2. La TABLE 2 ci-dessous montre le
+faisceau terminal du segmenteur pour cette phrase, ou la proposition erronée d’un seul mot
+composé « n1e‘n1e s1’ » est privilégiée (la probabilité globale étant supérieure).
+
+Elle pourrait mémes’ ennuyer . Score : 66%
+
+Elle pourrait méme s’ ennuyer . Score: 34%
+
+TABLE 2 : Faisceau ﬁnal du segmenteur pour la phrase « Elle pourraitméme s’ennuyer. »
+
+Sans la propagation, la proposition erronée est donc la seule transmise a l’étiqueteur. Avec la
+propagation, les deux propositions sont transmises et analysées, tel qu'on le voit dans la
+TABLE 3. L'étiqueteur arrive donc a trancher pour la bonne solution, car la séquence [Verbe
+indicatilf conjonction de subordination, Verbe 1'nﬁn1'u'f] est tres peu probable dans le corpus
+d'entrainement. Le parseur (détails non fournis) ne fera ici que confirmer ce choix.
+
+Elle pourrait nzéme s’ ennuyer . Score Score de Score
+CLS11 V ADV CLR VINF PONCT d’étiquetage12 segmentation total
+96% 99% 99% 88% 94% 94% 95% 34% 32%
+Elle pourrait nzémes’ ennuyer . Score Score de Score
+CLS V CS VINF PONCT d'étiquetage segmentation total
+96% 99% 8% 24% 83% 43% 66% 29%
+
+TABLE 3 : Faisceau ﬁnal de l'étiqueteur pour la phrase « Elle pourraitméme s’ennuyer. »
+
+Notons que le score associé a chaque étiquette représente sa probabilité dans une
+distribution couvrant toutes les étiquettes morphosyntaxiques possibles. L'étiquette choisie
+est celle dont la probabilité est la plus élevée dans cette distribution, et dont le choix n’est
+pas interdit par les regles que l’utilisateur aura conﬁgurés.
+
+Prenons un autre exemple : « LIL? plus grave. » L’eXpression « il y a» est de segmentation
+ambigué, car considérée comme une préposition (ex. « ]e suis venu i] y a trois ans. ») ou
+comme une séquence de trois mots. La TABLE 4 ci-dessous montre le faisceau terminal du
+segmenteur pour cette phrase, qui privilégie donc la locution prépositionnelle.
+
+ll ya plus grave . Score : 55%
+
+ll y a plus grave . Score : 45%
+
+TABLE 4 : Faisceau ﬁnal du segmenteur dans la phrase « 11 y a plus grave. »
+
+Le faisceau terminal de l'étiqueteur, montré dans la TABLE 5 ci-dessous, rapproche les
+probabilités des deux solutions, sans pour autant en changer l’ordre.
+
+11 Etiquetbes morphosyntaxiques de Crabbé et Candibo (2008) : ADV = adverbe. CLO = clitique objet. CLR = clitique
+réﬂéchi. CLS = clitique sujet. P = préposition. V = verbe indicatif. VINF = verbe infinitif.
+12 Moyenne harmonique des probabilités individuelles.
+
+195 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+[1 ya plus grave . Score Score de Score
+P ADV AD] PONCT d’étiquetage segmentation total
+67% 99% 94% 98% 88% 55% 49%
+11 y a plus grave . Score Score de Score
+CLS CLO V ADV AD] PONCT d’étiquetage segmentation total
+97% 95% 99% 98% 94% 98% 97% 45% 44%
+
+TABLE 5 : Faisceau final de l’étiqueteur dans la phrase « [1 ya plus grave. »
+
+Ce sera ici le parseur qui permettra de corriger l'erreur. La FIGURE 2 montre le faisceau
+terminal du parseur. Pour simpliﬁer, nous avons attribué des probabilités aux arcs de
+dépendance. En réalité, il y a une probabilité pour chaque transition, méme celles qui n’ont
+pas généré des arcs (ex. Shift). Nous avons intégré ces probabilités dans celles des arcs.
+
+F0011 mod
+ " ’ _ 99 % _  ./"‘a5 %"\
+racine ll y a plus grave
+CLS CLO V ADV ADJ PONCT
+x  ._ ff ,;vr . / /-
+\\  a -77   ato  ' //
+ 5'-‘J  \‘\. 559/nponct  ’
+98 %  98 % 
+mod
+/"-88 %"'*a.
+racine II V a plus grave
+P ADV ADJ PONCT
+‘H’ 77- obj 
+68 %
+
+FIGURE 2 : Faisceau final du parseur pour la phrase « llyap/us grave. »
+
+Notons que dans le cas de « 1'] ya » comme préposition composée, le parseur n'a pas trouvé
+de racine (la phrase n’ayant pas de verbe), et du coup n'a pas rattaché la ponctuation non
+plus (classiquement rattachée au verbe central). La TABLE 6 ci-dessous montre ce méme
+faisceau ﬁnal du parseur avec les scores. Pour chaque mot, on a indiqué la probabilité de l'arc
+qui gouverne ce mot Le score total est la moyenne harmonique des probabilités de chaque
+arc (ou plutot, de chaque transition), multipliée par le score d’étiquetage. Le parseur arrive
+done a trancher pour la bonne réponse, quoiqu'avec une faible marge.
+
+Nous passons maintenant aux évaluations globales. Pour la segmentation, la question ne se
+pose que pour un ensemble de locutions prédéﬁnies. Sans propagation, le segmenteur atteint
+déja une exactitude de 94,9 % pour les séquences de mots correspondantes sur le sous
+corpus de test (a peu pres 2 000 bonnes réponses sur 2 100). Une étude des erreurs montre
+que, sur les 50 premieres erreurs, 60 % se révelent en fait étre des erreurs d’annotation.
+Dans ce contexte, la propagation a tres peu d’effet sur le score total. Entre les faisceaux 1 et 2
+il n'y a que 13 cas de différence (sur 2 100), dont 5 corrections et 8 erreurs introduites. Les
+faisceaux plus larges ont le méme comportement.
+
+196 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+1] y a plus grave . Score Score Score
+CLS CLO V ADV AD] PONCT de d’étiquetage total
+suj13 aff root mod ato ponct parsing
+
+98% 87% 99% 86% 55% 98% 85% 44-% 38%
+1] ya plus grave . Score Score Score
+P ADV AD] PONCT de d’étiquetage total
+NA mod obj NA parsing
+
+NA 89 % 68 % NA 75 % 41-9 % 37 %
+
+TABLE 6 : Faisceau ﬁnal du parseur dans la phrase << Il y a plus grave. »
+
+De cette évaluation peu convaincante, nous passons au corpus non annoté Leximedia2007.
+Ici, nous avons appliqué la segmentation, l’étiquetage et le parsing a un texte brut a
+différentes largeurs de faisceau avec et sans propagation. Nous avons par la suite comparé
+les segmentations de différents runs, et annoté manuellement les 109 premiers cas de
+difference (on a observé 300 différences pour 1 million de mots). Comme attendu, dans les
+essais sans propagation, la segmentation est restée identique (voir paragraphe 3.1 ci-
+dessus). La TABLE 7 ci-dessous donne le nombre de bonnes réponses au niveau de la
+segmentation par faisceau, quand la propagation est appliquée.
+
+Faisceau 1 2 5 10 20
+Bonnes réponses 69 46 5 0 45 49
+
+TABLE 7 : Bonnes réponses de la segmentation avec propagation sur le corpus Leximedia,
+pour les 109 premiers cas de différence entre les faisceaux
+
+En regle générale, les faisceaux a partir de 2 dégradent les résultats, en séparant a tort des
+locutions (4-5 cas pour le faisceau 2). On observe toutefois plusieurs cas (22 pour le faisceau
+2) ou la segmentation est effectivement corrigée, comme par exemple :
+
+— « Villepin précise encore que, bien évidemment, il a fait procéder...>>
+
+— «Elle pourrait méme s’étre retournée contre les amis de M. Strauss-Kahn,
+soupconnés de l'aVoir diffusée. »
+
+— «]ean-Claude Brialy, qui nous guitte a‘ 74- ans, avait été un jeune premier
+éblouissant. »
+
+Au vu de ce bilan global, il apparait que notre hypothese sur l’utilité de la propagation du
+faisceau pour la segmentation est a rejeter en l’état.
+
+4L2 lmpact du parsing sur l”é1u'1quetage
+
+Pour cette seconde articulation entre deux modules, notre hypothese est que certaines
+
+13 Les étiquettes des arcs suivent le guide d‘annotation de Candito, Crabbe et Falco : aff = clitique ﬁgé, ato = attribut
+de l‘objet, mod = modiﬁeur, obj = objet de preposition ou objet direct du verbe, suj = sujet, ponct = ponctuation,
+root = relation réliant le verbe central £1 une « racine » artificiel
+
+197 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+ambigui'tés catégorielles ne peuvent etre efficacement traitées qu’en considérant le niveau
+syntaxique. Nous avons donc comparé, pour une meme segmentation des deux corpus
+d’évaluation, une analyse avec et sans propagation pour la meme largeur de faisceau, de
+facon a pouvoir isoler le gain apporté par la parseur a l’étiquetage morphosyntaxique.
+
+Pour le corpus de test du French Treebank, comme Vu précédemment, la largeur de faisceau
+a tres peu d’effet sur l’exactitude totale sans propagation. Le gain est bien plus perceptible
+avec propagation, comme on le voit dans la TABLE 8 ci-dessous.
+
+Faisceau 1 2 5 10 20
+Sans propagation 97,81 9 7,82 97,83 97,83 9 7,83
+Avec propagation 97,81 9 7,87 97,92 97,94 9 7,95
+
+TABLE 8 : Exactitude total de l’étiqueteur morphosyntaxique, avec et sans propagation Vers le
+parseur, pour 5 largeurs de faisceau
+
+En terme de significativité statistique (test de McNemar, p<0,05), les gains apportés par
+l’élargissement du faisceau sans activer la propagation ne sont pas significatifs (premiere
+ligne du tableau). Ils le sont par contre pour chaque largeur de faisceau lorsque l’on active la
+propagation (pour chaque colonne du tableau) et également lorsque l’on compare les
+différentes largeurs avec propagation (seconde ligne du tableau).
+
+Dans les détails, les gains sont concentrés sur certaines catégories grammaticales (adjectif,
+conjonction de subordination, déterminant, pronom, pronom relatif).
+
+Pour le corpus non annoté de Leximedia2007, nous avons examiné 132 cas de différences
+entre les configurations envisagées (on a observé globalement une différence tous les 100
+mots), en identifiant manuellement la bonne réponse a chaque fois. La TABLE 9 donne le
+nombre de bonnes réponses pour chaque largeur de faisceau, avec et sans propagation. Nous
+observons ici un gain tres net avec l’application de la propagation. Les erreurs ont par contre
+tendance a croitre légerement a partir d’un faisceau de largeur 10.
+
+Faisceau 1 2 5 10 20
+
+Sans propagation 52 58 58 53 52
+
+Avec propagation 5 2 71 72 71 69
+
+TABLE 9 : Nombre de bonnes réponses de l’étiqueteur morphosyntaxique pour le corpus
+Leximedia2007 avec et sans propagation (132 premieres différences)
+
+Nous n’aVons pas pu isoler de régularités dans les types d’erreurs ainsi corrigées, qui
+semblent couvrir les cas classiques d’ambigu'1'té catégorielle. Les cas suivants sont corrigés
+avec un faisceau de 5 (et au-dela) avec propagation :
+
+— «  a estimé "vraisemblable" qu'apres l'élection de M. Sarkozy, un nouveau traité
+git achevé "au plus tard en décembre". » (conjonction de coordination —> Verbe
+subjonctif)
+
+— «  en soulignant "l'émotion" ggil ressentait au cours de cette premiere visite d'Etat
+ >> (conjonction de subordination —> pronom relatif)
+
+198 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+— « Evoquant sous les applaudissements cette "place de France que je voudrais aussi
+place de la paix",  >> (conjonction de subordination —> pronom relatif)
+
+Pour le faisceau 2, on a observe 43 cas de correction, contre 24 cas de degradation, comme
+celui-ci-dessous :
+
+— «_@i mieux que le peuple corse peut choisir librement son developpement?>>
+(pronom interrogatif —> pronom relatif)
+
+Au vu de ces resultats, il semble donc que les modiﬁcations apportees a l’etiquetage par
+propagation du faisceau vers le parseur soient des ameliorations.
+
+5 Comparaison avec ol'autres études
+
+La TABLE 10 montre les exactitudes atteintes par Talismane par comparaison avec Candito et
+al (2 010). Pour pouvoir comparer nos resultats, nous donnons ici l’exactitude pour un texte
+pre-segmente en mots (les sous-corpus d’evaluation « dev» et « test» du French Treebank),
+auquel on a applique l’etiqueteur morphosyntaxique et le parseur (avec propagation du
+faisceau). Les trois premieres lignes sont celles fournies par Candito et al, (2 010), pour leur
+meilleur jeu de traits. Pour le temps de calcul, Talismane a ete evalue avec une architecture
+semblable14.
+
+Parseur LAS15 UAS16 LAS UAS Temps de calcul
+Dev Dev Test Test
+Berkeley 86,5 90,8 86,8 91,0 12m46s
+MSTParser 87,5 90,3 88,2 90,9 14m39s
+MaltParser 86,9 89,4 87,3 89,7 1m2 5s
+Talismane (faisc 1) 86,8 90,2 87,2 90,6 7m5 6s
+Talismane (faisc. 2) 87,3 9 0,4 88,0 91,0 14m5 1s
+Talismane (faisc. 5) 87,8 90,7 88,3 91,1 38m2 6s
+Talismane (faisc. 10) 88,0 9 0,8 88,4 91,1 80m3 6s
+Talismane (faisc. 20) 88,1 90,8 88,5 91,1 157m53s
+
+TABLE 10 : Exactitude et temps de calcul par parseur
+
+Du point de vue de son architecture, Talismane se rapproche surtout du MaltParser, qui est
+lui aussi un parseur en dependances par transitions. Avec un faisceau de 1, les scores sont
+effectivement proches pour le score avec etiquettes (LAS), et Talismane est legerement
+meilleur pour les seuls gouverneurs (UAS). Par contre, le MaltParser est bien plus rapide.
+Avec un faisceau de 2, Talismane est tres proche des scores du MSTParser (parseur par
+
+14 Intel i5 CPU 2.40 GHz
+
+15 LAS : Labeled Attachment Score = 1‘exactitude en considérant :21 la fois Pidentiﬁcation du gouverneur et
+1‘étiquetage des arcs. La ponctuation n‘est pas prise en compte.
+
+16 UAS : Unlabeled Attachment Score = 1‘exactitude si on prend on compte uniquement les gouverneurs, et non les
+étiquettes des arcs. La ponctuation n‘est pas prise en compte.
+
+199 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+graphes) pour le LAS et l’UAS. Les scores pour les faisceaux plus larges sont légerement
+meilleurs, mais au prix d’un temps de calcul bien plus élevé (comme dit précédemment,
+l'impact de la largeur sur le temps est linéaire). Il reste bien entendu a comparer Talismane
+avec des analyseurs basés sur une grammaire, notamment FRMG (Villemonte de la Clergerie
+et al. 2 009).
+
+Pour l’étiqueteur morphosyntaxique, (Denis et Sagot, 2009) signalent un score de 97,7 % sur
+une partie du French Treebank. Notre score de 97,8 % sans faisceau ni propagation est donc
+tout a fait comp arable. Apres les corrections du parseur par propagation du faisceau, le score
+de 97,9 % est légerement supérieur.
+
+6 Conclusions
+
+Nous avons présenté l'outil Talismane et la chaine complete d'analyse syntaxique que cet
+outil propose, permettant de produire un arbre de dépendances a partir d’un texte brut.
+D'apres notre évaluation, cet un outil atteint (voire dépasse) les autres analyseurs
+statistiques actuellement disponibles pour le francais.
+
+Nous avons étudié de plus pres les effets de la recherche par faisceau entre les différents
+modules d'analyse. Selon nos évaluations, si la propagation des ambigu'1'tés entre les modules
+a peu d’intérét pour la segmentation en mots, elle semble au contraire tres intéressante pour
+l'étiquetage morphosyntaxique, avec un gain significatif. Nous avons modiﬁé la derniere
+version disponible de Talismane en conséquence.
+
+Nous avons étudié le comportement de chaque module avec différentes largeurs de faisceau.
+Pour le parseur en particulier, un faisceau de largeur 2 ou 5 semble étre un bon compromis
+entre exactitude des résultats et vitesse d'analyse, une largeur plus grande apportant tres
+peu d'améliorations. Par contre, un faisceau large semble critique pour traiter efﬁcacement
+les relations syntaxiques a grande distance.
+
+L'analyse qualitative des phénomenes syntaxiques mieux ou moins bien traités par chaque
+conﬁguration est encore a afﬁner. Cet aspect est important a plusieurs titres. Tout d'abord,
+on sait que les évaluations globales d’un analyseur syntaxique ne sont au ﬁnal pertinentes
+qu'au vu d’une tache particuliere, qui peut accorder plus ou moins d'importance au
+traitement efﬁcace de tel ou tel phénomene syntaxique. Ensuite, une caractéristique
+importante de Talismane est la souplesse de déﬁnitions de traits et de regles qui permet
+précisément de cibler des phénomenes particuliers une fois ceux-ci identiﬁés, en gardant
+une porte d'entrée linguistique dans un systéme statistique opaque par essence (Tanguy,
+2012).
+
+Remerciements
+
+\
+
+Nous tenons a remercier Marjorie Raufast pour son aide précieuse dans l'évaluation
+détaillée.
+
+Références
+
+ABEILLE, A., L. CLEMENT, ET F. TOUSSENEL (2003). Building a treebank for French, in A. Abeillé
+(ed) Treebanks, Kluwer, Dordrecht.
+
+200 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+A'I'I‘ARDI,G., DELLORLE'I'I‘A, F.,S1M1, ET M., TURIAN ]. (2009) Accurate Dependency Parsing with a
+Stacked Multilayer Perceptron. In Proceedings ofEValita '09 atAI*IA, Reggio Emilia, Italy.
+
+CANDITO M.-H., CRABBE B., ET DENIS P., (2010) Statistical French dependency parsing: treebank
+conversion and ﬁrst results, Proceedings ofLREC’2010, La Valletta, Malta.
+
+CANDITO M.-H., NIVRE ]., DENIS P. ET HENESTROZA ANGUIANO E., (2010) Benchmarking of
+Statistical Dependency Parsers for French, in Proceedings of COLING '20] 0, Beijing, China
+
+CRABBE B. ET CANDITO M.-H. (2008), Expériences d'analyse syntaxique statistique du francais,
+in Actes de TALN2008, Avignon, France.
+
+DENIS P. ET SAGOT B., (2009) Coupling an annotated corpus and a morphosyntactic lexicon for
+state-of-the-art POS tagging with less human effort, in Proceedings of the 23rd Paciﬁc Asia
+Conference on Language, Information and Computation (PA CLIC), Hong-Kong
+
+H0 C.-H. ET LIN C.-]. (2012), Large-scale Linear Support Vector Regression, /ournal ofMacl1ine
+LearningResearcl1, 13, pp. 332 3-3348.
+
+IOHANSSON R. ET NUGUES P. (2006). Investigating multilingual dependency parsing. In
+proceeding of CoNLL-X, New York.
+
+IOHANSSON R. ET NUGUES P. (2007). Incremental Dependency Parsing Using Online Learning. In
+Proceedings of tlie CoNLL Sliared Task Session of EMNLP- CoNLL 2007, Prague
+
+MCDONALD, R. (2006). Discriminative Learning and Spanning lree Algoritlims for
+DependencyParsing Ph.D. thesis, University of Pennsylvania.
+
+MCDONALD, R. ET]. NIVRE. (2007). Characterizing the errors of data-driven dependency
+parsing models. In proceedings of EMNLP-CoNLL 2007, Prague.
+
+NIVRE ]. (2008), Algoritlims for Deterministic Incremental Dependency Parsing,
+Computational Linguistics, 34(4), 513-553.
+
+RATNAPARKHI, A. (1998) Maidmum entropy models for natural language ambiguity resolution,
+PhD Thesis, University of Pennsylvania, 1998.
+
+SAGAE K. ET LAVIE A. (2006), A best-ﬁrst probabilistic shift-reduce parser, in Proceedings of
+tlie COLING/A CL joint conference, Sydney.
+
+SAGOT B., CLEMENT L., DE LA CLERGERIE E. ET BOULLIER P. (2006) The Lefff 2 syntactic lexicon for
+French: architecture, acquisition, use, in Proceedings ofLREC Génes.
+
+TANGUY, L. (2012). Complexilication des données et des tecliniques en linguistique :
+contributions du TAL aux solutions et aux problémes. Mémoire d'HDR, Université de
+Toulouse.
+
+TESNIERE, LUCIEN. (1959). Elements de syntaXe structurale, Klincksieck, Paris.
+
+VILLEMONTE DE LACLERGERIE, E, SAGOT, B., NICOLAS L. ET GUENOT, ML. (2009). FRMG : évolutions
+d’un analyseur syntaxique TAG du francais ]ourne’e de l§4TALA sur « Quels analyseurs
+syntaidquespourle ﬁancais .7 ».
+
+201 © ATALA
+

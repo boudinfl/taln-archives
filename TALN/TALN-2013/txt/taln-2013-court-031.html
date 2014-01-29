@@ -1,0 +1,417 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Recherche et visualisation de mots s&#233;mantiquement li&#233;s</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Recherche et visualisation de mots s&#233;mantiquement li&#233;s
+</p>
+<p>Alexander Panchenko1, 2 Hubert Naets1 Laetitia Brouwers1
+Pavel Romanov2 C&#233;drick Fairon1
+</p>
+<p>(1) CENTAL, Universit&#233; catholique de Louvain, Belgique
+{pr&#233;nom.nom}@uclouvain.be
+</p>
+<p>(2) Bauman Moscow State Technical University, Russie
+aromanov@it-claim.ru
+</p>
+<p>R&#201;SUM&#201;
+Nous pr&#233;sentons PatternSim, une nouvelle mesure de similarit&#233; s&#233;mantique qui repose d&#8217;une
+part sur des patrons lexico-syntaxiques appliqu&#233;s &#224; de tr&#232;s vastes corpus et d&#8217;autre part sur une
+formule de r&#233;ordonnancement des candidats extraits. Le syst&#232;me, initialement d&#233;velopp&#233; pour
+l&#8217;anglais, a &#233;t&#233; adapt&#233; au fran&#231;ais. Nous rendons compte de cette adaptation, nous en proposons
+une &#233;valuation et d&#233;crivons l&#8217;usage de ce nouveau mod&#232;le dans la plateforme de consultation en
+ligne Serelex.
+</p>
+<p>ABSTRACT
+Search and Visualization of Semantically Related Words
+</p>
+<p>We present PatternSim, a new semantic similarity measure that relies on morpho-syntactic
+patterns applied to very large corpora and on a re-ranking formula that reorder extracted
+candidates. The system, originally developed for English, was adapted to French. We explain this
+adaptation, propose a first evaluation of it and we describe how this new model was used to
+build the Serelex online search platform.
+</p>
+<p>MOTS-CL&#201;S : Mesure de similarit&#233; s&#233;mantique, relations s&#233;mantiques.
+KEYWORDS: Semantic similarity measure, semantic relations.
+</p>
+<p>1 Introduction
+</p>
+<p>Les mesures de similarit&#233; s&#233;mantique permettent d&#8217;identifier des mots entretenant diff&#233;rents
+types de relations s&#233;mantiques entre eux (synonymes, hyper/hyponymes, m&#233;ronymes, etc.) et
+d&#8217;en calculer le degr&#233; de similarit&#233;. Elles servent &#224; automatiser la construction de ressources
+s&#233;mantiques utiles pour les applications de TAL telles que l&#8217;expansion de requ&#234;tes, la classification
+de documents, la d&#233;sambigu&#239;sation s&#233;mantique, etc.
+</p>
+<p>Trois approches computationnelles principales coexistent :
+</p>
+<p>Les mesures bas&#233;es sur WordNet. Elles obtiennent d&#8217;excellents r&#233;sultats, mais sont limit&#233;es
+par la couverture lexicale de WordNet &#8212; voir Wu et Palmer (1994), Leacock et Chodorow
+(1998) ou encore Resnik (1995).
+</p>
+<p>Les m&#233;thodes bas&#233;es sur dictionnaires (de type explicatif). Elles rencontrent les m&#234;mes dif-
+ficult&#233;s dans la mesure o&#249; elles d&#233;pendent de ressources pr&#233;existantes r&#233;alis&#233;es manuel-
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>747 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>lement &#8212; voir ExtendedLesk (Banerjee et Pedersen, 2003), GlossVectors (Patwardhan et
+Pedersen, 2006), WiktionaryOverlap (Zesch et al., 2008) ou Q-Ech (Fairon et Ho, 2004).
+</p>
+<p>Les approches bas&#233;es sur corpus. Elles permettent d&#8217;obtenir une couverture plus large, car
+elles calculent les scores de similarit&#233; sur des corpus qui peuvent &#234;tre facilement &#233;tendus.
+Malheureusement, ces derni&#232;res offrent g&#233;n&#233;ralement une pr&#233;cision plus faible, car elles
+reposent souvent sur des mod&#232;les relativement simples (du type vector space models) 1 &#8212;
+voir ContextWindow (Van de Cruys, 2010), SyntacticContext (Lin, 1998) ou LSA (Landauer
+et al., 1998).
+</p>
+<p>&#192; c&#244;t&#233; de ces approches computationnelles, le recours au crowdsourcing et la mise en place de
+&#171; jeux s&#233;rieux &#187; ont &#233;galement d&#233;montr&#233; leur int&#233;r&#234;t pour le d&#233;veloppement de ressources pour
+le TAL (Chamberlain et al., 2013). En fran&#231;ais, l&#8217;exp&#233;rience la plus importante dans le domaine
+de la s&#233;mantique lexicale est celle de JeuxDeMots 2.
+</p>
+<p>Dans cet article, nous d&#233;crirons PatternSim 3 , une syst&#232;me d&#8217;extraction de relations bas&#233; sur
+l&#8217;utilisation de corpus et de patrons lexico-syntaxiques. Bien que des techniques existent pour
+calculer des relations s&#233;mantiques &#224; partir de patrons automatiquement appris sur corpus (Bolle-
+gala et al., 2007), nous avons fait le choix d&#8217;utiliser une biblioth&#232;que de patrons explicitement
+d&#233;finis, nous rapprochant ainsi de la m&#233;thode classique de Hearst (1992) que nous &#233;tendons.
+Cette approche nous permet de contr&#244;ler les motifs extraits et d&#8217;&#233;viter ainsi une partie du bruit
+inh&#233;rent &#224; une m&#233;thode par apprentissage automatique.
+</p>
+<p>L&#8217;originalit&#233; de notre approche r&#233;side dans le fait que les patrons lexico-s&#233;mantiques sont utilis&#233;s
+pour mesurer les similarit&#233;s s&#233;mantiques et non simplement pour extraire les relations et que
+ces relations sont r&#233;ordonn&#233;es &#224; l&#8217;aide d&#8217;une heuristique permettant de les classer par ordre de
+pertinence. En outre, les donn&#233;es extraites et les logiciels r&#233;alis&#233;s sont disponibles sous license
+open source.
+</p>
+<p>Initialement d&#233;velopp&#233; pour l&#8217;anglais, PatternSim a &#233;t&#233; adapt&#233; au fran&#231;ais. Nous rendrons
+compte de ce travail d&#8217;adaptation et proposerons deux &#233;valuations. Nous pr&#233;senterons ensuite
+Serelex 4, un outil de consultation en ligne qui permet de naviguer dans le graphe des relations
+s&#233;mantiques calcul&#233;es par PatternSim (Figure 1) et d&#8217;exp&#233;rimenter les diff&#233;rentes mesures
+s&#233;mantiques impl&#233;ment&#233;es.
+</p>
+<p>FIGURE 1 &#8211; Architecture de PatternSim et de Serelex
+</p>
+<p>1. Pour un &#233;tat de l&#8217;art plus complet, voir Panchenko (2013).
+2. http://www.jeuxdemots.org
+3. Le code source de PatternSim peut &#234;tre t&#233;l&#233;charg&#233; sur https://github.com/cental/patternsim ; les rela-
+</p>
+<p>tions extraites automatiquement sont accessibles sur http://patternsim.cental.be.
+4. http://serelex.cental.be
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>748 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>corpus nb de documents nb de tokens nb de lemmes taille concordances extraites
+Anglais
+</p>
+<p>Wikipedia 2 694 815 2,026 &#183; 109 3 368147 5,88 Go 1196468
+ukWaC 2694643 0,889 &#183; 109 5 469313 11,76 Go 2227025
+Wikipedia + ukWaC 5387431 2,915 &#183; 109 7 585989 17,64 Go 3423493
+</p>
+<p>Fran&#231;ais
+frWaC 2268304 1,597 &#183; 109 7 047431 8,00 Go 936035
+Wikipedia long abstracts 734 848 0,053 &#183; 109 966 789 283 Mo 22363
+frWaC + Wikipedia 3 003 152 1,65 &#183; 109 7 523201 8,28 Go 958398
+</p>
+<p>TABLE 1 &#8211; Corpus utilis&#233;s dans PatternSim et concordances extraites.
+</p>
+<p>2 PatternSim : syst&#232;me d&#8217;extraction de relations s&#233;mantiques
+</p>
+<p>L&#8217;approche que nous allons d&#233;crire associe un syst&#232;me d&#8217;extraction de relations s&#233;mantiques
+(PatternSim) op&#233;rant sur de vastes corpus et une formule de r&#233;ordonnancement (Efreq-Rnum-
+Cfrq-Pnum)(Panchenko et al., 2012) qui classe les candidats par ordre de pertinence estim&#233;e.
+</p>
+<p>2.1 Corpus &amp; patrons d&#8217;extraction
+</p>
+<p>L&#8217;identification de relations s&#233;mantiques dans un corpus repose sur l&#8217;exploitation de patrons
+d&#8217;extraction lexico-syntaxiques construits &#224; la main dans le but d&#8217;identifier des cooccurrences
+significatives de mots telles que, pour l&#8217;anglais :
+&#8211; such NP as NP, NP[,] and/or NP;
+</p>
+<p>&#8211; NP, including NP, NP [,] and/or NP;
+</p>
+<p>&#8211; NP, i. e.[,] NP.
+</p>
+<p>Dans les contextes d&#233;crits par ces structures, les relations entre termes (NP) sont clairement
+&#233;tablies, comme dans l&#8217;exemple suivant qui atteste du lien entre foods et sandwiches ou burgers :
+&#8211; such {non-alcoholic [sodas]} as {[root beer]} and {[cream soda]}[PATTERN=1]
+</p>
+<p>&#8211; {traditional[foods]}, such as {[sandwiches]},{[burgers]}, and {[fries]}[PATTERN=2]
+</p>
+<p>Ces patrons, ainsi que de nombreuses variantes qu&#8217;il n&#8217;est pas possible de lister ici (insertions,
+permutations, variantes lexicales, etc.), sont d&#233;crits sous forme de graphes Unitex 5. Ils sont
+utilis&#233;s pour la recherche et l&#8217;&#233;tiquetage de ces structures dans les corpus (comme on le voit dans
+l&#8217;exemple qui pr&#233;c&#232;de, les noms qui sont li&#233;s s&#233;mantiquement sont encadr&#233;s de crochets durant
+la phase d&#8217;&#233;tiquetage).
+</p>
+<p>Pour nos exp&#233;rimentations sur l&#8217;anglais,nous avons utilis&#233; deux grands corpus repr&#233;sentant un
+volume total de 17,64 Go de donn&#233;es textuelles : Wikipedia et ukWaC 6 (Table 1).
+</p>
+<p>Dans l&#8217;&#233;tat actuel de la m&#233;thodologie, les relations extraites sont partiellement typ&#233;es : on
+distingue les relations synonymiques des relations hi&#233;rarchiques d&#8217;hyperonymie et hyponymie
+en fonction des graphes qui ont permis d&#8217;extraire ces relations. Ce typage l&#233;ger, n&#8217;a cependant
+pas &#233;t&#233; &#233;valu&#233; et n&#8217;est pas utilis&#233; &#224; ce stade dans la mesure de similarit&#233; qui se veut globale,
+c&#8217;est-&#224;-dire, toutes cat&#233;gories confondues.
+</p>
+<p>5. http://www-igm.univ-mlv.fr/~unitex/
+6. http://wacky.sslmit.unibo.it
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>749 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>2.2 Mesure de similarit&#233;
+</p>
+<p>(1) Dans un premier temps, les patrons d&#8217;extraction lexico-syntaxique sont appliqu&#233;s sur le corpus.
+Cette op&#233;ration permet d&#8217;extraire des concordances dans lesquelles les occurrences apparaissent
+&#233;tiquet&#233;es. En fonction de la complexit&#233; des grammaires d&#8217;extraction, cette &#233;tape peut &#234;tre
+plus ou moins longue (de quelques secondes &#224; plusieurs minutes par Mo). (2) Dans un second
+temps, les noms entre crochets ([sodas] dans {non-alcoholic [sodas]}, par exemple)
+sont lemmatis&#233;s &#224; l&#8217;aide du dictionnaire DELA 7 ; les entit&#233;s extraites sont combin&#233;es deux par
+deux. (3) Une matrice de similarit&#233; est remplie avec la fr&#233;quence des paires similaires. &#192; ce
+stade, le score de similarit&#233; Si j est &#233;gal au nombre de fois que les paires entre crochets ou entre
+accolades apparaissent dans le m&#234;me contexte de concordance. (4) Pour finir, les paires de mots
+sont r&#233;ordonn&#233;es &#224; l&#8217;aide d&#8217;une formule optimis&#233;e &#224; cet effet.
+</p>
+<p>Plusieurs formules reposant sur diff&#233;rents param&#232;tres ont &#233;t&#233; test&#233;es (Panchenko et al., 2012).
+C&#8217;est la mesure qui combine l&#8217;ensemble de ces param&#232;tres (Efreq-Rnum-Cfreq-Pnum) qui s&#8217;est
+r&#233;v&#233;l&#233;e &#234;tre la meilleure : si j =
+</p>
+<p>&#65535;
+pi j &#183; 2&#183;&#181;bbi&#8727;+b&#8727; j &#183;
+</p>
+<p>P(ci ,c j)
+P(ci)P(c j)
+</p>
+<p>.
+</p>
+<p>Celle-ci prend en compte :
+&#8211; la fr&#233;quence absolue des couples ci , c j &#8712; C qui apparaissent dans les concordances K (Efreq) ;
+&#8211; le nombre de relations de ci et c j : les termes qui sont fortement li&#233;s &#224; un grand nombre de
+</p>
+<p>mots sont p&#233;nalis&#233;s (Rnum) ;
+&#8211; la fr&#233;quence de ci et de c j dans le corpus : les termes g&#233;n&#233;riques (tels que &#171; chose &#187;) sont
+</p>
+<p>p&#233;nalis&#233;s (Cfreq) ;
+&#8211; le nombre de patrons lexico-syntaxiques qui ont permis d&#8217;extraire la relation ci c j : les paires
+</p>
+<p>extraites par plusieurs patrons seront jug&#233;es plus robustes (Pnum).
+</p>
+<p>2.3 Adaptation au fran&#231;ais
+</p>
+<p>Initialement d&#233;velopp&#233; pour l&#8217;anglais, le syst&#232;me a tr&#232;s r&#233;cemment &#233;t&#233; adapt&#233; au fran&#231;ais. Cette
+op&#233;ration a n&#233;cessit&#233; l&#8217;utilisation d&#8217;un nouveau corpus ainsi que la traduction - et l&#8217;adaptation -
+des grammaires d&#8217;extraction. Ce travail de traduction a pris environ 25 heures. Le corpus fran&#231;ais
+est compos&#233; de frWaC, un vaste corpus de 1,6 milliard de mots, collect&#233; sur le Web dans le cadre
+du projet WaCky6, et les r&#233;sum&#233;s longs en fran&#231;ais des pages de Wikipedia (Table 1).
+</p>
+<p>Voici deux exemples de concordances extraites &#224; l&#8217;aide des patrons d&#8217;extraction en fran&#231;ais :
+&#8211; Cervera collecte aussi de nombreux{[insectes]=HYPER}, particuli&#232;rement
+</p>
+<p>des{[n&#233;vropt&#232;res]=HYPO}.[PATTERN=4]
+</p>
+<p>&#8211; L&#8217;{[acide] nicotinique=SYNO}, aussi connu sous le nom de{[ niacine]=SYNO},[PATTERN=11] est
+converti en nicotinamide in vivo.
+</p>
+<p>2.4 &#201;valuation
+</p>
+<p>L&#8217;&#233;valuation d&#8217;un syst&#232;me d&#8217;extraction de termes li&#233;s s&#233;mantiquement est une t&#226;che peu ais&#233;e, en
+raison notamment du caract&#232;re relativement flou de la notion de &#171; similarit&#233; s&#233;mantique &#187; qui
+recouvre tous les types de relations s&#233;mantiques (synonymes, antonymes, hyperonymes, etc.). Il
+en r&#233;sulte que la liste des termes &#171; similaires &#187; n&#8217;est pas une liste ferm&#233;e, d&#233;termin&#233;e que l&#8217;on
+</p>
+<p>7. http://infolingu.univ-mlv.fr/
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>750 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>pourrait consulter pour v&#233;rifier les r&#233;sultats retourn&#233;s par la mesure. C&#8217;est la raison pour laquelle
+nous avons choisi d&#8217;&#233;valuer le syst&#232;me par rapport &#224; plusieurs t&#226;ches.
+</p>
+<p>2.4.1 &#201;valuation pour l&#8217;anglais
+</p>
+<p>Une &#233;valuation d&#233;taill&#233;e du syst&#232;me anglais a &#233;t&#233; pr&#233;sent&#233;e dans Panchenko et al. (2012). Celle-ci
+a montr&#233; (1) que la formule Efreq-Rnum-Cfreq-Pnum permettait de construire la variante la plus
+efficace du m&#233;canisme de r&#233;ordonnancement des relations s&#233;mantiques, (2) que la pr&#233;cision
+moyenne sur l&#8217;anglais (c&#8217;est-&#224;-dire le nombre de relations jug&#233;es correctes) varie entre 0.736
+(quand on ne consid&#232;re que la meilleure relation) et 0.599 (quand on consid&#232;re les 20 meilleures
+relations) et (3) que ce syst&#232;me permettait souvent d&#8217;&#233;galer ou de d&#233;passer des m&#233;thodes
+reposant sur des ressources linguistiques beaucoup plus complexes.
+</p>
+<p>2.4.2 &#201;valuation pour le fran&#231;ais
+</p>
+<p>Deux exp&#233;riences ont &#233;t&#233; r&#233;alis&#233;es : dans la premi&#232;re, nous avons confi&#233; &#224; des juges humains
+une t&#226;che d&#8217;&#233;valuation et dans la seconde, nous avons compar&#233; nos r&#233;sultats aux relations
+s&#233;mantiques disponibles dans JeuxDeMots.
+</p>
+<p>Cinquante mots ont &#233;t&#233; s&#233;lectionn&#233;s al&#233;atoirement depuis cinq rubriques du journal Le Monde du
+28 mars 2013. Les 30 meilleures relations s&#233;mantiques pour chacun de ces mots ont &#233;t&#233; s&#233;lec-
+tionn&#233;es en utilisant deux mesures : Efreq (c&#8217;est-&#224;-dire les relations tri&#233;es par simple fr&#233;quence)
+et Efreq-Rnum-Cfreq-Pnum (c&#8217;est-&#224;-dire les relations r&#233;ordonn&#233;es &#224; l&#8217;aide de la mesure du m&#234;me
+nom). En tout, ce sont deux ensembles de 1348 paires li&#233;es &#224; 47 mots 8, que nous avons extraits
+et que nous avons demand&#233; d&#8217;&#233;valuer &#224; respectivement quatre et trois annotateurs humains. La
+t&#226;che de ceux-ci consistait &#224; indiquer si les mots de chaque paire &#233;taient ou non s&#233;mantiquement
+li&#233;s.
+</p>
+<p>FIGURE 2 &#8211; Extraction des relations s&#233;mantiques : pr&#233;cision pour les k premi&#232;res relations.
+</p>
+<p>8. 1348 paires et non 1500, car trois mots tr&#232;s techniques ne figurent pas dans la base de donn&#233;es et car certains des
+47 mots restants n&#8217;ont qu&#8217;un petit nombre de relations s&#233;mantiques (&#171; k&#233;ratine &#187;, par exemple).
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>751 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Nous avons calcul&#233; pour chacun des 47 mots la pr&#233;cision moyenne pour ses k premi&#232;res relations.
+La figure 2 montre le r&#233;sultat de l&#8217;&#233;valuation. Pour la mesure Efreq, la pr&#233;cision moyenne,
+indiqu&#233;e par le petit carr&#233; blanc, varie entre 0,628 (premi&#232;re relation de chacun des 57 mots)
+et 0,550 (30 premi&#232;res relations), pour un accord inter-annotateurs (kappa de Fleiss) allant
+de &#171; substantiel &#187; (0,6-0,8) &#224; &#171; mod&#233;r&#233; &#187; (0,4-0,6). Pour la mesure Efreq-Rnum-Cfreq-Pnum, la
+pr&#233;cision moyenne varie de 0,633 (5 premi&#232;res relations) &#224; 0,592 (30 premi&#232;res relations), pour
+un kappa allant de 0,609 &#224; 0,524. Un test t pour &#233;chantillons appari&#233;s r&#233;v&#232;le que la mesure
+Efreq-Rnum-Cfreq-Pnum am&#233;liore de fa&#231;on significative les r&#233;sultats pour k = 25 (t : 2,131 ;
+P : 0,0192) et pour k = 30 (t : 2,9 ; P : 0,0028) ; l&#8217;am&#233;lioration n&#8217;est pas significative pour les
+autres valeurs de k. Parmi les 47 mots issus du Monde, les mots les plus concrets (&#171; baleine &#187;,
+&#171; laboratoire &#187;, &#171; k&#233;ratine &#187;) ont le plus de relations estim&#233;es correctes, tandis que les mots les
+plus abstraits (&#171; ampleur &#187;, &#171; conclusion &#187;) n&#8217;ont que tr&#232;s peu de relations jug&#233;es exactes.
+</p>
+<p>Dans un second temps, nous avons extrait de la derni&#232;re version des donn&#233;es lexicales de
+JeuxDeMots 9 1 318479 paires de mots li&#233;s s&#233;mantiquement. Nous avons compar&#233; ces paires
+aux 5 849497 paires extraites &#224; l&#8217;aide de PatternSim. 86 283 paires sont communes aux deux
+ensembles (ce qui repr&#233;sente 6,54% des paires de JeuxDeMots et 12,04% si on ne conserve que
+les 54% de paires qui poss&#232;dent une entr&#233;e commune avec PatternSim) ; 18 099 paires communes
+figurent parmi les 20 premi&#232;res relations r&#233;ordonn&#233;es &#224; l&#8217;aide de la formule Efreq-Rnum-Cfreq-
+Pnum. Dans la t&#226;che pr&#233;c&#233;dente, si JeuxDeMots avait &#233;t&#233; un juge, il aurait valid&#233; 138 relations,
+soit 10% de celles-ci, pour 38 des 47 mots extraits du Monde.
+</p>
+<p>3 Serelex : consultation en ligne des relations s&#233;mantiques
+</p>
+<p>Serelex est un moteur de recherche lexical qui, pour un mot donn&#233;, propose automatiquement
+une liste de candidats s&#233;mantiquement proches. Pour ce faire, Serelex exploite les relations
+s&#233;mantiques extraites &#224; l&#8217;aide de PatternSim (cf. Figure 1). Ainsi, &#224; la diff&#233;rence des diction-
+naires de synonymes et autres th&#233;saurus (Thesaurus.com, VisualSynonyms.com), Serelex se base
+uniquement sur l&#8217;information extraite de corpus textuels.
+</p>
+<p>Les requ&#234;tes de l&#8217;utilisateur sont lemmatis&#233;es &#224; l&#8217;aide du dictionnaire DELA 10 et une recherche
+approximative est lanc&#233;e dans le cas o&#249; aucune forme correspondant &#224; la requ&#234;te de l&#8217;utilisateur
+n&#8217;est trouv&#233;e. Les r&#233;sultats de chaque requ&#234;te sont tri&#233;s en fonction des scores de similarit&#233;
+enregistr&#233;s dans la base de donn&#233;es. Le classement des termes sugg&#233;r&#233;s tient compte notamment
+de la fr&#233;quence des termes dans le corpus et de la fr&#233;quence des termes dans les requ&#234;tes des
+utilisateurs.
+</p>
+<p>Le syst&#232;me est accessible au travers d&#8217;une interface graphique ou via un web service RESTful. Dans
+l&#8217;interface graphique (cf. Figure 3), un simple champ de texte permet &#224; l&#8217;utilisateur d&#8217;entrer une
+requ&#234;te sous forme de mot-cl&#233; (par exemple, un mot simple comme math&#233;matique, Stanford ou
+encore une expression polylexicale comme tour d&#8217;ivoire). La liste de mots propos&#233;e affiche les 20
+mots les plus li&#233;s s&#233;mantiquement &#224; la requ&#234;te. Une repr&#233;sentation sous forme de graphe 11 offre
+simultan&#233;ment une repr&#233;sentation visuelle de ces 20 suggestions et de tous les liens s&#233;mantiques
+existant entre ces mots, ce qui permet de grouper visuellement les r&#233;sultats par sens. Ainsi, dans
+</p>
+<p>9. Version du 24 f&#233;vrier 2013 de http://www.lirmm.fr/~lafourcade/JDM-LEXICALNET-FR/
+10. http://infolingu.univ-mlv.fr/
+11. Repr&#233;sent&#233; gr&#226;ce &#224; un algorithme de type Barnes-Hut (Barnes et Hut, 1986) bas&#233; sur les forces.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>752 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>FIGURE 3 &#8211; Interface graphique de Serelex : r&#233;sultats de la requ&#234;te &#171; jaguar &#187; en anglais et de la
+requ&#234;te &#171; fromage &#187; en fran&#231;ais (affichage avec images).
+</p>
+<p>la Figure 3, on voit clairement appara&#238;tre deux clusters correspondant &#224; deux sens de &#171; jaguar &#187;
+(voiture vs animal). L&#8217;utilisateur peut poursuivre ses recherches en cliquant sur les n&#339;uds du
+graphe qui permettent de naviguer facilement entre les diff&#233;rents &#233;l&#233;ments. Il est &#233;galement
+possible d&#8217;afficher les r&#233;sultats sous forme d&#8217;images, ainsi qu&#8217;on peut le voir &#224; propos de l&#8217;exemple
+&#171; fromage &#187;.
+</p>
+<p>4 Conclusion et perspectives
+</p>
+<p>Nous avons pr&#233;sent&#233; dans cet article un syst&#232;me d&#8217;extraction de relations s&#233;mantiques &#224; base
+de patterns linguistiques (PatternSim) et une interface web de visualisation de ces relations
+(Serelex). Ce syst&#232;me d&#8217;extraction, initialement d&#233;velopp&#233; pour l&#8217;anglais, a pu &#234;tre adapt&#233; au
+fran&#231;ais uniquement en rempla&#231;ant les grammaires d&#8217;extraction et les corpus utilis&#233;s et sans
+aucun usage d&#8217;autres ressources. Les &#233;valuations que nous avons men&#233;es en anglais montrent
+que la mesure de r&#233;ordonnancement que nous utilisons fournit des r&#233;sultats comparables &#224; ceux
+obtenus &#224; l&#8217;aide de techniques faisant un usage important de dictionnaires ou de ressources
+telles que WordNet. Les premiers r&#233;sultats que nous avons obtenus pour le fran&#231;ais se r&#233;v&#232;lent
+&#233;galement positifs et r&#233;affirment l&#8217;int&#233;r&#234;t de la mesure de r&#233;ordonnancement. Des modifications
+mineures dans les grammaires d&#8217;extraction et un corpus plus &#233;toff&#233; devraient nous permettre
+d&#8217;atteindre rapidement la m&#234;me qualit&#233; que celle obtenue en anglais.
+</p>
+<p>Remerciements
+</p>
+<p>Cette recherche a &#233;t&#233; partiellement financ&#233;e par Wallonie-Bruxelles International (WBI) et par la
+R&#233;gion Wallonne (projet ELIS-IT).
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>753 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;f&#233;rences
+</p>
+<p>BANERJEE, S. et PEDERSEN, T. (2003). Extended gloss overlaps as a measure of semantic
+relatedness. In IJCAI, volume 18, pages 805&#8211;810.
+</p>
+<p>BARNES, J. et HUT, P. (1986). A hierarchical 0 (n log iv) force-calculation algorithm. nature,
+324:4.
+</p>
+<p>BOLLEGALA, D., MATSUO, Y. et ISHIZUKA, M. (2007). Measuring semantic similarity between
+words using web search engines. In WWW, volume 766.
+</p>
+<p>CHAMBERLAIN, J., FORT, K., KRUSCHWITZ, U., LAFOURCADE, M. et PEOSIO, M. (2013). Using games
+to create language resources : Successes and limitations of the approach. Theory and Applications
+of Natural Language Processing, page 42.
+</p>
+<p>FAIRON, C. et HO, N.-D. (2004). Quantit&#233; d&#8217;information &#233;chang&#233;e : une nouvelle mesure de la
+similarit&#233; des mots. In Le poids des mots. Actes des 7es journ&#233;es d&#8217;analyse statistique des donn&#233;es
+textuelles, pages 423&#8211;433.
+</p>
+<p>HEARST, M. A. (1992). Automatic acquisition of hyponyms from large text corpora. In ACL,
+pages 539&#8211;545.
+</p>
+<p>LANDAUER, T. K., FOLTZ, P. W. et LAHAM, D. (1998). An introduction to latent semantic analysis.
+Discourse processes, 25(2-3):259&#8211;284.
+</p>
+<p>LEACOCK, C. et CHODOROW, M. (1998). Combining Local Context and WordNet Similarity for
+Word Sense Identification. WordNet, pages 265&#8211;283.
+</p>
+<p>LIN, D. (1998). Automatic retrieval and clustering of similar words. In ACL, pages 768&#8211;774.
+</p>
+<p>PANCHENKO, A. (2013). Similarity measures for semantic relation extraction. Th&#232;se de doctorat
+en linguistique.
+</p>
+<p>PANCHENKO, A., MOROZOVA, O. et NAETS, H. (2012). A semantic similarity measure based on
+lexico-syntactic patterns. In Proceedings of KONVENS 2012, pages 174&#8211;178.
+</p>
+<p>PATWARDHAN, S. et PEDERSEN, T. (2006). Using WordNet-based context vectors to estimate
+the semantic relatedness of concepts. Making Sense of Sense : Bringing Psycholinguistics and
+Computational Linguistics Together, pages 1&#8211;12.
+</p>
+<p>RESNIK, P. (1995). Using Information Content to Evaluate Semantic Similarity in a Taxonomy.
+In IJCAI, volume 1, pages 448&#8211;453.
+</p>
+<p>Van de CRUYS, T. (2010). Mining for Meaning : The Extraction of Lexico-Semantic Knowledge from
+Text. Th&#232;se de doctorat, University of Groningen.
+</p>
+<p>WU, Z. et PALMER, M. (1994). Verbs semantics and lexical selection. In ACL&#8217;1994, pages 133&#8211;138.
+</p>
+<p>ZESCH, T., M&#220;LLER, C. et GUREVYCH, I. (2008). Extracting lexical semantic knowledge from
+wikipedia and wiktionary. In LREC&#8217;08, pages 1646&#8211;1652.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>754 c&#65535; ATALA</p>
+
+</div></div>
+</body></html>

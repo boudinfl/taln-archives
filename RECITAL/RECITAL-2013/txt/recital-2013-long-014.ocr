@@ -1,0 +1,726 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Vers un systéme générique de réécriture de graphes pour
+l’enrichissement de structures syntaxiques.
+
+Corentin Ribeyre1’2
+(1) Université Paris 7 Diderot, 75013 PARIS
+(2) INRIA Paris-Rocquencourt, Rocquencourt BP 105 78153 LE CHESNAY
+Corentin.ribeyre<Oinria.fr
+
+RESUME
+
+Ce travail présente une nouvelle approche pour injecter des dépendances profondes (sujet des
+verbes a contr6le, partage du sujet en cas d’ellipses, . . .) dans un corpus arboré présentant un
+schéma d’annotation surfacique et projectif. Nous nous appuyons sur un systéme de réécriture
+de graphes utilisant des techniques de programmation par contraintes pour produire des régles
+génériques qui s’appliquent aux phrases du corpus. Par ailleurs, nous testons la généricité
+des régles en utilisant des sorties de trois analyseurs syntaxiques différents, aﬁn d’évaluer la
+dégradation exacte de l’app1ication des régles sur des analyses syntaxiques prédites.
+
+ABSTRACT
+Towards a generic graph rewriting system to enrich syntactic structures
+
+This work aims to present a new approach for injecting deep dependencies (subject of control
+verbs, subject sharing in case of ellipsis, . . .) into a surfacic and projective treebank. We use a
+graph rewriting system with constraint programming techniques for producing generic rules
+which can be easily applied to a treebank. Moreover, we are testing the genericity of our rules by
+using output of three different parsers to evaluate how the rules behave on predicted parse trees.
+
+MOTS-CLES : réécriture de graphes, évaluation de shéma d’annotations, parsing, analyse en
+syntaxe profonde.
+
+KEYWORDS: graph rewriting system, annotation schemes evaluation, deep syntax parsing.
+
+Introduction
+
+Le French Treebank (FTB) est un corpus arboré du francais, qui, comme bien d’autres, se veut
+neutre d’un point de vue théorique. De fait son schéma d’annotation est a mi—chemin entre les
+constituants et les dépendances. Le treebank est non conﬁgurationnel 1. C’est pourquoi le schéma
+d’annotation choisi est assez plat et essentiellement surfacique (Abeillé et al., 2003). On cherche
+alors a obtenir des représentaﬁons plus profondes, telles que le sujet des inﬁnitives, 1’antécédent
+des relatifs, ou encore les sujets elliptiques et le véritable sujet des verbes a contréle.
+
+Pour ce faire, nous utilisons la réécriture de graphes (Lowe et al., 1993; Geiss et al., 2006)
+— domaine selon lequel on modiﬁe des graphes au moyen de régles. On recherche une sous-
+
+1. Les structures arborescentes ne sont pas sufﬁsantes pour distinguer un syntagme nominal objet d’un ajout, par
+exemple.
+
+178 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+structure dans le graphe que l’on veut transformer et on applique des modiﬁcations a cette
+structure : ajout d’arcs, de noeuds, modiﬁcations des structures de traits sur les noeuds et les
+arcs, etc. C’est une discipline émergente en traitement automatique des langues, que l’on utilise,
+par exemple, pour transformer des dépendances surfaciques en graphes sémantiques (Bonfante
+et al., 2011a). Enﬁn, la réécriture de graphes peut étre mise au proﬁt du passage d’un schéma
+d’annotau'on a un autre.
+
+Cependant, lorsque l’on souhaite transformer des structures linguistiques complexes, on se
+retrouve confronté a deux problemes : d’une part, la diversité des conﬁgurations syntaxiques
+entraine une augmentation importante du nombre de regles et, d’autre part, la présence de
+phénomenes syntaxiques dits << non locaux » demandent des regles complexes, Voire récursives,
+dont l’application est régie par un ordre strict, comme c’est le cas dans le systeme de réécriture
+de graphes Grew de Bonfante et al. (2011b). Par exemple, pour retrouver les antécédents des
+pronoms relatifs dans le FTB, il faut suivre une chaine de dépendances plus ou moins longue,
+aﬁn de remonter du pronom relatif vers l’antécédent. On a aussi les cas de coordinations et
+notamment de coordinations elliptiques, tels que l’ellipse du sujet ou il y a partage du sujet
+entre les deux conjoints coordonnés. Ajouté a cela le fait qu’il puisse y avoir des constructions
+elliptiques avec plusieurs modaux entrainant un contr6le, et le partage du sujet devient plus
+complexe ; c’est notamment le cas dans Jean pense partir aujourd’hui et rentrer demain, ou la
+conﬁguration initiale donne Jean, sujet de pense, or il est aussi le sujet de partir et de fait, celui
+de rentrer. En somme, l’écriture de regles pour transformer des graphes peut se révéler longue et
+difﬁcile, et leur nombre croitre rapidement, rendant un tel systeme difﬁcile a maintenir.
+
+L’approche que nous présentons ici est issue de travaux antérieurs (Ribeyre, 2012; Ribeyre
+et al., 2012). Nous avons mis en place un systeme de réécriture qui procede en deux temps :
+la premiere technique est fondée sur une approche qui, étant donné un motif de graphe et un
+graphe de remplacement, tente de retrouver le motif dans un graphe donné et de le remplacer
+par le graphe de remplacement. Cette approche est largement documentée dans la littérature sur
+les graphes (Lowe et al., 1993; Geiss et al., 2006). Mais nous apportons une seconde approche,
+fondée sur la programmation par contrainte (Fruewirth et Abdennadher, 2003), et dite de
+« propagation de contraintes >> sur les arcs. Nous attachons des contraintes sur les arcs du graphe
+a réécrire et en fonction de celles—ci, des modiﬁcations sont effectuées.
+
+Pour valider notre approche, nous avons appliqué une série de regles a deux phénomenes de la
+syntaxe : (i) le contr6le obligatoire ; (ii) la coordination a ellipse du sujet. Nous cherchons a
+ajouter les informations manquantes sur un treebank et a tester ensuite leur généricité sur les
+arbres syntaxiques produits par un analyseur syntaxique (parser) symbolique et deux parseurs
+statistiques entrainés sur le French Treebank. En effet, les parseurs ne produisant pas toujours
+d’analyses exactes, nous voulions pouvoir mesurer l’impact des mémes regles sur des structures
+syntaxiques plus bruitées. L’idée sous—jacente permet d’ouVrir la Voie a la correction d’analyses
+syntaxiques avec des regles simples.
+
+Nous faisons tout d’abord un rapide état de l’art en matiére de réécriture de graphes appliquée a
+l’enrichissement de corpus, puis présentons notre systeme de réécriture et plus particulierement
+le systeme de propagation de contraintes, pour ensuite appliquer ce systeme a la réécriture
+de phrases issues du FTB (Abeillé et al., 2003) et du SequoiaBank (Candito et Seddah, 2012),
+phrases qui présentent des phénomenes de controle et de coordination a ellipses sujet. Enﬁn,
+nous appliquons nos regles aux analyses syntaxiques produites par un parseur symbolique,
+FrMG (Wllemonte de La Clergerie, 2005), et deux parseurs statistiques : le Malt parseur (Nivre
+
+179 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+et al., 2006) et le MST parser (McDonald et al., 2005b,a), aﬁn de tester leur généricité. Enﬁn,
+nous conclurons sur les perspectives et les autres applications possibles de ce genre de systéme.
+
+1 Etat de 1’art
+
+La réécriture de graphes appliquée a la syntaxe profonde et a l’interface syntaxe—sémantique est
+un domaine assez jeune. A notre connaissance, seul le systeme de réécriture Grew (Marchand
+et al., 2010; Bonfante et al., 2010, 2011b) a été utilisé dans ce but.
+
+Grew est un systeme de réécriture qui s’appuie sur une hiérarchisation en modules pour traiter
+des phénomenes syntaxiques. Chaque module représente un phénomene bien particulier. De
+plus, les modules assurent la terminaison du systeme et une forme de conﬂuence. Cependant,
+la hiérarchisation des phénomenes syntaxiques en modules est complexe, car les phénomenes
+interagissent et il devient souvent compliqué de gérer ces interactions, notamment avec les cas de
+coordinations elliptiques du sujet et de controle, mais aussi lors de la recherche de l’antécédent
+du pronom relatif, comme nous le précisions en introduction. De fait, certaines regles peuvent
+étre présentes dans plusieurs modules, rendant la gestion d’un phénoméne parfois éclaté au sein
+des différents modules.
+
+L’article Bonfante et al. (2011b) traite un grand nombre de phénoménes syntaxiques :
+
+— Sujet des participiales, des inﬁnitives et des adjectifs
+
+— Tough movement
+
+— Verbes a controle
+
+— Coordinations elliptiques du sujet
+
+— Antécédent des pronoms relatifs
+
+Le systeme est particulierement couvrant et le corpus arboré ainsi enrichi se rapproche de la
+syntaxe profonde. Cependant l’article ne présente aucune évaluation quant a la précision du
+systéme et a sa capacité a rendre des analyses correctes.
+
+Nous avons opté pour une évaluation sur des cas complexes et présentant souvent des interactions
+intéressantes sans pour autant essayer de couvrir un nombre aussi important de phénoménes. Par
+ailleurs, il nous a semblé tout aussi important de voir a quel point les regles mises au point sur
+un corpus donné pouvaient encore s’appliquer sur des analyses prédites par des parseurs divers.
+
+2 Présentation du systéme de réécriture de graphes
+
+OGRE, pour Optimized Graph Rewriting Engine, est un systeme de réécriture de graphes orienté
+TAL qui permet d’assurer un nombre réduit de regles faciles a maintenir sur des exemples qui
+peuvent étre complexes en terme de réécriture de structures linguistiques. Une description
+formelle du systeme peut étre trouvée dans (Ribeyre, 2012; Ribeyre et al., 2012), nous rappelons
+ici les différents types de contraintes et les illustrons sur des exemples linguistiques aﬁn de
+montrer leurs applications et leurs avantages.
+
+, . . l , . . .
+On deﬁnit e = (x —> y, C,H) un arc etendu qu1 peut porter un ensemble C potentiellement v1de
+de contraintes et une liste H potentiellement vide représentant un historique formé par des pairs
+
+180 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+de noeuds (x’, y’). Cet historique nous permet de retracer les changements effectués entre x’ et
+y’. D’autre part, on déﬁnit aussi .2 qui est l’ensemble des étiquettes possibles sur un arc. On
+considere alors trois types de contraintes :
+
+— Une contrainte move up mT sur un arc e qui peut étre utilisée pour déplacer l’arc e en
+direction des tétes, comme illustré par la ﬁgure 1 2. Le déplacement est controlé par une paire
+d’arguments (.21 ,q) ou .21 est un automate a états ﬁnis et q est un état de .21. L’automate
+représente toutes les transitions possibles a travers lesquelles l’arc peut se déplacer.
+
+X y Z
+
+X Y 2 => mTw,q’),H.(y,x)
+
+FIGURE 1: Contrainte move up
+
+Prenons l’exemple de la ﬁgure 2, ou l’antécédent du relatif dont est Jean. Ici, pour retrouver
+l’antécédent, il faut partir du pronom relatif, et remonter la série d’arcs : de_obj —> obj —>
+obj —> obj, jusqu’a la source de l’arc mod_rel. De fait, le nombre d’arcs a remonter n’est pas
+borné. Il devient donc difﬁcile d’écrire une regle simple pour ce cas de réécriture et il nous faut
+alors utiliser la contrainte move up pour assurer la remontée jusqu’a la source d’un mod_rel,
+assurant que l’on a retrouvé l’antécédent du relatif (l’arc rouge marque la transformation
+ﬁnale).
+
+de ob’
+
+_ J
+-
+dit qu
+
+obj
+Jean dont on ’ elle connait la mere
+
+FIGURE 2: Arbre de dépendances pour Jean dont on dit qu’elle
+connaft la mere. En bleu, les arcs a suivre pour retrouver 1’anté—
+cédent.
+
+1 . A . . , .
+— Une contrainte share up 5T sur un arc e = y —”> z qui peut etre uulisee pour dupliquer tous les
+
+1 . . .
+arcs entrants e’ = x —> y de y comme arcs entrants de z (voir ﬁgure 3). Comme la contrainte
+rT, cette contrainte accepte un argument L qui restreint la duplication des arcs e’ aux seuls
+arcs avec une étiquette l E L.
+
+— Une contrainte share down si sur un arc e = y l—“> z peut étre utilisée pour dupliquer tous
+les arcs sortants de y comme arcs sortants de z, (voir ﬁgure 4). Cette contrainte accepte un
+argument L qui restreint la duplication des arcs e’ avec une étiquette l E L. A noter, les arcs
+résultants ont une étiquette l+, qui indique qu’ils ont été clonés.
+
+Dans la ﬁgure 5, on remarque la présence de deux modaux, vouloir et pouvoir.
+
+2. O1‘1les arcs verts sont supprimés du graphe et les arcs rouges correspondent a la transformation ﬁnale.
+
+181 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+La
+In x y Z
+X Y Z 2
+
+FIGURE 3: Contrainte share up
+
+X Y Z
+x y z
+
+=>
+
+FIGURE 4: Contrainte share down
+
+obj, susuj) obj, susun
+Jean veut pouvoir rentrer
+
+  
+
+@
+
+FIGURE 5: Arbre de dépendances pour Jean veut pouvoir rentrer.
+
+Poser une contrainte de type share_down sur les deux arcs d’étiquette obj, conduit au partage
+du sujet, permettant ainsi de retrouver le sujet des verbes dans des phrases on i1 y en a plusieurs
+d’afﬁ1és.
+Par ailleurs, les contraintes sont concues pour permettre une interaction qui favorise la conﬂuence
+et la terminaison du systeme. Prenons 1’exemp1e Jean qui m’aperg:oit et m’appelle veut me parler.
+On donne une représentation de cette phrase a la ﬁgure 6. Les arcs rouges décrivent les arcs ﬁnaux
+(aprés réécriture), 1’arc portant la contrainte move up, qui est en vert foncé, est susceptible de
+bouger lors de la transformation et 1’arc bleu est un arc temporaire détruit aprés transformation.
+
+On voit qu’on utilise les trois contraintes précédemment explicitées. Deux contraintes share
+down permettent d’ajouter le sujet de parler et celui d’appelle. La contrainte move up ajoute
+1’antécédent du relatif « qui >> ainsi qu’une contrainte share up qui permet d’ajouter 1e véritable
+sujet des verbes apergoit et appelle.
+
+La conﬂuence est assurée par le fait que move up ne peut pas utiliser les arcs créés par share
+down ou share up et par le fait que les contraintes s’app1iquent tant qu’e11es 1e peuvent. Ainsi, on
+pourrait appliquer move up, puis share down et share up ou inverser move up et share down
+sans probleme, 1e résultat serait toujours 1e meme. Enﬁn, on voit que le nombre d’informations
+ajoutées est important au regard du nombre de contraintes posées sur les arcs.
+
+182 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+      
+
+rm —
+F’ 
+obi, sltsuﬁ
+Jean qui In’ apercoit et In’ appelle veut me parler
+
+51 (suj)
+
+Ly
+
+ 
+
+FIGURE 6: Exemple d’interacu'on entre contraintes
+
+3 Illustration sur le contréle du sujet et1’ellipse du sujet
+
+Comme expliqué plus haut, nous avons utilisé notre systeme de réécriture pour ajouter des
+informations sur les cas de contréles et d’ellipses du sujet.
+
+3.1 Contréle du sujet
+
+Le contr6le du sujet est un probléme lexical. En effet, la liste des verbes a contr6le est connue
+et peut étre récupérée via un lexique tel que le LEFFF (Sagot, 2010). Cependant, il existe des
+exemples ou le nombre de verbes a contr6le mis en relation peut étre important, nous citerons le
+cas suivant issu du French Treebank : Le Brésil veut pouvoir continuer 81 défricher l’Amazonie pour
+y installer ses colons aﬁamés de terres cultivables (phrase 5444 dans le FTB, section 1).
+
+Nous sommes en présence d’un exemple qui demande de propager le sujet Brésil tout au long
+de la chaine de modaux, jusqu’au verbe défricher. Ainsi, Brésil est sujet de veut, mais aussi de
+pouvoir et de continuer (‘z et enﬁn de défricher.
+
+3.2 Ellipse du sujet
+
+Nous donnons a la ﬁgure 7 un exemple de représentation de l’ellipse sujet dans le French
+Treebank en dépendances.
+
+Dans cet exemple, il faut partager le sujet Jean entre les deux conjoints de la coordination. Placer
+une contrainte share down entre mange et boit permet ce partage.
+
+183 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Jean mange et boit
+
+FIGURE 7: Représentation en dépendances de l’ellipse sujet selon
+le schéma d’annotation du FI‘B
+
+4 Validation sur corpus
+
+Pour valider notre travail, nous avons mis au point deux corpus, que nous décrivons en détail
+ci—dessous.
+
+4. 1 Les corpus
+
+Pour nous permettre de nous évaluer, nous avons mis en place un sous-corpus par phénoméne
+considéré. Ils sont tirés d’un ensemble de phrases du French Treebank (FTB) et du Sequoia-
+Bank (Candito et Seddah, 2012).
+
+Ainsi, nous avons sélectionné un corpus de 405 phrases pour le contr6le obligatoire issues du
+SequoiaBank et du French Treebank que nous avons annotées a la main. En ce qui concerne
+la coordination a ellipse sujet, nous avons utilisé le corpus annoté de Boucheséche (2009),
+auquel nous avons ajouté de nouvelles phrases pour un total de 120 phrases prises sur le French
+Treebank (section 2 et section 3 uniquement).
+
+La répartition des phrases et du nombre total de dépendances pour chaque corpus est récapitulée
+dans le tableau 1.
+
+PHENOMENE DEV TEsT TOTAL
+Contréle 155 (4223) 250 (6572) 405 (10795)
+Ellipse du sujet 55 (1920) 65 (2423) 120 (4343)
+
+TABLE 1: Nombre total de phrases (et de dépendances) dans les
+sous-corpus par phénomene étudié
+
+Nos regles ont été mises au point sur les deux corpus de développement pour ensuite étre testées
+sur les corpus de test. L’idée est de ne pas biaiser l’évaluation en les testant sur des phrases déja
+connues.
+
+Dans le tableau 2, nous indiquons le nombre de dépendances ajoutées lors de l’annotation
+manuelle.
+
+Par ailleurs, on tient a attirer l’attention sur le fait que les deux phénoménes ne peuvent étre
+comparés. En effet, la difﬁculté de la tache est différente et le nombre de phrases dans chaque
+
+184 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+PHENOMENE DEV TEsT TOTAL
+Contréle 345 578 923
+Ellipse du sujet 116 129 145
+
+TABLE 2: Nombre de dépendances ajoutées dans chaque sous-
+corpus
+
+corpus n’est pas le meme.
+
+4.2 Protocole expérimental
+
+Parseurs Pour tester la généricité de nos régles, nous avons analysé les corpus avec trois
+parseurs différents : le MaltParser (Nivre et al., 2006), le MS'I'Parser (McDonald et al., 2005b) 3,
+et FrMG (Villemonte de La Clergerie, 2005). Les deux premiers sont des parseurs statistiques
+entrainés sur le French Treebank, le dernier est un parseur symbolique fondé sur une extension
+du formalisme des grammaires d’arbres adjoints (Joshi et al., 1975; Joshi et Schabes, 1997).
+Nous comparons les sorties de FrMG préalablement transformées pour respecter le schéma
+d’annotation du FTB. En effet, les sorties natives de FrMG présentent un schéma d’annotation
+beaucoup plus profond que celui du FTB.
+
+Corpus Le corpus qui contient les cas de contr6le a été constitué sur le French Treebank et
+le SequoiaBank en utilisant des phrases issues du corpus d’entrainement. Or, ce corpus a servi
+a générer les modéles des deux parseurs statistiques. De fait, nous les avons réentrainés avec
+les memes parametres que Candito et al. (2010), en enlevant les phrases concernées du corpus
+d’entrainement. Par ailleurs, le corpus d’entrainement utilise des parties du discours prédites
+par un tagger, grace a une méthode de rééchantillonnage (jackkniﬁng 4). Pour des questions de
+commodité, nous avons utilisé les prédictions de Morfette (Chrupala et al., 2008).
+
+Métriques utilisées Nous utilisons les métriques standards d’évaluation d’analyses syntaxiques
+en dépendances, a savoir le Labeled Attachment Score (LAS) qui correspond au pourcentage de
+dépendances correctes, étiquette incluse et le Unlabeled Attachment Score (UAS), qui correspond
+au pourcentage de dépendances correctes, sans tenir compte des étiquettes sur les arcs. Comme
+il est d’usage, les évaluations sont faites sans tenir compte des ponctuations. De plus, nous
+donnons les métriques de référence que sont le rappel, la précision et le F1—score pour évaluer
+notre systéme. On a alors une bonne représentation de ce que le systéme est capable d’ajouter
+comme dépendances et on peut aussi mesurer sa capacité a ne pas surgénérer (ajouter plus de
+dépendances qu’il ne faudrait).
+
+3. L’architecture utilisée pour le parsing de nos corpus est l’architecture du projet Bonsai (Candito et aL, 2010), qui a
+adapté les deux parseurs statistiques au Frangais.
+
+4. L’objectif du jackkniﬁng est d’obtenir un treebank avec des parties du discours prédites par un tagger qui n’a pas
+été entrainé sur les données qu’il étiquette. En d’autres termes, on souhaite que le treebank possede autant d’erreurs que
+ce que prédirait le tagger sur un corpus arboré non modiﬁé. On fait donc de la validation croisée dix fois, i.e. le corpus
+d’entrainement est divisé en dix parties, on entraine le tagger sur neuf parties et on étiquette la dixieme.
+
+185 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+4.3 Mise au point des régles
+
+Comme nous le mentionnions ci—dessus, les regles ont été mises au point sur les corpus de
+développement aﬁn de ne pas biaiser leur application sur les corpus de test. En effet, il est
+important de les appliquer sur des phrases inconnues.
+
+Les régles ont été écrites en utilisant au maximum le mécanisme de propagation par contraintes,
+aﬁn d’en tester la robustesse et la généricité. Nous avons regardé divers exemples dans le corpus
+de développement et essayé d’en retirer les caractéristiques générales. A chaque fois qu’une régle
+était créée, nous l’appliquions a notre corpus de développement pour voir ce qu’elle couvrait.
+Nous regardions alors les divergences et mettions au point une nouvelle régle ou modiﬁons celles
+existantes. Le tableau 3 récapitule le nombre de régles sur chaque corpus.
+
+CORPUS NOMBRE DE REGLES
+Contréle 3
+Ellipse du sujet 1
+Total | 4
+
+TABLE 3: Nombre de régles pour chaque corpus
+
+Régles pour le contréle sujet Nous avons une régle qui gére le controle sujet avec des verbes
+transitifs, par exemple : Il veut venir ou vouloir est le verbe a contréle et venir le verbe contrélé.
+
+Nous produisons une représentation graphique de notre regle a la ﬁgure 8. On cherche un
+verbe de catégorie V (et qui par ailleurs est connu pour étre un verbe a contréle) qui gouverne
+n’importe quel verbe a l’inﬁnitif (de catégorie VINF) avec une étiquette de type obj ou ats ou
+dep ou aux_caus. Si une telle conﬁguration est trouvée, alors nous attachons une contrainte
+share_down sujet sur l’arc.
+
+obj | ats | dep | aLrx_caus,s1(suj)
+V VINF
+
+FIGURE 8: Régle pour le controle sujet avec des verbes transitifs
+
+La deuxieme régle gére le contréle sujet des verbes intransitifs (Il promet 61 Marie de venir). La
+regle est illustrée a la ﬁgure 9. La conﬁguration est sensiblement la meme que pour 8, mais il
+faut prendre en compte l’ajout de la préposition. Si une telle conﬁguration est trouvée, on ajoute
+un arc qui porte la contrainte share_down entre le verbe a contréle et le verbe contrélé.
+
+Enﬁn, la troisieme regle est particuliere au verbe venir qui présente souvent une dépendance
+de type mod dans le FTB. Intégrer une telle dépendance a la premiere regle ferait baisser la
+précision du systéme.
+
+Régle pour l’ellipse sujet La regle qui gere l’ellipse sujet est illustrée a la ﬁgure 10. Nous
+cherchons une conﬁguration telle qu’un verbe possede un sujet et gouverne une conjonction
+
+186 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+obj | dep | a_obj | d_obj
+
+V P VINF
+
+FIGURE 9: Regle pour le contréle sujet avec des verbes intransi-
+tifs
+
+de coordination qui elle-méme gouverne un verbe (qui par ailleurs n’a pas de sujet). Si cette
+conﬁguration existe, alors on crée un arc qui porte une contrainte share_down sujet entre les
+deux verbes. Les arcs gouvernés par le premier verbe seront partagés avec l’autre.
+
+coord
+
+suj X
+- C V
+
+FIGURE 10: Regle pour l’ellipse sujet
+
+L’idée qui se dessine avec la propagation de contraintes est que l’ordre d’application des régles
+est ﬂexible donnant ainsi une plus grande liberté au systeme et a l’utilisateur qui écrit les regles.
+D’ailleurs, pour traiter les cas d’ellipse du sujet, il ne faudra que cette regle.
+
+4.4 Résultats
+
+Nous avons évalué deux choses différentes : la performance de nos régles et de notre systéme
+sur un corpus manuellement annoté et la généricité de nos régles sur des sorties d’analyseurs
+syntaxiques qui présentent, la plupart du temps, des erreurs par rapport a un corpus de référence.
+
+Pour ce faire, nous avons appliqué nos régles sur notre corpus de référence sans les nouvelles
+annotations pour, ensuite, en évaluer l’impact. Les résultats sont reportés dans le tableau 4.
+
+PHENOMENE RAPPEL PRECISION F-SCORE
+Contréle 93,77 99,83 96,70
+Ellipse du sujet 93,02 99,72 96,25
+
+TABLE 4: Evaluation sur les corpus de test aprés applications
+des regles sur la référence (corpus gold)
+
+Ensuite, pour mesurer la généricité de nos regles, il nous a paru intéressant de voir leur impact
+sur des sorties d’analyseurs syntaxiques. Nos deux corpus ont été parse’s avec FrMG, mais aussi
+avec le MaltParser et le MSTParser. Nous avons évalué la performance des trois parseurs par
+rapport a notre corpus de référence. Les résultats sont donnés dans les tableaux 5 et 6.
+
+187 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+DEV TEST
+PARSEUR LAS UAS LAS UAS
+FrMG 83,01 85,70 84,51 87,14
+Malt 86,50 89,41 87,55 90,05
+MST 84.34 87,48 85,82 88.65
+
+TABLE 5: C0NTR(“)LE :
+
+et du MSTParser
+
+Evaluation des analyses de FrMG, de Malt
+
+DEV TEST
+PARSEUR LAS UAS LAS UAS
+FrMG 81,77 85,31 85,22 87,12
+Malt 85,31 87,35 86,05 88,07
+MST 83,54 86,77 83,45 85,89
+
+TABLE 6: ELLIPSES
+et du MSTParser
+
+: Evaluation des analyses de FrMG, de Malt
+
+Ensuite, nous avons appliqué notre Systéme sur ces nouvelles analyses. Les résultats sont présentés
+
+dans les tableaux 7 et 8.
+PARSEUR LAS UAS RAPPEL PRECISION F-SCORE
+
+FrMG 84,24 86,77 85,81 99,64 92,21
+
+Malt 87,07 89,50 83,91 99,71 91,13
+
+MST 81,77 84,49 82,18 99,72 90,11
+
+MST (Tagset réduit) 81,77 84,49 39,45 100,00 56,58
+
+TABLE 7: CONTROLE : Evaluation sur les sorties des trois parseurs
+aprés application des régles
+
+PARSEUR LAS UAS RAPPEL PRECISION F-SCORE
+FrMG 84,65 86,50 78,29 99,52 87,64
+Malt 85,21 87,18 72,87 99,36 84,07
+MST 82,56 84,97 68,21 99,39 80,91
+
+TABLE 8: ELLIPSE : Evaluation sur les sorties des trois parseurs
+aprés application des régles
+
+188
+
+© ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+5 Discussion
+
+Le tableau 4 donne les résultats lors de l’application des regles sur le corpus de référence. Les
+résultats montrent deux choses intéressantes :
+
+1. La précision du systeme est excellente, ce qui signiﬁe qu’il ne surgénere que tres peu,
+n’ajoutant pas d’informations erronées au corpus.
+
+2. Le rappel est certes moins bon, mais il reste tout de méme haut : le systeme est capable
+d’ajouter un maximum de dépendances correctes.
+
+En somme, sur le corpus de référence, les régles s’appliquent bien et ajoutent des dépendances
+qui nous permettent de nous approcher de la syntaxe profonde. De plus, on peut constater que
+pour des cas difﬁciles comme certaines coordinations elliptiques, le nombre d’erreurs n’est pas
+élevé.
+
+Nous nous intéressons ensuite aux résultats sur les corpus analysés par les différents parseurs
+(tableaux 7 et 8) :
+
+1. Nous obtenons de bons scores sur les analyses de FrMG, sans doute dﬁ au fait que FrMG est
+un parseur produisant des analyses profondes, il est donc possible que les rattachements
+d’ellipses et de contréle soient meilleurs.
+
+2. Nous avons aussi de bons résultats sur les analyses de MaltParser pour les cas de contréle.
+Cependant, les cas d’ellipses ne sont pas aussi concluants. En effet, Malt a des difﬁcultés
+a retrouver les structures coordonnées, ce qui fait que les regles sont plus difﬁciles a
+appliquer ;
+
+3. Concernant le MSTParser, dans une version préliminaire de ce papier, nous avions indiqué
+des résultats assez faibles concernant le rappel, indiquant que le parseur n’utilisait pas le
+méme ensemble des parties du discours que les autres parseurs. En effet, suite a une erreur
+de paramétrage de notre part, le MSTParser a utilisé un ensemble plus restreint de parties
+du discours (V pour \l VINE VPB etc.). Les résultats présentés dans le tableau 7 corrigent
+ce probléme. Néanmoins, par soucis d’exhausitiVité nous rappelons a la ligne MSTParser
+(Tagset réduit) les anciens résultats obtenus.
+
+L’utilisation du tagset réduit pour le MSTParser nous avait conduit a modiﬁer nos regles dans
+ce sens, les rendant encore plus génériques. En effet, plus l’ensemble de parties du discours est
+réduit plus nous avons des chances d’appliquer nos regles sur un nombre plus important de
+structures, réduisant ainsi la précision du systeme. Nous avons donc évalué cet impact sur les
+différents corpus. Les résultats sont présentés dans le tableau 9.
+
+Il est intéressant de constater que le fait de rendre les régles plus génériques entraine une perte
+minime sur la référence, alors que nous avons un gain intéressant sur les analyses du MSTParser.
+
+Au vue des résultats précédents, nous pouvons avancer que le systeme de propagation de
+contraintes fonctionne bien. Avec quelques contraintes, agissant sur des conﬁgurations simples,
+nous pouvons couvrir des phénomenes souvent difﬁciles a traiter, présentant des interactions.
+De plus, nous constatons que peu de regles sufﬁsent a couvrir un phénomene et que les regles
+couvrant les cas particuliers sont évitées au maximum. En cela, le systeme reste générique. Par
+ailleurs, comme tout systéme a base de régles, il était important de voir a quel point les regles
+mises au point sur un corpus peuvent s’appliquer sur une version altérée de ce méme corpus.
+
+189 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+LAS UAS RAPPEL PRECISION F-SCORE
+FrMG 84,24 86,77 85,81 99,59 92,19
+Malt 87,05 89.48 83,74 99,65 91,00
+MST (Tagset réduit) 85,36 88,11 82,18 99,68 90,09
+
+Référence | 99,49 99,53 | 93,43 99,74 96,48
+
+TABLE 9: CONTROLE : Evaluation aprés utilisation de régles plus
+génériques
+
+Conclusion
+
+A travers l’enrichissement d’un corpus arboré et de sortie d’analyseurs syntaxiques, nous avons
+montré qu’avec une approche générique de propagation par contraintes, il était possible d’avoir
+un systéme de réécriture de graphes plus facile a maintenir avec un nombre de régles restreint. Par
+ailleurs, grace aux contraintes, il est possible d’exprimer des régles sufﬁsamment génériques pour
+qu’elles puissent étre utilisées sans modiﬁcations importantes sur des sorties prédites d’analyseurs
+syntaxiques.
+
+Cela ouvre le champ 3 d’autres applications, parmi lesquelles nous pouvons citer la correction
+d’anal ses s taxi ues aﬁn d’améliorer les résultats d’un arseur. Dans la méme mouvance on
+1
+peut tout autant essayer de réécrire des sorties d’analyseurs différents avec le méme jeu de
+régles, pour ensuite comparer les graphes obtenus, aﬁn de déduire le meilleur graphe 3 partir
+des différentes structures proposées. On pourrait améliorer les analyses syntaxiques au moyen de
+plusieurs parseurs et du systéme de réécriture qui guiderait les analyses.
+
+Enﬁn, une autre piste a explorer, serait la transformation de schémas d’annotation dans le but
+d’évaluer les schémas entre eux. On sait que la comparaison de deux schémas d’annotau'ons n’est
+pas chose aisée, ainsi utiliser un ensemble de régles, pour tenter de transformer un schéma en
+un autre permettrait une comparaison plus aisée des analyseurs syntaxiques entre eux.
+
+Remerciements
+
+Je souhaitais remercier Djamé Seddah et Eric de la Clergerie pour leurs conseils, leurs relectures
+attentives et leurs remarques lors de l’écriture de cet article.
+
+Références
+
+ABEILLE, A., CLEMENT, L. et TOUSSENEL, E (2003). Building a Treebank for French. In Treebanks :
+Building and Using Parsed Corpora, pages 165-188. Springer.
+
+BONFANTE, G., GUILLAUME, B. et MOREY, M. (2011a). Modular graph rewriting to compute
+semantics. In International Workshop on Computional Semantics 201 1.
+BONFANTE, G., GUILLAUME, B., MOREY, M. et PERRIER, G. (2010). Réécriture de graphes de
+dépendances pour l’interface syntaxe-sémantique. In TALN 2010.
+
+190 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+BONFANTE, G., GUILLAUME, B., MOREY, M. et PERRIER, G. (2011b). Enrichissement de structures
+en dépendances par réécriture de graphes. In TAIN 201 1.
+
+BoUcHEsEcHE, L. (2009). Annotation semi-automatique des coordinations a ellipse sur corpus
+arboré. Mémoire de maitrise, Univ. Paris Sorbonne 4.
+
+CANDITO, M., NIVRE, J., DENIs, P. et HENESTROZA ANGUIANO, E. (2010). Benchmarking of
+Statistical Dependency Parsers for French. In Proceedings of the 23rd International Conference on
+Computational Linguistics (COLING 2010), Beijing, Chine. Coling 2010.
+
+CANDITO, M. et SEDDAH, D. (2012). Le corpus Sequoia : annotation syntaxique et exploitation
+pour l’adaptation d’ana1yseur par pont lexical. In TALN 2012 — 19e conférence sur le Traitement
+Automatique des Langues Naturelles, Grenoble, France.
+
+CHRUPALA, G., DINU, G. et van GENABITH, J. (2008). Learning Morphology with Morfette. In
+Proceedings of LREC 2008.
+
+FRUEWIRTH, T. et ABDENNADHER, S. (2003). Essentials of Constraint Programming. Springer—Verlag
+New York, Inc.
+
+GE1ss, R., BATZ, G. V, GRUND, D., HACK, S. et SZALKOWSKI, A. (2006). GrGen : A fast SPO—Based
+graph rewriting tool. In International Conference on Graph Transformation.
+
+JosHI, A. K., LEVY, L. et TAKAHASHI, M. (1975). Tree Adjunct Grammars. Journal of Computer
+and System Science 10, 10(1).
+
+JosHI, A. K. et SCHABES, Y. (1997). Tree-adjoining grammars. Handbook of formal languages,
+3:69—124.
+
+LowE, M., EHRIG, H., HECKEL, R., RIBEIRO, L., WAGNER, A. et CORRADINI, A. (1993). Algebraic
+approches to graph transformations. Theoritical Computer Science.
+
+MARCHAND, J., GUILLAUME, B. et PERRIER, G. (2010). Motifs de graphe pour le calcul de
+dépendances syntaxiques completes. In TALN 2010.
+
+MCDONALD, R., CRAMMER, K. et PEREIRA, E (2005a). Online large-margin training of dependency
+parsers. In Proceedings of the 43rd Annual Meeting on Association for Computational Linguistics.
+Association for Computational Linguistics.
+
+MCDONALD, R., PEREIRA, E, RIBAROV, K. et HAJIC, J. (2005b). Non—projective dependency parsing
+using spanning tree algorithms. In Proceedings of the conference on Human Language Technology
+and Empirical Methods in Natural Language Processing. Association for Computational Linguistics.
+
+NIVRE, J., HALL, J. et NILSSON, J . (2006). MaltParser : A data—driven parser-generator for
+dependency parsing. In Proc. of LREC—2006.
+
+RIBEYRE, C. (2012). Mise en place d’un systéme de réécriture de graphes appliqués 2'1 l’interface
+syntaxe-sémantique. Mémoire de master, Univ. Paris Diderot 7.
+
+RIBEYRE, G., SEDDAH, D. et VILLEMONTE DE LA CLERGERIE, E. (2012). A Linguistical1y—motivated
+2—stage Tree to Graph Transformation. In HAN, C.—H. et SATTA, G., éditeurs : TAG+11 - The
+1 1th International Workshop on Tree Adjoining Grammars and Related Formalisms — 2012, Paris,
+France. INRIA.
+
+SAGOT, B. (2010). The LEFFF, a freely available and large-coverage morphological and syntactic
+lexicon for french. In Proceedings of LREC’1 0, Valetta, Malta.
+
+VILLEMONTE DE LA CLERGERIE, E. (2005). From metagrammars to factorized TAG /TIG parsers. In
+Proceedings of IWPT’05 (poster), Vancouver, Canada.
+
+191 © ATALA
+

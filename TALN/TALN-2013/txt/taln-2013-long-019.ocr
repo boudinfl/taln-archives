@@ -1,0 +1,787 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Découverte de connaissances dans les séquences par CRF
+non-supervisés
+
+Vincent Claveaul Abir Ncibi2
+(1) IRISA-CNRS (2) INRIA-IRISA
+Campus de Beaulieu, 35042 Rennes, France
+Vincent . claveau@irisa . fr abir .ncibi@inria . fr
+
+RESUME
+Les taches de découverte de connaissances ont pour but de faire émerger des groupes d’entités
+cohérents. Ils reposent le plus souvent sur du clustering, tout l’enjeu étant de déﬁnir une notion
+de similarité pertinentes entre ces entités. Dans cet article, nous proposons de détourner les
+champs aléatoires conditionnels (CRF), qui ont montré leur intérét pour des taches d’étiquetage
+supervisées, pour calculer indirectement ces similarités sur des séquences de textes. Pour cela,
+nous générons des problémes d’étiquetage factices sur les données 2‘1 traiter pour faire apparaitre
+des régularités dans les éuquetages des entités. Nous décrivons comment ce cadre peut étre mis
+en oeuvre et l’expérimentons sur deux taches d’extraction d’informations. Les résultats obtenus
+démontrent l’inte’rét de cette approche non-supervisée, qui ouvre de nombreuses pistes pour le
+calcul de similarités dans des espaces de représentations complexes de séquences.
+
+ABSTRACT
+Unsupervised CRF for knowledge discovery
+
+Knowledge discovery aims at bringing out coherent groups of entities. They are usually based
+on clustering; the challenge is then to deﬁne a notion of similarity between the relevant
+entities. In this paper, we propose to divert Conditional Random Fields (CRF), which have
+shown their interest in supervised labeling tasks, in order tocalculate indirectly the similarities
+among text sequences. Our approach consists in generate artiﬁcial labeling problems on the
+data to be processed to reveal regularities in the labeling of the entities. We describe how this
+framework can be implemented and experiment it on two information retrieval tasks. The results
+demonstrate the usefulness of this unsupervised approach, which opens many avenues for
+deﬁning similarities for complex representations of sequential data.
+
+MOTS-CLES : Découverte de connaissances, CRF; clustering, apprentissage non—supervisé, ex-
+traction d’informations.
+
+KEYWORDS: Knowledge discovery, CRE clustering, unsupervised machine learning, information
+extraction.
+
+257 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+1 Introduction
+
+Les taches d’étiquetage de séquences sont depuis longtemps d’un intérét particulier pour le
+TAL (étiquetage en parties—du—discours, annotation sémantique, extraction d’information, etc.).
+Beaucoup d’outils ont été proposés pour ce faire, mais depuis quelques années, les Champs
+aléatoires conditionnels (Conditional Random Fields, CRF (Lafferty et al., 2001)) se sont imposés
+comme l’un des plus efﬁcaces pour de nombreuses taches. Ces modeles sont supervisés : des
+exemples de séquences avec leurs labels sont donc nécessaires.
+
+Le travail présenté dans cet article se place dans un cadre différent dans lequel on souhaite faire
+émerger des informations a partir de ces séquences. Nous nous inscrivons donc dans une tache
+de découverte de connaissances dans laquelle il n’est plus question de supervision, le but étant
+au contraire de découvrir comment les données peuvent étre regroupées dans des catégories
+qui fassent sens. Ces taches de découvertes reposent donc le plus souvent sur du clustering
+(Wang et al., 2011, 2012; Ebadat et al., 2012), la question cruciale étant de savoir comment
+calculer la similarité entre deux entités jugées intéressantes. Dans cet article, nous proposons de
+détourner les CRF en produisant des problemes d’étiquetage factices pour faire apparaitre des
+entités régulierement étiquetées de la meme facon. De ces régularités est alors tirée une notion
+de similarité entre les entités, qui est donc déﬁnie par extension et non par intention.
+
+D’un point de Vue applicatif, outre l’usage pour la découverte de connaissances, les similarités
+
+obtenues par CRF et le clustering qu’il permet peut servir en amont de taches supervisées :
+
+— il peut étre utilisé pour réduire le coﬁt de l’annotation de données. Il est en effet plus simple
+d’étiqueter un cluster que d’annoter un texte instance par instance.
+
+— il peut permettre de repérer des classes difﬁciles a discerner, ou au contraire d’exhiber des
+classes dont les instances sont trés diverses. Cela permet alors d’adapter la tache de classiﬁca-
+tion supervisée en modiﬁant le jeu d’étiquettes.
+
+Dans la suite de cet article, nous positionnons notre travail par rapport aux travaux existants et
+
+présentons brievement les CRF en introduisant quelques notions utiles pour la suite de l’article.
+
+Notre décrivons ensuite en section 3 le principe de notre approche de découverte utilisant les
+
+CRF en mode non—supervisé pour faire de la découverte dans des séquences. Nous proposons
+
+deux expérimentations de cette approche dans les sections 4 et 5, puis nous présentons nos
+
+conclusions et quelques pistes ouvertes par ce travail.
+
+2 Travaux connexes
+
+Comme nous l’avons mentionné en introduction, les taches d’étiquetage de séquences sont tres
+courantes en traitement automatique des langues. Cel1es—ci se présentent souvent dans un cadre
+supervisé, c’est—a—dire que l’on dispose de séquences annotées par des experts, et incidemment
+du jeu de label a utiliser. C’est dans ce cadre que les CRF se sont imposés comme des techniques
+d’apprentissage tres performantes, obtenant d’excellents résultats pour de nombreuses taches
+(Wang et al., 2006; Pranjal et al., 2006; Constant et al., 2011; Raymond et Fayolle, 2010, entre
+autres).
+
+Plusieurs études ont proposé de passer a un cadre non—supervisé. Certaines ne relevent pas a
+proprement parler de non—supervision mais plutét de semi—supervision, ou le but est de limiter le
+nombre de séquences a annoter. C’est notamment le cas pour la reconnaissance d’entités nommées
+
+258 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+ou beaucoup de travaux s’appuient sur des bases de connaissances extérieures (Wikipedia par
+exemple), ou sur des regles d’extraction d’amorcage données par un expert (Kozareva, 2006;
+Kazama et Torisawa, 2007; Wenhui Liao, 2009; Elsner et al., 2009). On peut également citer
+les travaux sur l’étiquetage en parties du discours sans données annotées (Merialdo, 1994; Ravi
+et Knight, 2009; Richard et Benoit, 2010). Dans tous les cas, l’angle de vue de ces travaux est
+la limitation, voire la suppression, des données d’apprentissage. Ils ne se posent pas dans un
+cadre de découverte de connaissances : ils reposent donc sur un tagset déja établi, méme si
+la correspondance mot—tag peut n’étre qu’incompletement disponible (Smith et Eisner, 2005;
+Goldwater et Grifﬁths, 2007).
+
+Le cadre que nous adoptons dans cet article est différent puisque nous proposons de faire émerger
+les catégories de données non annotées. A l’inverse des travaux précédents, nous ne faisons
+donc pas d’a priori sur les étiquettes possibles. Notre tache releve donc d’un clustering dans
+lequel les éléments similaires des séquences doivent étre groupés, comme cela a été fait par
+exemple par Ebadat et al. (2012) pour certaines entités nommées. Le clustering de mots n’est pas
+une tache nouvelle en soi, mais elle repose sur la déﬁnition d’une représentation pour les mots
+(typiquement un vecteur de contexte) et une mesure de distance (ou de similarité, typiquement
+un cosinus). Notre approche a pour but d’utiliser la puissance discriminative des CRE qui a
+montré son intérét dans le cas supervisé, pour offrir une mesure de similarité plus performante.
+I1 s’agit donc de transformer cette technique supervisée en méthode non—supervisée permettant
+de déterminer la similarité entre deux objets.
+
+Ce détournement de techniques d’apprenu'ssage supervisé pour faire émerger des similarités dans
+des données complexes non étiquetées a déja été utilisé. 11 a montré son intérét sur des données
+de type attributs—valeurs pour lesquelles la déﬁnition d’une similarité était difficile (attributs non
+numériques, biais d’une déﬁnition ex nihilo), notamment avec le random forest clustering (Liu
+et al., 2000; Hastie et al., 2001). L’approche consiste a générer un grand nombre de problemes
+d’apprenu'ssage factices, avec des données synthétiques mélangées aux données réelles, et de voir
+quelles données sont classées réguliérement ensemble (Shi et Horvath, 2005). Notre approche
+s’inscrit dans ce cadre, mais exploite les particularités des CRF pour pouvoir prendre en compte
+la nature séquentielle de nos données.
+
+2.1 Champs aléatoires conditionnels
+
+Les CRF (Lafferty et al., 2001) sont des modéles graphiques non dirigés qui cherchent a représen-
+ter la distribution de probabilités d’annotations (ou étiquettes ou labels) y conditionnellement
+aux observations x a partir d’exemples labellisés (exemples avec les labels attendus). Ce sont donc
+des modeles obtenus par apprentissage supervisé, tres utilisés notamment dans les problemes
+d’éu’quetage de séquences. Un bonne présentation des CRF peut étre trouvée dans ? ? ?. Nous ne
+présentons ci-dessous que les éléments et notations utiles pour la suite de cet article.
+
+Dans le cas séquentiel, c’est—a-dire l’étiquetage d’observations xi par des labels y,-, la fonction
+potentielle au coeur des CRF s’écrit :
+
+k1 n kz n
+P(y|x) = ixexp Zzakfkcy.-.x) ‘l‘ZZP"kgk(.yi—1:.yi:-X) (1)
+
+Z( ) k=1 i=1 k=1 i=1
+
+avec I
+259 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+— Z (x) un facteur de normalisation;
+
+— les fonctions caractéristiques locales et globales (fonctions features) f et g : les fonctions f
+caractérisent les relations locales entre le label courant en position i et les observations; les
+fonctions g caractérisent les transitions entre les noeuds du graphe, c’est—a—dire entre chaque
+paires de labels i et i — 1, et la séquence d’observations.
+
+— les valeurs kl, k2 et n sont respectivement le nombre de fonctions features f, le nombre de
+fonctions features g, et la taille de la séquence de labels a prédire.
+
+Les fonctions f et g sont généralement des fonctions binaires vériﬁant une certaine combinaison
+
+de labels et d’attributs décrivant les observations et appliquées a chaque position de la séquence.
+
+Ces fonctions sont déﬁnies par 1’utilisateur; elles reﬂétent sa connaissance de l’application. Elles
+
+sont pondérées par les lk et pk qui estiment l’importance de l’information qu’elles apportent
+
+pour déterminer la classe.
+
+L’apprentissage des CRF consiste a estimer le vecteur de parametres 9 =
+A1, A2, ...., lkl, 111, 112, ..., ukz (poids des fonctions f et g) a partir de données d’entraine—
+ment, c’est—a—dire N séquences étiquetées (xm, y°))§:’f . en pratique, ce probleme est ramené a
+un probléme d’opu'misation, généralement résolu en utilisant des méthodes de type quasi—Newton,
+comme l’algorithme L—BFGS (Schraudolph et al., 2007). Apres cette étape d’apprentissage,
+l’application des CRF a de nouvelles données consiste a trouver la séquence de labels la plus
+probable étant donnée une séquence d’observations non—vue. Comme pour les autres méthodes
+stochastiques, celle—ci est généralement obtenu avec un algorithme de Viterbi.
+
+3 Principes du modéle non supervisé
+
+Nous décrivons dans cette section le principe de notre approche. Une vue générale est tout d’abord
+donnée au travers d’un algorithme schématisant l’ensemble du processus. Nous en détaillons
+ensuite quelques points cruciaux, ainsi que des aspects plus pragmatiques de l’utilisau'on de cette
+méthode.
+
+3. 1 Principe général
+
+Comme nous l’avons expliqué précédemment, 1’idée principale de notre approche est de déduire
+une distance (ou une similarité) a partir de classiﬁcations répétées de deux objets pour des
+taches d’apprentissage aléatoire. Plus les objets sont détectés souvent comme appartenant a
+la méme classe, plus ils sont supposés proches. L’algorithme 1 donne un apercu global de la
+démarche. Dans notre cadre séquentiel, la classiﬁcation est faite grace aux CRF (les étapes 6
+et 7 correspondent simplement a l’apprentissage et l’application d’un modele CRF). Celle-ci est
+répétée un grand nombre de fois en faisant varier les données, les labels (les co, sont des classes
+factices) et les parametres des apprentissages. Il est tenu a jour un compte des paire de mots
+(x,-, xi) recevant les mémes labels; ces co-étiquetages sont contenus dans la matrice .//(wet. Ils
+sont mis a jour a chaque itération en tenant compte éventuellement de différents critéres, selon
+une fonction weight (cf. infra pour une discussion sur ce point). Ces co-étiquetages sont ensuite
+transformés en mesures de similarité (cela peut étre une simple normalisation) collectées dans
+-’ﬂsim-
+260 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Algorithme 1 Clustering par CRF
+
+1: input : éﬁotal : séquences non étiquetées
+
+2: for grand nombre d’itérations do
+
+35 gtraim gapp (_ Diviset-(gtotal)
+
+4 Tirer aléatoirement les labels _y,- parmi a.>1...a.>L pour les séquences de é't,ai,,
+5: Générer aléatoirement un ensemble de fonctions f et g
+
+6: Inférence : 9 <— L—BFGS(é't,ai,,,y, f ,g)
+
+7 Application : _y* = arg maxy p(9,f,g)(y|x) pour tous les x 6 gm,
+
+8 for all classe co, parmi a.>1...a.>L do
+
+9 for all paire xi, xj de gm, telle que _yl.* = _yJ’." = co, do
+
+10: .2/tc0_et(x,-, x]-)+ = weight(x,-, xi, 0),)
+11: end for
+
+12: end for
+
+13: end for
+
+14: .//{Sim <— Transforrnation(.//(wet)
+15: ‘KCRF <— Clustering(.//(Sim)
+16: return ‘gem;
+
+3.2 Apprentissage aléatoire
+
+L’approche repose sur le fait que les CRF vont permettre d’exhiber une similarité entre des
+mots en leur attribuant régulierement les mémes étiquettes dans des conditions d’apprenu'ssage
+trés variées. Pour cela, a chaque itération, plusieurs choix aléatoires sont mis-en-oeuvre; ils
+concernent :
+
+— les séquences servant a l’apprentissage et leur nombre;
+
+— les labels (distribution et nombre) ;
+
+— les fonctions features décrivant les mots;
+
+Ces apprentissages sur des taches supervisées factices doivent ainsi conférer, par leur variété,
+des propriétés importantes a la similarité obtenue. Celle—ci mélange ainsi naturellement des
+descriptions complexes (attributs nominaux divers sur le mot courant, sur les mots voisins),
+opere par construction une sélection de variables et prend ainsi en compte les redondances des
+descripteurs ou ignore ceux de mauvaise qualité, et elle est robuste aux données aberrantes.
+
+Bien sﬁr, comme nous l’avons déja souligné, ce r6le important de l’aléatoire n’empéche pas
+l’utilisateur de contréler la tache via des biais. Cela se traduit par exemple par la mise a
+disposition des descriptions riches des mots : étiqueter des séquences en parties—du—discours,
+apport d’informau'ons sémantiques sur certains mots... Cela se traduit également par la déﬁnition
+de l’ensemble des fonctions features parmi lesquelles l’algorithme peut piocher les fonctions f et
+g a chaque ite’ration. Dans les expériences rapportées ci-dessous, cet ensemble de fonctions est
+celui classiquement utilisés en reconnaissance d’entités nommées : forme et parties du discours
+du mot courant, des 3 précédents et 3 suivants, des bigrammes de ces attributs, casse des mots-
+formes courants et environnants... Concemant les ensembles é"t,ain et égpp, a chaque itération 5 %
+des phrases sont tirées aléatoirement pour constituer l’ensemble d’entrainement; le reste sert
+d’ensemble d’application.
+
+261 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+3.3 Labels aléatoires
+
+Le choix du nombre de labels factices et leur distribution est également important (mais il
+faut noter que le nombre de labels choisi a ce stade n’implique pas directement le nombre de
+clusters qui seront produits lors de l’étape ﬁnale de clustering). Un trop grand nombre de labels
+lors de l’apprentissage risque d’empécher de produire ensuite un étiquetage dans lequel peu
+d’entités partagent le méme label. En soit ce probléme ne pose pas nécessairement un probléme
+de qualité ﬁnale, mais risque d’augmenter le nombre d’itérations sufﬁsant pour l’obtention de
+ce résultat ﬁnal. A l’inverse, si l’on choisit un nombre trop restreint de labels, l’application du
+modele risque de de ne pas sufﬁsamment différencier les entités, produisant des co—étiquetages
+fortuits. Ce probléme est plus génant car il va impacter le résultat du clustering. Il faut de plus
+noter que tout cela est a interpréter selon les autres parametres de l’apprentissage. Ainsi, les
+foncﬁons features vont permettre ou pas un sur—apprenu'ssage, et donc éventuellement empécher
+ou favoriser les co-éﬁquetages. La taille de é"t,ai,,, et notamment le nombre d’entités y recevant un
+méme label intervient aussi : si systématiquement des l’entrainement un grand nombre d’entités,
+probablement de classes différentes, recoivent le méme label, les modeles ne vont pas étre
+correctement discriminants.
+
+Pour correctement prendre en compte ce phénomene, il serait nécessaire de caractériser la
+propension du modele appris, avant l’éu'quetage, a trop ou pas assez discriminer les enﬁtés. Dans
+l’état actuel de nos travaux, nous n’avons pas formalisé un tel critére. Nous utilisons simplement
+un critére a posteriori déterminé sur le texte aprés étiquetage : un co-étiquetage de deux enﬁtés
+“rapporte plus” si peu d’entités ont été éﬁquetées avec ce méme label. Cela est mis en oeuvre dans
+la fonction weight utilisée pour mettre a jour la matrice .//(wet. En pratique, dans les expériences
+rapportées dans cet article, on a déﬁni cette fonction par : weight(x,-, xi, col) =  
+
+et le nombre de labels est lui aussi tiré aléatoirement entre 10 et 50 a chaque itéraﬁon.
+
+Il est aussi possible, selon le probléme traité et les connaissances particuliéres qui s’y appliquent,
+de biaiser la distribution des éﬁquettes aléatoires. Ainsi, pour un probléme donné, si l’on sait que
+toutes les occurrences d’un mot—forme ont forcément la meme classe, il est important que cette
+contrainte soit mise en oeuvre lors de la production des données d’entrainement. L’expérience
+rapportée en section 4 se place dans ce cadre.
+
+3.4 Clustering
+
+L’étape ﬁnale de clustering peut étre mise en oeuvre de différentes facons grace aux techniques et
+outils existants. L’algorithme célébre du k—means qui nécessite des calculs de barycentres durant
+le processus n’est bien sﬁr pas adapté a notre espace non métrique. Sa variante k—medoids, qui
+utilise un objet comme représentant d’un cluster et ne nécessite donc pas d’autres mesures que
+celles foumie par .//(Sim, peut l’étre.
+
+Il faut cependant noter que dans nos taches de découverte, le nombre de clusters attendus est
+inconnu. Pour notre part, dans les expérimentations présentées dans les sections 4 et 5, nous
+utilisons donc une autre technique de clustering, le Markov Clustering (MCL). Cette technique a
+été développée initialement pour le parﬁtionnement de grands graphes (van Dongen, 2000). Son
+avantage par rapport au k—medoids est de ne pas nécessiter de ﬁxer a priori le nombre de clusters
+attendus, et aussi d’éviter le probleme de l’initialisation de ces clusters. Nous considérons donc
+
+262 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+simplement nos objets (mots ou autres entités) comme des noeuds d’un graphe dont les arcs sont
+valués en fonction de la similarité contenue dans .//(Sim.
+
+3.5 Aspects opérationnels
+
+Appliqué tel quel, le processus exposé en section 3 Va considérer tous les éléments composant
+les séquences et tenter de les organiser en clusters. Dans beaucoup d’applications, la tache de
+clustering n’est intéressante que pour une sous—partie de ces éléments. C’est par exemple le
+cas en reconnaissance d’entités nommées ou plus largement en extraction d’information, ou
+seuls certains mots ou groupe de mots doivent étre considérés. Dans ce cadre, il est trés courant
+d’utiliser des labels dits BIO (Begin-In-Out) qui perrnettent de modéliser le fait qu’une entité soit
+multi-mot (le B pour Begin identiﬁe le début de l’enﬁté, le I pour In la continuité et le 0 indique
+le mot ne fait pas partie de l’entité). Voici un exemple de séquences factices tiré des données
+utilisées en section 5 :
+
+1 ’ audience entre nicolas sarkozy et maitre wade
+x DET NC PREP NP NP C00 NC NP
+y El CI 0 B—fa.ke140 I—fake140 CI B—fake25 B—fake3
+
+Cette connaissance externe fait partie des biais indispensables pour cadrer le processus d’ap—
+prentissage non—supervisé et faire en sorte qu’il s’applique aux besoins spéciﬁques de l’utilisateur.
+Mais il est important de noter que cette connaissance sur les entités a considérer n’est pas de
+méme ordre que celle l’on se propose de découvrir via le clustering. Dans le premier cas, il s’agit
+de délimiter les entités intéressantes, dans le second cas, il s’agit d’en faire émerger des classes,
+sans a priori leur nature.
+
+11 est possible dans ce cas de supposer que l’on sait délimiter les entités intéressantes dans
+les séquences; c’est l’hypothése adoptée dans plusieurs travaux sur la classiﬁcation d’entités
+nommées (Collins et Singer, 1999; Elsner et al., 2009; Ebadat et al., 2012). Il est aussi, bien sﬁr,
+possible de considérer ce probléme comme un probléme d’apprentissage pour lequel l’utilisateur
+doit fournir quelques exemples. Dans les deux cas, cela nécessite de l’expertise, fournie soit en
+intention (criteres objectifs pour délimiter les entités), soit en extension (exemples; cf. sous-
+section 5.2). Chacune des expériences rapportées ci—dessous adopte l’un de ces cas de ﬁgure.
+
+Le processus itératif proposé dans cet article est évidemment coﬁteux (mais aisément paral-
+lélisable). Dans les expériences rapportées ci—apres, le nombre d’itérations a été ﬁxé a 1000.
+Les principales sources de coﬁt en terme de temps de calcul sont l’apprentissage du modele
+CRF et son application. Leur complexité est elle—méme dépendante de nombreux parametres,
+notamment la taille de l’échantillon d’apprentissage, la Variété des observations (x), le nombre
+de classes aléatoires (co), les attributs considérés (les fonctions features f et g)... Pour minimiser
+l’impact de ce coﬁt, nous utilisons l’implémentation de CRF WAPITI qui optimise les algorithmes
+standard d’inférence (Lavergne et al., 2010).
+
+4 Validation expérimentale en classiﬁcation de noms propres
+
+Pour cette premiere expérience, nous reprenons la problématique et les données de Ebadat et al.
+(2012). I1 s’agit de faire émerger les différentes classes de noms propres au sein de résumés de
+matchs de football. Plus précisément, dans leurs expériences, les auteurs ont cherché a classer
+
+263 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+les noms propres a l’échelle du corpus, c’est-a-dire en considérant que toutes les occurrences
+relevaient de la méme entité et donc de la méme catégorie. Dans ce jeu de donnée, les entités ne
+sont donc pas considérées comme possiblement polysémiques; méme si ce point est discutable, il
+n’est pas remis en cause dans notre expérience pour lequel nous utilisons le jeu de données tel
+qu’uu'lisé par Ebadat et al. (2012).
+
+4.1 'I'é‘1che et données
+
+Le corpus est composé de rapports de matchs minute par minute en francais, extraits de différents
+sites Web. Les événements importants de chaque minute ou presque d’un match y sont décrits (cf.
+tableau 1) : remplacement de joueurs, fautes, buts...
+
+Minute Rapport
+
+80 Zigic donne quelques frayeurs é Gallas et consorts en contrélant
+
+un ballon chaud & gauche des 16 metres au devant du Gunner. Le
+
+Valencian se trompe dans son contréle et la France peut souffler.
+
+82 Changement opéré par Raymond Domenech avec l’entrée d’A1ou Diarra é
+la place de Sidney Govou, pour les derniéres minutes. Une maniére de
+
+colmater les bréches actuelles?
+
+TABLE 1: Extrait d’un rapport minute-by-minute d’un match de football
+
+Ces données ont été annotées manuellement par des experts selon des classes déﬁnies pour
+répondre a des besoins applicatifs spéciﬁques (voir Fort et Claveau, 2012). On posséde donc une
+vérité terrain associant a chaque occurrence de chaque nom propre une classe (voir la ﬁgure 1a).
+On remarque sans surprise que ces classes sont tres déséquilibrées, avec notamment une classe
+joueur trés peuplée.
+
+4.2 Mesures de performance
+
+Notre tache de découverte se ramenant a une étape ﬁnale de clustering, nous l’évaluons comme
+telle. Une telle évaluation est toujours délicate : l’évaluation sur criteres externes nécessite
+de disposer d’un clustering de référence (vérité terrain) dont la pertinence peut toujours étre
+discutée, mais les criteres internes (par exemple, une mesure de cohésion des clusters) sont
+connus pour n’étre pas ﬁables (Manning et al., 2008). Nous nous placons donc dans le premier
+cadre et comparons le clustering obtenu par notre processus a celui de la vérité terrain.
+
+Pour ce faire, différentes métriques ont été proposées, comme la pureté ou Rand Index (Rand,
+1971). Ces mesures sont cependant peu discriminantes et ont tendance a étre trop optimistes
+quand la vérité terrain contient des classes de tailles trés différentes (Nguyen Xuan Wnh, 2010).
+Nous préférons donc l’Adjusted Rand Index (ARI), qui est une version du Rand Index tenant
+compte des agréments de hasard, et qui est connue pour étre robuste. Son étude et sa déﬁnition
+peuvent étre trouvées dans (Hubert et Arabie, 1985).
+
+264 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+4.3 Implémentation et résultats
+
+Pour tester notre méthode de clustering par CRF; nous avons étiqueté le corpus en partie du
+discours, utilisé le schéma d’annotation BIO et considéré la phrase comme séquence. Dans cette
+application particuliere, nous reprenons l’hypothese de (Collins et Singer, 1999; Elsner et al.,
+2009) : les entités a catégoriser sont connues et délimitées. En pratique, ce sont donc sur elles
+que les annotations aléatoires vont porter, les autres mots du corpus recevant toujours le méme
+label '0’. Les fonctions f et g sont celles classiquement utilisées en extraction d’information :
+les fonctions f lient le label courant _y,- aux observations (forme ou parties du discours du mot
+courant en xi, du mot en x,-_1, x,-_2, x,-+1, ou x,-+2, ou des combinaisons de ces attributs) ; les
+fonctions g lient deux labels successifs (y,-_1, y,-). La tache étant de classiﬁer les noms propres
+au niveau du corpus et non de l’occurrence, nous forcons deux occurrence d’un méme nom a
+avoir le méme label lors de la génération des labels aléatoires (étape 4 de l’algorithme). En
+revanche, l’application du CRF produit une annotation au niveau de l’occurrence, la matrice
+.//{wet recense donc les classiﬁcations a 1’occurrence pres. L’étape de transformation (étape 14)
+permet de transformer cette matrice en une matrice de similarité .//{Sim des noms propres au
+niveau du corpus en sommant les lignes et colonnes des différentes occurrences des mémes noms.
+
+Iautre 43 lchampionnat 26
+
+lentraTneur 44 100
+E pays 2 90 88 56
+lville 62 80
+71.27
+
+lstade 13 7°
+
+50 54.75
+so
+lequipe 114 40
+
+1201
+
+larbitre 11 34s
+
+I _ 712 10 6.28
+oueur
+
+J 0 Z
+vecteur muls vecheur mots vecteur vecleur sacs de similarilé
++ cosinus + produn wgrammes + Irigrammes + vecleurs de CRF
+
+scalaire cosmus produil ngrams
+scalaire
+
+(a) (b)
+
+FIGURE 1: (a) Répartition des données football dans la vérité terrain (nombre de noms propres
+uniques). (b) Evaluation des clusterings par rapport a la vérité terrain (ARI %).
+
+Les résultats de notre approche sont donnés dans le tableau 1b en terme d’ARI (en pourcentage;
+0 signiﬁe un clustering aléatoire et 100 un clustering identique a la vérité terrain). A des ﬁns de
+comparaison, nous reportons les résultats de Ebadat et al. (2012) ; ceux—ci ont été obtenus en
+utilisant des descriptions vectorielles des contextes des entités soit sous forme d’un vecteur unique,
+soit sous forme de sacs de vecteurs, et des fonctions de similarités adaptées a ces représentations.
+Le contexte donnant le meilleur résultat est de 4 mots a gauche et a droite de 1’entité. L’étape de
+clustering est faite avec le méme algorithme MCL que pour notre systeme. Ce dernier dispose
+d’un parametre d’inﬂation qui inﬂuence indirectement le nombre de cluster produit. Pour une
+comparaison équitable, les résultats rapportés pour chaque méthode sont ceux pour lesquels ce
+parametre est optimal pour la mesure d’évaluation ARI. A titre d’information, cela produit 12
+clusters pour la similarité CRE 11 pour la similarité sac-de—vecteurs n-grams.
+
+Ces résultats soulignent 1’intérét de notre approche par rapport aux représentations et similarités
+265 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+plus standard. Les quelques différences constatées entre les clusters formés par notre approche et
+les classes de la vérité terrain portent principalement sur la classe autre. Celle—ci contient des
+noms de personnalités apparaissant dans des contextes divers (personnalité donnant le coup
+d’envoi, apparaissant dans les tribunes...), avec trop peu de régularités pour que les CRE pas
+plus que les autres méthodes, arrivent a faire émerger une similarité. I1 apparait également que
+certaines erreurs rapportées par Ebadat et al. (2012) comme récurrentes ne sont pas commises
+par le clustering par CRF. Par exemple, les méthodes vectorielles ont tendance a confondre les
+noms de villes et les noms de joueurs, ceux-ci apparaissant souvent proches les uns des autres et
+partageant donc les mémes contextes. Ces erreurs ne sont pas commises par 1’approche par CRE
+ou la prise en compte de la séquentialité pour l’étiquetage permet de bien distinguer ces deux
+classes.
+
+5 Validation expérimentale sur les entités nommées
+
+5.1 'I'é‘1che et données
+
+Pour cette tache, nous utilisons les données de la campagne d’évaluation ESTER2 (Gravier et al.,
+2005). Elles sont composées de 150h d’émissions de radio datant d’entre 1999 et 2003, provenant
+de diverses sources (France Inter, Radio Classique, Africa 1...). Ces émissions, transcrites, ont
+été annotées en entités nommées selon 8 catégories : personnes, fonctions, lieux, organisations,
+temps, produits humains, quantité, et une catégorie autres.
+
+Contrairement au jeu de données précédent, les entités sont annotées au niveau de l’occurrence
+et peuvent étre des noms propres, communs ou des expressions; ainsi, l’entité Paris peut
+étre annotée comme un lieu ou une organisation selon le contexte. Nous n’utilisons pour nos
+expériences que la partie dev de ce jeu de données ESTER2, transcrite manuellement, mais
+respectant les particularités d’un systeme de reconnaissance de la parole : le texte n’a donc ni
+ponctuation, ni majuscule. Ses caractéristiques sont données dans la ﬁgure 2a
+
+90
+
+laulres 5 lfonction 390
+
+I personne 1002 g 1; quanmé 255
+
+    
+  
+
+lorganisation 1312 5
+
+ 
+
+— — Precision
+
+llieu 1303
+----- Rappel
+
+lproduction humaine 38 0 : F'm95“’9
+Idategm 0 200 400 600 800 1000 1200 1400 1600 1800 2000
+
+(a) (b)
+
+FIGURE 2: (a) Réparu'u'on des données ESTER2 dans la vérité terrain (nombre d’occurrences). (b)
+Performances de la détection des entités selon le nombre de séquences annotées.
+
+266 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+5.2 Repérage des entités
+
+Bien qu’il soit possible de se placer dans le méme cadre que précédemment et supposer que
+les entités a classiﬁer sont connues et délimitées, nous utilisons un cadre intermédiaire plus
+réaliste : nous supposons qu’une petite partie des données est annotée par un expert qui délimite
+les entités intéressantes (mais sans leur assigner de classe). Ces données vont nous servir dans
+une premiere étape a apprendre a délimiter les entités avant de les grouper. On se place donc
+dans un cadre supervisé classique avec deux classes (entité intéressante ou non), pour lequel
+nous utilisons les CRF de maniére traditionnelle.
+
+La ﬁgure 2b présente les résultats obtenus, en fonction du nombre de séquences (phrases)
+utilisées pour l’apprentissage. Les performances sont évaluées en terme de précision, rappel
+et F-mesure. Il apparait qu’il est possible d’obtenir des résultats de bonne qualité en analysant
+(c’est-a—dire en délimitant les entités nommées) relativement peu de phrases.
+
+5.3 Evaluation du clustering
+
+Nous reprenons le méme cadre expérimental que celui expliqué en section 4.3, a la différence
+que la classiﬁcation se fait ici au niveau de l’occurrence. La transformation de .//(wet en .//(Sim
+consiste donc juste en une normalisation. Les entités considérées sont celles repérées par l’étape
+précédente (avec 2 000 séquences annotées pour l’apprentissage) sur l’ensemble du corpus. Les
+résultats, mesurés en terme d’ARI (%), sont présentés dans la ﬁgure 3. Comme pour l’expérience
+précédente, nous présentons les résultats obtenus par des techniques de clustering sur ces mémes
+données utilisant des similarités plus classiques sur le contexte et les entités (a l’exception de
+l’approche par sacs de vecteurs qui ne peut pas s’appliquer a la classiﬁcation au niveau de
+l’occurrence) .
+
+70
+
+50 59.13
+
+50
+40
+30
+
+20
+12.93
+
+10 7.09
+
+0 j 2
+
+vecleur mols + vecleur mots + vecleur vecleur slmilarilé CRF
+COSIHUS produll scalanre tngrammes + lrlgrammes +
+cosinus pmduil scalaire
+
+FIGURE 3: Evaluation des clusterings par rapport a la vérité terrain (ARI %)
+
+L’intérét de notre approche apparait clairement. La prise en compte de la séquentialité est un
+élément important; les résultats avec les n-grammes sont en effet meilleurs que des mots isolés,
+et ceux des CRE qui prennent plus naturellement en compte cet aspect séquentiel, sont encore
+meilleurs. Les clusters obtenus par notre approche ne sont cependant pas exactement identiques
+a ceux de la vérité terrain.
+
+267 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Une analyse détaillée montre en effet qu’un cluster en particulier fait chuter les résultats en
+groupant des entités appartenant a deux classes distinctes de la vérité terrain. Ces classes qui
+semblent difﬁciles a distinguer sont celles du temps et des quantités. En effet, en l’absence
+d’informations autres que la forme des mots et les parties-du—discours, il semble impossible de
+distinguer des entités telles que ’sur les quatre derniers jours’ et ’sur les quinze
+derniers kilometres’.
+
+6 Discussion, conclusion et perspectives
+
+La résolution de problemes d’apprentissage factices par les CRF permet de faire émerger des
+similarités au sein des séquences. Cette similarité tire ainsi parti de la richesse de description que
+permet les CRF (typiquement les parties-du-discours), ainsi que de la prise en compte naturelle
+de la séquentialité. On déﬁnit ainsi une similarité dans un espace non-métrique se voulant robuste
+grace aux choix aléatoires répétés dans le processus. Bien sﬁr, ce principe est transposable a
+d’autres méthodes d’apprentissage, notamment les méthodes séquentielles stochastiques (HMM,
+MaxEnt...) ; 1’uti1isation des CRE plus performants en général, est cependant plus naturelle.
+
+Les évaluations menées sur deux taches d’extracu'on d’informations mettent en valeur l’intérét de
+l’approche, méme si nous sommes bien conscients de la limite de l’évaluation d’une tache de dé-
+couverte qui oblige a la constitution d’une vérité terrain que l’on souhaite justement éviter. Enﬁn,
+il convient de préciser qu’il n’y a pas d’apprentissage sans biais, méme pour l’apprentissage non
+supervisé (Mitchell, 1990). Ces biais représentent la connaissance de l’utilisateur et permettent
+de déﬁnir son probleme. L’apport de connaissances sur les entités intéressantes, la description
+des séquences et des fonctions features sont autant d’informations permettant a l’utilisateur de
+canaliser la tache de découverte sur son objet d’étude.
+
+Plusieurs améliorations et perspectives sont envisageables a la suite de ce travail. D’un point
+de Vue technique, l’étape de transformation des co—étiquetages en similarités, qui se contente
+dans nos expériences d’une simple normalisation, pourrait étre approfondie. I1 doit ainsi étre
+possible d’utiliser d’autres fonctions (par exemple celles utilisées pour repérer des associations,
+expressions multi—mots, ou termes complexes complexes : information mutuelle, Jaccard, log-
+vraisemblance, X2...) pour obtenir des similarités encore plus ﬁables. Cela permettrait de pallier
+la faible robustesse de notre algorithme de clustering qui peut fusionner deux clusters sur le
+simple fait de quelques entités fortement connectées avec beaucoup d’autres noeuds. Des variantes
+sur l’étape de clustering peuvent aussi étre envisagées. Il est par exemple possible d’utiliser des
+algorithmes de clustering hiérarchique. Il est aussi possible d’utiliser directement les similarités
+pour d’autres taches, comme la recherche d’informations, le lissage pour des modeles de langues...
+D’un point de Vue pratique, il serait intéressant d’obtenir une déﬁnition explicite de la similarité
+en récupérant les 1, et 11,- avec les fonctions f et g associées. Cela permettrait d’appliquer la
+fonction de similarité a de nouveaux textes sans refaire les coﬁteuses étapes d’apprentissage,
+mais cela nécessite d’étre capable de combiner les différentes fonctions de décodage utilisées
+pour l’app1ication des différents modéles.
+
+268 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+Références
+
+COLLINS, M. et SINGER, Y. (1999). Unsupervised models for named entity classiﬁcation. In
+Proceedings of Empirical Methods for Natural Language Processing (EMNLP) conference.
+
+CONSTANT, M., TELLIER, 1., DUCHIER, D., DUPONT, Y., SIGOGNE, A. et BILLOT, S. (2011). Intégrer
+des connaissances liguistiques dans un CRF : Application a l’apprentissage d’un segmenteur—
+étiqueteur du francais. In Actes de Traitement Automatique du Langage Naturel, TALN’11,
+Montpellier, France.
+
+EBADAT, A. R., CLAVEAU, V et SEBILLOT, P. (2012). Semantic clustering using bag—of—bag—of—
+features. In Actes de le 9e conférence en recherche d’inforrnation et applications, CORIA 2012,
+Bordeaux, France.
+
+ELSNER, M., CHARNIAK, E. et JOHNSON, M. (2009). Structured generative models for unsupervised
+named—entity clustering. In Proceedings of the Conference on Human Language Technology and
+North American chapter of the Association for Computational Linguistics (HLT—NAACL 2009),
+Boulder, Colorado.
+
+FORT, K. et CLAVEAU, V (2012). Annotating football matches : inﬂuence of the source medium
+on manual annotation. In Proceedings of the 8th International Conference on Language Resources
+and Evaluation (LREC’12), Istanbul, Turquie.
+
+GOLDWATER, S. et GRIFFITHS, T. L. (2007). A fully bayesian approach to unsupervised part-of-
+speech tagging. In Proceedings of the ACL.
+
+GRAVIER, G., BONASTRE, J.—F., GEOFFROIS, E., GALLIANO, S., TAIT, K. M. et CHOUKRI, K. (2005).
+ESTER, une campagne d’évaluation des systemes d’indexation automatique. In Actes des Journées
+d’Etude sur la Parole, JEB Atelier ESTER2.
+
+HASTIE, 'I‘., TIBSHIRANI, R. et FRIEDMAN, J. H. (2001). The Elements of Statistical Learning : Data
+Mining, Inference, and Prediction. New York : Springer.
+
+HUBERT, L. et ARABIE, R (1985). Comparing partitions. Journal of Classification, 2(1):193—218.
+
+KAZAMA, J. et TORISAwA, K. (2007). Exploiting wikipedia as external knowledge for named
+entity recognition. In Proceedings of the 2007 Joint Conference on Empirical Methods in Natural
+Language Processing and Computational Natural Language Learning, pages 698-707, Prague.
+Association for Computational Linguistics.
+
+KOZAREVA, Z. (2006). Bootstrapping named entity recognition with automatically generated
+gazetteer lists. In Proceedings of the Eleventh Conference of the European Chapter of the Association
+for Computational Linguistics : Student Research Workshop, pages 15-21, Trento, Italy.
+
+LAFFERTY, J., MCCALLUM, A. et PEREIRA, E (2001). Conditional random ﬁelds : Probabilistic
+models for segmenting and labeling sequence data. In International Conference on Machine
+Learning (ICML).
+
+LAVERGNE, 'I‘., CAPPE, O. et YvON, F. (2010). Practical very large scale CRFS. In Proceedings the
+48th Annual Meeting of the Association for Computational Linguistics (ACL), pages 504-513.
+Association for Computational Linguistics.
+
+LIU, B., XIA, Y. et YU, P. S. (2000). Clustering through decision tree construction. In Proceedings
+of the ninth international conference on Information and knowledge management, CIKM ’00, pages
+20-29, New York, NY, USA. ACM.
+
+MANNING, C., RAGHAVAN, P. et SCHUTZE, H. (2008). Introduction to information retrieval. Cam-
+bridge University Press.
+
+269 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+MERIALDO, B. (1994). Tagging english text with a probabilistic model. Computational Linguistics,
+20: 1 5 5-1 71.
+
+MITCHELL, T. M. (1990). The need for biases in learning generalizations. Rutgers Computer
+Science Department Technical Report CBM—TR—1 17, May, 1980. Reprinted in Readings in Machine
+Learning.
+
+NGUYEN XUAN VINH, Julien Epps, J . B. (2010). Information theoretic measures for clusterings
+comparison. Journal of Machine Learning Research.
+
+PRANJAL, A., DELIP, R. et BALARAMAN, R. (2006). Part of speech tagging and chunking with HMM
+and CRF. In Proceedings of NLP Association of India (NLPAI) Machine Learning Contest.
+
+RAND, W. M. (1971). Objective criteria for the evaluation of clustering methods. Journal of the
+American Statistical Association, 66 (336):pp. 846-850.
+
+RAVI, S. et KNIGHT, K. (2009). Minimized models for unsupervised part-of—speech tagging. In
+Proceedings of ACL—IJCNLP 2009, pages 504-512.
+
+RAYMOND, C. et FAYOLLE, J. (2010). Reconnaissance robuste d’entités nommées sur de la parole
+transcrite automatiquement. In Actes de Traitement Automatique des Langues Naturelles, TALN’10,
+Montréal, Canada.
+
+RICHARD, D. et BENOIT, E (2010). Semi—supervised part-of—speech tagging in speech applications.
+In Interspeech 2010, Makuhari (Japan).
+
+SCHRAUDOLPH, N. N., YU, J. et GUNTER, S. (2007). A stochastic quasi—Nevvton method for online
+convex optimization. In Proceedings of 1 1th International Conference on Artiﬁcial Intelligence and
+Statistics, volume 2 de Workshop and Conference Proceedings, pages 436-443, San Juan, Puerto
+Rico.
+
+SH1, T. et HORVATH, S. (2005). Unsupervised learning with random forest predictors. Journal of
+Computational and Graphical Statistics, 15(1) :118—138.
+
+SMITH, N. et EISNER, J. (2005). Contrastive estimation : Training log-linear models on unlabeled
+data. In Proceedings of ACL.
+
+van DONGEN, S. (2000). Graph Clustering by Flow Simulation. These de doctorat, Université
+d’Utrecht.
+
+WANG, T., L1, J ., D1Ao, Q., WEI HU, Y. Z. et DULONG, C. (2006). Semantic event detection using
+conditional random ﬁelds. In IEEE Conference on Computer Vision and Pattern Recognition
+Workshop (CVPRW '06).
+
+WANG, W., BEsANc;oN, R., FERRET, O. et GRAU, B. (2011). Filtering and clustering relations
+for unsupervised information extraction in open domain. In Proceedings of the 20th ACM
+international Conference on Information and Knowledge Management (CIKM), pages 1405-1414,
+Glasgow, Scotland, UK.
+
+WANG, W., BEsANc;oN, R., FERRET, O. et GRAU, B. (2012). Evaluation of unsupervised informa-
+tion extraction. In Proceedings of the 8th International Conference on Language Resources and
+Evaluation (LREC’12), Istanbul, Turquie.
+
+WENHUI LIAO, S. V (2009). A simple semi—supervised algorithm for named entity recognition.
+In Proceedings of the NAACL HLT Workshop on Semi—supervised Learning for Natural Language
+Processing, pages 58-65, Boulder, Colorado, USA. Association for Computational Linguistics.
+
+270 © ATALA
+

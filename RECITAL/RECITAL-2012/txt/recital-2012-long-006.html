@@ -1,0 +1,774 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Vers la correction automatique de textes bruit&#233;s: Architecture g&#233;n&#233;rale et d&#233;termination de la langue d&#8217;un mot inconnu</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Actes de la conf&#233;rence conjointe JEP-TALN-RECITAL 2012, volume 3: RECITAL, pages 95&#8211;108,
+Grenoble, 4 au 8 juin 2012. c&#169;2012 ATALA &amp; AFCP
+</p>
+<p>Vers la correction automatique de textes bruit&#233;s: Architecture
+g&#233;n&#233;rale et d&#233;termination de la langue d&#8217;un mot inconnu
+</p>
+<p>Marion Baranes1,2
+(1) Alpage, INRIA Paris&#8211;Rocquencourt &amp; Universit&#233; Paris Diderot, 175 rue du Chevaleret, 75013 Paris
+</p>
+<p>(2) viavoo, 69 rue Danjou, 92100 Boulogne Billancourt
+marion.baranes@viavoo.fr
+</p>
+<p>R&#201;SUM&#201;
+Dans ce papier, nous introduisons le probl&#232;me que pose la correction orthographique sur des
+corpus de qualit&#233; tr&#232;s d&#233;grad&#233;e tels que les messages publi&#233;s sur les forums, les sites d&#8217;avis ou
+les r&#233;seaux sociaux. Nous proposons une premi&#232;re architecture de correction qui a pour objectif
+d&#8217;&#233;viter au maximum la sur-correction. Nous pr&#233;sentons, par ailleurs l&#8217;impl&#233;mentation et les
+r&#233;sultats d&#8217;un des modules de ce syst&#232;me qui a pour but de d&#233;tecter si un mot inconnu, dans une
+phrase de langue connue, est un mot qui appartient &#224; cette langue ou non.
+</p>
+<p>ABSTRACT
+Towards Automatic Spell-Checking of Noisy Texts : General Architecture and Language
+Identification for Unknown Words
+</p>
+<p>This paper deals with the problem of spell checking on degraded-quality corpora such as blogs,
+review sites and social networks. We propose a first architecture of correction which aims at
+reducing overcorrection, and we describe its implementation. We also report and discuss the
+results obtained thanks to the module that detects whether an unknown word from a sentence in
+a known language belongs to this language or not.
+</p>
+<p>MOTS-CL&#201;S : Correction automatique, d&#233;tection de langue, donn&#233;es produite par l&#8217;utilisateur.
+</p>
+<p>KEYWORDS: Spelling correction, language identification, User-Generated Content.
+</p>
+<p>1 Introduction
+</p>
+<p>Les outils de traduction, d&#8217;extraction de sentiments ou encore de fouille de textes sont de plus
+en plus utilis&#233;s. La majorit&#233; de ces outils s&#8217;appuient sur des corpus relativement propres. Si une
+personne choisit de travailler sur des donn&#233;es plus alt&#233;r&#233;es, r&#233;dig&#233;es sur le web par exemple, sa
+t&#226;che se complexifie. Il est donc important de pouvoir nettoyer ces textes afin d&#8217;appliquer par la
+suite les traitements voulus. &#202;tre capable de normaliser et de corriger automatiquement devient
+alors un r&#233;el besoin. Un besoin dans la mesure o&#249; ces derniers n&#8217;alt&#232;rent pas la qualit&#233; du texte.
+Un correcteur qui ferait de la sur-correction (qui corrigerait par exemple tous les mots inconnus)
+engendrerait la perte de nombreuses informations. Cette correction n&#8217;a pas besoin d&#8217;&#234;tre parfaite.
+Dans le cadre de la fouille de texte par exemple, les informations d&#233;tect&#233;es sont tr&#232;s souvent
+faites &#224; l&#8217;aide de mots-clefs et de grammaires locales qui ne prennent pas forc&#233;ment la flexion
+des mots en compte. Si une faute d&#8217;accord n&#8217;est pas corrig&#233;e, l&#8217;information sera tout de m&#234;me
+d&#233;tect&#233;e. Il vaut donc mieux un outil qui sous-corrige un texte plut&#244;t qu&#8217;un qui le sur-corrige.
+</p>
+<p>95</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>La correction orthographique n&#8217;est pas un sujet nouveau. Les travaux qui y font r&#233;f&#233;rence sont
+nombreux (voir section 2). Toutefois, ils sont rarement adapt&#233;s aux types de textes de qualit&#233;
+parfois tr&#232;s d&#233;grad&#233;e que l&#8217;on analyse lorsque l&#8217;on traite des donn&#233;es r&#233;elles dites &#171; produites par
+l&#8217;utilisateur &#187; (User-Generated Content) comme les blogs, les forums ou encore, les r&#233;seaux sociaux.
+Notre objectif est de combler ce manque, en d&#233;veloppant une architecture et des technologies
+d&#233;di&#233;es &#224; la normalisation orthographique et typographique automatis&#233;e de corpus r&#233;els tr&#232;s
+bruit&#233;s. Pour ce faire, nous nous appuierons sur un corpus provenant du web uniquement
+compos&#233; de messages clients (voir section 3) dont tous nos exemples sont tir&#233;s. Ce projet &#233;tant
+en cours, nous avons d&#233;j&#224; une id&#233;e des r&#233;sultats que nous souhaitons obtenir. L&#8217;architecture
+de correction est d&#233;j&#224; en partie d&#233;finie et est en cours d&#8217;impl&#233;mentation. Elle est compos&#233;e de
+nombreux modules qui, au fur et &#224; mesure, am&#233;lioreront la qualit&#233; du texte et d&#233;termineront s&#8217;il
+convient ou non de corriger un mot inconnu (un mot inconnu pouvant correspondre &#224; une faute
+d&#8217;orthographe, une entit&#233; nomm&#233;e, un mot &#233;tranger, un emprunt ou encore un n&#233;ologisme). Ces
+modules permettront, entre autres, de limiter les cas de sur-correction. Dans cet article, nous
+nous concentrerons sur l&#8217;un de ces modules dont le but est de d&#233;terminer si, dans un texte dont
+on conna&#238;t la langue, un mot inconnu correspond &#224; un mot &#233;tranger ou non.
+Cet article est structur&#233; comme suit. Nous commencerons par dresser un &#233;tat de l&#8217;art du domaine
+(section 2). Puis, nous d&#233;crirons les objectifs et principes g&#233;n&#233;raux de correction que nous
+comptons impl&#233;menter (section 3). Nous pr&#233;ciserons dans cette m&#234;me section les premi&#232;res
+&#233;tapes pr&#233;alables au module d&#233;crit en section 4 et pour lequel nous disposons de r&#233;sultats &#233;valu&#233;s.
+Enfin, nous ferons un point sur le travail r&#233;alis&#233; et sur nos perspectives (section 5).
+</p>
+<p>2 &#201;tat de l&#8217;art de la correction orthographique automatique
+</p>
+<p>La mise en place d&#8217;un syst&#232;me de correction d&#233;pend beaucoup du type de corpus que l&#8217;on veut
+corriger. C&#8217;est pourquoi nous ferons &#233;tat de la grande diversit&#233; de ces derniers dans le paragraphe
+qui suit avant de dresser un panorama des travaux r&#233;alis&#233;s dans le domaine.
+Les correcteurs automatiques ne tendent pas &#224; corriger les m&#234;mes types de fautes, notamment
+en fonction de la provenance de ces corpus. Ainsi, un texte retranscrit par un processus de
+reconnaissance optique des caract&#232;res (OCR) ne contiendra pas les m&#234;mes erreurs qu&#8217;un texte
+journalistique, qu&#8217;un texto (ou SMS), un mail ou encore un message post&#233; sur un m&#233;dias social
+du web (r&#233;seaux sociaux, forums, etc.). &#192; tous ces canaux, correspondent des documents qui
+divergent en fonction de leurs tailles, de leurs contenus, de leurs objectifs, du type de vocabulaire
+utilis&#233; (sp&#233;cialis&#233; ou non, familier ou soutenu), ou encore de l&#8217;aisance qu&#8217;a le locuteur avec la
+langue utilis&#233;e (&#233;crit-il dans sa langue maternelle ou non ?). De ce fait, on peut supposer que les
+fautes produites d&#233;pendront aussi de ces crit&#232;res et ne seront pas syst&#233;matiquement de m&#234;me
+nature. Par exemple, un texte OCR a plus de chance de contenir des fautes li&#233;es &#224; la similarit&#233;
+typographique &#171; graphique &#187; (&#171; l &#187; vs &#171; 1 &#187;) tandis qu&#8217;un message de forum contiendra plus
+probablement des erreurs de proximit&#233; phon&#233;tique et/ou typographique (proximit&#233; des lettres
+sur un clavier). Le type de fautes &#224; corriger variera ainsi en fonction des corpus s&#233;lectionn&#233;s.
+On distingue g&#233;n&#233;ralement les deux types d&#8217;erreurs suivants dans les textes : les fautes lexicales
+et les fautes grammaticales (Kukich, 1992). Sont plac&#233;s dans la cat&#233;gorie des fautes lexicales
+tous les mots qui ne figurent pas dans le dictionnaire (voir exemple 1a), contrairement aux
+fautes grammaticales qui ne peuvent &#234;tre d&#233;tect&#233;es que si le contexte est pris en compte (voir
+exemple 1b). Ces deux types d&#8217;erreurs sont souvent trait&#233;s s&#233;par&#233;ment dans la litt&#233;rature.
+</p>
+<p>96</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>(1) a. j&#8217;aimrai resrever 2 billets
+</p>
+<p>b. ces nul tu captes pas en montagne je le sais car je lait
+</p>
+<p>&#192; ses d&#233;buts, la correction lexicale se faisait ind&#233;pendamment du contexte et s&#8217;appuyait notam-
+ment sur des r&#232;gles de correction typographique (suppression, ajout d&#8217;un caract&#232;re, substitution
+d&#8217;une lettre avec une autre et inversion de deux lettres) &#224; effectuer afin d&#8217;obtenir un mot correcte-
+ment orthographi&#233; (Damerau, 1964; Kernighan et al., 1990). N&#233;anmoins on a rapidement r&#233;alis&#233;
+que cette technique ne suffisait pas. Par exemple, si on observe la phrase : &#171; J&#8217;esp&#232;re que vous
+r&#233;allisez que vos produits sont tjs hor de pri... &#187;, on constate que seul &#171; r&#233;allisez &#187; a de r&#233;elles
+chances d&#8217;&#234;tre bien corrig&#233;. Le mot &#171; pri &#187; pourrait l&#8217;&#234;tre aussi mais ses corrections possibles sont
+nombreuses, donnant lieu &#224; une ambigu&#239;t&#233; : doit-il &#234;tre corrig&#233; par &#171; prie &#187;, &#171; pris &#187;, &#171; prit &#187; ou
+&#171; prix &#187; ? Il en est de m&#234;me pour &#171; hor &#187;. D&#8217;autres solutions furent donc propos&#233;es par la suite.
+</p>
+<p>D&#232;s les ann&#233;es 1990, Kukich (1992) publie un panorama des diverses techniques existantes de
+l&#8217;&#233;poque. Beaucoup de travaux, y compris de tr&#232;s r&#233;cents, ont choisi d&#8217;utiliser des mod&#232;les de
+langage n-grammes afin de prendre en compte le contexte du mot &#224; corriger. Ces n-grammes sont
+g&#233;n&#233;ralement compos&#233;s de tokens (Brill et Moore, 2000; Carlson et Fette, 2007; Park et Levy,
+2011) mais cette solution n&#8217;est pas parfaitement satisfaisante. Si le contexte du mot &#224; corriger est
+mal orthographi&#233;, ce qui est le cas dans l&#8217;exemple propos&#233; ci-dessus, une solution interm&#233;diaire
+serait alors d&#8217;utiliser des n-grammes phon&#233;tiques (Toutanova et Moore, 2002) ou de prendre en
+compte ces deux types de n-grammes (Boyd, 2009). De cette mani&#232;re, les fautes d&#8217;orthographe
+ne modifiant pas la phon&#233;tique d&#8217;un mot ne pourraient pas alt&#233;rer les r&#233;sultats du correcteur : le
+mot &#171; hor &#187; de notre exemple ne g&#234;nerait pas la correction de &#171; pri &#187; et inversement. Ces mod&#232;les
+peuvent &#234;tre associ&#233;s ou non &#224; un mod&#232;le d&#8217;erreur et s&#8217;appuient g&#233;n&#233;ralement sur de nombreux
+param&#232;tres suppl&#233;mentaires tels que la position d&#8217;une erreur dans un mot, la cat&#233;gorie du mot &#224;
+corriger, sa longueur ou encore sa phon&#233;tique. Une autre approche consiste &#224; prendre en compte
+la mesure de similarit&#233; distributionnelle qui existe entre une phrase contenant une erreur et ses
+candidats de correction possibles (Li et al., 2006).
+Par ailleurs, avec l&#8217;essor des nouvelles formes de communication, de nouvelles approches ont
+&#233;t&#233; propos&#233;es pour traiter le langage texto (ou SMS) : en passant par la phon&#233;tisation du texte
+&#224; corriger (Kobus et al., 2008), en ajoutant des ressources lexicales &#224; un correcteur lexical dit
+classique (Guimier De Neef et Fessard, 2007) (ce qui permet de syst&#233;matiser certaines corrections
+comme &#171; tjs/toujours &#187;) ou encore en s&#8217;appuyant sur des mod&#232;les entra&#238;n&#233;s sur des textes bruit&#233;s
+align&#233;s avec leur contrepartie nettoy&#233;e (Beaufort et al., 2010).
+Enfin, l&#8217;&#233;mergence d&#8217;internet a eu des r&#233;percussions sur plusieurs techniques de correction qui
+l&#8217;ont consid&#233;r&#233; comme une source d&#8217;informations pertinente. C&#8217;est, par exemple, le cas de Chen
+et al. (2007) qui proposent une m&#233;thode enrichie par des r&#233;sultats de requ&#234;tes, produites sur des
+moteurs de recherche.
+Corriger tous les mots qui ne figurent pas dans le dictionnaire n&#233;cessite par ailleurs de d&#233;tecter les
+entit&#233;s nomm&#233;es, les n&#233;ologismes ou encore les emprunts. Les quelques approches qui ont choisi
+de traiter ce probl&#232;me reposent g&#233;n&#233;ralement soit sur des lexiques sp&#233;cifiques (Beaufort et al.,
+2010; Kobus et al., 2008) soit sur le contexte (Li et al., 2006). Par exemple, Han et Baldwin (2011)
+proposent d&#8217;utiliser un classifieur qui s&#8217;appuie sur les param&#232;tres de d&#233;pendances syntaxiques
+reliant le mot susceptible d&#8217;&#234;tre mal orthographi&#233; aux mots pr&#233;sents dans son contexte afin de
+d&#233;terminer s&#8217;il doit &#234;tre corrig&#233; ou non.
+</p>
+<p>Comme nous l&#8217;avons dit pr&#233;c&#233;demment, les fautes grammaticales donnent lieu &#224; des mots
+existants dans le dictionnaire (par exemple : conseil/conseille ou ai/est/et/hait/...). Pour les
+</p>
+<p>97</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>corriger, s&#8217;appuyer sur le contexte est donc in&#233;vitable. Si on prend la phrase &#171; Enfin un objet
+qu&#8217;ont peut emporter partout avec sois &#187;, on ne pourra corriger le mot &#171; ont &#187; en &#171; on &#187; qu&#8217;&#224;
+condition de prendre en compte ses mots voisins. Pour cela plusieurs m&#233;thodes ont &#233;t&#233; propos&#233;es
+comme utiliser des syst&#232;mes de r&#232;gles (Mangu et Brill, 1997), faire de la classification (Rozovskaya
+et Roth, 2010), mettre en place des mod&#232;les n-grammes contenant des cat&#233;gories grammaticales
+associ&#233;es &#224; des param&#232;tres contextuels (Golding et Schabes, 1996) ou encore des mod&#232;les
+n-grammes de tokens. C&#8217;est cette derni&#232;re solution, souvent combin&#233;e &#224; de gros corpus, &#224; des
+mod&#232;les d&#8217;erreurs, &#224; diff&#233;rents types de param&#232;tres, et/ou &#224; des mesures de similarit&#233;, qui est la
+plus utilis&#233;e (Carlson et Fette, 2007; Islam et Inkpen, 2009; Stehouwer et van Zaanen, 2009;
+Gao et al., 2010). Certaines &#233;tudes proposent aussi la combinaison de ces diff&#233;rentes approches.
+C&#8217;est par exemple le cas de Xu et al. (2011) qui utilisent un mod&#232;le trigramme et un classifieur
+lors des diff&#233;rentes &#233;tapes de leur correcteur. La majorit&#233; de ces techniques, bien que diff&#233;rentes,
+fonctionne avec la m&#234;me logique. Elles tentent dans un premier temps de d&#233;tecter une erreur
+puis, cr&#233;ent ensuite une liste de candidats de correction possibles pour enfin choisir la correction
+la plus probable.
+</p>
+<p>3 Architecture du correcteur orthographique envisag&#233;
+</p>
+<p>3.1 Objectifs g&#233;n&#233;raux
+</p>
+<p>Cette th&#232;se vise &#224; mettre en place un correcteur capable de corriger des textes provenant du web.
+Ce sont des textes dont la taille, le contenu, la langue et la qualit&#233; r&#233;dactionnelle sont variables.
+En fonction du canal choisi par l&#8217;internaute et de l&#8217;internaute lui-m&#234;me, le message sera plus ou
+moins bruit&#233;. De plus, si on observe plus attentivement le contenu de certains d&#8217;entre eux (voir
+l&#8217;exemple 2), on constate qu&#8217;on ne peut se restreindre &#224; un module de correction uniquement
+lexical ou grammatical.
+</p>
+<p>(2) regard&#233;e vraimen se don vous avez besoin et ne vous fait pas avoir par leurre pub com quoi il se
+souci des leur client&#232;le all&#233;e voir vite ailleur
+</p>
+<p>Peu d&#8217;approches proc&#232;dent &#224; une correction &#224; la fois lexicale et grammaticale (cf. cependant
+Carlson et Fette (2007)). Dans cette optique, nous envisageons un correcteur contextuel. Les
+diff&#233;rentes &#233;tudes faites sur la correction se cantonnent souvent &#224; une seule m&#233;thode, proposant
+ensuite de faire varier la valeur de certains param&#232;tres afin d&#8217;optimiser les r&#233;sultats de leur
+correcteur. Ne sachant quelle est la meilleure approche, nous songeons &#224; aborder le probl&#232;me en
+comparant et combinant ces derni&#232;res. Nous nous attarderons donc aussi bien sur des syst&#232;mes
+utilisant des n-grammes (phon&#233;tiques ou non) que sur des syst&#232;mes par r&#232;gles ou sur des syst&#232;mes
+d&#8217;alignement automatique. Nous n&#8217;&#233;carterons pas non plus la possibilit&#233; de nous appuyer sur
+des ressources lexicales plus adapt&#233;es &#224; nos corpus ou d&#8217;inclure des informations propres &#224; la
+s&#233;mantique distributionnelle. De cette mani&#232;re nous pourrons ensuite choisir la combinaison la
+plus performante.
+Bien que les travaux d&#233;crits dans cet article ne concernent que le fran&#231;ais, nous voudrions, &#224;
+terme, un correcteur qui puisse corriger plusieurs langues. Par cons&#233;quent, il ne s&#8217;agit pas de
+r&#233;-impl&#233;menter des travaux adapt&#233;s &#224; l&#8217;anglais, mais de trouver la bonne combinaison qui nous
+permettra de traiter de mani&#232;re efficace et ind&#233;pendante plusieurs langues diff&#233;rentes (telles que
+l&#8217;anglais, le fran&#231;ais, l&#8217;allemand, l&#8217;espagnol ou encore l&#8217;italien). Le caract&#232;re multilingue que peut
+avoir un correcteur n&#8217;appara&#238;t que tr&#232;s peu dans la litt&#233;rature (cf. cependant Reynaert (2004)).
+</p>
+<p>98</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Le corpus que nous utilisons comme objet d&#8217;&#233;tude est uniquement constitu&#233; de messages client
+tr&#232;s divers les uns des autres. Cette h&#233;t&#233;rog&#233;n&#233;it&#233; s&#8217;explique par le fait qu&#8217;ils proviennent de
+canaux diff&#233;rents (r&#233;seaux sociaux, forums, sites d&#8217;avis, mails, blogs, enqu&#234;tes de satisfaction).
+Apr&#232;s une rapide &#233;tude sur corpus, nous avons pu constater que le nombre et le type de faute
+d&#8217;un message varie en fonction du canal utilis&#233;. Nous voudrions donc pouvoir adapter de mani&#232;re
+automatique et dynamique notre correction au texte &#224; corriger et ainsi &#234;tre capable, par exemple,
+d&#8217;en proposer une plus l&#233;g&#232;re pour un mail que pour un message provenant d&#8217;un r&#233;seau social.
+</p>
+<p>3.2 Pr&#233;traitements n&#233;cessaires
+</p>
+<p>Actuellement, nous n&#8217;avons pas encore d&#233;fini tous les d&#233;tails de l&#8217;architecture de notre syst&#232;me
+de correction. Nous ne donnerons donc pas d&#8217;indications suppl&#233;mentaires &#224; ce sujet. N&#233;anmoins,
+le correcteur que nous voulons mettre en place &#233;tant contextuel, la qualit&#233; du texte l&#8217;entourant
+aura automatiquement des cons&#233;quences sur ses performances. Et ce, m&#234;me si cette derni&#232;re
+est prise en compte dans l&#8217;impl&#233;mentation du syst&#232;me. Nous proposons donc de proc&#233;der &#224; une
+s&#233;rie de pr&#233;traitements qui ont pour but de normaliser en grande partie le texte, d&#8217;y d&#233;tecter les
+mots ou groupes de mots que l&#8217;on pourrait ignorer pendant la suite du traitement ou encore de
+pr&#233;-corriger certains mots. Comme le montre la figure 1 ces pr&#233;traitements se partitionnent en
+plusieurs modules.
+</p>
+<p>1.
+Normalisation
+</p>
+<p>correction des probl&#232;mes d&#8217;encodage, de casse et
+d&#233;tection d&#8217;entit&#233;s sp&#233;cifiques
+</p>
+<p>&#8595;
+2. Tokenisation
+</p>
+<p>&#8595;
+3. d&#233;tection des entit&#233;s nomm&#233;es
+</p>
+<p>&#8595;
+4. pr&#233;-correction des fautes simples
+</p>
+<p>&#8595;
+5. d&#233;tection des mots &#233;trangers
+</p>
+<p>&#8595;
+6. Analyse morphologique
+</p>
+<p>&#8595;
+7. d&#233;tection des n&#233;ologismes et des emprunts
+</p>
+<p>FIGURE 1 &#8211; Architecture des pr&#233;traitements n&#233;cessaires
+</p>
+<p>Les modules 1, 2 et 3 visent &#224; nettoyer le texte de toutes ses erreurs d&#8217;encodage, des fautes
+de casse 1 et tend &#224; d&#233;tecter les entit&#233;s nomm&#233;es 2 contenant de la ponctuation ou d&#8217;autres
+caract&#232;res sp&#233;ciaux (URL, smiley, adresse mail, date,...). La reconnaissance de ces entit&#233;s a lieu &#224;
+</p>
+<p>1. La correction des fautes de casse consistera entre autres &#224; ajouter une majuscule manquante en d&#233;but de phrase ou
+encore &#224; renormaliser les phrases enti&#232;rement &#233;crites en majuscules.
+</p>
+<p>2. Nous reprenons ici la notion d&#8217;entit&#233; nomm&#233;es telle qu&#8217;elle est utilis&#233;e dans Sagot et Boullier (2008)
+</p>
+<p>99</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>cet endroit afin d&#8217;&#233;viter certains cas qui pourraient induire le tokeniseur en erreur. Le module de
+d&#233;tection des entit&#233;s nomm&#233;es (module 3), quant &#224; lui, fait r&#233;f&#233;rence aux autres types d&#8217;entit&#233;s
+nomm&#233;es tels que les noms propres ou encore les acronymes. Puisque nous ne traitons pour
+l&#8217;instant que des textes en fran&#231;ais, ces premiers modules peuvent &#234;tre en grande partie g&#233;r&#233;s par
+SxPipe (Sagot et Boullier, 2008). 3
+</p>
+<p>Nous souhaitons ensuite (dans le module 4) proposer une pr&#233;-correction aux fautes ais&#233;ment
+d&#233;tectables dont la correction ne laisserait place &#224; aucune ambigu&#239;t&#233; (ex : nooooon&#8594; non).
+Enfin, il est important de pouvoir d&#233;finir, lorsque l&#8217;on rencontre un mot inconnu non int&#233;gr&#233; &#224;
+une entit&#233; nomm&#233;e, si ce mot appartient &#224; la langue du texte que l&#8217;on souhaite corriger ou non
+(module 5). Si c&#8217;est le cas, il sera analys&#233; morphologiquement (module 6) afin de d&#233;terminer s&#8217;il
+correspond, ou non, &#224; une faute, un emprunt, un n&#233;ologisme ou encore &#224; une entit&#233; nomm&#233;e qui
+n&#8217;aurait pas &#233;t&#233; d&#233;tect&#233;e dans les modules pr&#233;c&#233;dents (module 7). Dans le cas contraire, il y a
+fortes chances pour que ce mot soit un mot dit &#171; &#233;tranger &#187;. Il sera donc soit laiss&#233; tel quel soit
+corrig&#233; avec un faible co&#251;t de correction (ex : faute d&#8217;accent). C&#8217;est uniquement une fois que
+tous ces pr&#233;traitements auront &#233;t&#233; mis en place que nous pourrons nous concentrer sur notre
+syst&#232;me de correction.
+</p>
+<p>4 D&#233;tecter automatiquement l&#8217;appartenance d&#8217;un mot &#224; une
+langue
+</p>
+<p>4.1 Pr&#233;sentation du module
+</p>
+<p>L&#8217;un de nos modules de pr&#233;traitement (module 5) doit donc d&#233;terminer si un mot, inconnu d&#8217;un
+lexique de r&#233;f&#233;rence du fran&#231;ais et non trait&#233; par les modules pr&#233;c&#233;dents, correspond &#224; un mot
+&#171; &#233;tranger &#187;. Nous d&#233;finissons cette notion de mot &#171; &#233;tranger &#187; de fa&#231;on op&#233;rationnelle comme
+suit. Un mot inconnu est &#171; &#233;tranger &#187; si, notamment parce qu&#8217;il est un emprunt &#224; une autre
+langue n&#8217;ayant pas &#233;t&#233; adapt&#233; morphologiquement, il ne doit pas faire l&#8217;objet d&#8217;une correction
+orthographique par un outil traitant du fran&#231;ais. &#192; l&#8217;inverse, les inconnus qui sont cat&#233;goris&#233;s
+comme &#171; fran&#231;ais &#187; seront notamment des fautes lexicales dont on sera amen&#233; &#224; essayer de
+corriger l&#8217;orthographe, ou des n&#233;ologismes (y compris des emprunts adapt&#233;s). Par ailleurs, apr&#232;s
+avoir observ&#233; les mots inconnus qui apparaissaient dans nos corpus, nous avons constat&#233; que la
+quasi-totalit&#233; des mots que nous voudrions annoter comme &#171; &#233;trangers &#187; sont en r&#233;alit&#233; des mots
+anglais (cf. exemples 3c et 3d et table 2). Nous allons appuyer notre module sur l&#8217;approximation
+suivante : l&#8217;identification des inconnus &#171; &#233;trangers &#187; pourra se faire &#224; l&#8217;aide d&#8217;approches cherchant
+&#224; distinguer d&#8217;une part des inconnus anglais et d&#8217;autre part des inconnus fran&#231;ais 4. Consid&#233;rons
+les exemples suivants :
+</p>
+<p>(3) a. Il y a marqer ke la carte n&#8217;est pas disponible
+</p>
+<p>b. J&#8217;ai tellement d&#233;branch&#233; pour rebooter, reseter que je pourrais le faire les yeux ferm&#233;s
+</p>
+<p>c. y a-t&#8217;il la possibilit&#233; de les utiliser online ?
+</p>
+<p>d. OMFG si no fake go sinon joli montage
+</p>
+<p>3. Cette cha&#238;ne traite d&#233;j&#224; d&#8217;autres langues que le fran&#231;ais, mais elle devra &#234;tre am&#233;lior&#233;e avant que nous ne l&#8217;utilisions
+pour traiter d&#8217;autres langues.
+</p>
+<p>4. Parmi les 36 000 mots parcourus pour annoter nos mots &#233;trangers, nous n&#8217;avons trouv&#233; que des mots anglais.
+</p>
+<p>100</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Les mots en gras de l&#8217;exemple 3a correspondent &#224; des mots mal orthographi&#233;s. Quant &#224; ceux de
+l&#8217;exemple 3b, ils pourraient plut&#244;t &#234;tre consid&#233;r&#233;s comme des emprunts adapt&#233;s. Dans ces deux
+cas, nous consid&#233;rons que ces mots appartiennent &#224; la langue fran&#231;aise. Nous voudrions, par la
+suite, pouvoir les analyser morphologiquement afin de d&#233;terminer s&#8217;il s&#8217;agit d&#8217;emprunts adapt&#233;s,
+de fautes d&#8217;orthographe ou encore de n&#233;ologismes. Les mots en gras des exemples 3c et 3d sont
+des mots anglais, donc &#171; &#233;tranger &#187;. Ils d&#233;tiennent un sens particulier dans ces phrases et nous ne
+voudrions surtout pas tenter de les corriger en les consid&#233;rant comme des erreurs produites par
+l&#8217;internaute.
+Cette t&#226;che peut sembler similaire aux travaux r&#233;alis&#233;s dans le domaine de la d&#233;tection de
+langue. La d&#233;tection de langue s&#8217;appuie souvent, soit sur des connaissances linguistiques, soit sur
+des m&#233;thodes statistiques (Grefenstette, 1995; Giguet, 1998). Plusieurs approches permettent
+de s&#8217;appuyer sur des connaissances linguistiques. On peut choisir de n&#8217;exploiter que les mots
+grammaticaux ou les mots les plus courts d&#8217;une langue (Johnson, 1993; Ingle, 1976), de s&#8217;appuyer
+sur un lexique de chaque langue, ou encore de ne prendre en compte que les suites de lettres
+qui n&#8217;apparaissent que dans une langue (Dunning, 1994). En parall&#232;le, on peut aussi choisir de
+s&#8217;appuyer sur des m&#233;thodes plus statistiques telles que les n-grammes simples (Cavnar et Trenkle,
+1994; Martins et Silva, 2005), en utilisant l&#8217;entropie relative (Sibun et Reynar, 1996) ou associ&#233;s
+&#224; des mod&#232;les de Markov (Dunning, 1994). Par exemple, sur des donn&#233;es issues du Web, qui sont
+plus proches de nos donn&#233;es que des textes plus litt&#233;raires, Martins et Silva (2005) rapportent
+une pr&#233;cision variant de 80% &#224; 100% pour la classification de pages parmi 12 langues en utilisant
+les n-grammes ainsi que quelques heuristiques compl&#233;mentaires. Bien que notre module a une
+t&#226;che similaire aux travaux d&#233;crits ci-dessus, il se distingue de ces derniers de part le fait qu&#8217;il ne
+veut non pas conna&#238;tre la langue d&#8217;un texte, mais uniquement celle d&#8217;un mot isol&#233; au sein d&#8217;un
+texte dont la langue est connue. Nous ne pouvons donc prendre en compte le contexte de ce mot.
+</p>
+<p>4.2 Mise en place du syst&#232;me de classification
+</p>
+<p>Les syst&#232;mes de classification permettent de pr&#233;dire la valeur/classe d&#8217;un objet &#224; partir d&#8217;un
+ensemble de donn&#233;es. Dans notre cas, nous voulons pr&#233;dire la classe (mot fran&#231;ais ou mot
+&#233;tranger) d&#8217;un mot inconnu. Pour mettre en place notre syst&#232;me il nous faut :
+&#8211; d&#233;finir un corpus duquel on extraira diverses informations (par exemple, des fr&#233;quences, divers
+</p>
+<p>types de traits, etc.) ; ces informations serviront de donn&#233;es d&#8217;entra&#238;nement ; ces donn&#233;es
+d&#233;pendent &#224; la fois du corpus choisi et de la fa&#231;on dont elles en sont extraites ;
+</p>
+<p>&#8211; s&#233;lectionner un syst&#232;me de classification permettant d&#8217;apprendre un mod&#232;le probabiliste &#224;
+partir des donn&#233;es d&#8217;entra&#238;nement ;
+</p>
+<p>&#8211; mettre en place un corpus d&#8217;&#233;valuation repr&#233;sentatif de nos donn&#233;es r&#233;elles qui nous permettra
+d&#8217;&#233;valuer notre module.
+</p>
+<p>4.2.1 Construction des donn&#233;es d&#8217;entra&#238;nement
+</p>
+<p>Pour mettre en place notre module, nous avons besoin de choisir un corpus d&#8217;entra&#238;nement
+pour chaque classe de notre classifieur. Il nous faut donc un corpus de mots fran&#231;ais et un
+corpus de mots anglais (qui correspond &#224; la classe des mots &#233;trangers). L&#8217;extraction des donn&#233;es
+d&#8217;entra&#238;nement peut se faire &#224; partir de diff&#233;rents types de corpus.
+</p>
+<p>101</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#8211; Des ressources lexicales utilis&#233;es comme corpus, qui prennent en compte les formes fl&#233;chies de
+chaque lemme du fran&#231;ais et de l&#8217;anglais. Nous avons ainsi r&#233;alis&#233; des exp&#233;riences pr&#233;liminaires
+en utilisant le lexique Lefff du fran&#231;ais (Sagot, 2010) et sa contrepartie anglaise EnLex.
+</p>
+<p>&#8211; Des corpus correspondant &#224; des textes &#171; propres &#187;, comme des corpus journalistiques, des
+extraits de livres ou encore des articles Wikip&#233;dia.
+</p>
+<p>&#8211; Des corpus plus &#171; bruit&#233;s &#187;, dits produits par l&#8217;utilisateur (User-Generated Content). C&#8217;est par
+exemple le cas des corpus WaCKy Baroni et al. (2009), construits par l&#8217;aspiration d&#8217;un grand
+nombre de pages Internet, qui vont d&#8217;articles journalistiques &#224; des messages extraits de forums.
+Ce type de corpus contient donc en quantit&#233; importante des textes de qualit&#233; d&#233;grad&#233;e et
+contenant de nombreux n&#233;ologismes, plus proches de ceux que nous avons &#224; traiter que les
+corpus &#171; propres &#187;. Des corpus WaCKy ont &#233;t&#233; constitu&#233;s pour plusieurs langues. Le corpus
+WaCKy de r&#233;f&#233;rence pour le fran&#231;ais est frWaC, celui pour l&#8217;anglais est ukWaC.
+</p>
+<p>Nous avons entra&#238;n&#233; nos syst&#232;mes de classification sur des corpus relevant de ces trois cas. Le
+corpus provenant de ressources lexicales nous semblait pertinent de part sa richesse en mots
+distincts. N&#233;anmoins, des &#233;valuations pr&#233;liminaires sur le corpus de r&#233;f&#233;rence nous ont permis
+de constater que la pr&#233;sence de trop nombreux mots rares dans les donn&#233;es d&#8217;entra&#238;nement
+impactait la qualit&#233; de nos mod&#232;les. Un second corpus contenant des textes assez propres,
+constitu&#233; de Wikipedia (fran&#231;ais et anglais), du corpus Brown (anglais) et du corpus de l&#8217;Est
+R&#233;publicain (fran&#231;ais) s&#8217;est av&#233;r&#233; l&#233;g&#232;rement meilleur mais insuffisant. Cela s&#8217;explique par la
+diff&#233;rence de qualit&#233; r&#233;dactionnelle pr&#233;sente entre les donn&#233;es d&#8217;entra&#238;nement et les donn&#233;es
+de r&#233;f&#233;rence. Nous avons obtenu de meilleurs r&#233;sultats en nous entra&#238;nant sur les corpus
+WaCKy, plus proches des n&#244;tres. Les syst&#232;mes de classification introduits par la suite auront,
+par cons&#233;quent, tous &#233;t&#233; entra&#238;n&#233;s sur ces corpus. Les mots contenus dans frWaC ne sont pas
+tous des mots en fran&#231;ais : il contient &#233;galement des mots inconnus, dont de nombreux mots
+fran&#231;ais mal orthographi&#233;s (comme dans nos corpus) ainsi que des mots &#233;trangers. Toutefois,
+nous faisons l&#8217;approximation consistant &#224; ignorer ces derniers et &#224; consid&#233;rer frWaC comme un
+corpus appropri&#233; pour apprendre ce qu&#8217;est un mot &#171; fran&#231;ais &#187;. Autrement dit, un mot &#224; annoter
+&#171; anglais &#187; sera plus caract&#233;ristique de ukWaC que de frWaC, m&#234;me s&#8217;il appara&#238;t dans ce dernier.
+</p>
+<p>4.2.2 Syst&#232;mes mis en place
+</p>
+<p>Baseline Nous avons, dans un premier temps, impl&#233;ment&#233; un syst&#232;me de classification na&#239;f
+qui repose simplement sur les fr&#233;quences des tokens dans frWaC et dans ukWaC. Nous faisons
+l&#8217;hypoth&#232;se que les mots pr&#233;sents dans les donn&#233;es que nous avons &#224; traiter ont de fortes chances
+d&#8217;appara&#238;tre dans ces corpus. Notamment, un mot &#171; fran&#231;ais &#187; mal orthographi&#233; a de bonnes
+chances d&#8217;appara&#238;tre avec la m&#234;me orthographe fautive dans frWaC, mais pas dans ukWaC, ou
+du moins &#224; une fr&#233;quence moindre.
+Notre baseline fonctionne de la mani&#232;re suivante. Lorsqu&#8217;un mot est inconnu du lexique de
+r&#233;f&#233;rence utilis&#233;, ici le Lefff, on compare son nombre d&#8217;occurrences dans les corpus ukWaC et
+frWaK. Si ce mot est plus fr&#233;quent dans le premier, on consid&#232;re qu&#8217;il est &#233;tranger, dans le cas
+contraire, il est annot&#233; comme fran&#231;ais. Si le mot inconnu n&#8217;appara&#238;t dans aucun des deux corpus,
+ce syst&#232;me na&#239;f lui attribue al&#233;atoirement une des deux langues.
+</p>
+<p>Syst&#232;me propos&#233; Pour aller au-del&#224; de ce classifieur na&#239;f, nous avons d&#233;fini plusieurs jeux de
+traits permettant de mod&#233;liser les mots pr&#233;sents dans nos corpus d&#8217;entra&#238;nement. Les exp&#233;riences
+pr&#233;sent&#233;es ci-dessous reposent sur trois jeux de traits (illustr&#233;s dans la table 1).
+</p>
+<p>102</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#8211; Comme indiqu&#233; plus haut, les travaux sur la reconnaissance de langue s&#8217;appuient beaucoup sur
+les syst&#232;mes n-grammes. Nous avons donc extrait des mots du frWaC et ukWaC les n-grammes
+qui les composent 5 et nous avons construit un trait bool&#233;en pour chaque n-gramme obtenu.
+Nous avons fait diverses exp&#233;riences en utilisant soit une seule classe de n-grammes (par
+exemple, seulement les trigrammes), soit deux (par exemple, les bigrammes et les trigrammes).
+</p>
+<p>&#8211; Nous avons &#233;galement rajout&#233; des traits bool&#233;ens issus de la discr&#233;tisation du rapport entre la
+fr&#233;quence d&#8217;un mot donn&#233; dans le frWaC et celle du m&#234;me mot dans le ukWaC 6. L&#8217;utilisation
+de ces traits est indiqu&#233;e par l&#8217;abr&#233;viation &#171; freq-ratio &#187; dans les tableaux ci-dessous.
+</p>
+<p>&#8211; Un inconv&#233;nient des traits de type freq-ratio est qu&#8217;ils ne prennent pas en compte la signifi-
+cativit&#233; statistique du rapport de fr&#233;quences : un mot attest&#233; une fois dans l&#8217;un des corpus et
+deux fois dans l&#8217;autre sera dans la m&#234;me classe qu&#8217;un mot attest&#233; 1 000 fois dans le premier
+et 2 000 fois dans le second. C&#8217;est pourquoi nous avons &#233;galement r&#233;alis&#233; des exp&#233;riences en
+utilisant comme traits des classes de t-test permettant de mesurer la significativit&#233; de l&#8217;&#233;cart
+entre la fr&#233;quence d&#8217;un mot dans frWaC et celle de ce m&#234;me mot dans ukWaC 7. Ces traits sont
+indiqu&#233;s par la mention &#171; t-test &#187; dans les tableaux ci-dessous.
+</p>
+<p>Inconnu fr&#233;q. ukWaC/frWaC 2-grammes freq-ratio 8 t-test8
+</p>
+<p>access 797 734/8 898 _a, ac, cc, F-R6 TT5
+ce, es, ss, s_ (33&#8804; 89 &lt; 100) (&#8722;6476&#8804;&#8722;728 &lt;&#8722;11)
+</p>
+<p>vanquish 641/51 _v, va, an, F-R7 TT5
+nq, qu, ui,... (3&#8804; 12 &lt; 33) (&#8722;6476&#8804;&#8722;18 &lt;&#8722;11)
+</p>
+<p>activi&#233; 0/27 _a, ac, ct, F-R1 TT3
+ti, iv, vi,... (0&#8804; 0 &lt; 0, 01) (3,6&#8804; 6,2 &lt; 16)
+</p>
+<p>regler 12/970 _r, re, eg, F-R2 TT1
+gl, le, er, r_ (0, 01&#8804; 0, 01 &lt; 0,05) (16&#8804; 37 &lt; 7425)
+</p>
+<p>TABLE 1 &#8211; Illustration des traits de notre module : n-grammes (ici bigrammes), freq-ratio et t-test
+</p>
+<p>Nous avons alors construit nos donn&#233;es d&#8217;apprentissage en assignant &#224; tous les mots de frWaC
+(resp. ukWaC) la classe &#171; fran&#231;ais &#187; (resp. &#171; anglais &#187;) et diverses combinaisons des traits ci-dessus.
+Nous avons entra&#238;n&#233; sur ces diff&#233;rents jeux de donn&#233;es d&#8217;entra&#238;nement le syst&#232;me de r&#233;gression
+binomiale impl&#233;ment&#233; dans MegaM 9 (Daum&#233; III, 2004). Chaque combinaison de traits (par
+exemple, bigrammes + t-test) conduit &#224; un mod&#232;le diff&#233;rent. Face &#224; un inconnu &#224; classifier, il
+suffit alors d&#8217;en extraire les traits correspondant &#224; l&#8217;un des mod&#232;les puis de calculer la pr&#233;diction
+de ce mod&#232;le au vu de ces traits.
+</p>
+<p>4.3 &#201;valuation
+</p>
+<p>4.3.1 Donn&#233;es de r&#233;f&#233;rence
+</p>
+<p>Nous avons constitu&#233; manuellement, &#224; partir de notre corpus, des donn&#233;es d&#8217;&#233;valuation contenant
+des mots annot&#233;s comme &#171; fran&#231;ais &#187; et comme &#171; &#233;tranger &#187;. Afin que ces mots soient repr&#233;sentatifs
+</p>
+<p>5. n varie de 1 &#224; 4 dans les r&#233;sultats rapport&#233;s ici.
+6. Cette discr&#233;tisation a &#233;t&#233; r&#233;alis&#233;e comme suit : les donn&#233;es conduisant &#224; un rapport de fr&#233;quences sup&#233;rieur ou
+</p>
+<p>&#233;gal &#224; 1 ont &#233;t&#233; r&#233;parties en 4 classes de taille identique ; il en est de m&#234;me pour les donn&#233;es conduisant &#224; un rapport de
+fr&#233;quences inf&#233;rieur &#224; 1. On obtient donc 8 classes au total.
+</p>
+<p>7. La discr&#233;tisation a &#233;t&#233; r&#233;alis&#233;e &#233;galement en deux fois 4 classes, avec un t-test de 0 comme pivot.
+8. Traits repr&#233;sent&#233;s ainsi : &#171; Classe (x&lt;val&lt;y) &#187; : Classe contenant un mot dont la valeur est comprise entre x et y.
+9. http ://www.cs.utah.edu/ hal/megam/
+</p>
+<p>103</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>des cas d&#8217;inconnus &#224; traiter, nous avons conserv&#233;, pour chaque classe (&#171; fran&#231;ais &#187; et &#171; &#233;tranger &#187;),
+les 564 premiers inconnus rencontr&#233;s dans notre corpus 10. Nos donn&#233;es de r&#233;f&#233;rence, constitu&#233;es
+par cons&#233;quent de 1 128 mots inconnus, correspondent &#224; l&#8217;ensemble de ces inconnus annot&#233;s.
+Elles contiennent donc autant de mots &#171; fran&#231;ais &#187; que de mots &#171; &#233;trangers &#187;. Un &#233;chantillon des
+15 premiers mots inconnus annot&#233;s de chaque type est repr&#233;sent&#233; dans la table2.
+</p>
+<p>Inconnus annot&#233;s abitacle, abonment, achet, actionet, activi&#233;, additionels, ad&#233;bloqu&#233;e, adh&#233;re,
+comme &#171; fran&#231;ais &#187; adh&#233;re, adoore, afi, agreabl, aimmerais, aixenProvence, ala
+Inconnus annot&#233;s access, add, advanced, advantage, adventure, adventures, after, again, agency,
+</p>
+<p>comme &#171; &#233;tranger &#187; agreement, airline, airport, all, allOffTheLights, american
+</p>
+<p>TABLE 2 &#8211; &#201;chantillon de mots inconnus pr&#233;sents dans les donn&#233;es de r&#233;f&#233;rence
+</p>
+<p>Les mots inconnus annot&#233;s fran&#231;ais correspondent en grande partie &#224; des fautes d&#8217;orthographe
+et, &#224; quelques n&#233;ologismes et emprunts. Ceux annot&#233;s anglais sont plut&#244;t des mots utilis&#233;s dans
+le monde du web, des noms de jeux ou films non traduits et des mots mal orthographi&#233;s. Ils
+correspondent aussi &#224; des mots composant une phrase isol&#233;e en anglais au sein d&#8217;un message en
+fran&#231;ais. Ces derniers apparaissent peu dans nos textes. La quantit&#233; de mots inconnus annot&#233;s
+comme fran&#231;ais et &#233;tranger n&#8217;est donc pas repr&#233;sentative de leurs fr&#233;quences d&#8217;apparition.
+N&#233;anmoins, les consid&#233;rer directement comme &#171; fran&#231;ais &#187; conduirait &#224; faire de la sur-correction.
+Bien que ces mots n&#8217;apparaissent pas dans les dictionnaires du fran&#231;ais, beaucoup sont pr&#233;sents
+dans les corpus WaCKy. La r&#233;partition des mots inconnus pr&#233;sents ou non dans ces corpus en
+fonction de leur annotation est repr&#233;sent&#233;e &#224; la table 3.
+</p>
+<p>Annot&#233;s &#171; fran&#231;ais &#187; Annot&#233;s &#171; &#233;tranger &#187; Total
+Mots pr&#233;sents dans les corpus WaCKy 402 556 958
+</p>
+<p>Mots absents des corpus WaCKy 162 8 170
+Total 564 564 1 128
+</p>
+<p>TABLE 3 &#8211; Informations quantitatives sur les donn&#233;es de r&#233;f&#233;rence
+</p>
+<p>En constituant manuellement ce corpus, nous avons choisi d&#8217;&#233;valuer les performances de notre
+syst&#232;me de mani&#232;re isol&#233;e. Cela suppose le bon fonctionnement des &#233;tapes pr&#233;alables &#224; ce
+module. Il est donc &#233;vident que, si l&#8217;un de ces pr&#233;traitements g&#233;n&#232;rent des erreurs, les r&#233;sultats
+de ce module seront impact&#233;s et seront tr&#232;s probablement moins bons.
+</p>
+<p>4.3.2 R&#233;sultats et discussion
+</p>
+<p>Cette &#233;valuation s&#8217;appuie sur les taux d&#8217;erreurs de chacun de nos mod&#232;les avec notre corpus
+de r&#233;f&#233;rence. La pr&#233;sence d&#8217;un mot dans frWaC et ukWaC peut avoir de r&#233;elles cons&#233;quences
+sur nos r&#233;sultats. Pour cette raison, nous pr&#233;senterons tout d&#8217;abord les r&#233;sultats obtenus avec
+uniquement les mots de notre corpus de r&#233;f&#233;rence existants dans les corpus frWak et ukWak puis,
+les r&#233;sultats obtenus avec ceux absents 11. Consid&#233;rons la table 4 qui contient les taux d&#8217;erreurs
+de nos mod&#232;les en fonction des traits choisis et combin&#233;s. On constate qu&#8217;utiliser la fr&#233;quence
+</p>
+<p>10. Environ 26 000 mots ont &#233;t&#233; parcourues pour trouver les inconnus &#171; fran&#231;ais &#187; et pr&#232;s de 34 000 pour les &#171; &#233;trangers &#187;
+11. Les donn&#233;es concernant les mots de notre corpus de r&#233;f&#233;rence pr&#233;sents ou non dans les corpus WaCKy sont
+</p>
+<p>indiqu&#233;es table 3.
+</p>
+<p>104</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>d&#8217;un mot am&#233;liore consid&#233;rablement nos r&#233;sultats si ce mot est pr&#233;sent dans les corpus WaCKy.
+Avec les unigramme, ce taux d&#8217;erreur passe ainsi de 0,305 &#224; 0,066. On constate, par ailleurs, que
+notre baseline, s&#8217;appuyant sur la fr&#233;quence des mots connus du corpus WaCKy, obtient un moins
+bon taux d&#8217;erreur (0,073) que ceux obtenu par notre syst&#232;me. Ce constat est satisfaisant puisqu&#8217;il
+illustre le fait que l&#8217;entra&#238;nement de nos traits n-grammes a un effet positif sur nos r&#233;sultats.
+Nous avons ensuite &#233;valu&#233; les mots absents des corpus WaCKy (cf. la table 5). Dans ce contexte,
+les r&#233;sultats obtenus avec nos traits de fr&#233;quence et notre baseline (50%) ne sont pas significatifs
+puisqu&#8217;ils s&#8217;appuient sur les mots pr&#233;sents de ces corpus. Les r&#233;sultats des n-grammes seuls ne
+sont, quant &#224; eux, pas surprenants puisqu&#8217;ils sont similaires &#224; ceux des mots connus (table 4).
+</p>
+<p>n-grammes uniquement n-grammes + freq-ratio n-grammes + t-test
+1-gramme 0,305 0,073 0,066
+2-gramme 0,216 0,073 0,070
+3-gramme 0,167 0,073 0,080
+4-gramme 0,119 0,082 0,082
+</p>
+<p>1 &#224; 2-gramme 0,212 0,073 0,070
+1 &#224; 3-gramme 0,157 0,074 0,082
+2 &#224; 3-gramme 0,169 0,074 0,080
+</p>
+<p>TABLE 4 &#8211; Taux d&#8217;erreur de nos mod&#232;les sur les mots pr&#233;sents dans le WaCKy
+</p>
+<p>n-grammes uniquement n-grammes + freq-ratio n-grammes + t-test
+1-gramme 0,322 0,953 0,333
+2-gramme 0,222 0,883 0,257
+3-gramme 0,152 0,784 0,199
+4-gramme 0,134 0,678 0,211
+</p>
+<p>1 &#224; 2-gramme 0,240 0,901 0,263
+1 &#224; 3-gramme 0,193 0,871 0,205
+2 &#224; 3-gramme 0,170 0,743 0,181
+</p>
+<p>TABLE 5 &#8211; Taux d&#8217;erreur de nos mod&#232;les sur les mots absents du WaCKy
+</p>
+<p>La derni&#232;re table pr&#233;sente les taux d&#8217;erreur obtenus lorsqu&#8217;on &#233;value la totalit&#233; de notre corpus
+de r&#233;f&#233;rence. Il montre que si nous utilisons uniquement des mod&#232;les n-grammes, nos mod&#232;les
+sont peu satisfaisants. Notre baseline, dont le taux d&#8217;erreur g&#233;n&#233;ral est de 0,136, se r&#233;v&#232;le m&#234;me
+meilleur. Cela s&#8217;explique par le fait que les corpus frWaC et ukWaCk contiennent beaucoup de
+mots que nous souhaitons annoter (958/1128). De plus, on constate que nos mod&#232;les purement
+n-gramme ont un taux d&#8217;erreur qui d&#233;croit au fur et &#224; mesure que la valeur de n augmente. Cela
+est d&#251; au fait que plus la taille d&#8217;un n-gramme grandit plus on a de fortes chances d&#8217;y stocker
+des mots entiers. Ce sont donc les approches qui prennent en compte uniquement les mod&#232;les
+n-gramme qui produisent le plus d&#8217;erreurs. Les mod&#232;les combinant les n-grammes et les traits de
+fr&#233;quence freq-ratio et t-test sont pour ces m&#234;mes raisons plus performants. Enfin, les r&#233;sultats
+obtenus par la combinaison des n-grammes et du t-test valide bien l&#8217;id&#233;e qu&#8217;avoir des valeurs
+statistiques plus significatives du rapport de fr&#233;quence permet d&#8217;optimiser nos r&#233;sultats.
+Notre mod&#232;le atteint 90% de bonnes classifications. Ces r&#233;sultats sont satisfaisants dans la mesure
+o&#249;, si on se r&#233;f&#232;re par exemple aux r&#233;sultats de Grefenstette (1995), on constate que sur un
+texte fran&#231;ais restreint &#224; un ou deux mots il obtient 69,2% de bonnes d&#233;tections avec un mod&#232;le
+trigramme et de 30,8% de bonnes d&#233;tections avec un mod&#232;le linguistique qui ne prend en compte
+que les mots courts de la langue.
+</p>
+<p>105</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>n-grammes uniquement n-grammes + freq-ratio n-grammes + t-test
+1-gram 0,307 0,206 0,107
+2-gram 0,217 0,195 0,098
+3-gram 0,165 0,180 0,098
+4-gram 0,129 0,172 0,102
+</p>
+<p>1 &#224; 2-gram 0,216 0,198 0,099
+1 &#224; 3-gram 0,162 0,194 0,101
+2 &#224; 3-gram 0,169 0,175 0,095
+</p>
+<p>TABLE 6 &#8211; Taux d&#8217;erreur de nos mod&#232;les sur la totalit&#233; de nos donn&#233;es de r&#233;f&#233;rence
+</p>
+<p>5 Conclusion et perspectives
+</p>
+<p>&#192; l&#8217;heure o&#249; le traitement automatique des langues s&#8217;int&#233;resse de plus en plus aux donn&#233;es r&#233;elles
+dites &#171; produites par l&#8217;utilisateur &#187; (User-Generated Content), nous avons expliqu&#233; la n&#233;cessit&#233;
+d&#8217;avoir un outil de normalisation et de correction qui permettrait un meilleur fonctionnement
+des outils plus adapt&#233;s &#224; des corpus propres de type journalistique. Cette t&#226;che d&#233;licate est
+n&#233;cessaire lorsqu&#8217;on travaille sur des textes de qualit&#233; d&#233;grad&#233;e puisqu&#8217;elle doit manipuler
+le texte pr&#233;cautionneusement sans l&#8217;alt&#233;rer en le sur-corrigeant. L&#8217;architecture modulaire de
+correction d&#233;crite ici vise &#224; r&#233;duire ces risques. Bien qu&#8217;encore en cours d&#8217;impl&#233;mentation, certains
+modules de notre correcteur sont d&#8217;ores et d&#233;j&#224; fonctionnels. C&#8217;est le cas du module pr&#233;sent&#233; &#224; la
+section 4. Ce module, qui permet de d&#233;tecter si un mot qui ne figure pas dans un dictionnaire de
+r&#233;f&#233;rence du fran&#231;ais correspond &#224; un mot dit &#171; &#233;tranger &#187; , obtient des r&#233;sultats satisfaisants (plus
+de 90% de classification correcte). Et ce, d&#8217;autant plus si on prend en compte la complexit&#233; de
+cette t&#226;che de par le fait que l&#8217;on ne peut s&#8217;appuyer sur le contexte des mots qui nous int&#233;ressent.
+La suite de nos travaux seront dans la continuit&#233; du sch&#233;ma pr&#233;sent&#233; (section 3). Notre prochain
+objectif sera donc de mettre en place un analyseur morphologique qui nous guidera dans la
+classification des mots inconnus annot&#233;s &#171; fran&#231;ais &#187; par le module de d&#233;tection des mots &#233;trangers.
+Ces mots inconnus, ayant d&#233;j&#224; &#233;t&#233; filtr&#233;s par les modules de d&#233;tection d&#8217;entit&#233;s nomm&#233;es et de
+mots &#233;trangers, il nous ne restera plus qu&#8217;&#224; essayer de pr&#233;dire s&#8217;il s&#8217;agit d&#8217;emprunts adapt&#233;s, de
+n&#233;ologismes ou encore de fautes d&#8217;orthographe afin d&#8217;achever cette phase de pr&#233;traitements pour
+les mots inconnus.
+</p>
+<p>6 Remerciements
+</p>
+<p>Je remercie Beno&#238;t Sagot et Geoffrey Doucy (directeur R&amp;D de viavoo) pour tous leurs conseils.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>BARONI, M., BERNARDINI, S., FERRARESI, A. et ZANCHETTA, E. (2009). The Wacky Wide Web : A
+Collection of Very Large Linguistically Processed Web-Crawled Corpora. Language Resources
+and Evaluation, 43(3):209&#8211;226.
+</p>
+<p>BEAUFORT, R., ROEKHAUT, S., COUGNON, L.-A. et FAIRON, C. (2010). A Hybrid Rule/Model-Based
+Finite-State Framework for Normalizing SMS Messages. In Proceedings of the 48th Annual
+</p>
+<p>106</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Meeting of the Association for Computational Linguistics (ACL&#8217;10), pages 770&#8211;779, Uppsala,
+Su&#232;de.
+</p>
+<p>BOYD, A. (2009). Pronunciation modeling in spelling correction for writers of English as a
+foreign language. In Proceedings of Human Language Technologies : The 2009 Annual Conference
+of the North American Chapter of the Association for Computational Linguistics, Companion
+Volume : Student Research Workshop and Doctoral Consortium, pages 31&#8211;36, Boulder, Colorado.
+</p>
+<p>BRILL, E. et MOORE, R. C. (2000). An Improved Error Model for Noisy Channel Spelling
+Correction. In Proceedings of the 38th Annual Meeting of the Association for Computational
+Linguistics (ACL&#8217;00), Hong Kong.
+</p>
+<p>CARLSON, A. et FETTE, I. (2007). Memory-based context-sensitive spelling correction at web
+scale. In Proceedings of the Sixth International Conference on Machine Learning and Applications
+(ICMLA&#8217;07), pages 166&#8211;171.
+</p>
+<p>CAVNAR, W. B. et TRENKLE, J. M. (1994). N-gram based text categorization. In Proceedings of the
+Third Annual Symposium on Document Analysis and Information Retrieval.
+</p>
+<p>CHEN, Q., LI, M. et ZHOU, M. (2007). Improving Query Spelling Correction Using Web Search
+Results. In Proceedings of the Conference on Empirical Methods in Natural Language Processing and
+the Conference on Computational Natural Language Learning (EMNLP-CoNLL&#8217;07), pages 181&#8211;189,
+Prague, Czech Republic.
+</p>
+<p>DAMERAU, F. (1964). A technique for computer detection and correction of spelling errors.
+Commun. ACM, 7(3):171&#8211;176.
+</p>
+<p>DAUM&#201; III, H. (2004). Notes on cg and lm-bfgs optimization of logistic regression.
+</p>
+<p>DUNNING, T. (1994). Statistical Identification of Language. In Technical report CRL MCCS-94-273,
+Computing Research Lab,New Mexico State University.
+</p>
+<p>GAO, J., LI, X., MICOL, D., QUIRK, C. et SUN, X. (2010). A large scale ranker-based system
+for search query spelling correction. In Proceedings of the 23rd International Conference on
+Computational Linguistics (COLING&#8217;10), pages 358&#8211;366, Beijing, Chine.
+</p>
+<p>GIGUET, E. (1998). M&#233;thode pour l&#8217;analyse automatique de structures formelles sur documents
+multilingues. Th&#232;se de doctorat, sp&#233;cialit&#233; Informatique.
+</p>
+<p>GOLDING, A. R. et SCHABES, Y. (1996). Combining Trigram-based and Feature-based Methods
+for Context-sensitive Spelling Correction. In Proceedings of the 34th Annual Meeting of the
+Association for Computational Linguistics (ACL&#8217;96), pages 71&#8211;78, Santa Cruz, &#201;tats-Unis.
+</p>
+<p>GREFENSTETTE, G. (1995). Comparing two language identification schemes. In Proceedings of
+the 3rd International Conference on the Statistical Analysis of Textual Data (JADT 1995), Rome,
+Italie.
+</p>
+<p>GUIMIER DE NEEF, &#201;. et FESSARD, S. (2007). &#201;valuation d&#8217;un syst&#232;me de transcription de SMS.
+In Proceedings of the 26th International Conference on Lexis and Grammar, Bonifacio, France.
+</p>
+<p>HAN, B. et BALDWIN, T. (2011). Lexical normalisation of short text messages : makn sens
+a #twitter. In Proceedings of the 49th Annual Meeting of the Association for Computational
+Linguistics : Human Language Technologies, pages 368&#8211;378, Portland, &#201;tats-Unis.
+</p>
+<p>INGLE, N. C. (1976). A language identification table. The Incorporated Linguist, 15(4):98&#8211;101.
+</p>
+<p>ISLAM, A. et INKPEN, D. (2009). Real-word spelling correction using Google Web IT 3-grams. In
+Proceedings of the 2009 Conference on Empirical Methods in Natural Language Processing, pages
+1241&#8211;1249, Singapour. Association for Computational Linguistics.
+</p>
+<p>107</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>JOHNSON, S. (1993). Solving the problem of language recognition. In Technical report, School of
+Computer Studies, University of Leeds.
+</p>
+<p>KERNIGHAN, M. D., CHURCH, K. W. et GALE, W. A. (1990). A Spelling Correction Program Based
+on a Noisy Channel Model. In Proceedings of the 13th conference on Computational linguistics
+(CoLing&#8217;90), pages 205&#8211;210, Helsinki, Finland.
+</p>
+<p>KOBUS, C., YVON, F. et DAMNATI, G. (2008). Transcrire les SMS comme on reconna&#238;t la parole. In
+Actes de TALN 2008, pages 128&#8211;138, Avignon, France.
+</p>
+<p>KUKICH, K. (1992). Techniques for Automatically Correcting Words in Text. ACM Computing
+Surveys, 24(4):377&#8211;439.
+</p>
+<p>LI, M., ZHANG, Y., ZHU, M. et ZHOU, M. (2006). Exploring distributional similarity based models
+for query spelling correction. In Proceedings the 44th Annual Meeting of the Association for
+Computational Linguistics and of the 21th conference on Computational linguistics (ACL-CoLing
+2006), pages 1025&#8211;1032, Syndey, Australie.
+</p>
+<p>MANGU, L. et BRILL, E. (1997). Automatic Rule Acquisition for Spelling Correction. In Proceedings
+of the 14th International Conference on Machine Learning (ICML&#8217;97), pages 187&#8211;194, Nashville,
+&#201;tats-Unis.
+</p>
+<p>MARTINS, B. et SILVA, M. J. (2005). Language identification in web pages. In Proceedings of the
+2005 ACM symposium on Applied computing, SAC &#8217;05, pages 764&#8211;768, New York, NY, USA.
+</p>
+<p>PARK, Y. A. et LEVY, R. (2011). Automated whole sentence grammar correction using a noisy
+channel model. In Proceedings of the 49th Annual Meeting of the Association for Computational
+Linguistics : Human Language Technologies, pages 934&#8211;944.
+</p>
+<p>REYNAERT, M. (2004). Multilingual Text Induced Spelling Correction. In Proceedings of the 20th
+International Conference on Computational Linguistics, Gen&#232;ve, Suisse.
+</p>
+<p>ROZOVSKAYA, A. et ROTH, D. (2010). Generating Confusion Sets for Context-Sensitive Error
+Correction. In Proceedings of the Conference on Empirical Methods in Natural Language Processing
+(EMNLP), MIT Stata Center, &#201;tats-Unis.
+</p>
+<p>SAGOT, B. (2010). The Lefff, a freely available and large-coverage morphological and syntactic
+lexicon for French. In Proceedings of LREC 2010, La Valette, Malte.
+</p>
+<p>SAGOT, B. et BOULLIER, P. (2008). SxPipe 2 : architecture pour le traitement pr&#233;-syntaxique de
+corpus bruts. Traitement Automatique des Langues, pages 155&#8211;188.
+</p>
+<p>SIBUN, P. et REYNAR, J. C. (1996). Language Identification : Examining the Issues. In Proceedings
+of SDAIR-96, the 5th Symposium on Document Analysis an Information Retrieval, pages 125&#8211;135.
+</p>
+<p>STEHOUWER, H. et van ZAANEN, M. (2009). Language models for contextual error detection and
+correction. In Proceedings of the EACL 2009 Workshop on Computational Linguistic Aspects of
+Grammatical Inference (CLAGI&#8217;09), pages 41&#8211;48, Ath&#232;nes, Gr&#232;ce.
+</p>
+<p>TOUTANOVA, K. et MOORE, R. C. (2002). Pronunciation Modeling for Improved Spelling Correc-
+tion. In Proceedings of the 40th Annual Meeting of the Association for Computational Linguistics
+(ACL&#8217;02), pages 144&#8211;151, Philadelphie, &#201;tats-Unis.
+</p>
+<p>XU, W., TETREAULT, J., CHODOROW, M., GRISHMAN, R. et ZHAO, L. (2011). Exploiting Syntactic
+and Distributional Information for Spelling Correction with Web-Scale N-gram Models. In
+Proceedings of the 2011 Conference on Empirical Methods in Natural Language Processing, pages
+1291&#8211;1300, Edinburgh, Royaume-Uni.
+</p>
+<p>108</p>
+
+</div></div>
+</body></html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Trouver et confondre les coupables : un processus sophistiqu&#233; de correction de lexique</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2009, Senlis, 24&#8211;26 juin 2009
+</p>
+<p>Trouver et confondre les coupables : un processus sophistiqu&#233;
+de correction de lexique &#8727;
+</p>
+<p>Lionel Nicolas&#8902;, Beno&#238;t Sagot&#8853;, Miguel A. Molinero&#8900;,
+Jacques Farr&#233;&#8902;, &#201;ric de La Clergerie&#8853;.
+</p>
+<p>&#8902; &#201;quipe RL, Laboratoire I3S, UNSA+CNRS, France {lnicolas,jf}@i3s.unice.fr
+&#8900; Grupo LYS, Univ. de A Coru&#241;a, Espa&#241;a mmolinero@udc.es
+&#8853; Projet ALPAGE, INRIA Rocquencourt + Paris 7, France {benoit.sagot, Eric.De_La_Clergerie}@inria.fr
+</p>
+<p>R&#233;sum&#233;. La couverture d&#8217;un analyseur syntaxique d&#233;pend avant tout de la grammaire et
+du lexique sur lequel il repose. Le d&#233;veloppement d&#8217;un lexique complet et pr&#233;cis est une t&#226;che
+ardue et de longue haleine, surtout lorsque le lexique atteint un certain niveau de qualit&#233; et de
+couverture. Dans cet article, nous pr&#233;sentons un processus capable de d&#233;tecter automatique-
+ment les entr&#233;es manquantes ou incompl&#232;tes d&#8217;un lexique, et de sugg&#233;rer des corrections pour
+ces entr&#233;es. La d&#233;tection se r&#233;alise au moyen de deux techniques reposant soit sur un mod&#232;le
+statistique, soit sur les informations fournies par un &#233;tiqueteur syntaxique. Les hypoth&#232;ses de
+corrections pour les entr&#233;es lexicales d&#233;tect&#233;es sont g&#233;n&#233;r&#233;es en &#233;tudiant les modifications qui
+permettent d&#8217;am&#233;liorer le taux d&#8217;analyse des phrases dans lesquelles ces entr&#233;es apparaissent.
+Le processus global met en oeuvre plusieurs techniques utilisant divers outils tels que des &#233;ti-
+queteurs et des analyseurs syntaxiques ou des classifieurs d&#8217;entropie. Son application au Lefff ,
+un lexique morphologique et syntaxique &#224; large couverture du fran&#231;ais, nous a d&#233;j&#224; permis de
+r&#233;aliser des am&#233;liorations notables.
+</p>
+<p>Abstract. The coverage of a parser depends mostly on the quality of the underlying gram-
+mar and lexicon. The development of a lexicon both complete and accurate is an intricate and
+demanding task, overall when achieving a certain level of quality and coverage. We introduce
+an automatic process able to detect missing or incomplete entries in a lexicon, and to suggest
+corrections hypotheses for these entries. The detection of dubious lexical entries is tackled by
+two techniques relying either on a specific statistical model, or on the information provided by a
+part-of-speech tagger. The generation of correction hypotheses for the detected entries is achie-
+ved by studying which modifications could improve the parse rate of the sentences in which the
+entries occur. This process brings together various techniques based on different tools such as
+taggers, parsers and entropy classifiers. Applying it on the Lefff , a large-coverage morphologi-
+cal and syntactic French lexicon, has already allowed us to perfom noticeable improvements.
+</p>
+<p>Mots-cl&#233;s : Acquisition et correction lexicale, lexique &#224; large couverture, fouille d&#8217;er-
+reurs, &#233;tiqueteur syntaxique, classifieur d&#8217;entropie, analyseur syntaxique.
+</p>
+<p>Keywords: Lexical acquisition and correction, wide coverage lexicon, error mining,
+tagger, entropy classifier, syntactic parser.
+</p>
+<p>&#8727;Ces travaux ont notamment pu &#234;tre r&#233;alis&#233;s gr&#226;ce au soutient du minist&#232;re de l&#8217;&#233;ducation et des sciences d&#8217;Es-
+pagne, FEDER (HUM2007-66607-C04-02), du Gouvernement R&#233;gional de Galice (INCITE08PXIB302179PR,
+INCITE08E1R104022ES) et du Galician Network for Language Processing and Information Retrieval 2006-2009.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Lionel Nicolas, Beno&#238;t Sagot, Miguel A. Molinero, Jacques Farr&#233;, &#201;ric de La Clergerie
+</p>
+<p>1 Introduction
+</p>
+<p>Le d&#233;veloppement manuel d&#8217;un lexique pr&#233;cis et &#224; large couverture est une t&#226;che fastidieuse,
+complexe et sujette &#224; erreurs n&#233;cessitant une co&#251;teuse expertise humaine. Les d&#233;veloppements
+manuels de lexiques n&#8217;atteignent g&#233;n&#233;ralement pas les objectifs attendus et progressent tr&#232;s
+lentement une fois un certain niveau de couverture et de qualit&#233; atteint. Cette t&#226;che manuelle
+peut cependant &#234;tre simplifi&#233;e et am&#233;lior&#233;e par l&#8217;utilisation d&#8217;outils automatisant les t&#226;ches
+d&#8217;acquisition et de correction. Nous pr&#233;sentons un ensemble combin&#233; de techniques permettant
+de d&#233;tecter les entr&#233;es manquantes, incompl&#232;tes ou erron&#233;es d&#8217;un lexique et de proposer des
+corrections. La cha&#238;ne logique du processus global se r&#233;sume ainsi :
+</p>
+<p>1. Donner en entr&#233;e &#224; un analyseur syntaxique un grand nombre de phrases non-annot&#233;es
+consid&#233;r&#233;es comme respectueuses de la langue, afin d&#8217;attribuer un &#233;chec d&#8217;analyse aux
+manques de l&#8217;analyseur et non aux textes qu&#8217;il re&#231;oit en entr&#233;e1.
+</p>
+<p>2. Pour chaque phrase non-analysable, tenter de d&#233;terminer automatiquement si l&#8217;&#233;chec
+d&#8217;analyse est d&#251; &#224; des manques de la grammaire ou du lexique utilis&#233;s par l&#8217;analyseur.
+</p>
+<p>3. Suspecter des entr&#233;es lexicales d&#8217;&#234;tre manquantes, incompl&#232;tes ou erron&#233;es.
+4. G&#233;n&#233;rer des hypoth&#232;ses de correction en observant les attentes de la grammaire vis &#224; vis
+</p>
+<p>des formes suspect&#233;es lors des analyses de phrases dans lesquelles elles apparaissent.
+5. &#201;valuer et classer les hypoth&#232;ses de correction afin de proc&#233;der &#224; une validation manuelle.
+</p>
+<p>Bien que tous nos exemples et r&#233;sultats soient li&#233;s &#224; la langue fran&#231;aise, cet ensemble de tech-
+niques est ind&#233;pendant du syst&#232;me, c.a.d, il est facilement adaptable pour la plupart des &#233;ti-
+queteurs syntaxiques, classifieurs d&#8217;entropie, lexiques et analyseurs profonds existants, et par
+cons&#233;quent, &#224; la plupart des langues informatiquement d&#233;crites.
+</p>
+<p>Cet ensemble de techniques est l&#8217;un des points de d&#233;part du r&#233;cent projet Victoria2, dont le
+but est de d&#233;velopper un ensemble d&#8217;outils permettant la construction efficace de ressources
+morphologiques, lexicales et grammaticales. Ces travaux font suite aux travaux pr&#233;sent&#233;s dans
+(2007a; 2007b; 2008) o&#249; des mod&#232;les plus simples avait &#233;t&#233; d&#233;crits.
+Pour des raisons de clart&#233;, les r&#233;sultats pratiques de chaque &#233;tape ainsi que les am&#233;liorations
+possibles sont donn&#233;s conjointement &#224; sa pr&#233;sentation. Nous commen&#231;ons donc par d&#233;crire le
+contexte pratique de nos exp&#233;riences (sect. 2). Nous d&#233;crivons ensuite chaque &#233;tape &#233;num&#233;r&#233;e
+ci dessus (sections 3,4,5,6,7) et concluons (sect.8).
+</p>
+<p>2 Contexte pratique
+</p>
+<p>Nous utilisons un corpus journalistique fran&#231;ais non-annot&#233; extrait du monde diplomatique. Ce
+corpus contient 280 000 phrases de 25 mots ou moins, totalisant 4,3 millions de mots.
+</p>
+<p>Le lexique utilis&#233; que l&#8217;on cherche a am&#233;lior&#233; se nomme le Lefff 3. Ce lexique morphologique
+et syntaxique &#224; large couverture du fran&#231;ais contenant plus de 600 000 entr&#233;es.
+</p>
+<p>Deux analyseurs syntaxiques sont utilis&#233;s afin de g&#233;n&#233;rer des corrections :
+1textes de lois, journaux, etc.
+2http://www.victoria-project.org, octobre 2008.
+3Lexique des formes fl&#233;chies du fran&#231;ais. http://alpage.inria.fr/~sagot/lefff-en.html.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Trouver et confondre les coupables: un processus sophistiqu&#233; de correction de lexique
+</p>
+<p>&#8211; FRMG (French Meta-Grammar) se base sur une m&#233;ta-grammaire abstraite avec des arbres
+hautement factoris&#233;s (Thomasset &amp; Villemonte de La Clergerie, 2005) compil&#233;e en un ana-
+lyseur hybride TAG/TIG gr&#226;ce au syst&#232;me DYALOG.
+</p>
+<p>&#8211; SXLFG-FR (Boullier &amp; Sagot, 2006) est une grammaire LFG profonde efficace non proba-
+biliste compil&#233;e en analyseur LFG par SXLFG, un syst&#232;me bas&#233; sur SYNTAX.
+</p>
+<p>Nous utilisons aussi de fa&#231;on ponctuelle l&#8217;&#233;tiqueteur syntaxique MrTagoo (Molinero et al.,
+2007; Gra&#241;a, 2000) et le classifieur d&#8217;entropie MegaM (Daum&#233; III, 2004).
+</p>
+<p>3 Classification des phrases non analysables
+</p>
+<p>Nous partons des r&#233;sultats d&#8217;analyse syntaxique d&#8217;un grand nombre de phrases. Certaines phrases
+ont &#233;t&#233; pu &#234;tre analys&#233;es, d&#8217;autres non. Les phrases analysables sont consid&#233;r&#233;es comme cou-
+vertes lexicalement et grammaticalement (m&#234;me si les analyses obtenues ne co&#239;ncident pas tou-
+jours avec leur sens v&#233;ritable). Les phrases non-analysables sont par contre non couvertes lexi-
+calement et/ou grammaticalement. Afin de g&#233;n&#233;rer des corrections pour un lexique, il nous est
+pr&#233;f&#233;rable d&#8217;isoler les phrases qui ne sont non-analysables que pour des raisons lexicales. Pour
+ce faire, nous cherchons d&#8217;abord &#224; identifier les phrases grammaticalement non-analysables.
+</p>
+<p>Cette &#233;tape est r&#233;alis&#233;e gr&#226;ce &#224; un classifieur d&#8217;entropie, c.a.d, un outil statistique qui permet
+de calculer une ad&#233;quation (une entropie) entre les donn&#233;es qu&#8217;il re&#231;oit &#224; l&#8217;&#233;valuation et les
+donn&#233;es sur lesquelles il a &#233;t&#233; entra&#238;n&#233; (Daum&#233; III, 2004).
+Dans ce but, nous profitons du fait que les constructions syntaxiques sont plus fr&#233;quentes et
+bien moins diverses que les formes lexicales. Celles non couvertes tendent donc &#224; &#234;tre r&#233;cur-
+rentes et syst&#233;matiques dans les phrases grammaticalement non-analysables. Afin d&#8217;identifier
+ces constructions probl&#233;matiques, nous entra&#238;nons un classifieur d&#8217;entropie de la sorte :
+&#8211; nous r&#233;duisons toutes les phrases &#224; des s&#233;quences de 3-grams obtenues soit &#224; partir des cat&#233;-
+</p>
+<p>gories syntaxiques pour les mots des cat&#233;gories ouvertes (c.a.d., verbes, adjectifs, etc.) et soit
+&#224; partir de formes lexicales pour les mots des cat&#233;gories ferm&#233;es (pr&#233;positions, d&#233;terminants,
+etc.) auxquelles nous rajoutons des marqueurs de d&#233;but et de fin de phrase.
+</p>
+<p>&#8211; nous associons &#224; chaque s&#233;quence une classe (analysable/non-analysable) correspondant au
+r&#233;sultat de l&#8217;analyse de la phrase dont cette s&#233;quence a &#233;t&#233; extraite.
+</p>
+<p>Pour &#8220;je(cln) mange(v) une(det) pomme(nc)&#8221; nous g&#233;n&#233;rons donc une s&#233;quence de 3-grams
+d&#8217;entra&#238;nement: &lt;deb-je-v&gt; &lt;je-v-une&gt; &lt;v-une-nc&gt; &lt;une-nc-fin&gt; dont la classe est analysable.
+Le classifieur diff&#233;rencie donc, &#224; partir des 3-grams qui les composent, les phrases qui paraissent
+&#234;tre grammaticalement analysables de celles qui ne le sont pas. Les phrases non-analysables
+d&#233;clar&#233;es comme grammaticalement analysables sont alors consid&#233;r&#233;es comme lexicalement
+non-analysables.
+</p>
+<p>Il est &#224; noter que l&#8217;entra&#238;nement n&#8217;est pas optimal &#224; cause de deux aspects. Premi&#232;rement, la
+cat&#233;gorie de chaque mot dans les phrases est obtenue par le biais d&#8217;un &#233;tiqueteur syntaxique.
+Les &#233;tiqueteurs ne sont clairement pas des outils parfaits. Cependant, leurs erreurs sont gram-
+maticalement al&#233;atoires car elles d&#233;pendent avant tout des formes lexicales rencontr&#233;es. Ce
+caract&#232;re al&#233;atoire permet donc aux erreurs de ne pas trop perturber la coh&#233;rence globale de
+l&#8217;entra&#238;nement du classifieur d&#8217;entropie. Deuxi&#232;mement, les phrases non-analysables donn&#233;es
+en entra&#238;nement ne sont pas toutes grammaticalement non-analysables, certaines sont seule-
+ment lexicalement non-analysables. On l&#8217;entra&#238;ne donc en partie &#224; consid&#233;rer injustement des
+phrases comme grammaticalement non-analysables. Cependant, les calculs sur les 3-grams pr&#233;-</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Lionel Nicolas, Beno&#238;t Sagot, Miguel A. Molinero, Jacques Farr&#233;, &#201;ric de La Clergerie
+</p>
+<p>sents dans ces phrases injustement cat&#233;goris&#233;es sont contrebalanc&#233;s par leur pr&#233;sence logique
+dans des phrases analysables.
+</p>
+<p>Pour &#233;valuer cette technique, nous avons &#244;t&#233; 5% des phrases analysables &#224; l&#8217;entra&#238;nement et
+avons observ&#233; si le classifieur les d&#233;clare comme analysables. Les taux de pr&#233;cision avant la
+premi&#232;re session de correction, puis apr&#232;s la premi&#232;re, seconde et troisi&#232;me session &#233;taient
+respectivement de 92,7%, 93,8%, 94,1% et 94,9%. La pr&#233;cision du classifieur augmente logi-
+quement car, apr&#232;s chaque session, certaines phrases dont l&#8217;analyse &#233;chouait pour des raisons
+lexicales deviennent analysables et ne perturbent donc plus l&#8217;entra&#238;nement. La g&#233;n&#233;ration des
+s&#233;quences de 3-grams &#233;tant la m&#234;me pour l&#8217;ensemble des phrases, ces taux de pr&#233;cision de-
+vraient s&#8217;appliquer de fa&#231;on &#233;quivalente aux phrases grammaticalement non-analysables.
+</p>
+<p>Finalement, le taux d&#8217;erreur de (pour l&#8217;instant) 5,1% est un manque consid&#233;r&#233; comme accep-
+table &#233;tant donn&#233; l&#8217;impact positif que l&#8217;&#233;tape de filtrage a sur nos techniques de d&#233;tection. Puis-
+qu&#8217;il n&#8217;y a pas de raison pour qu&#8217;une forme particuli&#232;re se retrouve plus que de raison dans des
+phrases classifi&#233;es incorrectement, il est possible de contrebalancer la perte de certaines phrases
+par une simple augmentation de la taille du corpus donn&#233; en entr&#233;e.
+</p>
+<p>4 D&#233;tection des manques lexicaux
+</p>
+<p>La d&#233;tection d&#8217;entr&#233;es lexicales douteuses est r&#233;alis&#233;e par le bais de deux techniques compl&#233;-
+mentaires qui identifient des formes et les associent &#224; des phrases dont elles sont suspect&#233;es
+d&#8217;&#234;tre responsables de l&#8217;&#233;chec d&#8217;analyse.
+</p>
+<p>4.1 D&#233;tection d&#8217;information lexicale &#224; courte port&#233;e via un &#233;tiqueteur
+</p>
+<p>Nous appelons information lexicale de courte port&#233;e toute information pouvant &#234;tre d&#233;termin&#233;e
+par un &#233;tiqueteur syntaxique. Pour l&#8217;instant, nous ne consid&#233;rons que la cat&#233;gorie syntaxique.
+</p>
+<p>Afin de d&#233;tecter les probl&#232;mes lexicaux concernant ce type d&#8217;information, nous utilisons un
+&#233;tiqueteur syntaxique configur&#233; de fa&#231;on particuli&#232;re dont nous court-circuitons ponctuellement
+le lexique interne afin de le forcer &#224; consid&#233;rer comme inconnue, une &#224; la fois, chaque forme
+d&#8217;une phrase. Nous nous reposons donc sur sa capacit&#233; &#224; s&#8217;inspirer du contexte d&#8217;une forme
+pour supposer l&#8217;&#233;tiquette la plus probable. Les informations port&#233;es par ces &#233;tiquettes suppos&#233;es
+sont ensuite compar&#233;es aux informations existantes dans le lexique. Si ces informations sont
+manquantes et concernent des classes ouvertes, la forme correspondante est d&#233;clar&#233;e comme
+suspecte. Appliqu&#233;e aux cat&#233;gories syntaxiques, cette technique nous permet de d&#233;tecter les
+homonymes manquants d&#8217;un lexique en plus des formes totalement inconnues.
+</p>
+<p>Bien entendu, les &#233;tiqueteurs commettent des erreurs, surtout lorsqu&#8217;on courcuite ainsi leurs
+lexiques internes. La pr&#233;cision de l&#8217;&#233;tiqueteur modifi&#233; pour n&#8217;importe quel type de forme (m&#234;me
+celles appartenant aux classes ferm&#233;es) sur 5% des phrases non utilis&#233;es &#224; l&#8217;entra&#238;nement est
+de 47,34%. Le nombre de faux positifs est donc tr&#232;s important. En &#233;tudiant les r&#233;sultats, nous
+avons pu observer le caract&#232;re syst&#233;matique de certaines erreurs. Par exemple, un nom propre est
+souvent consid&#233;r&#233; comme un nom commun, un participe pass&#233; comme un adjectif etc. Pour r&#233;-
+duire le nombres de formes suspect&#233;es incorrectement, nous avons d&#233;velopp&#233; quatre surcouches
+profitant du fait que nous ne travaillions pas &#224; l&#8217;&#233;chelle d&#8217;une phrase solitaire (comme le font
+g&#233;n&#233;ralement les &#233;tiqueteurs) mais d&#8217;un ensemble de phrases.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Trouver et confondre les coupables: un processus sophistiqu&#233; de correction de lexique
+</p>
+<p>La premi&#232;re surcouche choisie simplement l&#8217;&#233;tiquette la plus fr&#233;quement donn&#233;e &#224; une forme.
+</p>
+<p>La deuxi&#232;me surcouche calcule des patrons de r&#233;ponses de l&#8217;&#233;tiqueteur par type d&#8217;&#233;tiquette et
+par fr&#233;quence d&#8217;apparition de la forme (index&#233;es sur les valeurs enti&#232;res du logarithme n&#233;p&#233;-
+rien). On cherche donc durant l&#8217;entra&#238;nement &#224; savoir, par exemple, combien de fois un nom
+propre est d&#233;clar&#233; par l&#8217;&#233;tiqueteur comme nom propre, comme nom commun, comme adjectif,
+etc. A l&#8217;&#233;valuation, nous calculons une affinit&#233; entre les nouveaux ensembles de r&#233;ponses don-
+n&#233;es par l&#8217;&#233;tiqueteur pour chaque forme et les patrons calcul&#233;s &#224; l&#8217;entra&#238;nement et on attribue
+ensuite &#224; la forme l&#8217;&#233;tiquette du patron avec lequel elle a le plus d&#8217;affinit&#233;. Le calcul d&#8217;affinit&#233;
+Affpat/rep et le choix du meilleur patron Bestpat se calculent ainsi :
+</p>
+<p>Affpat/rep =
+&#8721;
+abs(Pateti &#8722;Repeti), Bestpat = max(Affpat/rep &#8727; log(Occpat))
+</p>
+<p>Pateti et Repeti sont la part d&#8217;une &#233;tiquette eti, et Occpat est le poids d&#8217;&#233;mission du patron &#233;gale
+&#224; la somme des occurrences des formes qui ont permis sa construction.
+</p>
+<p>La troisi&#232;me surcouche applique la m&#234;me id&#233;e mais laisse le calcul d&#8217;affinit&#233; &#224; un classifieur
+d&#8217;entropie. Le classifieur est entra&#238;n&#233; &#224; reconna&#238;tre des patrons et &#224; les associer &#224; une classe
+repr&#233;sentant une &#233;tiquette et un index n&#233;p&#233;rien.
+</p>
+<p>La derni&#232;re surcouche s&#8217;appuie sur les trois premi&#232;res pour r&#233;aliser un &#171; vote &#224; la cr&#233;dibilit&#233; &#187;o&#249;
+l&#8217;&#171; opinion &#187; de chaque surcouche est valoris&#233;e &#224; partir des taux d&#8217;erreurs par type de r&#233;ponse.
+</p>
+<p>Le d&#233;faut majeur de ces surcouches est qu&#8217;actuellement, elles consid&#232;rent que chaque forme
+repr&#233;sente un seule lemme, ce qui est faux bien que vrai dans la grande majorit&#233; des cas.
+L&#8217;&#233;tiqueteur est alors entra&#238;n&#233; avec 50% des phrases du corpus, l&#8217;entra&#238;nement des surcouches
+se r&#233;alise ensuite sur les r&#233;ponses fournis par l&#8217;&#233;valuation de l&#8217;&#233;tiqueteur sur 47,5% des phrases
+et leur &#233;valuation sur 2,5% des phrases restantes. Les pr&#233;cisions respectives sur ces 2,5% de
+phrases de l&#8217;&#233;tiqueteur, de la premi&#232;re, seconde, troisi&#232;me et quatri&#232;me surcouche sont res-
+pectivement de 40,17%, 43,6%, 77,61%, 74,09%4 et 89,78%. L&#8217;application de ces surcouches
+permet donc de passer d&#8217;une pr&#233;cision originelle de 47,34% de l&#8217;&#233;tiqueteur modifi&#233; &#224; 89,78%,
+r&#233;duisant ainsi fortement le nombre de faux positifs.
+</p>
+<p>Dans une premi&#232;re version bas&#233;e uniquement sur l&#8217;&#233;tiqueteur sans surcouche et consid&#233;rant
+toute les formes comme inconnues en m&#234;me temps, nous avons pu identifier 182 lemmes man-
+quants. Cette nouvelle version nous a permis d&#8217;en trouver 358 autres. Le tout correspond a un
+total de 1168 formes lexicales, pour la plupart adjectifs ou noms propres manquants.
+</p>
+<p>4.2 Approche statistique pour la d&#233;tection de d&#233;fauts lexicaux
+</p>
+<p>Cette technique de d&#233;tection de d&#233;fauts lexicaux, d&#233;crite dans (Sagot &amp; Villemonte de La Cler-
+gerie, 2006; Sagot &amp; de La Clergerie, 2008), repose sur les hypoth&#232;ses suivantes :
+&#8211; Si une forme lexicale appara&#238;t plus souvent dans des phrases non-analysables que dans des
+</p>
+<p>phrases analysables, il est raisonnable de la suspecter d&#8217;&#234;tre incorrectement d&#233;crite dans le
+lexique (van Noord, 2004).
+</p>
+<p>&#8211; Le taux de suspicion peut &#234;tre renforc&#233; si la forme appara&#238;t dans des phrases non-analysables
+&#224; c&#244;t&#233; d&#8217;autres formes pr&#233;sentes dans des phrases analysables.
+4Ce r&#233;sultat moins important que la pr&#233;c&#233;dente surcouche est probablement d&#251; &#224; une configuration insuffisante
+</p>
+<p>du classifieur d&#8217;entropie</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Lionel Nicolas, Beno&#238;t Sagot, Miguel A. Molinero, Jacques Farr&#233;, &#201;ric de La Clergerie
+</p>
+<p>L&#8217;avantage de cette technique par rapport &#224; la pr&#233;c&#233;dente est sa capacit&#233; &#224; prendre en compte
+tout type d&#8217;erreurs lexicales. Cependant, puisque qu&#8217;elle part du pr&#233;cepte que toute phrase non-
+analysable ne l&#8217;est que pour des raisons lexicales, la qualit&#233; de la liste de suspects fournie
+d&#233;pend directement de la qualit&#233; de la grammaire utilis&#233;e. En effet, si une forme sp&#233;cifique
+est particuli&#232;rement li&#233;e &#224; une construction syntaxique non couverte par la grammaire, on la
+retrouvera souvent dans des phrases non analysables et elle sera alors injustement suspect&#233;e.
+Nous att&#233;nuons ce probl&#232;me de deux fa&#231;ons. Premi&#232;rement, nous excluons du calcul statis-
+tique toutes les phrases consid&#233;r&#233;es comme grammaticalement non-analysables. Deuxi&#232;me-
+ment, comme cela a d&#233;j&#224; &#233;t&#233; fait dans (Sagot &amp; Villemonte de La Clergerie, 2006), nous com-
+binons les r&#233;sultats d&#8217;analyse fournis par diff&#233;rents analyseurs reposant sur des formalismes et
+grammaires diff&#233;rents, et donc avec des manques grammaticaux diff&#233;rents.
+</p>
+<p>Cette technique nous a permis de d&#233;tecter 72 lemmes d&#233;crits de fa&#231;on incompl&#232;te correspondant
+&#224; un total de 1693 formes lexicales, pour la plupart des verbes.
+</p>
+<p>Pour l&#8217;instant, les deux techniques de d&#233;tection identifient des formes lexicales. Il serait int&#233;res-
+sant de monter au niveau du lemme en appliquant en post-traitement l&#8217;id&#233;e d&#233;crite dans (Sagot,
+2005) o&#249; la validit&#233; d&#8217;un lemme est favoris&#233;e ou p&#233;nalis&#233;e suivant la pr&#233;sence ou l&#8217;absence de
+ses formes lexicales.
+</p>
+<p>Autre am&#233;lioration possible, l&#8217;efficacit&#233;/l&#8217;int&#233;r&#234;t de ces techniques ne sont valoris&#233;s que par
+les corrections qu&#8217;elles ont permis de r&#233;aliser. Il serait int&#233;ressant d&#8217;&#233;tablir une m&#233;trique afin
+d&#8217;&#233;valuer la qualit&#233; des formes suspectes fournies. Cette m&#233;trique permettrait aussi de quantifier
+formellement l&#8217;impact positif de l&#8217;&#233;tape de filtrage sur l&#8217;&#233;tape de d&#233;tection. Le classement &#224;
+chaque session des formes corrig&#233;es pourrait &#234;tre un point de d&#233;part.
+</p>
+<p>5 G&#233;n&#233;ration des hypoth&#232;ses de correction lexicale : analyse
+de phrases initialement non-analysables
+</p>
+<p>La g&#233;n&#233;ration de corrections lexicales &#224; partir du contexte grammatical a &#233;t&#233; utilis&#233; pour la
+premi&#232;re fois en 1990 (Erbach, 1990). Elle suit l&#8217;id&#233;e suivante : suivant la qualit&#233; du lexique
+et de la grammaire, la probabilit&#233; que ces deux ressources soient simultan&#233;ment erron&#233;es au
+sujet d&#8217;une forme donn&#233;e dans une phrase donn&#233;e peut &#234;tre faible. Si une phrase ne peut pas
+&#234;tre analys&#233;e &#224; cause d&#8217;une forme suspecte, cela implique que les deux ressources n&#8217;ont pas
+pu s&#8217;accorder sur le r&#244;le que la forme peut avoir dans la phrase. Puisque que le probl&#232;me est
+d&#8217;origine lexical, il est possible de g&#233;n&#233;rer des corrections en &#233;tudiant les attentes de la gram-
+maire pour chaque forme suspect&#233;e lorsqu&#8217;elle analyse les phrases qui leur sont associ&#233;es. De
+mani&#232;re m&#233;taphorique, on &#171; demande &#187; &#224; la grammaire son opinion sur les formes suspect&#233;es.
+Originellement, les formes suspectes &#233;taient d&#233;termin&#233;es manuellement puis, &#224; partir de 2006
+(van de Cruys, 2006; Yi &amp; Kordoni, 2006; Nicolas et al., 2007a; Nicolas et al., 2007b) , cette
+id&#233;e a &#233;t&#233; combin&#233;e avec des techniques de fouille d&#8217;erreurs telles que (van Noord, 2004; Sagot
+&amp; Villemonte de La Clergerie, 2006; Sagot &amp; de La Clergerie, 2008).
+Pour g&#233;n&#233;rer des corrections, nous nous approchons au mieux de des analyses que la gram-
+maire aurait permises avec un lexique sans erreur. Puisque nous pensons que les informations
+lexicales associ&#233;es &#224; la forme suspecte ont coup&#233; le chemin vers une possible analyse, nous
+diminuons les restrictions impos&#233;es par les informations lexicales : pendant l&#8217;analyse, chaque
+fois qu&#8217;une information lexicale associ&#233;e &#224; une forme suspect&#233;e est v&#233;rifi&#233;e, le lexique est court-</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Trouver et confondre les coupables: un processus sophistiqu&#233; de correction de lexique
+</p>
+<p>circuit&#233; et toutes les contraintes sont consid&#233;r&#233;es comme satisfaites. La forme devient alors tout
+ce que peut souhaiter la grammaire. En r&#233;alit&#233;, cette op&#233;ration est effectu&#233;e en &#233;changeant les
+formes suspectes dans les phrases associ&#233;es par des formes sous-sp&#233;cifi&#233;es appel&#233;es jokers. Si
+une forme a &#233;t&#233; correctement suspect&#233;e, et si c&#8217;est l&#8217;unique cause d&#8217;&#233;chec de certaines analyses
+de phrases, remplacer cette forme par un joker permet aux phrases de devenir analysables. Dans
+ces nouvelles analyses, des entr&#233;es &#171; instanci&#233;es &#187; du joker sont partie prenante des structures
+grammaticales produites en sortie. Ces entr&#233;es instanci&#233;es repr&#233;sentent les informations man-
+quantes du lexique, nous les traduisons donc au format du lexique afin d&#8217;&#233;tablir les corrections.
+</p>
+<p>Comme expliqu&#233; dans (Barg &amp; Walther, 1998), l&#8217;utilisation de jokers totalement sous-sp&#233;cifi&#233;s
+peut introduire une ambigu&#239;t&#233; trop grande dans le processus d&#8217;analyse. Cela entra&#238;ne souvent
+des &#233;checs d&#8217;analyse pour des contraintes de temps ou de m&#233;moire (pas de corrections), ou
+des analyses surg&#233;n&#233;rative (trop de corrections). Contrairement &#224; (Yi &amp; Kordoni, 2006), o&#249;
+les auteurs utilisent les jokers totalement sp&#233;cifi&#233;s les plus probables, nous n&#8217;ajoutons que peu
+d&#8217;information lexicale aux jokers et nous nous reposons sur la capacit&#233; de nos analyseurs &#224; g&#233;rer
+des formes sous sp&#233;cifi&#233;es. Pour des raisons pratiques, nous avons choisi d&#8217;ajouter aux jokers
+une cat&#233;gorie syntaxique. L&#8217;ambigu&#239;t&#233; introduite reste cons&#233;quente et aboutit g&#233;n&#233;ralement &#224; un
+nombre important de corrections. N&#233;anmoins cet aspect peut &#234;tre facilement contrebalanc&#233; pour
+peu qu&#8217;il y ait assez de phrases non-analysables associ&#233;es &#224; une forme suspecte (voir sect 6).
+La cat&#233;gorie syntaxique ajout&#233;e aux jokers d&#233;pend de la technique de d&#233;tection utilis&#233;e pour
+suspecter la forme. Lorsque nous utilisons la d&#233;tection bas&#233;e sur un &#233;tiqueteur, nous g&#233;n&#233;rons
+des jokers avec des cat&#233;gories syntaxiques en accord avec les &#233;tiquettes fournies pour la forme.
+Quand nous utilisons l&#8217;approche de d&#233;tection statistique, nous produisons des jokers avec les
+cat&#233;gories syntaxiques d&#233;j&#224; pr&#233;sentes dans le lexique pour la forme suspect&#233;e.
+</p>
+<p>6 Extraction et classement des corrections
+</p>
+<p>Le lecteur peut noter qu&#8217;un joker inad&#233;quat peut parfaitement mener &#224; de nouvelles analyses
+et donc permettre la g&#233;n&#233;ration de corrections incorrectes. Nous commen&#231;ons donc par s&#233;parer
+les corrections suivant le joker qui a permis leur g&#233;n&#233;ration.
+</p>
+<p>Classification mono-analyseur. &#192; l&#8217;&#233;chelle d&#8217;une seule phrase, rien de permet de diff&#233;ren-
+cier les corrections valides des corrections erron&#233;es dont la g&#233;n&#233;ration r&#233;sulte de l&#8217;ambigu&#239;t&#233;
+introduite par les jokers. Cette ambigu&#239;t&#233; ayant permis &#224; l&#8217;analyse d&#8217;emprunter des r&#232;gles de
+grammaires qu&#8217;elle n&#8217;aurait pas du. Le type de correction erron&#233;e d&#233;pend donc des r&#232;gles de
+grammaires emprunt&#233;es, c.a.d, de la structure syntaxique v&#233;ritable de la phrase. Si la forme cor-
+rig&#233;e appartient &#224; une cat&#233;gorie ouverte, elle a de forte chance de pouvoir se retrouver au sein
+de structures vari&#233;es. Par cons&#233;quent, plus le nombre de phrases est &#233;lev&#233;, plus les structures
+syntaxiques au sein desquelles la forme est pr&#233;sente sont vari&#233;es et plus les corrections erron&#233;es
+ont tendance a se disperser. Les correction valides, au contraire, tendent &#224; &#234;tre r&#233;currentes.
+</p>
+<p>Nous consid&#233;rons donc toutes les corrections d&#8217;une forme w issue d&#8217;une m&#234;me phrase comme
+un groupe de corrections. Chaque groupe re&#231;oit un poids P = cn variant selon sa taille n,
+avec c une constante num&#233;rique entre ]0, 1[ proche de 1. Plus le groupe est grand, plus bas sera
+son poids car plus forte sera la probabilit&#233; qu&#8217;il soit la cons&#233;quence de squelettes syntaxiques
+permissifs. Chaque correction &#963; du groupe re&#231;oit ensuite un poids pg&#963; = Pn = c
+</p>
+<p>n
+</p>
+<p>n
+. Tous les poids
+</p>
+<p>d&#8217;une correction sont finalement additionn&#233;s afin de calculer le poids global s&#963; = &#931;gpg&#963;.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Lionel Nicolas, Beno&#238;t Sagot, Miguel A. Molinero, Jacques Farr&#233;, &#201;ric de La Clergerie
+</p>
+<p>Classification multi-analyseur. &#201;tant donn&#233; que les corrections erron&#233;es g&#233;n&#233;r&#233;es d&#233;pendent
+des r&#232;gles de grammaire emprunt&#233;es durant les analyses, l&#8217;utilisation des r&#233;sultats provenant de
+plusieurs analyseurs avec des grammaires diff&#233;rentes permet d&#8217;accentuer leur dispersion, alors
+que les correction pertinentes restent habituellement stables. Des corrections sont donc consi-
+d&#233;r&#233;es comme moins pertinentes si elles ne sont pas propos&#233;es par l&#8217;ensemble des analyseurs.
+Nous obtenons donc s&#233;par&#233;ment les corrections de chaque analyseur comme d&#233;crit ci dessus et
+fusionnons les r&#233;sultats &#224; l&#8217;aide d&#8217;une simple moyenne harmonique.
+</p>
+<p>7 Validation manuelle des corrections
+</p>
+<p>Contrairement &#224; (van de Cruys, 2006; Yi &amp; Kordoni, 2006), nous privil&#233;gions une approche
+semi-automatique impliquant une &#233;tape de validation manuelle. Lors de la validation manuelle,
+nous avons identifi&#233; trois situations possibles.
+</p>
+<p>Soit il n&#8217;y a pas de corrections : la d&#233;tection des formes suspectes a &#233;t&#233; inad&#233;quate ou la forme
+suspect&#233;e n&#8217;est pas l&#8217;unique raison des &#233;checs d&#8217;analyse associ&#233;s.
+Soit il y a des corrections pertinentes : la forme a &#233;t&#233; correctement d&#233;tect&#233;e, la forme est l&#8217;unique
+raison de (certains) &#233;checs d&#8217;analyse associ&#233;s.
+Soit il n&#8217;y a que des corrections erron&#233;es : l&#8217;ambigu&#239;t&#233; introduite par les jokers a ouvert la voie
+vers des analyses erron&#233;es fournissant des corrections erron&#233;es. Si la grammaire ne couvre pas
+toutes les structures syntaxiques possibles, il n&#8217;y a aucune garantie qu&#8217;il y ait des corrections
+pertinentes produites.
+</p>
+<p>Les r&#233;sultats donn&#233;s dans (van de Cruys, 2006) d&#233;montrent clairement cet aspect : on peut y voir
+que pour les cat&#233;gories syntaxiques complexes comme les verbes, il est impossible d&#8217;appliquer
+un tel ensemble de techniques de fa&#231;on automatis&#233;e sans nuire &#224; la qualit&#233; du lexique. Si le
+but du processus de correction est d&#8217;am&#233;liorer la qualit&#233; du lexique et non pas d&#8217;augmenter
+artificiellement sa couverture, un tel processus devrait toujours &#234;tre semi-automatique.
+Comme nous l&#8217;expliquons plus loin, la validation manuelle n&#8217;est pas un tr&#232;s lourd tribut &#224; payer.
+De plus, elle ouvre la possibilit&#233; suivante : les lemmes s&#233;mantiquement reli&#233;s d&#8217;une m&#234;me
+cat&#233;gorie syntaxique tendent &#224; avoir des comportements syntaxiques similaires. Cette similarit&#233;
+pourrait &#234;tre utilis&#233;e pour attirer l&#8217;attention du correcteur ou m&#234;me g&#233;n&#233;rer des corrections pour
+des formes non rencontr&#233;s/d&#233;tect&#233;s.
+</p>
+<p>Voici quelques exemples de correction valid&#233;es :
+&#8211; isra&#233;lien, portugais, parabolique, pittoresque, minutieux &#233;taient des adjectifs manquants ;
+&#8211; revenir ne traitait pas les constructions telles que revenir vers ou revenir de ;
+&#8211; se partager ne traitait pas les constructions telles que partager (quelque chose) entre ;
+&#8211; aimer &#233;tait d&#233;crit comme attendant obligatoirement un COD et un attribut ;
+&#8211; livrer ne traitait pas les constructions telles que livrer (quelque chose) &#224; quelqu&#8217;un.
+Le Tableau 1 donne les r&#233;sultats de 4 sessions de correction. Les premi&#232;re et troisi&#232;me sessions
+ont &#233;t&#233; r&#233;alis&#233;es avec la technique statistique de d&#233;tection. La seconde avec une version brute
+de la technique de d&#233;tection bas&#233;e sur un &#233;tiqueteur et la quatri&#232;me avec la version d&#233;crite
+pr&#233;c&#233;demment (voir sect 4).
+Apr&#232;s ces quelques sessions, les techniques de d&#233;tections nous fournissent encore des formes
+suspectes mais nous n&#8217;obtenons plus de nouvelles corrections valides. Cela peut s&#8217;expliquer par
+plusieurs raisons. Bien que peu probable, les phrases non analysables restantes peuvent poss&#233;-</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Trouver et confondre les coupables: un processus sophistiqu&#233; de correction de lexique
+</p>
+<p>Session 1 2 3 4 total
+nc 30 99 1 6 136
+adj 66 694 27 14 801
+verbs 1183 0 385 0 1568
+adv 1 7 0 0 8
+np 0 0 0 348 348
+total 1280 800 413 368 2861
+</p>
+<p>TAB. 1 &#8211; Formes lexicales mises &#224; jour &#224; chaque session.
+</p>
+<p>der deux formes erron&#233;es ; l&#8217;introduction d&#8217;un seul joker ne suffit donc pas &#224; rendre la phrase
+analysable. On peut aussi penser que les couvertures de nos grammaires sont insuffisantes, elles
+ne sont donc pas en mesure de nous fournir de nouvelles corrections. Cette derni&#232;re explication
+est privil&#233;gi&#233;e car, apr&#232;s la derni&#232;re session, l&#8217;&#233;tape de filtrage des phrases non analysables a
+classifi&#233;e l&#8217;essentiel des phrases restantes comme grammaticalement non analysables. Des ses-
+sions de correction futures n&#8217;auront donc de sens qu&#8217;apr&#232;s des am&#233;liorations des grammaires
+ou l&#8217;application &#224; de nouveaux corpus.
+</p>
+<p>Cependant, cette constatation nous met en mesure de produire des corpus globalement repr&#233;-
+sentatifs de manques grammaticaux. Si une technique &#233;tait capable d&#8217;utiliser ce corpus pour
+sugg&#233;rer des corrections grammaticales, la mise &#224; jour de la grammaire nous permettrait de g&#233;-
+n&#233;rer &#224; nouveau des corrections pour le lexique. Ce qui &#224; nouveau nous permettrait de g&#233;n&#233;rer
+un corpus repr&#233;sentatif des manques de la grammaire et ainsi de suite. Il serait alors possible de
+mettre au point un processus it&#233;ratif am&#233;liorant alternativement et incr&#233;mentalement la gram-
+maire et le lexique. Le mod&#232;le d&#8217;entropie construit par le classificateur pourrait &#234;tre un bon
+point de d&#233;part pour &#233;tablir les manques d&#8217;une grammaire.
+</p>
+<p>Pour r&#233;sumer nos r&#233;sultats, nous avons d&#233;j&#224; d&#233;tect&#233; et corrig&#233; 612 lemmes correspondant &#224; 2861
+formes. Il est important de noter que ces corrections ont &#233;t&#233; obtenues apr&#232;s seulement quelques
+heures de travail manuel. L&#8217;aspect semi-automatique de notre approche n&#8217;est donc pas un tr&#232;s
+lourd tribut &#224; payer.
+</p>
+<p>8 Conclusion
+</p>
+<p>Depuis ses premi&#232;res versions (Nicolas et al., 2007a; Nicolas et al., 2007b), cet ensemble de
+techniques a fortement &#233;volu&#233; et les r&#233;sultats obtenus d&#233;montrent sa coh&#233;rence et sa viabilit&#233;.
+Les am&#233;liorations pr&#233;vues devraient renforcer ces r&#233;sultats et accro&#238;tre l&#8217;efficacit&#233; globale. Une
+effort important sera de formaliser l&#8217;int&#233;r&#234;t et l&#8217;efficacit&#233; des techniques par des m&#233;triques qui,
+&#224; ce jour, n&#8217;existent pas pour ce type de probl&#232;me.
+Pour conclure, cet ensemble de techniques pr&#233;sente actuellement trois avantages importants :
+</p>
+<p>1. Il prend en entr&#233;e du texte &#171; non-annot&#233; &#187; produits quotidiennement par des sources
+journalistiques ou techniques facilement accessibles &#224; travers des initiatives tel que le
+projet fran&#231;ais Passage5, qui juxtapose des fragments du Wikipedia fran&#231;ais, de sources
+Wiki fran&#231;ais, du journal r&#233;gional L&#8217;Est R&#233;publicain, d&#8217;Europarl et de JRC Acquis.
+</p>
+<p>2. Il permet d&#8217;am&#233;liorer de fa&#231;on significative un lexique morphologique et syntaxique &#224;
+5http://atoll.inria.fr/passage.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Lionel Nicolas, Beno&#238;t Sagot, Miguel A. Molinero, Jacques Farr&#233;, &#201;ric de La Clergerie
+</p>
+<p>large couverture en peu de temps.
+3. Enfin, son application r&#233;p&#233;t&#233;e sur un corpus peut rendre ce corpus repr&#233;sentatif des manques
+</p>
+<p>de la grammaire utilis&#233;e. Un tel corpus pourrait &#234;tre un point de d&#233;part pour le d&#233;velop-
+pement d&#8217;un processus d&#233;di&#233; &#224; l&#8217;am&#233;lioration d&#8217;une grammaire.
+</p>
+<p>R&#233;f&#233;rences
+BARG P. &amp; WALTHER M. (1998). Processing unkonwn words in hpsg. In Proceedings of
+the 36th Conference of the ACL and the 17th International Conference on Computational
+Linguistics.
+BOULLIER P. &amp; SAGOT B. (2006). Efficient parsing of large corpora with a deep LFG parser.
+In Proceedings of LREC&#8217;06.
+DAUM&#201; III H. (2004). Notes on CG and LM-BFGS optimization of logistic regression. Paper
+http://pub.hal3.name/daume04cg-bfgs, implementation http://hal3.name/megam/.
+ERBACH G. (1990). Syntactic processing of unknown words. In IWBS Report 131.
+GRA&#209;A J. (2000). T&#233;cnicas de An&#225;lisis Sint&#225;ctico Robusto para la Etiquetaci&#243;n del Lenguaje
+Natural ( robust syntactic analysis methods for natural language tagging). Doctoral thesis,
+Universidad de A Coru&#241;a, Spain.
+MOLINERO M. A., BARCALA F. M., OTERO J. &amp; GRA&#209;A J. (2007). Practical application
+of one-pass viterbi algorithm in tokenization and pos tagging. Recent Advances in Natural
+Language Processing (RANLP). Proceedings, pp. 35-40.
+NICOLAS L., FARR&#201; J. &amp; VILLEMONTE DE LA CLERGERIE &#201;. (2007a). Confondre le cou-
+pable. In Proceedings of TALN&#8217;07, p. 315&#8211;324, Toulouse, France.
+NICOLAS L., FARR&#201; J. &amp; VILLEMONTE DE LA CLERGERIE &#201;. (2007b). Correction mining
+in parsing results. In Proceedings of LTC&#8217;07, Poznan, Poland.
+NICOLAS L., SAGOT B., MOLINERO M. A., FARR&#201; J. &amp; VILLEMONTE DE LA CLERGERIE
+E. (2008). Computer aided correction and extension of a syntactic wide-coverage lexicon. In
+Proceedings of Coling 2008, Manchester.
+SAGOT B. (2005). Automatic acquisition of a Slovak lexicon from a raw corpus. In Lecture
+Notes in Artificial Intelligence 3658 ( c&#169; Springer-Verlag), Proceedings of TSD&#8217;05, p. 156&#8211;163,
+Karlovy Vary, R&#233;publique Tch&#232;que.
+SAGOT B. &amp; DE LA CLERGERIE E. (2008). Fouille d&#8217;erreurs sur des sorties d&#8217;analyseurs
+syntaxiques. Traitement Automatique des Langues, 49(1). (to appear).
+SAGOT B. &amp; VILLEMONTE DE LA CLERGERIE &#201;. (2006). Error mining in parsing results.
+In Proceedings of ACL/COLING&#8217;06, p. 329&#8211;336, Sydney, Australia.
+THOMASSET F. &amp; VILLEMONTE DE LA CLERGERIE &#201;. (2005). Comment obtenir plus des
+m&#233;ta-grammaires. In Proceedings of TALN&#8217;05.
+VAN DE CRUYS T. (2006). Automatically extending the lexicon for parsing. In Proceedings
+of the eleventh ESSLLI student session.
+VAN NOORD G. (2004). Error mining for wide-coverage grammar engineering. In Procee-
+dings of ACL 2004, Barcelona, Spain.
+YI Z. &amp; KORDONI V. (2006). Automated deep lexical acquisition for robust open texts pro-
+cessing. In Proceedings of LREC-2006.</p>
+
+</div></div>
+</body></html>

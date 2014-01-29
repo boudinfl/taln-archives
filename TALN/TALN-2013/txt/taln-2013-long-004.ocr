@@ -1,0 +1,757 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Sélection non supervisée de relations sémantiques pour
+améliorer un thésaurus distributionnel
+
+Olivier Ferret
+CEA, LIST, Laboratoire Vision et Ingénierie des Contenus,
+Gif-sur-Yvette, F-91191 France.
+
+olivier .ferret@cea.:Er
+
+RESUME
+Les travaux se focalisant sur la construction de thésaurus distributionnels ont montré que les
+relations sémantiques qu’ils recélent sont principalement ﬁables pour les mots de forte fréquence.
+Dans cet article, nous proposons une méthode pour rééquilibrer de tels thésaurus en faveur des
+mots de fréquence faible sur la base d’un mécanisme d’amorgage : un ensemble d’exemples et de
+contre—exemples de mots sémantiquement similaires sont sélectionnés de fagon non supervisée et
+utilisés pour entrainer un classiﬁeur supervisé. Celui—ci est ensuite appliqué pour réordonner les
+voisins sémantiques du thésaurus utilisé pour sélectionner les exemples et contre—exemples. Nous
+montrons comment les relations entre les constituants de noms composés similaires peuvent
+étre utilisées pour réaliser une telle sélection et comment conjuguer ce critere a un critére déja
+expérimenté sur la symétrie des relations sémantiques. Nous évaluons l’intérét de cette procédure
+sur un large ensemble de noms en anglais couvrant un vaste spectre de fréquence.
+
+ABSTRACT
+Unsupervised selection of semantic relations for improving a distributional thesaurus
+
+Work about distributional thesauri has shown that the relations in these thesauri are mainly
+reliable for high frequency words. In this article, we propose a method for improving such a
+thesaurus through its re—balancing in favor of low frequency words. This method is based on a
+bootstrapping mechanism : a set of positive and negative examples of semantically similar words
+are selected in an unsupervised way and used for training a supervised classiﬁer. This classiﬁer is
+then applied for reranking the semantic neighbors of the thesaurus used for example selection.
+We show how the relations between the mono—terms of similar nominal compounds can be used
+for performing this selection and how to associate this criterion with an already tested criterion
+based on the symmetry of semantic relations. We evaluate the interest of the global procedure
+for a large set of English nouns with various frequencies.
+
+MOTS-CLES 2 Sémantique lexicale, similarité sémantique, thésaurus distributionnels.
+
+KEYWORDS: Lexical semantics, semantic similarity, distributional thesauri.
+
+1 Introduction
+
+Le travail présenté dans cet article s’inscrit dans le contexte de la construction automatique
+de thésaurus a partir de corpus. Dans le prolongement de (Grefenstette, 1994) cu (Curran
+
+48 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+et Moens, 2002), une maniere largement répandue d’aborder ce probleme est d’uti1iser une
+mesure de similarité sémantique pour extraire les voisins sémantiques de chacune des entrées
+pressenties du thésaurus. Trois principales approches peuvent étre distinguées pour construire
+une telle mesure. La premiere repose sur des ressources construites manuellement abritant
+des relations sémantiques clairement identiﬁées, généralement de nature paradigmatique. Les
+travaux exploitant des réseaux lexicaux de type WordNet pour élaborer des mesures de similarité
+sémantique, tels que (Budanitsky et Hirst, 2006) ou (Pedersen et al., 2004), entrent pleinement
+dans cette catégorie. Ces mesures s’appuient typiquement sur la structure hiérarchique de ces
+réseaux, fondée sur des relations d’hyperonyrnie. La deuxieme approche pour construire une
+telle mesure fait appel a une source de connaissances concernant les mots moins structurée
+que la précédente : les descriptions textuelles de leur sens. Les gloses de WordNet ont ainsi été
+utilisées pour mettre en oeuvre des mesures de type Lesk dans (Banerjee et Pedersen, 2003)
+et plus récemment, des mesures ont été déﬁnies a partir de Wikipédia ou des déﬁnitions des
+Wiktionaries (Gabrilovich, 2007). La derniere option pour la construction d’une mesure de
+similarité sémantique prend appui sur un corpus en généralisant l’hypothese distributionnelle :
+chaque mot est caractérisé par l’ensemble des contextes dans lesquels il apparait pour un corpus
+donné et la similarité sémantique de deux mots est évaluée sur la base de la proportion de
+contextes que ces deux mots partagent. Cette perspective, initialement adoptée par (Grefenstette,
+1994) et (Lin, 1998), a fait l’objet d’études approfondies, notamment dans (Curran et Moens,
+2002), (Weeds, 2003) ou (Heylen et al., 2008).
+
+Le probleme de l’amélioration des résultats d’une implémentation << classique » de l’approche
+distributionnelle telle qu’elle est réalisée dans (Curran et Moens, 2002) a déja fait1’objet d’un
+certain nombre de travaux. Une partie d’entre eux se sont focalisés sur la pondération des élé-
+ments constituant les contextes distributionnels, a l’instar de (Broda et al., 2009), qui transforme
+les poids au sein de des contextes en rangs, ou de (Zhitomirsky—Geffet et Dagan, 2009), repris et
+étendu par (Yamamoto et Asakura, 2010), qui propose une méthode fondée sur l’amorcage pour
+modiﬁer les poids des éléments des contextes en s’appuyant sur les voisins sémantiques trouvés
+au moyen d’une mesure de similarité distributionnelle initiale. Des approches plus radicalement
+différentes ont également vu le jour. L’utilisation de méthodes de réduction de dimensions, comme
+1’Analyse Sémantique Latente dans (Padé et Lapata, 2007), les modéles de type mu1ti—prototype
+(Reisinger et Mooney, 2010) ou la redéﬁnition de l’approche distributionnelle dans un cadre
+bayésien dans (Kazama et al., 2010) se rangent dans cette seconde catégorie.
+
+Le travail que nous présentons dans cet article s’appuie comme (Zhitomirsky—Geffet et Dagan,
+2009) sur un mécanisme d’amorcage mais adopte une perspective différente, initiée dans (Ferret,
+2012) : au lieu d’utiliser les << meilleurs >> voisins sémantiques pour adapter directement les
+poids des éléments constituant les contextes distributionnels des mots, 1’idée est de sélectionner
+de facon non supervisée un ensemble restreint de mots jugés sémantiquement similaires pour
+entrainer, a l’instar de (Hagiwara, 2008), un classiﬁeur statistique supervisé capable de modéliser
+la notion de similarité sémantique. La sélection de cet ensemble d’apprentissage est réalisée
+plus précisément en associant deux criteres faibles fondés sur la similarité distributionnelle des
+mots : le premier, déja expérimenté dans (Ferret, 2012), exploite la symétrie de la relation de
+similarité sémantique; le second, nouvellement introduit ici, fait l’hypothése que les constituants
+de mots composés sémantiquement similaires sont eux-mémes susceptibles d’entretenir des
+liens de similarité sémantique. Nous montrons que le classiﬁeur ainsi construit est utilisable
+pour réordonner les voisins sémantiques trouvés par la mesure de similarité initiale et corriger
+certaines de ses insufﬁsances du point de vue de la construction d’un thésaurus distributionnel.
+
+49 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+2 Construction d’un thésaurus distributionnel initial
+
+L’utilisation de l’amorcage implique dans notre cas de construire un thésaurus initial dont la
+qualité, au moins pour un sous—ensemble de celui—ci, soit sufﬁsamment élevée pour servir de
+marchepied a une amélioration plus globale. Compte tenu du mode de construction de ce type de
+thésaurus, cet objectif prend la forme de la deﬁnition d’une mesure de similarité distributionnelle
+obtenant des performances, telles qu’elles peuvent étre évaluées au travers de tests de type
+TOEFL (Landauer et Dumais, 1997) par exemple, Compatibles avec cette exigence. (Ferret, 2010)
+s’est attaché a la sélection d’une telle mesure. Nous reprenons ici les conclusions de ce travail.
+
+2.1 Déﬁnition d’une mesure de similarité distributionnelle
+
+Bien que notre langue cible soit l’anglais, nous avons choisi de limiter le niveau des traitements
+linguistiques appliqués au corpus source de nos données distributionnelles a l’étiquetage morpho-
+syntaxique et a la lemmatjsation, de maniére a faciliter la transposition du travail a des langues
+moins dotées. Cette approche apparait a cet égard comme un compromis raisonnable entre
+l’approche de (Freitag et al., 2005), dans laquelle aucune normalisation n’est faite, et l’approche
+plus largement répandue consistant a utiliser un analyseur syntaxique, a l’instar de (Curran
+et Moens, 2002). Plus précisément, nous nous sommes appuyés sur l’outil T reeTagger (Schmid,
+1994) pour assurer le prétraitement du corpus AQUAINT—2 qui est a la base de ce travail. Ce
+corpus comprenant environ 380 millions de mots est composé d’articles de journaux.
+
+Les parametres d’extraction des données distributionnelles et les caractéristiques de la mesure de
+similarité sont quant a eux issus de la sélection opérée dans (Ferret, 2010) :
+
+— contextes distributionnels constitués de cooccurrents graphiques : noms, verbes et adjectifs
+collectés grace a une fenétre de taille ﬁxe centrée sur chaque occurrence du mot cible;
+
+— taille de la fenétre = 3 (un mot a droite et un mot a gauche du mot cible), c’est—a—dire des
+cooccurrents de trés courte portée;
+
+— ﬁltrage minimal des contextes : suppression des seuls cooccurrents de fréquence égale a 1 ;
+
+— fonction de pondération des cooccurrents dans les contextes = Information mutuelle entre le
+mot cible et son cooccurrent;
+
+— mesure de similarité entre contextes, pour évaluer la similarité sémantique de deux mots =
+mesure Cosinus.
+
+Un ﬁltre fréquentiel est en outre appliqué a la fois aux mots cibles et a leurs cooccurrents puisque
+seuls les mots de fréquence supérieure a 10 sont considérés.
+
+2.2 Construction et évaluation du thésaurus initial
+
+La construction de notre thésaurus distributionnel initial £1 partir de la mesure de similarité
+déﬁnie ci—dessus a été réalisée comme dans (Lin, 1998) ou (Curran et Moens, 2002) en extrayant
+les plus proches voisins sémantiques de chacune de ses entrées. Plus précisément, cette mesure a
+été calculée entre chaque entrée et l’ensemble de ses voisins possibles. Ces voisins ont ensuite
+été ordonnés selon l’ordre décroissant des valeurs de cette mesure et les N premiers voisins
+(N = 100) ont été conservés en tant que voisins sémantiques de l’entrée. Les entrées du thésaurus
+
+50 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+de méme que leurs voisins possibles étaient constitués des noms du corpus AQUAINT—2 de
+fréquence supérieure a 10. A titre illustratif, nous donnons les premiers voisins de deux entrées
+de ce thésaurus, aid et procurator, avec leur poids :
+
+aid assistance [0,41] relief [0,34] funding [0,29] grant [0,27] fund [0,26] donation [0,26] 
+procurator justiceship [0,31] amadou [0,27] commmission [0,26] pamphleteer [0,22] 
+
+Le tableau 1 montre quant lui les résultats de l’évaluation du thésaurus distributionnel obtenu,
+réalisée en comparant les voisins sémantiques extraits a deux ressources de référence complemen-
+taires : les synonymes de WordNet [W], dans sa version 3.0, qui perrnettent de caractériser une
+similarité fondée sur des relations paradigmatiques et le thésaurus Moby [M], qui regroupe des
+mots liés par des relations plus diverses. Comme l’illustre la 4é’"‘3 colonne du tableau, ces deux
+ressources sont aussi trés différentes en termes de richesse. Le but étant d’évaluer la capacité
+a extraire des voisins sémantiques, elles sont ﬁltrées pour en exclure les entrées et les voisins
+non présents dans le vocabulaire du corpus AQUAINT—2 (cf. la différence entre le nombre de
+mots de la 1??” colonne et le nombre de mots effectivement évalués de la 33”" colonne). Une
+fusion de ces deux ressources a également été faite [WM]. La fréquence des mots étant une don-
+née importante des approches distributionnelles, les résultats globaux sont différenciés suivant
+deux tranches fréquentielles de méme effectif (7 335 mots chacune) : hautes pour les mots de
+fréquence > a la fréquence médiane (249) et basses pour les autres. Ces résultats se déclinent
+sous la forme de différentes mesures, a commencer a la Séme colonne par le taux de rappel par
+rapport aux ressources considérées pour les 100 premiers voisins de chaque mot. Ces voisins
+
+fréq. réf. #mots #syn. rappel 11- MAP 1>@ 1 1>@5 1>@ 10 1>@ 100
+éval. /mot préc.
+
+W 10 473 2,9 24,6 8,2 9,8 11,7 5,1 3,4 0,7
+toutes M 9 216 50,0 9,5 6,7 3,2 24,1 16,4 13,0 4,8
+14 670 WM 12 243 38,7 9,8 7,7 5,6 22,5 14,1 10,8 3,8
+
+W 5889 3,3 29,4 11,8 13,5 17,4 7,5 4,9 1,0
+hautes M 5751 60,5 11,2 9,4 4,6 35,9 24,2 18,9 6,8
+7 335 VM 6754 52,6 11,4 11,1 7,4 36,4 22,8 17,5 6,0
+
+W 4584 2,3 16,0 3,7 5,1 4,2 2,0 1,4 0,4
+basses M 3465 32,5 4,4 2,3 0,9 4,4 3,4 3,1 1,4
+7 335 WM 5489 21,6 5,1 3,6 3,4 5,5 3,3 2,7 1,1
+
+TABLE 1 — Evaluation de l’extraction des voisins sémantiques (mesures données en pourcentage)
+
+étant ordonnés, il est en outre possible de réutiliser les métriques d’évaluation classiquement
+adoptées en recherche d’information en faisant jouer aux mots cibles le role de requétes et
+aux voisins celui des documents. Les derniéres colonnes du tableau 1 rendent compte de ces
+mesures : la R-précision (R—préc.) est la précision obtenue en se limitant aux R premiers voisins,
+R étant le nombre de synonymes dans la ressource de référence pour l’entrée considérée; la MAP
+(Mean Average Precision) est la moyenne des précisions pour chacun des rangs auxquels un
+synonyrne de référence a été identiﬁé; enﬁn, sont données les précisions pour différents seuils de
+nombre de voisins sémantiques examinés (précision apres examen des 1, 5, 10 et 100 premiers
+voisins). Les résultats du tableau 1 suscitent trois principales observations. En premier lieu, il faut
+constater que les résultats sont globalement faibles. Cette faiblesse touche 2 la fois la proportion
+des synonymes et mots liés trouvés et leur rang parmi les voisins sémantiques. Bien que les
+comparaisons avec d’autres travaux soient rendues difﬁciles par la diversité des conditions de
+
+51 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+construction et d’évaluation des thésaurus, il est néanmoins possible d’affirmer que cette faiblesse
+ne nous est pas spéciﬁque. (Muller et Langlais, 2011) ont ainsi évalué le thésaurus construit
+dans (Lin, 1998) avec les mémes mesures et les mémes références que les notres et trouvent
+des résultats assez comparables en tenant compte du fait que le corpus de (Lin, 1998) était
+beaucoup plus gros que le notre, 3 milliards de mots, et que les données distributionnelles étaient
+extraites sur la base de cooccurrences syntaxiques. A titre indicatif, l’utilisation de WordNet
+comme référence pour des fréquences > 5 000 donnent ainsi les valeurs suivantes pour les
+données de Lin: P@1 = 16,5; P@5 = 5,0; P@10 = 3,5 ; MAP = 9,2; R-préc. = 16,7. Par rapport
+aux fréquences hautes du tableau 1, conﬁguration la plus directement comparable, on constate
+qu’en dehors de la R—précision, plus élevée dans le cas des données de Lin, les autres mesures
+donnent des valeurs proches de celles rapportées dans (Muller et Langlais, 2011).
+
+Le deuxiéme point que laisse apparaitre ce tableau est la forte dépendance des résultats vis-a—vis
+de la fréquence des entrées du thésaurus. Les meilleurs résultats sont ainsi obtenus par les mots
+de la tranche de fréquences supérieure tandis que les mesures d’évaluation diminuent de facon
+tres signiﬁcative pour la tranche fréquentielle la plus basse. Le dernier constat a trait a l’impact de
+la référence utilisée pour 1’éva1uation du thésaurus. WordNet est ainsi caractérisé par un nombre
+restreint de synonymes pour chaque nom tandis que le thésaurus Moby contient pour chaque
+entrée un large ensemble de synonymes et de mots liés. La conséquence de cette différence
+s’observe clairement au niveau des précisions a différents rangs dans le tableau 1 : les valeurs
+sont nettement supérieures pour Moby par rapport a WordNet alors que la mesure de similarité
+sous—jacente est la méme. Seule la richesse de la référence varie. Ce phénoméne est également
+illustré dans (Ferret, 2010) au travers de la comparaison avec (Curran et Moens, 2002).
+
+3 Amélioration d’un thésaurus distributionnel
+
+3. 1 Principes
+
+L’évaluau'on de notre thésaurus distributionnel initial montre que les voisins sémantiques obtenus
+sont signiﬁcativement meilleurs pour certaines entrées que pour d’autres. Une telle conﬁguration
+est a priori favorable a un mécanisme de type amorcage dans la mesure ou il est envisageable de
+s’appuyer sur les résultats des << bonnes >> entrées pour obtenir une amélioration plus globale.
+(Zhitomirsky—Geffet et Dagan, 2009) a déja fait appel a l’amorcage dans un contexte proche
+du notre, l’acquisition de relations d’implication textuelle entre mots. Cependant, des expéri-
+mentations rapportées dans (Ferret, 2010) ont montré que la transposition de cette approche
+a notre probléme n’était pas concluante. Ainsi, au lieu d’utiliser les résultats d’une mesure de
+similarité initiale pour modiﬁer directement les poids des éléments constitutifs des contextes
+distributionnels, nous avons adopté une approche plus indirecte, fondé sur (Hagiwara, 2008).
+
+(Hagiwara, 2008) a en effet montré qu’il est possible d’entrainer et d’appliquer avec un bon
+niveau de performance un classiﬁeur statistique, en l’occurrence de type Machine a Vecteurs
+de Support (SVM), pour décider si deux mots sont ou ne sont pas synonymes, au sens large
+du terme. Par ailleurs, ce travail montre également que la valeur de la fonction de décision
+caractérisant les SVM, dont on n’uti1ise que le signe dans le cas d’une classiﬁcation binaire, peut
+jouer, pour 1’ordonnancement des voisins sémantiques, 1e méme role que la valeur d’une mesure
+de similarité telle que celle déﬁnie a la section 2.
+
+52 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+A la différence de (Hagiwara, 2008), nous ne disposons pas d’un ensemble d’exemples et de
+contre-exemples étiquetés manuellement pour réaliser l’entrainement d’un tel classiﬁeur. En
+revanche, les voisins sémantiques obtenus en appliquant la mesure de similarité de la section 2
+peuvent étre exploités pour construire un tel ensemble. Cette mesure n’offre pas de critere
+évident pour discriminer les mots sémantiquement liésl. Cependant, elle peut étre utilisée
+plus indirectement pour sélectionner un ensemble d’exemples et de contre-exemples de facon
+non supervisée en minimisant le nombre d’erreurs. Ces erreurs correspondent a des exemples
+considérés comme positifs mais en réalité négatifs et d’exemples considérés comme négatifs
+mais en fait positifs. Dans cette optique, nous proposons d’entrainer un classiﬁeur SVM grace
+a ces ensembles et de l’appliquer ensuite pour réordonner les voisins sémantiques obtenus
+précédemment. L’ensemble de la démarche peut étre résumée par la procédure suivante :
+
+— déﬁnition d’une mesure de similarité distributionnelle;
+
+— application de cette mesure pour la construction d’un thésaurus distributionnel par le biais de
+l’extraction de voisins sémantiques;
+
+— sélection non supervisée d’un ensemble d’exemples et de contre-exemples de mots sémantique-
+ment similaires grace aux résultats de l’applicau'on de la mesure de similarité;
+
+— entrainement d’un classiﬁeur statistique a partir de l’ensemble d’exemples constitué;
+
+— application du classiﬁeur entrainé au réordonnancement des voisins du thésaurus initial.
+
+Le point clé de l’amélioration des résultats par ce moyen est de sélectionner de facon non
+supervisée un nombre sufﬁsant d’exemples et de contre-exemples en minimisant les erreurs
+propres a une telle sélection. Dans la section 4, nous proposons d’associer deux méthodes faibles,
+a la fois au sens de la productivité et de la validité des résultats, pour accomplir cette tache.
+
+3.2 Représentation des exemples
+
+Avant de présenter plus en détail ce processus de sélection, il convient de préciser la nature des
+exemples et des contre—exemples. Nous reprenons de ce point de Vue la conception développée
+dans (Hagiwara, 2008) : un exemple est constitué d’un couple de mots considérés comme
+synonyrnes ou plus généralement sémantiquement liés; un contre—exemple est formé d’un couple
+de mots entre lesquels un tel lien sémantique n’existe pas. La représentation de ces couples
+pour un classiﬁeur de type SVM s’effectue en associant leurs representations distributionnelles.
+Cette association s’effectue pour chaque couple (M1, M2) en sommant le poids des cooccurrents
+communs aux mots M1 et M2. Les cooccurrents de Mx non présents dans My se voient attribuer
+un poids nul. Chaque exemple ou contre—exemple a donc la méme forme que la représentation
+distributionnelle d’un mot, c’est—a—dire un vecteur de mots pondérés.
+
+4 Sélection des exemples et des contre-exemples
+
+Du point de Vue de la sélection des exemples et des contre-exemples de mots sémantiquement
+liés, le tableau 1 offre une image claire : trouver des exemples est beaucoup plus problématique
+que trouver des contre-exemples dans la mesure ou le nombre de mots sémantiquement liés a
+
+1Fixer pour ce faire un seuil sur les valeurs de similarité produit de mauvais résultats du fait de la variabilité de ces
+valeurs d’une entrée a l’autre. Ce constat a motivé notre choix d’utiliser un SVM en classiﬁcation plutét qu’en régression.
+
+53 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+une entrée du thésaurus diminue tres fortement des que l’on considere ses voisins de rang un
+peu élevé. Dans les expérimentations de la section 5, nous avons ainsi construits nos contre-
+exemples a partir de nos exemples en créant pour chaque exemple (A,B) deux contre-exemples
+de la forme : (A, voisin de rang 10 de A) et (B, voisin de rang 10 de B). Le choix d’un rang
+supérieur garantirait un nombre plus faible de faux contre-exemples (i.e. couples de synonymes)
+et donc a priori, de meilleurs résultats. En pratique, l’utilisation de voisins du mot cible de
+rang assez faible conduit a une performance supérieure, sans doute parce que ceux—ci sont plus
+utiles en termes de discrimination, étant plus proches de la zone de transition entre exemples
+et contre—exemples. Nous avons par ailleurs constaté expérimentalement que le rapport entre
+contre-exemples et exemples dans (Hagiwara, 2008), égal 6,5 et donc fortement déséquilibré en
+faveur des contre-exemples, n’était pas nécessaire dans notre situation et pouvait se ramener a 2.
+
+Pour la sélection des exemples, le tableau 1 impose un double constat : trouver un voisin
+sémantiquement proche est d’autant plus probable que la fréquence de l’entrée du thésaurus
+considérée est élevée et que le rang du voisin est faible. La forme extréme de cette logique
+conduirait a retenir comme exemples tous les couples de mots (entrée de hautefréquence, voisin de
+rang 1), ce qui donne un large nombre d’exemples — 7 335 — mais un taux d’erreur (i.e. nombre de
+couples de mots non liés sémantiquement) également élevé — 63,6% dans le cas le plus favorable
+(référence WM). Nous avons donc proposé une approche plus sélective pour choisir nos exemples
+parmi les entrées fréquentes du thésaurus aﬁn d’aboutir a une solution plus équilibrée entre le
+nombre d’exemples et leur taux d’erreur. Cette approche associe deux méthodes de sélection non
+supervisées produisant chacune un nombre limité d’exemples mais avec un meilleur taux d’erreur.
+Nous présentons ces méthodes dans les deux sections suivantes en détaillant plus spéciﬁquement
+celle fondée sur les mots composés, nouvelle proposition de cet article.
+
+4.1 Sélection fondée sur les relations de symétrie dans le thésaurus
+
+Notre premiere méthode de sélection d’exemples de mots sémantiquement similaires a été
+introduite dans (Ferret, 2012). Elle est fondée sur l’hypothese que les relations de similarité
+sémantique sont symétriques, ce qui est strictement vrai dans le cas des synonymes de WordNet
+mais l’est moins pour les mots liés de Moby. En accord avec cette hypothése, nous avons considéré
+que si une entrée A du thésaurus initial a pour voisin un mot B, ce voisin a d’autant plus de
+chances d’étre sémantiquement similaire a A que A est lui—méme un voisin de B en tant qu’entrée
+du thésaurus. Plus précisément, les résultats du tableau 1 nous ont conduit 2‘: limiter l’app1ication
+de ce principe aux voisins de rang 1 et aux entrées de haute fréquence, dont les voisins sont
+eux—mémes généralement des noms de haute fréquence. Nous avons donc applique’ ce principe
+aux 7 335 entrées dites de haute fréquence du thésaurus, obtenant des cas de symétrie entre
+entrée et voisin de rang 1 pour 1 592 entrées. 796 exemples de mots sémantiquement similaires
+ont ﬁnalement été produits puisque les couples (A,B) et (B,A) représentent un méme exemple.
+
+4.2 Sélection fondée sur les mots composés
+4.2.1 Construction d’un thésaurus distributionnel de noms composés
+
+La seconde méthode que nous proposons pour la sélection de couples de mots sémantiquement
+similaires repose sur 1’hypothése que les mono—termes de deux mots composés sémantiquement
+
+54 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+similaires occupant dans ces deux termes le méme role syntaxique sont eux—mémes susceptibles
+d’étre sémantiquement similaires. Par exemple, les noms composés movie_director etﬁlm_director
+étant trouvés similaires et les tétes syntaxiques de ces deux composés étant identiques, il est
+vraisemblable que la similarité sémantique observée entre ﬁlm et movie dans le thésaurus initial
+soit véritable. Le point de départ de cette hypothése étant la similarité sémantique des mots
+composés, nous avons commencé par construire un thésaurus distributionnel de noms composés
+pour l’anglais, a l’image du thésaurus de la section 2 pour les noms simples. Cette construction a
+été réalisée a partir du méme corpus et avec les mémes parametres que pour les mono—termes, a
+l’exception bien entendu de l’ajout d’une étape dans le prétraitement linguisﬁque des documents
+du corpus pour l’identiﬁcation des noms composés. Cette identiﬁcation a été réalisée en deux
+étapes : un ensemble de noms composés ont d’abord été extraits du corpus AQUAINT—2 sur la
+base d’un nombre limité de patrons morpho—syntaxiques; les plus fréquents de ces composés ont
+ensuite été utilisés comme référence dans un processus d’indexation contrélée.
+
+La premiere étape a été mise en oeuvre grace a l’outil mwetoolkit (Ramisch et al., 2010), qui
+permet d’extraire efﬁcacement des mots composés d’un corpus a partir du résultat d’un étiqueteur
+morpho—syntaxique, le TreeTagger dans notre cas, en s’appuyant sur un ensemble de patrons
+morpho-syntaxiques. Nous nous sommes limités aux trois patrons de noms composés suivants :
+<nom> <nom>, <adjectif> <nom>, <nom> <pre’position> <nom>. Un ensemble de 3 246 401
+noms composés ont ainsi été extraits du corpus AQUAINT—2 parmi lesquels seuls les 30 121 termes
+de fréquence supérieure a 100 ont été retenus, pour des raisons a la fois de ﬁabilité et de limitation
+du vocabulaire pour la construction du thésaurus. L’identiﬁcation de ces termes de référence
+dans les textes a ensuite été réalisée en appliquant la stratégie de l’appariement maximal a la
+sortie lemmatisée du T reeTagger. Finalement, des contextes distributionnels constitués a la fois
+de mots simples et de termes complexes ont été construits suivant les principes de la section 2 et
+des voisins ont été trouvés pour 29 174 noms composés.
+
+réf. #mots #syn. rappel R-préc. MAP P@ 1 P@ 5 P@ 10 P@ 100
+éval. /mot
+W 608 1,2 82,0 41,5 50,0 43,4 14,3 8,0 1,0
+M 241 2,3 38,0 9,0 12,2 11,2 6,5 4,2 0,9
+WM 813 1,6 63,5 32,7 39,5 34,9 12,3 7,1 1,0
+
+TABLE 2 — Evaluation du thésaurus distributionnel pour les noms composés
+
+Le tableau 2 donne les résultats de l’évaluation des voisins sémantiques trouvés en prenant
+comme précédemment en tant que référence WordNet, le thésaurus Moby et la fusion des deux.
+Le premier constat pouvant étre fait est la proportion tres faible, par rapport aux mono—termes,
+d’entrées ayant pu étre évaluées : seulement 2,8% des entrées, a comparer a 83,5% des entrées
+pour les mono—termes. De ce fait, les résultats de cette évaluation doivent étre considérés avec
+prudence, méme si le nombre d’entrées évaluées est globalement plus élevé que le nombre
+d’entrées considérées dans les évaluations standards : 70 pour (Curran et Moens, 2002) ou 353
+pour (Gabrilovich, 2007). Cette prudence est particuliérement de mise pour les mots liés de
+Moby : les résultats, a l’exception du rappel, sont tres signiﬁcativement inférieurs a ceux obtenus
+avec les mono—termes mais le nombre d’entrées évaluées — 241 — est aussi faible. A l’inverse,
+les performances obtenues pour les synonymes de WordNet sont tres nettement supérieures sur
+tous les plans a celles caractérisant les mono—termes, ces résultats étant obtenus pour un nombre
+d’entrées — 608 — nettement supérieur. Cette différence ne s’expliquant pas par un biais concernant
+
+55 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+la fréquence des entrées évaluées vis—a—vis respectivement de WordNet et de Moby, il semble donc
+que le comportement des noms composés soit, du point de vue des similarités distributionnelles,
+l’inverse de celui des noms simples, favorisant les relations sémantiques paradigmatiques par
+rapport aux relations syntagmatiques. La plus faible ambiguité sémantique des noms composés
+serait une explication possible de ce phénomene qui demanderait néanmoins une étude plus
+approfondie avec une base d’évaluation plus large.
+
+4.2.2 Sélection d’exemples a partir de noms composés
+
+La sélection d’exemples de mots simples sémantiquement similaires a partir de noms composés
+s’appuie sur la structure syntaxique de ces noms composés. Compte tenu des patrons utilisés
+pour l’extraction des termes, cette structure prend la forme de l’un des trois grands schémas
+suivants: <nom> <nom>1§1e, <adjectif> <nom>1§1e, <nom>1§1e <préposition>
+<nom>
+
+expansion expansion
+
+expansion'
+
+Chaque nom composé C1 a ainsi été représenté sous la forme d’un couple de noms (T,-, E,-), dans
+lequel T,- représente la téte syntaxique de C1 et D,-, son expansion, au sens des grammaires
+de dépendance. Conformément au principe sous-tendant notre méthode sélection, si un nom
+composé (T2, E2) est un voisin sémantique d’un nom composé (T1, E1) (au plus, son ciéme voisin),
+il est probable que T1 et T2 ou E1 et E2 soient sémantiquement similairesz. Comme le montre le
+tableau 2, notre thésaurus distributionnel de noms composés est cependant loin d’étre parfait.
+Pour limiter les erreurs, nous avons ajouté des contraintes sur l’appariement des constituants des
+noms composés similaires en nous appuyant sur la similarité distributionnelle de ces constituants.
+Au ﬁnal, nous sélectionnons des exemples de noms simples sémantiquement similaires (couples
+de noms suivant —>) en appliquant les trois régles suivantes, dans lesquelles E1 = E2 signiﬁe que
+E1 et E2 sont identiques et T1 E T2 signiﬁe que T2 est au plus le niéme voisin de T1 dans notre
+thésaurus de noms simples :
+
+ T1 E T2 et E1 = E2 *> (T1, T2)
+(crash, accident) issu de car_crash et car_accident; (boat, vessel) de fishing_vessel etfishing_boat
+ E1 E E2 et T1 : T2 —> (El, E2)
+(ocean, sea) de ocean floor et seaﬂoor; (jail, prison) de prison_cell etjail_cell
+(3) E1 5 E2 et T1 5 T2 —’ (T1; T2), (E1; E2)
+(increase, rise) et (salary, pay) de salary_increase et pay_rise
+
+5 Expérimentations et évaluation
+
+5.1 Sélection des exemples de mots sémantiquement similaires
+
+Le tableau 3 fait une synthése des résultats de nos deux méthodes de sélection de mots sémanti-
+quement similaires en donnant le pourcentage des couples sélectionnés trouvés dans chacune
+de nos ressources (W, M et WM) ainsi que la taille de chaque ensemble d’exemples. Dans le cas
+de la seconde méthode, ces mesures sont également déclinées au niveau de chacune des trois
+
+2Notons que nous ne nous intéressons pas ici a la similarité entre E 1 et E2 lorsque ce sont des adjectifs.
+
+56 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+régles de sélection. Les chiffres donnés entre crochets représentent quant a eux les pourcentages
+d’erreurs parmi les exemples de mots non similaires. Ces résultats ont été obtenus en ﬁxant
+expérimentalement la taille du voisinage considéré pour les entrées a 3 pour les noms composés
+(c) et a 1 pour les noms simples (n). En outre, ces trois regles de sélection ont été appliquées
+avec l’ensemble des entrées du thésaurus des noms composés et les entrées du thésaurus des
+noms simples dites de haute fréquence. Les valeurs des paramétres c et n ne résultent pas d’une
+optimisation sophistiquée mais répondent plutot une logique induite des évaluations réalisées :
+pour les mono—termes, seul le premier voisin est retenu du fait de la faiblesse des résultats alors
+que pour les multi—termes, le voisinage peut étre légérement élargi du fait d’une meilleure ﬁabilité
+des voisins. Il est a noter par ailleurs que l’association de deux ensembles d’exemples sélectionnés
+par des méthodes différentes rend les résultats plus stables vis—a-vis des valeurs de c et n.
+
+méthode W M WM # exemples
+symétrie 36,6 [2,0] 55,5 [14,4] 59,7 [12,4] 796
+régle (1) 19,3 56,1 56,9 921
+régle (2) 16,2 42,4 44,7 308
+régle (3) 13,5 45,9 46,2 40
+régles (1,2) 17,8 [2,5] 52,2 [16,8] 53,0 [16,1] 1 1 15
+régles (1,2,3) 17,6 51,7 52,4 1 131
+symétrie + régles ( 1,2) 23,5 [2,3] 52,5 [16,3] 54,3 [15,0] 1 710
+symétrie + regles (1,2,3) 23,3 52,1 53,9 1 725
+
+TABLE 3 — Résultats de la sélection des exemples
+
+L’évaluau'on de la seconde méthode de sélection montre d’abord que la régle (3), qui est a priori
+la moins ﬁable des trois, ne produit effectivement qu’un petit nombre d’exemples tendant a
+dégrader les résultats. De ce fait, seule la combinaison des régles (1) et (2) a été utilisée dans ce
+qui suit. Cette évaluation montre en outre que les tétes de deux noms composés sémantiquement
+liés ont davantage tendance a étre elles—mémes similaires si leurs expansions sont similaires
+que n’ont tendance a étre similaires des expansions de deux noms composés dont les tétes sont
+similaires. Ce résultat n’était pas évident a priori dans la mesure ou l’on s’attend a ce que la téte
+d’un composé soit davantage représentatif de son sens que son expansion. Plus globalement, le
+tableau 3 laisse apparaitre que la premiere méthode de sélection est supérieure a la seconde mais
+que leur association produit un compromis intéressant entre le nombre d’exemples, 1 710, et son
+taux d’erreur, 45,7% avec WM comme référence. Cette complémentarité est également illustrée
+par le faible nombre d’exemples — 201 — qu’elles partagent.
+
+5.2 Mise en oeuvre du réordonnancement des voisins
+
+La mise en oeuvre effective de notre approche de réordonnancement des voisins sémantiques
+nécessite de ﬁxer un certain nombre de parametres liés aux SVM. De méme que (Hagiwara,
+2008), nous avons adopté un noyau RBF et une stratégie de type grid search pour l’optimisation
+du parametre y ﬁxant la largeur de la fonction gaussienne du noyau RBF et du parametre C
+d’ajustement entre la taille de la marge et le taux d’erreur. Cette optimisation a été réalisée pour
+chaque ensemble d’apprentissage considéré en se fondant sur la mesure de précision calculée
+dans le cadre d’une validation croisée divisant ces ensembles en 5 parties. Chaque modele SVM
+correspondant a été construit en utilisant l’outil LIBSVM puis appliqué a la totalité des 14 670
+
+57 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+noms cibles de notre évaluation initiale. Plus précisément, pour chaque nom cible NC, une
+représentation d’exemple a été construite pour chaque couple (NC, voisin de NC) et a été
+soumise au modéle SVM considéré en mode classiﬁcation. L’ensemb1e de ces voisins ont ensuite
+été réordonnés suivant la valeur de la fonction de décision ainsi calculée pour chaque voisin.
+
+5.3 Evaluation
+
+Le tableau 4 donne les résultats globaux du réordonnancement réalisé sur la base des exemples
+sélectionnés par chacune des deux méthodes présentées tandis que les résultats détaillés du
+tableau 5 correspondent au réordonnancement fondé sur l’association des deux méthodes de
+sélection. Chacun des ces trois thésaurus a été évalué selon les mémes principes qu’a la section 2.2.
+La valeur de chaque mesure se voit associer sa différence avec la valeur correspondante pour
+le thésaurus initial dans le tableau 1. Enﬁn, comme l’évaluation s’app1ique au résultat d’un
+réordonnancement, les mesures de rappel et de précision au rang le plus lointain ne changent
+pas et ne sont pas rappelées.
+
+| méthode | 1-éf. | R-préc. | MAP | 1=@1 | 1>@5 | 1=@10 |
+W 7,8 (—0,4) 9,4 (—0,4) 11,2 (—0,5) 1 5,0 (—0,1) 1 3,3 (—0,1) :5
+syrnétrle M 7,1 (0,4) 3,4 (0,2) 27,3 (3,2) 17,6 (1,2) 13,7 (0,7)
+WM 8,0 (0,3) 5,7 (0,1) 24,6 (2,1) 14,9 (0,8) 11,4 (0,6)
+w 7,2 (—1,0) 8,8 (—1,0) 10,4 (—1,3) 4,6 (—0,5) 3,1 (—0,3)
+M 7,1 (0,4) 3,3 (0,1) 26,8 (2,7) 17,4 (1,0) 13,5 (0,5)
+WM 7,8 (0,1) 5,5 (—0,1) 24,0 (1,5) 14,6 (0,5) 11,2 (0,4)
+
+composés
+
+TABLE 4 — Réordonnancement des voisins sémantiques de toutes les entrées du thésaurus initial
+pour chaque méthode de sélection d’exemples
+
+La tendance générale est claire : le processus de réordonnancement conduit a une amélioration
+signiﬁcative des résultats a l’échelle globale (tableau 4 et lignes tous du tableau 5) pour les
+références M et WM3. Parallélement, une diminution des résultats est observée pour la référence
+W, diminution statistiquement non signiﬁcative pour le tableau 5. En d’autres termes, par rapport
+au thésaurus initial, la procédure de réordonnancement tend a favoriser les mots similaires
+au détriment des synonyrnes. Cette tendance n’est pas surprenante compte tenu du principe
+de ce réordonnancement : les premiers sont en effet mieux représentés que les seconds dans
+les exemples sélectionnés du fait méme de leur meilleure représentation au niveau global. Les
+modéles SVM appris ne font en l’occurrence qu’ampliﬁer un état de fait déja présent initialement.
+Ce biais est particulierement fort pour la méthode de sélection fondée sur les noms composés,
+comme 1’illustre le tableau 4. Cependant, les résultats du tableau 5 montrent clairement l’intérét
+de l’association des deux méthodes de sélection, la méthode de sélection fondée sur la symétrie
+des relations venant rééquilibrer ce biais au bénéﬁce des résultats globaux. Par ailleurs, en
+associant la partie du thésaurus initial correspondant aux fréquences hautes et la partie du
+thésaurus apres réordonnancement correspondant aux fréquences basses (cf. ligne hybride du
+tableau 5), on obu'ent un thésaurus hybride dont les résultats sont supérieurs a ceux du thésaurus
+initial pour toutes les conditions.
+
+3La signiﬁcativité statistique des différences a été évaluée grace a un test de Wilcoxon avec un seuil de 0,05, les
+échantillons étant appariés. Seules les différences suivies du signe 1: sont considérées comme non signiﬁcatives.
+
+58 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+| fréq. | 1-éf. | R-préc. | MAP | P@1 | P@5 | P@10 |
+W 7,9 (—0,3) :1 9,5 (—0,3) :1 11,5 (—0,2) :1 5,1 (0,0) :1 3,4 (0,0) :1
+toutes M 7,2 (0,5) 3,5 (0,3) 27,9 (3,8) 18,1 (1,7) 14,1 (1,1)
+wM 8,0 (0,3) 5,8 (0,2) 25,3 (2,8) 15,3 (1,2) 11,7 (0,9)
+w 9,9 (-1,9) 11,7 (-1,8) 15,1 (—2,3) 6,8 (-0,7) 4,5 (—0,4)
+hautes M 9,4 (0,0) 4,5 (—0,1) :1 37,5 (1,6) 24,3 (0,1) :1 19,0 (0,1) :1
+wM 10,5 (-0,6) :1 6,8 (-0,6) 36,7 (0,3) :1 22,5 (—0,3) :1 17,4 (-0,1) :1
+w 5,4 (1,7) 0,8 (1,7) 6,9 (2,7) 3,0 (1,0) 2,0 (0,6)
+basses M 3,5 (1,2) 1,7 (0,8) 12,0 (7,6) 7,8 (4,4) 5,9 (2,8)
+wM 5,0 (1,4) 4,6 (1,2) 11,3 (5,8) 6,5 (3,2) 4,7 (2,0)
+w 9,0 (0,8) 10,6 (0,8) :1 12,8 (1,1) 5,6 (0,5) 3,6 (0,2)
+toutes M 7,2 (0,5) 3,5 (0,3) :1 26,9 (2,8) 18,1 (1,7) 14,1 (1,1)
+(hybride) wM 8,3 (0,6) 6,1 (0,5):1 25,1 (2,6) 15,5 (1,4) 11,8 (1,0)
+
+TABLE 5 — Réordonnancement du thésaurus initial avec les deux méthodes de sélection d’exemples
+
+L’analyse des résultats du tableau 5 en termes de fréquence des mots met en évidence une seconde
+grande tendance : l’amélioration produite par le réordonnancement est d’autant plus sensible que
+la fréquence de l’entrée du thésaurus est faible. Ainsi, pour les noms de faible fréquence, cette
+amélioration s’observe quelle que soit la référence tandis que pour les noms de forte fréquence,
+la variation est négative pour certaines références et mesures et positive pour d’autres. Ce constat
+montre que le réordonnancement tend ainsi a rééquilibrer le thésaurus initial, trés fortement
+biaisé vers les fortes fréquences. Enﬁn, l’évaluation de ces trois thésaurus conﬁrment les résultats
+du tableau 3 a propos de chaque ensemble d’exemples sélectionnés : le thésaurus construit a
+partir des exemples de la premiere méthode de sélection est meilleur que celui construit a partir
+des exemples de la seconde méthode de sélection et les deux sont nettement dépassés par le
+thésaurus construit a partir de la fusion des deux ensembles d’exemples.
+
+WordNet respect, admiration, regard
+
+admiration, appreciation, acceptance, dignity, regard, respect, account,
+adherence, consideration, estimate, estimation, fame, greatness, homage,
+honor, prestige, prominence, reverence, veneration + 74 mots liés sup-
+plémentaires
+
+Moby
+
+cordiality, gratitude, admiration, comradeship, back-scratching, per-
+initial plexity, respect, ruination, appreciation, neighbourliness, trust, empathy,
+suffragette, goodwill . . .
+
+respect, admiration, trust, recognition, gratitude, conﬁdence, affec-
+apres réordonnan— tion, understanding, solidarity, dignity, appreciation, regard, sympathy,
+cement acceptance ...
+
+TABLE 6 — Impact du réordonnancement pour l’entrée esteem
+
+Enﬁn, 1e tableau 6 illustre pour une entrée spéciﬁque du thésaurus initial, en l’occurrence le mot
+esteem, l’impact du réordonnancement fondé sur les deux méthodes de sélection d’exemples.
+Ce tableau donne d’abord pour cette entrée ses synonymes dans WordNet et les premiers mots
+qui lui sont liés dans Moby. Il fait ensuite apparaitre que dans notre thésaurus initial, les deux
+premiers voisins de cette entrée apparaissant dans une de nos deux ressources de référence
+sont les mots admiration, au rang 3, et le mot respect, au rang 7. Le réordonnancement améliore
+signiﬁcaﬁvement la situation puisque ces deux mots deviennent les deux premiers voisins tandis
+
+59 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+que le 3é’"‘3 synonyme donné par WordNet passe du rang 22 au rang 12. Par ailleurs, le nombre
+de voisins présents parmi les 14 premiers mots liés de Moby passe de 3 a 6.
+
+6 Conclusion et perspectives
+
+Dans cet article, nous avons présenté une méthode fondée sur l’amorcage pour améliorer un
+thésaurus distributionnel. Plus précisément, cette méthode se fonde sur le réordonnancement des
+voisins sémantiques de ce thésaurus par le biais d’un classiﬁeur SVM. Ce classiﬁeur est entrainé a
+partir d’un ensemble d’exemples et de contre—exemples sélectionnés de facon non supervisée en
+combinant deux critéres faibles fondés sur la similarité distributionnelle. L’un exploite la symétrie
+des relations sémantiques tandis que l’autre s’appuie sur l’appariement des constituants de noms
+composés similaires. Les améliorations apportées par cette méthode sont plus particulierement
+notables pour les noms de fréquence faible ou intermédiaire et pour des mots similaires plut6t
+que pour de stricts synonymes.
+
+Nous envisageons plusieurs pistes d’extension de ce travail. Tout d’abord, nous souhaitons
+appliquer, tout en conservant une sélection d’exemples non supervisée, des techniques de sélection
+de caractéristiques aﬁn de mettre en évidence les traits les plus intéressants du point de vue de
+la similarité sémantique, en particulier pour améliorer les thésaurus distributionnels produits
+en construisant des modéles plus généraux de cette similarité. L’élargissement des critéres de
+sélection non supervisée d’exemples est une deuxieme extension assez directe du travail présenté.
+Alors que les techniques de sélection expérimentées reposent toutes deux sur des thésaurus
+distributionnels, des criteres s’attachant aux occurrences des mots et a leur environnement plut6t
+qu’a une représentation distributionnelle sont également envisageables, comme l’utilisation de
+patrons linguistiques classiques d’extraction de synonymes par exemple. Sur un autre plan,
+l’évaluation menée, fondée sur la comparaison avec des ressources de référence, pourrait étre
+complétée avec proﬁt par une évaluation in vivo permettant de juger de l’impact des améliorations
+du thésaurus distributionnel sur une tache auquel il contribue. Parmi les nombreuses taches
+possibles, nous serions particulierement intéressés par celle de segmentation thématique, dans
+le prolongement de (Adam et Morlane—Hondére, 2009). Enﬁn, nous planiﬁons d’appliquer la
+méthode décrite au francais en nous appuyant sur des thésaurus distributionnels comme freDist
+(Anguiano et Denis, 2011).
+
+Références
+
+ADAM, C. et MORLANE-HONDERE, F. (2009). Détection de la cohésion lexicale par voisinage
+distributionnel : application a la segmentation thématique. In RECITAL’09, Senlis, France.
+
+ANGUIANO, E. H. et DENIS, P. (2011). FreDist : Automatic construction of distributional thesauri
+for French. In TAIN 201 1, session articles courts, Montpellier, France.
+
+BANERJEE, S. B. et PEDERSEN, T. (2003). Extended gloss overlaps as a measure of semantic
+relatedness. In Eighteenth International Conference on Artificial Intelligence (IJCAI—03), Mexico.
+
+BRODA, B., PIASECKI, M. et SZPAKOWICZ, S. (2009). Rank—Based Transformation in Measuring
+Semantic Relatedness. In 22"d Canadian Conference on Artificial Intelligence, pages 187-190.
+
+60 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+BUDANITSKY, A. et HIRsT, G. (2006). Evaluating wordnet—based measures of lexical semantic
+relatedness. Computational Linguistics, 32(1):13—47.
+
+CURRAN, J. et MOENs, M. (2002). Improvements in automatic thesaurus extraction. In Workshop
+of the ACL Special Interest Group on the Lexicon (SIGLEJQ, pages 59-66, Philadelphia, USA.
+FERRET, O. (2010). Similarité sémantique et extraction de synonymes a partir de corpus. In
+TALN 201 0.
+
+FERRET, O. (2012). Combining bootstrapping and feature selection for improving a distributional
+thesaurus. In 20"‘ European Conference on Artificial Intelligence (ECAI 2012), pages 336-341.
+FREITAG, D., BLUME, M., BYRNES, J., CH0w, E., KAPADIA, S., R0HwER, R. et WANG, Z. (2005). New
+experiments in distributional representations of synonymy. In CoNLL 2005, pages 25-32.
+GABRILOVICH, Evgeniyand Markovitch, S. (2007). Computing semantic relatedness using
+wikipedia-based explicit semantic analysis. In IJCAI 2007, pages 6-12.
+
+GREFENSTETTE, G. (1994). Explorations in automatic thesaurus discovery. Kluwer Academic
+Publishers.
+
+HAGIWARA, M. (2008). A supervised learning approach to automatic synonym identiﬁcation
+based on distributional features. In ACL—08, student session, Columbus, Ohio.
+
+HEYLEN, K., PEIRSMANY, Y., GEERAERTS, D. et SPEELMAN, D. (2008). Modelling Word Similarity : An
+Evaluation of Automatic Synonymy Extraction Algorithms. In LREC 2008, Marrakech, Morocco.
+KAZAMA, J., DE SAEGER, S., KURODA, K., MURATA, M. et ToR1sAwA, K. (2010). A bayesian method
+for robust estimation of distributional similarities. In ACL 2010, pages 247-256.
+
+LANDAUER, T. K. et DUMA1s, S. T. (1997). A solution to Plato’s problem : the latent semantic
+analysis theory of acquisition, induction, and representation of knowledge. Psychological review,
+104(2):211-240.
+
+LIN, D. (1998). Automatic retrieval and clustering of similar words. In ACL—COLING’98, pages
+768-774.
+
+MULLER, P. et LANGLAIS, P. (2011). Comparaison d’une approche miroir et d’une approche
+distributionnelle pour 1’extraction de mots sémantiquement reliés. In TAIN 201 1.
+
+PADc'>, S. et LAPATA, M. (2007). Dependency-based construction of semantic space models.
+Computational Linguistics, 33 (2):161-199.
+
+PEDERsEN, 'I‘., PATWARDHAN, S. et MIcHEL1zzI, J. (2004). Wordnet : zsimilarity — measuring the
+relatedness of concepts. In HLT-NAACL 2004, demonstration papers, pages 38-41.
+
+RAMIscH, C., VILLAVICENCIO, A. et BOITET, C. (2010). mwetoolkit : a Framework for Multiword
+Expression Identiﬁcation. In LREC’10, Valetta, Malta.
+
+REISINGER, J . et MOONEY, R. J . (2010). Multi—prototype vector—space models of word meaning.
+In HLT-NAACL 2010, pages 109-117.
+
+SCHMID, H. (1994). Probabilistic part—of—speech tagging using decision trees. In International
+Conference on New Methods in Language Processing.
+
+WEEDS, J. (2003). Measures and Applications of Lexical Distributional Similarity. These de
+doctorat, Department of Informatics, University of Sussex.
+
+YAMAMOTO, K. et ASAKURA, T. (2010). Even unassociated features can improve lexical distribu-
+tional similarity. In Second Workshop on NLP Challenges in the Information Explosion Era (NLPIX
+2010), pages 32-39, Beijing, China.
+
+ZHITOMIRSKY-GEFFET, M. et DAGAN, I. (2009). Bootstrapping Distributional Feature Vector Quality.
+Computational Linguistics, 35(3) :435-461.
+
+61 © ATALA
+

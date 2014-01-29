@@ -1,0 +1,593 @@
+RECITAL 2004, Fés, 21 avril 2004
+
+Automates lexicaux avec structure de traits
+
+Olivier Blanc (1), Anne Dister (2)
+
+(1) Institut Gaspard—Monge — Université de Marne—la—Vallée
+5, Bd Descartes, F— 77420 Champs—sur—Marne (France)
+oliVier.blanc@uniV—mlV.fr
+(2) Cental et Centre de recherche Valibel — Université de Louvain
+College Erasme, Place Blaise Pascal, B— 1348 LouVain—la—NeuVe (Belgique)
+dister@tedm.ucl.ac.be
+
+Résumé — Abstract
+
+Nous présentons les automates lexicaux avec structure de traits, une extension du modele des
+automates finis sur le mots dans lesquels les transitions sont étiquetées par des motifs qui
+sélectionnent un sous-ensemble des mots étiquetés en fonction de leurs traits positionnés.
+Nous montrons l’adéquation de ce modele avec les ressources linguistiques dont nous
+disposons et nous exposons les grandes lignes de nos méthodes pour effectuer des opérations
+telles que la déterminisation, l’intersection ou la complémentation sur ces objets. Nous
+terminons en présentant une application concrete de ces méthodes pour la levée d’ambigu'1'tés
+lexicales par intersection d’automates a l’aide de contraintes locales.
+
+We present an extension to finite automata on words in which transitions are labeled with
+lexical masks describing a subset of their alphabet. We first show the connection between this
+model and our linguitic data and we present our implementation of classical automata
+operations on these objects. Then we show a concrete application of our methods to lexical
+disambiguation making use of grammatical constraints described in local grammars.
+
+Mots-clefs — Keywords
+
+automates finis, grammaire locale, dictionnaire électronique, levée d’ambigu'1'tés, lexique-
+grammaire
+finite state automata, local grammar, electronic dictionnary, disambiguation, lexicon-grammar
+
+1 Introduction
+
+Les automates et transducteurs finis ont prouvé leur utilité dans une large Variété
+d’applications en informatique linguistique. Ils fournissent par exemple une representation
+compacte des dictionnaires électroniques (Revuz, 1991) et sont a la base d’algorithmes
+efficaces a toutes les étapes du traitement des langues naturelles, de l’analyse phonologique et
+la reconnaissance de la parole (Mohri, 1997) jusqu’a l’analyse syntaxique de texte (Roche et
+Schabes, 1997).
+
+Olivier Blanc et Anne Dister
+
+Cet état de fait a d’ailleurs donné lieu a la création de nombreuses applications linguistiques,
+dont la plupart des traitements automatiques sont fondés sur des technologies a états ﬁnis.
+Nous pouvons citer, pour exemple, les logiciels INTEX (Silberztein, 1993) et Unitex
+(Paumier, 2003), et les bibliotheques de manipulation d’expressions régulieres et d’automates
+ﬁnis de Xerox (Karttunen et al., 1997) et AT&T (Mohri et al., 2000)). Les corpus de texte
+sont représentés par des automates, ou treillis de mots, dans lesquels chaque chemin
+correspond a une analyse lexicale ; les grammaires locales (Nakamura, 2003), qui sont un
+moyen naturel de représenter des phénomenes linguistiques complexes, sont traduites en
+automates ﬁnis aﬁn d’étre aisément confrontées avec les corpus de texte.
+
+Dans cet article, nous présentons les automates lexicaux avec structures de traits, une
+extension du modele des automates ﬁnis adaptée pour le traitement des textes en langues
+naturelles. Il s’agit d’automates sur les mots dans lesquels les transitions peuvent étre
+étiquetées par des masques lexicaux, c’est-a-dire des motifs qui sélectionnent un ensemble
+des mots étiquetés selon certains traits spéciﬁés. Nous présentons dans un premier temps
+l’adéquation du modele avec les ressources linguistiques dont nous disposons, puis nous
+montrons comment une description formelle du jeu d’étiquettes et des structures des traits
+contenus dans les dictionnaires permettent d’obtenir une représentation structurée des
+masques lexicaux et ainsi de déﬁnir des opérations ensemblistes sur ces objets. Nous
+exposons comment nous sommes parvenus ainsi a implémenter diverses opérations sur les
+automates lexicaux, telles que la déterminisation, l’intersection et la complémentation. Nous
+terminons en présentant une application concrete de ces méthodes pour la levée d’ambigu'1'tés
+lexicales par intersection d’automates a l’aide de contraintes morpho-syntaxiques décrites
+dans des grammaires locales.
+
+2 Cadre théorique et ressources linguistiques
+
+2.1 Les ressources lexicales
+
+Le cadre théorique dans lequel s’inscriVent nos recherches est celui du lexique-grammaire. Ce
+modele, concu par Maurice Gross dans les années 1960, recense les structures syntaxiques
+élémentaires de la langue. Ces structures sont formalisées dans des tables de propriétés
+(Gross, 1975), qui contiennent plusieurs dizaines milliers d’entrées pour le francais.
+Actuellement, le lexique-grammaire a été construit partiellement pour les Verbes, les noms,
+les adj ectifs, les adverbes et les expressions ﬁgées de plusieurs langues (Lamiroy, 1999).
+
+En application de ces travaux est née parallelement une Vaste entreprise de création de
+dictionnaires électroniques. Ces dictionnaires peuvent comporter les informations du lexique-
+grammaire lorsque celles-ci sont disponibles.
+
+Le systeme DELA de dictionnaires électroniques pour le francais (dictionnaires de lemmes et
+dictionnaires de formes ﬂéchies) a été construit manuellement et décrit dans B. Courtois et M.
+Silberztein (1990). Les dictionnaires du francais contiennent actuellement 680 000 entrées
+pour les mots simples et 270 000 entrées pour les mots composésl.
+
+L’entrée suivante du dictionnaire :
+
+1 D’autres dictionnaires pour le francais ont été construits selon le meme formalisme : un dictionnaire des formes
+concernées par les rectiﬁcations orthographiques de 1990 (pres de 9000 entrees), un dictionnaire du francais
+en Belgique (5400 entrees) ou encore un dictionnaire du francais québécois (Labelle, 1994). Des
+dictionnaires existent également pour les langues suivantes: anglais, grec, italien, norvégien, portugais,
+russe, espagnol et tha'1'. Pour plus de details, voir : http://www-igm.univ-
+mlv.fr/~unitex/linguistic_data.html#lex-gram
+
+Automates lexicaux avec structure de traits
+
+donneraient, donner. V+ t.'F 3p
+
+est a lire : forme = donneraient ; lemme = donner ; catégorie grammaticale = Verbe (V) ; trait
+syntaxique = transitif (t) ; temps et mode : futur (P) ; personne = 3° ; nombre = pluriel (p).
+Dans ces dictionnaires, les informations sont présentées dans un ordre déterminé et délimitées
+par des symboles spéciﬁques (, . + .'), ce qui constitue une forme compacte et lisible,
+équivalente a celle ci-dessus.
+
+Les dictionnaires sont distribués avec le logiciel de traitement de corpus Unitex, développé a
+l’uniVersité de Mame-la-Vallée par Sebastien Paumierz.
+
+2.2 Grammaire locale
+
+Une grammaire locale (Gross, 1997) est une representation par automate de structures
+linguistiques plus complexes que les précédentes, difﬁcilement forrnalisables dans des tables
+de lexique-grammaire ou dans des dictionnaires électroniques. Visuellement représentées sous
+formes de graphes, les grammaires locales sont utilisées pour décrire des éléments qui
+relevent d’un méme domaine syntaxique (Fairon, 2000) ou sémantique (Constant, 2000).
+
+Les descriptions linguistiques décrites sous la forme de grammaires locales sont utilisées pour
+une grande Variété de traitements automatiques appliqués sur les corpus de texte. Ainsi,
+différentes méthodes de désambigu'1'sation lexicale ont été développées qui mettent en oeuvre
+des contraintes grammaticales décrites a l’aide de ce type de graphes (Silberztein, 1993 ;
+Dister, 1999 ; Roche, 1992 ; Laporte, 1994 ; Laporte et Monceau, 1999). Par ailleurs,
+l’utilisation de graphes paramétrés en combinaison avec les tables du lexique-grammaire
+permet d’effectuer une analyse syntaxique pour les phrases simples (Paumier, 2001).
+
+2.3 Les masques lexicaux
+
+Les données sur les mots utilisées dans les grammaires se referent aux informations présentes
+dans les dictionnaires électroniques. Mais ces données ne correspondent pas nécessairement
+aux entrées lexicales completes. En effet, il est possible de n’utiliser dans la description
+qu’une partie des informations présentes dans les entrées lexicales. On parle alors de masque
+lexical. Les masques lexicaux peuvent ainsi speciﬁer :
+
+- une catégorie grammaticale : <CAT>
+
+<V> pour l’ensemble de la classe des Verbes
+
+- une catégorie grammaticale et une sous-catégorie : <CAT+sous-cat>
+
+<PRO+PpvIL> pour les pronoms préverbaux sujets du francais
+
+- une catégorie grammaticale et des informations ﬂexionnelles : <CAT : ﬂexion>
+
+<V.'3p> pour les Verbes conjugués a la 3° personne du pluriel
+
+- un lemme : <lemme>
+
+<manger> pour toutes les formes dont le lemme est le Verbe manger
+
+- une forme ﬂéchie : forme
+
+avocat pour la forme avocat (mais non les formes avocats, avocate et avocates)
+
+- une catégorie a l’exception de certains de ses lemmes : <!lemme1!lemme2.CAT> :
+
+Le masque <./homme./femme.N+Hum> reconnait tous les noms de la sous-catégorie des noms
+humain, excepté les formes ayant homme oufemme pour lemme : sont ainsi reconnusﬁlle,
+scaphandriers, metteur en scéne, mais pas femmes, ni réverbére.
+
+2 Pour plus d’informations, voir (http://www-igm.univ-mlv.fr/~unitex/).
+
+3/10
+
+Olivier Blanc et Anne Dister
+
+A la différence de certains systemes qui utilisent des étiquettes atomiques (voir Van Halteren,
+1999; Marcus et al., 1993), nos étiquettes sont des étiquettes structurées.
+
+3 Description du lexique et manipulation des automates lexicaux
+
+Comme nous l’aVons évoqué précédemment, les descriptions linguistiques représentées par
+des grammaires locales sont a la base de nombreux traitements automatiques sur les textes.
+Toutes ces applications utilisent une représentation interne de ces objets sous la forme
+d’automates ﬁnis sur les mots (ou automates lexicaux) afin de les confronter avec les corpus
+étiquetés (sous une forme linéaire ou de treillis de mots). Ces automates sont particuliers. Ils
+se distinguent notamment par la taille et la composition de leur alphabet d’entrée : nos
+dictionnaires recensent pres d’un million d’entrées étiquetées pour les mots simples et
+composés du francais, auxquelles s’ajoute l’ensemble non quantiﬁable des mots inconnus qui
+doivent nécessairement étre considérés pour traiter les corpus de texte sans restriction.
+D’autre part leurs transitions peuvent étre étiquetées par des masques lexicaux, c’est-a-dire
+des motifs décrivant un ensemble (possiblement non borné) de mots. Le modele de calcul que
+nous présentons ici est donc bien différent de celui des automates ﬁnis traditionnels et peut
+par ailleurs étre considéré comme une instance particuliere du modele plus général des
+automates avec prédicats introduit par Van Noord et al. (2001).
+
+Ces caractéristiques modiﬁent la déﬁnition de certaines notions fondamentales, notamment
+celle du déterminisme. Rappelons qu’un automate est déterministe si, étant donné un état de
+départ et un élément de l’alphabet (ici un mot), il a au plus un état d’arriVée ; l’utilisation de
+ces automates perrnet souvent d’obtenir des traitements optimaux puisque leur comportement
+est déterrniné de facon unique pour toute entrée. Or, si nous prenons l’automate lexical de la
+ﬁgure 1, méme si pour chaque état les étiquettes de ses transitions sont bien différentes, il ne
+peut pas pour autant étre considéré comme déterministe puisque la lecture de la séquence
+{un,un.DET+Dind.'ms} {sacré,sacré.A.'ms} {j0li,j0li.A.'ms} peut positionner l’automate dans
+l’état 2 ou l’état 3.
+
+      
+ 
+    
+
+. H I.
+<_hL.1u__”\_I1I5> Cm,_N__[m>
+
+<I)lE'|‘>
+0
+
+<I:L7___‘wl:I1|.~.>
+
+Figure 1: Automate lexical
+
+Ceci découle du fait que des masques lexicaux différents peuvent avoir une intersection non
+Vide. Cette propriété a des conséquences sur la déterrninisation mais également pour la plupart
+des algorithmes de manipulation des automates lexicaux, tels que l’intersection ou la
+complémentation ; les algorithmes standards ne peuvent pas, ici non plus, étre utilisés. Nous
+présentons par la suite une méthode qui nous a permis d’effectuer toutes ces opérations.
+Celle-ci utilise une représentation structurée des masques lexicaux, paramétrée par une
+description formelle du jeu d’étiquettes des dictionnaires.
+
+Automates lexicaux avec structure de traits
+
+3.1 Intérét d’une description du jeu d’étiquettes
+
+La description du jeu d’étiquettes consiste en une formalisation de la structure des traits
+contenus dans les dictionnaires ; cette description s’effectue en deux étapes. La premiere
+consiste a établir une classiﬁcation de l’ensemble des traits en les regroupant par attributs. Par
+exemple, les codes ﬂexionnels m (pour masculin) et f (pour féminin) qui indiquent le genre de
+l’entrée sont regroupés sous un méme attribut. Le méme procédé est effectué pour l’ensemble
+des traits morphologiques, syntaxiques et sémantiques. Nous complétons ensuite cette
+description par une énumération de toutes les parties du discours de la langue; pour chacune,
+nous déclarons les attributs qui lui sont associés et nous explicitons quelles sont les
+combinaisons de traits qui permettent d’obtenir une étiquette complete. Un ensemble de traits
+constitue une étiquette complete s’il existe une entrée d’un dictionnaire exactement étiquetée
+par cet ensemble.
+
+Par exemple, une étiquette complete pour un nom est composée, outre le lemme et la
+catégorie grammaticale, d’un genre, d’un nombre et d’un éventuel attribut sémantique :
+{guitare,guitare.N+ C0nc.fs}, {guitaristes,guitariste.N+Humsmp}, etc.
+
+En revanche, les attributs ﬂexionnels de genre, de nombre, de personne et de temps sont tous
+associés a la catégorie des Verbes comme dans {danses,danser.V.'P2s} pour le présent
+deuxieme personne du singulier et {dansées,danser. V.'Kﬁ)} pour son participe passé féminin
+pluriel mais toutes les combinaisons de ces traits ne sont pas compatibles et ne constituent
+donc pas des étiquettes completes.
+
+Deux parties du discours implicites et sans attribut sont automatiquement ajoutées a cette
+liste, une pour les mots inconnus et la seconde pour les différents symboles de ponctuation.
+De cette maniere, l’ensemble des tokens qui composent les corpus de texte entre dans cette
+description homogene.
+
+Nous obtenons, grace a ces informations, une représentation plus structurée des étiquettes
+lexicales dans laquelle chaque mot, selon sa partie du discours, admet un ensemble d’attributs
+qui peuvent prendre une Valeur parmi des codes bien déﬁnis. Nous rapprochons ainsi notre
+description de travaux récents sur la représentation des ressources linguistiques (EAGLES,
+1996 ; Outilex, 2002 ; RNIL, 2002) qui integrent directement la notion d’attribut et de
+structures de traits dans leur modele. Pour la premiere fois, un tel modele est appliqué sans
+restriction avec un dictionnaire a tres large couverture pour des opérations sur du texte.
+
+Dans ce cadre, nous pouvons représenter simplement un masque lexical par une structure de
+données a plusieurs champs identiﬁant ses éventuelles formes ﬂéchie et canonique, sa partie
+du discours et les traits qui lui sont attribués ; ces traits sont stockés dans un tableau
+d’attributs dont la taille et l’interprétation de ses éléments sont déﬁnies dans notre description
+en fonction de la partie du discours. Ainsi, a un masque lexical sur la catégorie des noms est
+associé un tableau de trois attributs caractérisant son genre, son nombre et sa sous-catégorie
+sémantique. Chaque attribut peut prendre une Valeur parmi celles qui sont déﬁnies dans la
+description, plus deux Valeurs spéciales : une pour signiﬁer que l’attribut n’est pas spéciﬁé,
+l’autre qui indique que l’attribut est bloqué et ne peut pas étre positionné.
+
+Le calcul de l’intersection de deux masques lexicaux s’effectue alors tres simplement.
+L’opération consiste a calculer le masque lexical qui combine les informations spéciﬁées dans
+les deux masques si elles sont compatibles ; dans le cas contraire, l’ensemble Vide est
+retoumé.
+
+Ce calcul s’apparente ainsi a l’opération d’unif1cation qui est a la base de nombreux
+formalismes linguistiques (tels HPSG (Pollard, 1997)).
+
+(1) <!noir.A> inter <!rouge.A:ms> = <!rouge!noir.A:ms>
+
+5/l0
+
+Olivier Blanc et Anne Dister
+
+(2) <!noir.A:f> inter <rouge.A:s> = <rouge.Afs>
+(3) <N:m> inter <N:f> = O
+
+(4) <V:P> inter <V: ls> = <V:Pls>
+
+(5) <V:P> inter <V:m> = 0
+
+De méme, une simple combinaison d’opérations sur les formes et les attributs permet
+d’effectuer le calcul de la complémentation d’un masque par rapport a un autre. Le résultat de
+cette opération, représentant l’ensemble des mots décrits par le premier masque et non décrits
+par le second, est alors une union disjointe de masques lexicaux.
+
+(1) <!noir.N> \ <rouge.N> = <!noir!rouge.N>
+(2) <!noir.N> \ <!rouge.N> = <rouge.N>
+(3) <V:P> \ <V: ls> = <V:Plp> union <V:P2> union <V:P3>
+
+Toutes ces opérations sur les masques lexicaux, ainsi que leurs applications pour la
+manipulation des automates lexicaux que nous exposons ensuite, ont déja été implémentées
+pour les dictionnaires du francais utilisant un jeu d’étiquettes plus restreint, lors des premiers
+développements du systeme Elag (Laporte et al., 1999), module de désambigu'1'sation lexicale,
+dont nous présentons brievement le fonctionnement dans cet article. Notre approche apporte,
+notamment grace a la description extérieure du jeu d’étiquettes, un niveau d’abstraction
+supplémentaire qui nous a permis d’écrire ces algorithmes indépendamment du jeu
+d’étiquettes. Cette méthode a permis ainsi d’appliquer ces opérations avec différents
+dictionnaires, de richesses Variées dans leur structure de traits, mais aussi d’utiliser cet
+environnement pour d’autres langues que le francais.
+
+3.2 Opération sur les automates lexicaux
+
+Grace a cette nouvelle représentation des masques lexicaux, nous pouvons maintenant adapter
+les algorithmes généraux sur les automates finis (tels que définis dans Hopcroft et al. (1979)
+par exemple), de maniere a ce qu’ils aient un comportement correct sur les automates
+lexicaux avec structures de traits. Les modifications apportées aux algorithmes consistent
+essentiellement a découper leurs transitions af1n que les ensembles décrits dans leurs
+étiquettes soient deux a deux disjoints ou égaux. Nous appliquons ce découpage sur les
+transitions sortantes des états considérés a chaque étape du calcul, de maniere a ce que deux
+masques lexicaux distincts susceptibles d’étre comparés ont une intersection Vide. Cette
+propriété est suffisante a la correction de la plupart des algorithmes et nous avons pu ainsi
+implémenter la déterminisation, l’intersection et la minimisation pour les automates lexicaux.
+La ﬁgure 2 présente l’automate précédent correctement déterrninisé.
+
+Le calcul de la complémentation est différent puisqu’il consiste a inverser la terminalité des
+états de l’automate apres l’aVoir rendu complet. Pour ce faire, nous ajoutons sur chaque état
+de nouvelles transitions dirigées Vers un état puits et étiquetées par l’ensemble du lexique qui
+n’est pas décrit dans les étiquettes des transitions déja existantes, ensemble que nous pouvons
+maintenant calculer.
+
+Notons que les opérations d’union, de concaténation et de l’étoile de Kleene, qui sont par
+ailleurs suffisantes pour transformer une expression rationnelle en automate, ne nécessitent
+pas de manipulation particuliere sur les transitions.
+
+Automates lexicaux avec structure de traits
+
+-::11c*:r..I\l:n1s«;:>
+
+=:.!heaL1.A:n1s;:=
+
+  
+ 
+
+Figure 2: Automate lexical déterministe
+
+Toutes ces opérations supplémentaires qui peuvent étre effectuées efﬁcacement grace a notre
+représentation appropriée des masques lexicaux ont néanmoins un impact négatif non
+négligeable sur l’eff1cacité générale des algorithmes. En effet, le nombre de comparaisons et
+de découpages des transitions qui sont effectués dépend fortement de la structure des
+automates en entrée et peut étre, dans le pire des cas, exponentiel sur le nombre total de
+transitions. Notons cependant que ce surcoﬁt concerne uniquement les algorithmes de
+construction mais n’intervient pas lors de la confrontation des automates lexicaux avec les
+corpus de texte. En effet, l’opération de concordance qui détermine si une entrée lexicale est
+décrite par un masque reste une opération triviale qui consiste a Verifier que les champs
+spéciﬁés dans le masque sont compatibles avec ceux de l’entrée (une représentation interne
+des formes ﬂéchies et canoniques par des entiers nous a permis de réduire les comparaisons
+de chaines de caracteres a des comparaisons d’entiers). Le coﬁt induit par ces opérations
+supplémentaires sur les transitions doit de ce fait étre relativisé en considérant que l’utilisation
+d’automates correctement déterminisés apporte une nette amélioration des performances lors
+de leurs applications sur les corpus de texte ; la linéarité de l’analyse est notamment
+conservée lors de la recherche de concordances de formes linguistiques décrites par des
+automates lexicaux dans des séquences de mots étiquetés.
+
+4 Application £1 la désambiguisation lexicale
+
+Le systeme de levée d’ambigu'1'tés lexicales que nous présentons ici, Elag (Elimination of
+Lexical Ambiguities by Grammars (Laporte et al.1999)), s’appuie sur des dictionnaires
+électroniques a large couverture (cf. 2.1) et sur des grammaires locales a base de regles
+construites par des experts humains. Par ailleurs, cette approche Vise a foumir le résultat de la
+désambiguisation non pas sous la forme d’un texte linéaire totalement étiqueté, comme c’est
+classiquement le cas, mais sous la forme d’un automate du texte partiellement désambiguisé
+(cf. Koskenniemi, 1990).
+
+Une grammaire Elag est composée de deux parties3 : la premiere partie, que nous appelons
+condition générale, est délimitée par les symboles <!> ; elle représente les éléments
+linguistiques (formes) qui seront analysés par la grammaire ; la seconde partie, appelée
+condition particuliére, est délimitée par les symboles <=> ; elle décrit les conditions strictes
+
+3 Cette structure en deux parties << si. . . , alors. .. » est empruntée 2 Silberztein (1993).
+
+7/10
+
+Olivier Blanc et Anne Dister
+
+d’apparition des formes présentées en condition générale. Pour le dire autrement, une
+
+rammaire Ela im ose ue l’on n’ait 'amais comme résultats de l’anal se dans l’automate du
+
+I I I y I
+texte la sé uence entre les <!> sauf s1 elle est Veriﬁee ar ce u1 est entre les s1 nes <=>. La
+, I I I I I I
+
+synchronisation entre la cond1t1on générale et la cond1t1on part1cul1ere se fa1t grace aux bo1tes
+<=> et <!> centrales.
+
+   
+ 
+     
+ 
+
+  
+
+ 
+  
+
+   
+ 
+
+  
+
+<!>
+<PRO+PpvLE>
+<PF{O+PpvPR>
+<\-’:3s>
+<se.PRO:3S> <\.":W>
+<\-’:G>
+<PRO+PpvLE> <=>
+<PRO+Pp\rPR>
+<\f:3p>
+<se.PRO:3p> <‘-r‘:W>
+<V:G>
+
+Figure 3: contrainte d’accord grammatical entre le pronom se et le Verbe
+
+Ainsi, dans la grammaire présentée dans la figure 3, la condition générale considere la forme
+se pronom personnel ; les conditions particulieres décrivent le contexte d’apparition de cette
+forme ainsi que ses contraintes d’accord : soit le pronom est au singulier et il est suivi d’un
+Verbe a la 3° personne du singulier <V .'3s> ; soit le pronom est au pluriel et il est suivi d’un
+Verbe a la 3° personne du pluriel <V.'3p>4.
+
+Avant d’étre utilisée pour la levée d’ambigu'1'tés, une grammaire Elag est d’abord traduite en
+un automate lexical déterministe qui reconnait l’ensemble des séquences d’unités lexicales
+(ou analyses lexicales d’un texte) qui ne sont pas rejetées par la grammaire. Le calcul de cet
+automate met en oeuvre la plupart des opérations que nous avons pu déﬁnir sur les automates
+lexicaux. L’application d’une grammaire a un texte consiste ensuite simplement a calculer
+l’intersection de l’automate ainsi compilé avec l’automate du texte. Nous obtenons comme
+résultat un nouvel automate du texte dans lequel toutes les interprétations lexicales du corpus
+rejetées par la grammaire ont été supprimées.
+
+L’opération d’intersection d’un automate lexical avec un automate du texte est bien déﬁnie
+puisque ce dernier n’est rien d’autre qu’un automate lexical particulier. En effet, ses
+transitions sont étiquetées par des entrées lexicales, c’est-a-dire des masques lexicaux dans
+lesquels tous les champs sont spécifiés. Cette propriété a d’ailleurs permis d’optimiser
+l’opération d’intersection ; les transitions de l’automates du texte étant étiquetées uniquement
+par des atomes, le calcul de son intersection avec un automate lexical déterministe s’effectue
+sans procéder a un découpage coﬁteux des transitions.
+
+Remarquons que ce mode de fonctionnement par intersection d’automates a des conséquences
+immédiates sur les propriétés des grammaires de désambigu'1'sation. En particulier, les effets
+produits par plusieurs grammaires sont cumulatifs et indépendants de leur ordre d’application
+sur le texte (puisque l’intersection d’automates est une opération commutative). Cette
+
+4 Le Verbe peut étre a1’infinitif (W) ou au gérondif (G) ; e11tre le pronom et le Verbe, il est possible de rencontrer
+un pronom préverbal soit objet (PRO+PpvLE, c’est-a-dire le, la, l’ et les), soit prépositionnel (PRO+PpvPR,
+c’est-a-dire en et y).
+
+Automates lexicaux avec structure de traits
+
+propriété est tres utile, car elle permet de cumuler les grammaires écrites par plusieurs
+linguistes travaillant indépendamment sur des problemes d’ambigu'1'tés différents.
+
+Enﬁn, Elag est multilingue grace a la description extérieure du jeu d’étiquettes qui permet
+d’adapter le comportement du programme en fonction des dictionnaires utilisés. Des
+grammaires de désambigu'1'sation ont pu ainsi étre écrites et appliquées avec succes pour le
+francais comme le portugais et un travail est actuellement en cours pour pouvoir utiliser Elag
+avec les dictionnaires du grec moderne. Le programme est disponible et intégré dans les
+distributions récentes d’Unitex.
+
+5 Conclusion et perspectives
+
+Nous avons montré comment a l’aide d’une représentation structurée des masques lexicaux,
+paramétrée par une description précise du jeu d’étiquettes, nous sommes parvenus a
+développer un environnement de manipulation des automates lexicaux avec structure de traits
+particulierement adapté pour l’application des grammaires locales sur les corpus de texte
+étiquetés ; nous avons présenté une application concrete de ces méthodes pour la
+désambigu'1'sation lexicale.
+
+Nous souhaitons poursuivre notre étude sur la désambigu'1'sation lexicale par l’écriture de
+nouvelles grammaires et aussi utiliser cet environnement pour faire de la reconnaissance de
+formes linguistiques sur un automate du texte partiellement désambigu'1'sé.
+
+A plus long terme, nous envisageons d’étendre la description du jeu d’étiquettes en y
+intégrant la notion de syntagme (groupes nominaux, phrases complétives et relatives, formes
+Verbales, etc.), et d’obtenir ainsi un modele dans lequel la notion d’attribut serait
+uniformément utilisée pour caractériser les unités lexicales comme les constituants de phrases
+plus complexes. Nous pensons qu’un tel modele combiné avec la reconnaissance des
+arguments phrastiques pourrait nous permettre de faire de l’analyse et de la désambigu'1'sation
+syntaxique en utilisant les propriétés syntaxiques et distributionnelles décrites dans les tables
+du lexique-grammaire.
+
+Références
+
+CONSTANT M. (2000), Description d’expressions numériques en francais, RISSH .' Revue,
+Informatique et Statistiques dans les sciences humaines, n° 36, Liege, CIPL
+
+DISTER A. (1999), De l’étiquetage traditionnel au transducteur du texte : la levée d’ambigu'1'tés
+par grammaires locales, RISSH .' Revue, Informatique et Statistiques dans les sciences
+humaines n° 35, Liege, CIPL, pp. 9-24.
+
+EAGLES (1996), http://www.ilc.cnr.it/EAGLES96/home.html
+
+FAIRON C. (2000), Structures non connexes .' grammaire a'es incises en francais .' description
+linguistique et outils informatiques, Université de Paris 7, these non publiée.
+
+GROSS M. (1975), Méthodes en syntaxe, Paris, Herman.
+
+GROSS M. (1997), The construction of local grammars, Finite—State Language Processing, E.
+ROCHE and Y. SCHABES (eds.), Cambridge, Mass./London, England: MIT Press, pp. 329-354.
+GROSS M. (1989), La construction de dictionnaires électroniques, Annales des
+T élécommunications, Vol. 44, pp.4-19.
+
+HABERT B., NAZARENKO A., SALEM A. (1997), Les linguistiques a'e corpus, Paris, Armand
+Colin.
+
+HOPCROFT J. E., ULLMAN J.D. (1979), Introduction to Automata Theory, Languages, and
+Computation. Addison Wesley: Reading, MA.
+
+9/10
+
+Olivier Blane et Anne Dister
+
+KARTTUNEN L., GAAL T., KEMPE A. 1997. Xerox Finite-State Tool. Technical Report. Xerox
+Research Centre Europe, Grenoble. June 1997. Meylan, France.
+
+KOSKENNIEMI K. (1990), Finite-State parsing and disambiguation, Proceedings of C 0LING-
+90, Helsinki, pp. 229-232
+
+LABELLE J. et al.(1994), DELQUES V1.0. Rapport de recherche :9, Montreal, UQAM.
+LAMIROY B. (Ed.) (1998), Le lexique-grammaire, T ravaux de linguistique 37.
+
+LAPORTE E. (1994), Experiment in Lexical Disambiguation Using Local Grammars, Papers
+in Computational Lexicography, COMPLEX ‘94 (F erenc Kiefer, Gabor Kiss and Julia Paj zs
+eds.), Budapest, Linguistics Institute of the Hungarian Academy of Sciences, pp. 163-172.
+LAPORTE E., SILBERZTEIN M. (1996), Ambiguity rates. Automatic analysis of French text
+corpora and computation of ambiguity rates for different tagsets, in LAPORTE (E.) ed.,
+GRAMLEXDeliverables, October 1995 — June 1996, Paris, LADL.
+
+LAPORTE E., MONCEAUX A. (1999), Elimination of lexical ambiguities by grammars: the
+ELAG system, in C. Fairon (ed), Analyse lexicale et syntaxique.' le systeme INTEX,
+Lingvisticae Investigationes, John Benj amins, Amsterdam.
+
+MARCUS M.P., SANTORINI B., MARCINKIEVICZ M.A. (1993), Building a Large Annotated
+Corpus of English : the Penn TreeBank, Computational Linguistics 19 (2), pp. 313-330.
+MOHRI M. (1997), Finite-State Transducers in Language and Speech Processing,
+Computational Linguistics, 23:2.
+
+MOHRI M., PEREIRA F., RILEY M. (2000), The design principles of a weighted finite-state
+transducer library. Theoretical Computer Science, 23 1 : 17-32, 2000.
+
+NAKAMURA T. (2003), Analysing texts in a specific domain with local grammars: The case of
+stock exchange market reports, In Proceedings of the First International Conference on
+Linguistic Informatics, Kawaguchi Y. et alii (eds.), UBLI, Tokyo University of Foreign
+Studies.
+
+OUTILEX (2002), http://www.at-lci.com/Outilex/Outilex.htrnl
+
+PAUMIER S. (2001), Some remarks on the application of a lexicon-grammar, Lingvisticae
+Investigationes )0ﬂV.'2, Amsterdam/Philadelphia, John Benj amins, pp. 245-256.
+
+PAUMIER S. (2003), A Time-Efficient Token Representation for Parsers, Proceedings of the
+EACL Workshop on F inite-State Methods in Natural Language Processing, Budapest, pp. 83-
+90.
+
+PAUMIER S. (2003), De la reconnaissance de formes linguistiques a l ’analyse syntaxique,
+these non publiée, Université de Marne-la-Vallée.
+
+POLLARD C. (1997), Lectures on the foundations of HPSG. Unpublished manuscript: Ohio
+State University, pages 1-8.
+
+REVUZ D. (1991), Dictionnaires et lexiques : méthodes et algorithmes, Université de Paris 7,
+these de doctorat en informatique, Université Paris 7.
+
+RNIL (2002), http://pauillac.inria.fr/atoll/RNIL/home-fr.html
+
+ROCHE E. (1992). Text Disambiguation by Finite-State Automata, An Algorithm and
+Experiments on Corpora. In. Proceedings of COLING’ 92, Nantes.
+
+ROCHE E., SCHABES Y. (eds.) (1997), Finite-State Language Processing, Cambridge, MIT
+Press, Mass./London, England.
+
+SILBERZTEIN M. (1993), Dictionnaires électroniques et analyse automatique de textes, Le
+syste‘me INTEX, Paris, Masson.
+
+SILBERZTEIN M. (1998), Les graphes Intex, Lingvisticae Investigationes, pp. 3-29.
+
+VAN HALTEREN H. (1999), Syntactic Wordclass Tagging, Dordrecht / Boston / London,
+Kluwer Academic Publishers.
+
+VAN NOORD G., GERDEMANN D. (2001), Finite State Transducers with Predicates and
+Identity. Grammars 4 (3).
+

@@ -1,0 +1,556 @@
+TALN 2005, Dourdan, 6-10 juin 2005
+
+Alignement de mots par apprentissage artiﬁciel de régles de
+propagation syntaxique en corpus de taille restreinte
+
+Sylwia Ozdowska (1), Vincent Claveau (2)
+
+(1) ERSS - Université de Toulouse le Mirail
+5 allées Antonio Machado
+
+31058 Toulouse Cedex 1
+ozdowska@univ-tlse2.fr
+
+(2) OLST - Université de Montreal
+CP 6128 succ. Centre-Ville
+Montreal, QC, H3C 3J7, Canada
+vincent.claveau@umontreal.ca
+
+Mots-clefs I alignement de mots, corpus alignés, apprentissage artiﬁciel, programma-
+tion logique inductive, analyse syntaxique
+
+Keywords: word alignment, aligned corpus, machine learning, inductive logic
+programming, syntactic analysis
+
+Résumé Cet article présente et évalue une approche originale et efﬁcace permettant
+d’aligner automatiquement un bitexte au niveau des mots. Pour cela, cette approche tire parti
+d’une analyse syntaxique en dépendances des bitextes effectuée par les outils SYNTEX et utilise
+une technique d’apprentissage artiﬁciel, la programmation logique inductive, pour apprendre
+automatiquement des regles dites de propagation. Celles-ci se basent sur les informations syn-
+taxiques connues pour ensuite aligner les mots avec une grande précision. La méthode est
+entierement automatique, et les résultats évalués sur les données de la campagne d’alignement
+HLT montrent qu’elle se compare aux meilleures techniques existantes. De plus, alors que
+ces demieres nécessitent plusieurs millions de phrases pour s’entrainer, notre approche n’en
+requiert que quelques centaines. Enﬁn, l’examen des regles de propagation inférées permet
+d’identiﬁer facilement les cas d’isomorphismes et de non-isomorphismes syntaxiques entre les
+deux langues traitées.
+
+Abstract This paper presents and evaluates an effective yet original approach to automat-
+ically align bitexts at the word level. This approach relies on a syntactic dependency analysis of
+the texts provided by the tools SYNTEX and uses a machine-learning technique, namely induc-
+tive logic programming, to automatically infer rules called propagation rules. These rules make
+the most of the syntactic information to precisely align words. This approach is entirely auto-
+matic, and results obtained on the data of the HLT evaluation campaign rival the ones of the best
+existing alignment systems. Moreover, our system uses very few training data: only hundreds of
+sentences compared to millions for the existing systems. Furthermore, syntactic isomorphisms
+between the two spotted languages are easily identiﬁed through a linguistic examination of the
+inferred propagation rules.
+
+Sylwia Ozdowska et Vincent Claveau
+
+1 Introduction
+
+L’ enjeu que représente l’alignement des corpus paralleles au niveau des mots n’est plus a de-
+montrer : ce demier trouve ses applications dans des taches telles que la traduction automatique
+ou encore la construction de ressources lexicales bi ou multilingues (Véronis, 2000). Il existe
+principalement deux types d’ approches pour aligner des mots : celles a dominante statistique qui
+s’appuient notamment sur les modeles [BM (Brown et al., 1993), et celles qui tendent a com-
+biner calculs statistiques simples et différentes sources d’information linguistique (Ahrenberg
+et al., 2000 ; Barbu, 2004). Destinés principalement a la traduction automatique, les systemes
+purement statistiques se sont progressivement enrichis en incorporant des données linguistiques
+issues de l’analyse syntaxique (Lin & Cherry, 2003 ; Ding & Palmer, 2004) et ce aﬁn de mieux
+prendre en compte les variations systématiques entre les langues impliquées dans le processus
+de traduction (Dorr, 1994 ; Fox, 2002). L’ alignement sur des bases purement syntaxiques a ega-
+lement fait l’objet de travaux : D. Wu (2000) a par exemple proposé une méthode basée sur
+une analyse en constituants; S. Ozdowska (2004), dont nous reprenons le cadre expérimental,
+utilise quant a elle une analyse en dépendances dans le but de proposer une étude contrastive
+ﬁne des divergences syntaxiques entre le francais et l’anglais. Sa démarche a consisté a déﬁ-
+nir manuellement des regles d’alignement, dites de propagation, qui exploitent les relations de
+dépendance Inises en évidence dans chaque partie d’un corpus parallele.
+
+Cet article présente une technique d’alignement proche de cette derniere. Cependant, l’origi-
+nalité de notre démarche réside dans le fait que les regles de propagation sont acquises de
+maniere automatique en corpus par une technique d’apprentissage artiﬁciel, la programmation
+logique inductive. Ces regles de propagation, exploitant des informations syntaxiques issues des
+analyseurs SYNTEX, sont automatiquement inférées a partir d’exemples d’alignements valides.
+L’ objectif de cet article est d’une part de montrer que, contrairement aux approches statistiques,
+notre technique ne nécessite que tres peu de données d’apprentissage. D’autre part, on se pro-
+pose de vériﬁer si les regles obtenues et les alignements qu’elles produisent varient en fonction
+du type de corpus d’apprentissage.
+
+Pour ce faire, nous exposons tout d’abord le cadre méthodologique dans lequel nous avons
+mené nos travaux. Puis, nous décrivons la technique d’apprentissage automatique des regles de
+propagation en section 3. Enﬁn, nous présentons et discutons les résultats obtenus en section 4
+avant d’indiquer les perspectives de poursuite de ce travail.
+
+2 Contexte d’expérimentation
+
+2.1 Alignement de mots par propagation syntaxique
+
+L’utilisation de regles de propagation pour aligner des bitextes au niveau des mots a déja
+fait l’objet de plusieurs travaux. Ainsi, S. Ozdowska (2004) exploite les relations de dépen-
+dance syntaxique dans le processus d’alignement. Elle utilise des regles de propagation syn-
+taxique déﬁnies a la main qui, étant donnés deux mots en relation d’équivalence dans un couple
+de phrases alignées, appelés couple amorce, permettent de propager le lien d’alignement a
+d’autres mots en suivant les relations de dépendance syntaxique connues. Dans l’exemple sui-
+vant, il est ainsi possible d’aligner ban et interdire en exploitant la relation sujet portant sur
+le couple amorce. Dans cet exemple et les suivants, les couples amorces sont notés en gras.
+
+Alignement de mots dans un bitexte par apprentissage artiﬁciel
+
+SUJ
+
+A/\
+
+The Community banned imports of ivory
+
+¢
+
+La Communaute’ ainterdit l’importation d’ivoire
+
+K2
+
+SUJ
+
+Chaque regle de propagation est donc décrite en fonction de la relation syntaxique qui sert de
+base a la propagation et de la direction dans laquelle s’effectue la propagation (et éventuelle-
+ment des restrictions portant sur les parties du discours des mots concernés). Si nous reprenons
+l’exemple précédent, la regle de propagation anglais/francais utilisée est :
+
+V E Nom / V E Nom
+
+Elle indique que la propagation se fait a partir d’un couple amorce de noms régis (Community/
+Communaute’) vers un couple de verbes recteurs (ban/ interdire) par la relation sujet. Une autre
+regle de propagation possible est celle qui Va du couple amorce de noms régis (ivory / ivoire)
+
+au couple de recteurs (imports / importation) par la relation de préposition :
+PREP
+
+Nom —> Nom/Nom PE? Nom
+
+La plupart des regles utilisées dans ce type d’approche ont été déﬁnies en accord avec l’hypo-
+these d’isomorphisme direct entre les langues selon laquelle les structures syntaxiques seraient
+conservées lors de la traduction, comme dans l’exemple précédent (Hwa et al., 2002). Cepen-
+dant quelques unes traitent des cas de non-isomorphisme, comme l’alignement de tax etﬁscales
+dans la biphrase : tax expenditures have been ( ) / les dépenses ﬁscales demeurent ( ). Si l’on
+part du couple amorce de noms recteurs (expenditures / dépenses), les structures syntaxiques
+qui se correspondent dans les deux langues sont (NN représente la dépendance entre deux noms
+et MOD la dépendance générique téte-modiﬁeur, ici nom-adjectif) :
+
+Nom H Nom/Nom “L31? Adj
+
+Ce type d’approche permet d’obtenir des alignements qui offrent en général une bonne preci-
+sion, le rappel se révélant cependant de moins bonne qualité. En effet, le principe d’isomor-
+phisme permet de générer des alignements corrects dans la plupart des cas o1‘1 il s’applique
+mais il semble, dans certains cas, trop contraignant. Par ailleurs, ces approches nécessitent une
+expertise humaine pour écrire ces regles de propagation, ce qui peut se révéler coﬁteux. C’est
+ce dernier point que nous proposons de contourner en utilisant une technique d’apprentissage
+artiﬁciel pour inférer automatiquement des regles de propagation.
+
+2.2 Données d’apprentissage et d’évaluation
+
+Nous avons choisi comme données de référence celles Inises a disposition dans le cadre d’une
+
+campagne d’évaluation des systemes d’alignement au niveau des mots notamment pour les
+
+paires de langues anglais/francais (Mihalcea & Pederson, 2003). En voici la description (Och
+
+& Ney, 2000) :
+
+— corpus d’entrainement anglais/francais, issu du HANSARD (débats parlementaires), comptant
+1.3 million de biphrases. Pour les expériences que nous reportons en section 4, nous n’avons
+utilisé qu’une portion variant de 10 a 1000 couples de phrases alignées de ce corpus.
+
+— corpus de test constitué de 447 phrases alignées extraites d’une partie différente du HAN-
+SARD.
+
+Sylwia Ozdowska et Vincent Claveau
+
+— le jeu de référence contient les alignements effectués par deux annotateurs sur le corpus de
+test. Chaque lien d’appariement établi s’est vu attribuer la valeur S, s’il s’agissait d’un lien
+considéré comme non ambigu, ou P dans le cas contraire. La valeur P est choisie en présence
+d’expressions ﬁgées ou de traductions libres. Dans le jeu de référence ﬁnal, la valeur S est
+conservée pour les alignements pour lesquels il y a accord inter-annotateurs; la valeur P
+est attribuée dans tous les autres cas. La ﬁgure 1 présente un exemple de phrase annotée;
+les alignements S sont en traits pleins et les P en pointillés. Dans un premier temps, pour
+évaluer notre approche, nous nous focalisons sur les alignements 1-1 entre mots lexicaux;
+les expérimentations décrites en section 4 ne portent donc que sur les annotations S entre
+mots lexicaux.
+
+the rules are complicated and changing all the time
+9*‘. /“~ .’ F 45%
+.\*:=r~L.»><Z~?.-:=é’ '.
+I \(’s 7,-¢_*:,sr ‘~,';,(’ \” I
+’.’7*~’r )>‘La$~'_‘~/ ‘ I
+M: —‘1.q(:>iur ~ .3...» :9 Y
+les réglements sont compliqués et on les modiﬁe sans cesse
+
+FIG. 1 — Annotation pour la campagne d’alignement HLT
+
+Comme nous l’avons dit précédemment, en plus du HANSARD, les expériences d’inférence de
+regles de propagation que nous présentons en section 4 sont effectuées sur deux autres corpus.
+Le premier est un extrait du corpus INRA1. I1 s’agit d’un corpus spécialisé anglais/francais du
+domaine de la recherche agronomique de 1000 biphrases. Le second est un corpus fourni dans
+le cadre de la campagne d’évaluation ARCADE (Véronis & Langlais, 2000). Il est constitué de
+questions-réponses traitées a la Commission Européenne. La encore, nous n’avons retenu que
+1000 biphrases.
+
+Le repérage des relations de dépendance syntaxique dans les trois corpus d’entrainement est
+effectué indépendamment pour chacune des deux langues par les analyseurs SYNTEX francais
+et anglais (Bourigault & Fabre, 2000). Ces derniers prennent en entrée un texte étiqueté et iden-
+tiﬁent, pour chaque phrase, des relations telles que sujet, objet direct et indirect, modiﬁeur...
+Les deux outils sont concus suivant la meme architecture et mettent en oeuvre les memes pro-
+cédures de repérage des relations de dépendance. Par ailleurs, les relations identiﬁées ainsi que
+leur représentation sont globalement les mémes d’une langue a l’autre.
+
+3 Alignement par apprentissage artiﬁciel
+
+Comme nous l’avons déja dit, l’originalité de notre approche tient au fait que contrairement aux
+travaux précédemment exposés (Ozdowska, 2004), les regles de propagation ne sont pas don-
+nées manuellement mais inférées automatiquement. Les deux sous-sections suivantes présentent
+la technique d’apprentissage artiﬁciel et son utilisation pour inférer ces regles. La technique
+d’amorcage fournissant automatiquement les exemples nécessaires a cette technique supervisée
+est décrite en sous-section 3.3.
+
+1Nous remercions A. Lacombe, INRA, de nous avoir pennis d’utiliser ce corpus.
+
+Alignement de mots dans un bitexte par apprentissage artiﬁciel
+
+3.1 Programmation logique inductive
+
+Le principe de notre approche est le suivant : a partir d’exemples de propagations valides au
+sein de deux phrases alignées, on tente d’apprendre des regles qui les déﬁnissent. Pour ce faire,
+nous utilisons une technique d’apprentissage artiﬁciel supervisée, la programmation logique in-
+ductive (PLI). Une présentation approfondie de cette méthode d’apprentissage peut étre trouvée
+dans (Muggleton & De Raedt, 1994), nous n’en donnons ici que les grandes lignes. La PLI per-
+met d’inférer des regles générales (des clauses de Horn) décrivant un concept a partir d’un jeu
+d’exemples de ce concept E+ (avec éventuellement des contre-exemples E‘) et un ensemble
+d’informations extemes B, appelées Background Knowledge. L’ensemble de regles inférées,
+appelé classiﬁeur et noté H par la suite, est obtenu en généralisant les exemples en fonction de
+B.
+
+Quelques conditions imposées a cette tache d’apprentissage forment le cadre logique de la PLI
+(III signiﬁe faux et )2 représente l’implication logique) :
+
+— la consistance a posteriori impose qu’aucune contradiction n’existe entre B, H et E+ : B /\
+
+H /\ E+ bé El;
+— la complétude assure que tous les exemples positifs sont expliqués avec H et les informations
+du Background Knowledge, soit B /\ H )2 E+.
+
+En pratique, les regles composant H sont recherchées a travers un espace d’hypotheses regrou-
+pant toutes les regles possibles. Cet espace est organisé hiérarchiquement, ce qui permet de le
+parcourir efﬁcacement. Une regle de cet espace est retenue si elle maximise un score, générale-
+ment déﬁni en fonction du nombre d’exemples (et éventuellement de contre-exemples) qu’elle
+couvre. La PLI, de par son expressivité (exemples et regles sont exprimés en logique des prédi-
+cats), a été utilisée pour de nombreuses taches d’apprentissage, et notamment en TAL (Cussens
+& Dieroski, 2000).
+
+3.2 Apprentissage de régles de propagation
+
+Dans notre cas, les regles recherchées sont des propagations et les exemples que nous utilisons
+
+sont des phrases alignées comportant des alignements valides; nous n’utilisons pas de contre-
+
+exemples. L’ algorithme de PLI que nous utilisons est ALEPH2. Dans B sont stockées toutes les
+
+informations concernant les dépendances syntaxiques entre mots des phrases exemples et les
+
+couples amorces connus. Le formalisme logique de la PLI permet d’encoder facilement ces in-
+
+formations relationnelles. Ainsi, si l’on sait que companies/entreprises peuvent étre alignés dans
+
+l’extrait de biphrase suivant (l’identiﬁant de chaque mot est noté apres les barres obliques) :
+
+ private/id_I_en sector/id_2_en companies/id_3_en
+
+ les/id_I_fr entreprises/id_2_fr du/id_3_fr secteur/id_4_frprivé/id_5_fr
+
+on ajoute a E+ : a|ignement(id_3_en,id_2_fr). et a B (le nom du prédicat représente le nom
+
+de la relation syntaxique, le premier argument représente le recteur et le second le régi) :
+determinant(id_2_fr,id_1_fr). prep_de(id_2_fr,id_3_fr). adjectif(id_2_en,id_1_en).
+preposition(id_3_fr,id_4_fr). adjectif(id_4_fr,id_5_fr). nom_nom(id_3_en,id_2_en).
+amorce(id_2_en,id_4_fr).
+
+Une regle qui peut étre inférée a partir de cet exemple est :
+a|ignement(M_Ang,M_Fr) :- nom_nom(M_Ang,A1), prep_de(M_Fr,F1), preposition(F1,F2),
+
+ZALEPH est développé par A. Srinivasan et disponible a http://web.com|ab.ox.ac.ukloucllresearchlareasl
+machlearn/Aleph.
+
+Sylwia Ozdowska et Vincent Claveau
+
+amorce(A1 ,F2).
+
+Avec les notations précédentes, cette regle s’écrit :
+
+M_Ang N_N> A1/M_Fr PREDE F1 ‘E? F2.
+
+Elle souligne l’équivalence des structures Nom—Nom en anglais avec Nom de Nom en fran-
+cais ; tout couple apparaissant dans une biphrase avec cette structure peut ainsi étre aligné.
+
+3.3 Amorgage
+
+Des exemples d’alignements valides sont nécessaires a notre technique d’apprentissage. Cette
+phase de supervision, pénible si elle était conduite manuellement, est dans notre cas automatisée
+par une technique dite d’amorcage. Notre approche d’inférence de regles de propagation ne
+requiert donc ﬁnalement aucune intervention humaine; elle est dite semi-supervisée.
+
+Pour générer ces alignements exemples, ou couples amorces, nous utilisons deux approches
+complémentaires. Il s’agit d’une part d’une technique statistique classique et d’autre part d’une
+recherche de cognats. En ce qui concerne la méthode statistique, nous considérons comme
+couples amorces les paires de mots (anglais/francais) apparaissant ensemble dans des phrases
+alignées de maniere statistiquement signiﬁcative (Ahrenberg et al., 2000) ; la force du lien entre
+deux mots est calculée par un Jaccard sur les fréquences d’apparition conjointe des deux mots
+(Ozdowska, 2004). Pour le repérage de cognats, c’est-a-dire de chaines de caracteres identiques
+ou proches dans les deux langues, la méthode mise au point est similaire a celle décrite dans
+(Fluhr et al., 2000). Elle consiste a identiﬁer la sous-chaine maximale commune a deux mots
+qui cooccurrent dans un couple de phrases alignées.
+
+Par la conjonction de ces deux méthodes, ce sont ainsi en moyenne entre 4 et 6 couples amorces
+(selon les corpus) par phrase qui sont détectés. Environ 5% des couples amorces se révelent
+erronés (i. e. mots ne devant pas étre alignés); ce faible taux ne devrait donc pas géner le pro-
+cessus d’apprentissage. Chaque couple amorce, allié aux deux phrases alignées dont il est tiré,
+peut ainsi servir d’eXemple pour notre technique d’apprentissage de regles de propagation. Une
+phrase permet donc de produire autant d’exemples qu’elle comporte de couples amorces.
+
+A partir des exemples obtenus par cette technique, il nous est donc possible d’inférer des regles
+de propagation a partir de nos trois corpus d’entrainement. Ces regles peuvent ensuite étre
+appliquées a de nouvelles données dans lesquelles on aura préalablement repéré des couples
+amorces.
+
+4 Résultats
+
+Cette section présente tout d’abord les résultats obtenus par notre approche sur le jeu d’éva-
+luation HLT. Nous décrivons ensuite quelques causes d’erreurs récurrentes et examinons enﬁn
+certaines des regles inférées.
+
+4.1 Performances d’alignement
+
+Les trois systemes d’alignement (i.e. les trois ensembles de regles inférées a partir de nos cor-
+pus) sont évalués a l’aide des données de la campagne HLT. Leurs performances sont présentées
+
+Alignement de mots dans un bitexte par apprentissage artiﬁciel
+
+de maniere classique en termes de taux de rappel, taux de précision et f-mesure.
+
+La table 1 présente les résultats des trois systemes. Pour ces expériences, la phase d’apprentis-
+sage a été menée sur 1000 phrases de chaque corpus. A des ﬁns de comparaison, nous indiquons
+les résultats obtenus par les meilleurs systemes d’alignement — en terme de f-mesure — ayant
+participé a la compétition HLT ; il s’agit de Ralign (Simard & Langlais, 2003), XRCE (basé sur
+GIZA++) (Dejean et al., 2003) et BiBr (Simard & Vogel, 2003), tous les trois utilisant principale-
+ment des approches statistiques. Nous indiquons aussi les résultats du systeme de S. Ozdowska
+(2004) dans lequel les regles de propagation sont déﬁnies manuellement.
+
+|Systeme |HANSARD | ARCADE| INRA lozdowskal Ralign | XRCE | BiBr |
+
+Precision 88.51 % 82.65% 86.15% 81.59% 72.54% 55.54% 63.03%
+Rappel 60.03% 60.25% 60.73% 58.43% 80.61% 93.46% 74.59%
+F-mesure 71.54% 69.69% 71.24% 68.10% 76.36% 69.68% 68.32%
+
+TAB. 1 — Performances des systemes d’alignement sur les données HLT
+
+A l’examen de ce tableau, on remarque que les résultats de nos systemes varient peu en fonction
+du corpus d’entrainement. D’autre part, les performances de nos trois systemes sont de niveau
+comparable a celles des autres. Ils se classent en effet deuxieme derriere le systeme Ralign en
+terme de f-mesure. Ils jouissent par ailleurs d’une précision tres supérieure aux autres systemes,
+mais d’un rappel relativement plus bas. Ce rappel s’eXplique en partie par l’insufﬁsance de
+couples amorces et la couverture imparfaite de l’étiquetage syntaxique, ce qui rend certains
+couples inaccessibles a nos regles de propagation.
+
+On s’intéresse dans un second temps a l’évolution des performances selon la taille des corpus
+d’entrainement. Pour cela, on fait varier le nombre de phrases servant a produire les exemples
+pour l’apprentissage. La ﬁgure 2 présente les taux de rappel, de précision et la f-mesure obtenus
+selon le nombre de phrases a partir du corpus HANSARD. Les résultats sont tres éloquents : il n’y
+
+100 
+80 - -
+go 60  :
+8
+S
+QC: 40 -
+20 _ f-mesure —|— -
+rappel —E—
+0 I I I precisionl —)|%
+0 200 400 600 800 1000
+
+Nombre de phrases
+
+FIG. 2 — Variation des performances selon le nombre de phrases utilisées a l’apprentissage
+
+a quasiment aucune variation de rappel et de précision de 300 a 1000 phrases. En dessous de 300
+phrases, la précision augmente sensiblement alors que le rappel décroit. Cela s’explique par le
+
+Sylwia Ozdowska et Vincent Claveau
+
+fait que seules quelques regles de propagation, parmi les plus sﬁres, sont trouvees. On remarque
+enﬁn qu’avec 10 phrases seulement, notre algorithme d’apprentissage est capable d’inferer des
+regles sufﬁsamment pertinentes pour mener a une f-mesure de 65%. Ces resultats sont donc
+tres positifs, notaInment en regard des tailles tres restreintes de nos corpus d’entrainement. A
+titre de comparaison, les systemes Ralign, XRCE et BiBr utilisent 1.3 million de phrases pour
+
+s ’ entrainer.
+
+4.2 Examen des résultats
+
+Les erreurs d’alignement les plus courantes faites par nos systemes peuvent se classer en plu-
+sieurs grandes categories. Comme nous l’avons dit precedemment, une grande part des faux
+negatifs (i. e. des alignements non detectes) est due a une trop faible densite de couples amorces
+en plus d’absences de dependances au sein de certaines phrases.
+
+En ce qui concerne les faux positifs (i.e. des alignements detectes a tort), certains viennent
+simplement d’erreurs d’etiquetage de SYNTEX (elles-memes parfois causees par des erreurs de
+l’etiqueteur categoriel utilise en amont). Par exemple, dans la biphrase federal government car-
+penters get $ 6. 42/Les menuisiers du gouvemementfédéral touchent $ 6.42, l’adjectif federal a
+incorrectement ete rattache a carpenters, ce qui a provoque l’alignement incorrect de carpen-
+ter/gouvemement, tous deux notes recteurs du couple amorce federal/fe’de’ral. D’autres erreurs
+de ce type sont causees par certaines des regles inferees qui ne sont pas assez speciﬁques pour
+eviter de ramener du bruit. C’est notamInent le cas des regles manipulant les dependances ob-
+jet ou sujet qui, a cause du manque d’informations dont dispose l’algorithme d’apprentissage,
+ne font pas de difference entre les voix actives et passives. Ainsi, a partir du couple amorce
+bring/apporter dans la biphrase good legislation has been brought in by Liberal governments /
+les gouvemements libéraux ont apporté de bonnes mesures le’gislatives, gouvemement et legis-
+lation ont ete alignes a tort. Enﬁn, des phenomenes de reformulations plus ou moins ﬁdeles lors
+de la traduction perturbent parfois nos tentatives d’alignement. Ainsi, dans la phrase the Go-
+vernment must implement the recommendations of the Commissioner of Oﬁicial Languages/le
+gouvernement se doit de respecter les recommandations du Commissaire aux langues oﬁicielles,
+implement et respecter ont ete alignes alors que ce couple n’est pas note valide dans le jeu de
+test HLT.
+
+4.3 Régles obtenues
+
+Environ une trentaine de regles de propagation sont obtenues pour chacun des corpus d’entrai-
+nement avec 1000 phrases. 11 y a peu de differences entre ces regles dans les trois corpus, ce
+qui explique la proximite des performances observee en section 4.1. Elles sont, pour leur quasi
+totalite, tres similaires a celles proposees par S. Ozdowska. Notons cependant que des regles,
+non retenues par S. Ozdowska, comme celles exploitant la coordination ou la relation attribut, se
+revelent en pratique tres productives et expliquent la difference de resultats avec notre approche
+par apprentissage.
+
+La plupart des regles mettent donc en exergue des isomorphismes connus entre la syntaxe
+anglaise et francaise, comme l’alignement des adjectifs modiﬁant deux noms alignes, ou
+l’alignement des complements d’objet direct de deux verbes alignes :
+a|ignement(M_Ang,M_Fr) :- adjectif(C,M_Ang), adjectif(D,M_Fr), amorce(C,D).
+
+Alignement de mots dans un bitexte par apprentissage artiﬁciel
+
+a|ignement(M_Ang,M_Fr) :- objet(C,M_Ang), objet(D,M_Fr), amorce(C,D).
+
+Ces cas d’isomorphismes parfaits représentent pres de 50% des regles de propagation. Certains
+cas de non-isomorphisme syntaxique sont également trouvés, comme par exemple la construc-
+tion standard des syntagmes nominaux Nom Nom en anglais et Nom de Nom en francais
+(cf section 3.2). D’autres types de non-isomorphismes peuvent meme mener a l’alignement de
+mots ayant des parties du discours différentes, comme par exemple des noms et des adjectifs :
+a|ignement(M_Ang,M_Fr) :- nom_nom(C,M_Ang), adjective(D,M_Fr), amorce(C,D).
+
+D’une maniere générale, il ressort de l’examen de ces regles que la plupart d’entre elles sont
+des regles de propagation que l’on peut qualiﬁer de génériques. Elles sont effectivement pour
+une grande partie similaires a celles trouvées manuellement par S. Ozdowska (2004), ce qui
+conﬁrrne la validité de notre processus d’apprentissage. Cependant quelques regles inférées
+sont plus inattendues — et leur validité peut-étre discutée — comme par exemple :
+a|ignement(M_Ang,M_Fr) :- adjectif(M_Fr,C), nom_nom(D,M_Ang), adjectif(D,E), amorce(E,C).
+qui permet d’aligner bargaining et ne’gociation dans la biphrase  to have some hang-up with
+regard to the collective bargaining process/... éprouver certains complexes a l’égard de la né-
+gociation collective.
+
+5 Conclusion et perspectives
+
+Nous avons présenté une méthode originale d’alignement de mots basée sur la syntaxe et sur
+une technique d’apprentissage seIr1i-supervisée. Celle-ci permet d’apprendre automatiquement
+des regles de propagation a partir d’exemples de couples de mots alignés. Ces exemples sont
+par ailleurs fournis a l’aide d’une procédure d’amorcage qui confere a notre approche une com-
+plete autonomie. Les résultats d’alignement obtenus sont bons et comparables aux meilleurs
+systemes d’alignement actuels. De plus, et c’est l’originalité de ce travail, contrairement aux
+systemes existants, tres peu de données sont nécessaires pour entrainer notre systeme. On a
+montré également que les regles de propagation sont relativement génériques et changent peu
+d’un bitexte a un autre.
+
+Plusieurs perspectives sont ouvertes par ce travail. Concernant la technique d’apprentissage,
+nous prévoyons d’intégrer les informations catégorielles pour permettre d’inférer des regles
+ne portant plus seulement sur les dépendances syntaxiques mais aussi sur les parties du dis-
+cours. Cela permettra d’éviter certaines fausses détections reportées précédemment. L’utilisa-
+tion d’exemples négatifs, qui permettraient d’empécher des généralisations excessives et donc
+des regles de propagation pas assez précises, est également a l’étude. D’un point de vue appli-
+catif, notre méthode étant entierement automatique, elle peut aisément étre adaptée a d’autres
+paires de langues, pourvu que celles-ci soient sufﬁsamment proches d’un point de vue syn-
+taxique et qu’un analyseur en dépendances existe pour chacune d’elles. Des expériences dans
+ce sens permettraient d’intéressantes études des cas d’isomorphismes et de non-isomorphismes
+syntaxiques dans les phrases alignées a travers l’étude des regles de propagation inférées.
+
+Références
+
+AHRENBERG L., ANDERSSON M. & MERKEL M. (2000). A knowledge-lite approach to word ali-
+
+gnment, In Parallel Text Processing: Alignment and Use of Translatin Corpora, chapitre 5, p. 97-138.
+Kluwer Academic Publishers 2 Dordrecht.
+
+Sylwia Ozdowska et Vincent Claveau
+
+BARBU A. M. (2004). Simple linguistic methods for improving a word alignment algorithm. In 7th
+International Conference on the Statistical Analysis of Textual Data, JADT’04, Louvain-la-Neuve, Bel-
+gique.
+
+BOURIGAULT D. & FABRE C. (2000). Approche linguistique pour l’analyse syntaxique de corpus.
+Cahiers de Grammaire, 25, 131-151. Université Toulouse le Mirail.
+
+BROWN P. F., PIETRA S. A. D., PIETRA V. J. D. & MERCER R. L. (1993). The mathematics of
+statistical machine translation: parameter estimation. Computational Linguistics, 19(2), 263-311.
+
+J. CUSSENS & S. DZEROSKI, Eds. (2000). Learning Language in Logic. Lecture Notes in Artiﬁcial
+Intelligence. Sringer Verlag.
+
+DEJEAN H., GAUSSIER E., GOUTTE C. & YAMADA K. (2003). Reducing parameter space for word
+alignment. In HLT-NAACL 2003 Workshop: Building and Using Parallel Texts: Data Driven Machine
+Translation and Beyond, Edmonton, Alberta, Canada.
+
+DING Y. & PALMER M. (2004). Automatic learning of parallel dependency treelet pairs. In Ist Inter-
+national Joint Conference on Natural Language Processing, Sanya City, Chine.
+
+DORR B. (1994). Machine translation divergences: A formal description and proposed solution. Com-
+putational Linguistics, 20(4), 597-633.
+
+FLUHR C., BISSON F. & ELKATEB F. (2000). Parallel Text Alignment Using Crosslingual Information
+Retrieval Techniques, chapitre 9. In (Véronis, 2000).
+
+FOX H. J. (2002). Phrasal cohesion and statistical machine translation. In Empirical Methods in Natural
+Language Processing, EMNLP’02, Philadelphia, PA, Etats-Unis.
+
+HWA R., RESNIK P., WEINBERG A. & KOLAK O. (2002). Evaluating translational correspondence
+using annotation projection. In 40th Annual Conference of the Association for Computational Linguis-
+tics, Philadelphia, PA, Etats-Unis.
+
+LIN D. & CHERRY C. (2003). Proalign: Shared task system description. In HLT-NAACL 2003 Work-
+shop: Building and Using Parallel Texts: Data Driven Machine Translation and Beyond, Edmonton,
+Alberta, Canada.
+
+MIHALCEA R. & PEDERSON T. (2003). An evaluation exercise for word alignment. In HLT-NAACL
+2003 Workshop: Building and Using Parallel Texts: Data Driven Machine Translation and Beyond, Ed-
+monton, Alberta, Canada.
+
+MUGGLETON S. & DE RAEDT L. (1994). Inductive Logic Programming: Theory and Methods. Journal
+of Logic Programming, 19-20, 629-679.
+
+OCH F. J. & NEY H. (2000). Improved statistical alignment models. In 38th Annual Conference of the
+Association for Computational Linguistics, Hong Kong.
+
+OZDOWSKA S. (2004). Appariement bilingue de mots par propagation syntaxique a partir de corpus
+francais/anglais alignés. In conférence RECITAL’04, Fés, Maroc.
+
+SIMARD B. & VOGEL S. (2003). Word alignment based on bilingual bracketing. In HLT-NAACL 2003
+Workshop: Building and Using Parallel Texts: Data Driven Machine Translation and Beyond, Edmonton,
+Alberta, Canada.
+
+SIMARD M. & LANGLAIS P. (2003). Statistical translation alignment with compositionality constraints.
+In HLT-NAACL 2003 Workshop: Building and Using Parallel Texts: Data Driven Machine Translation
+and Beyond, Edmonton, Alberta, Canada.
+
+J. VERONIS, Ed. (2000). Parallel Text Processing : Alignment and Use of Translation Corpora. Dor-
+drecht 2 Kluwer Academic Publishers.
+
+VERONIS J. & LANGLAIS P. (2000). Evaluation of Parallel Text Alignment Systems. The ARCADE
+Project, chapitre 19. In (Véronis, 2000).
+
+WU D. (2000). Bracketing and Aligning Words and Constituents in Parallel Text using Stochastic
+Inversion Transduction Grammars, chapitre 7. In (Véronis, 2000).
+

@@ -1,0 +1,414 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Analyse statique des interactions entre structures
+élémentaires d’une grammaire
+
+Guy Perrier
+LORIA, Université de Lorraine,
+équipe Sémagramme, bét. C,
+Campus Scientiﬁque
+BP239
+54506 Vandcseuvre-les-Nancy, cedex,France
+guy.perrier@1oria.:Er
+
+RESUME
+Nous nous intéressons ici a la construction semi—automatique de grammaires computationnelles
+et a leur utilisation pour l’analyse syntaxique. Nous considérons des grammaires lexicalisées dont
+les structures élémentaires sont des arbres, sous—spéciﬁés ou pas. Nous présentons un algorithme
+qui vise a prévoir l’ensemble des arbres élémentaires attachés aux mots qui peuvent s’intercaler
+er1tre deux mots donnés d’une phrase, dont on sait que les arbres élémentaires associées sont des
+compagnons, c’est—a—dire qu’ils interagiront nécessairement dans la composition syntaxique de la
+phrase.
+
+ABSTRACT
+Static Analysis of Interactions between Elementary Structures of a Grammar
+
+We are interested in the semi—automatic construction of computational grammars and in their
+use for parsing. We consider lexicalized grammars with elementary structures which are trees,
+underspeciﬁed or not. We present an algorithm that aims at foreseeing all elementary trees
+attached at words which can come between two given words of a sentence, whose associated
+elementary trees are companions, that is, they will necessarily interact in the syntactic composition
+of the sentence
+
+MOTS-CLES : grammaire lexicalisée, grammaire d’interaction, construction de grammaires.
+
+KEYWORDS: Lexicalized Grammar, Interaction Grammar, Grammar Construction.
+
+1 Introduction
+
+Nous poursuivons ici un travail commencé depuis plus de dix ans autour de la construction serm'—
+automatique de grammaires computationnelles. Dans le cadre du formalisme des Grammaires
+d’Interacu'on (GI) (Guillaume et Perrier, 2009), nous avons développé FRIGRAM 1, une grammaire
+du frangais, et LEOPAR 2, un analyseur syntaxique pour les GI, perrnet d’appliquer cette grammaire
+a l’analyse de textes en francais.
+
+Notre ambition est d’obtenir une grammaire a large couverture pour analyser des corpus tout
+
+L http://wikilligramme.loria.fr/doku.php?id=frigram:frigram
+2. http : //leopar . loria. fr
+
+604 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+venant. Méme si nous sommes ouverts a intégrer des méthodes probabilistes dans notre approche,
+nous souhaitons conserver une base symbolique pour étre en mesure de produire des analyses
+sufﬁsamment riches pour que l’on puisse calculer a partir d’elles des représentations sémantiques
+completes.
+
+Nous devons faire face a un premier déﬁ, celui de maintenir la cohérence d’une grammaire
+qui est nécessairement de taille importante. Certes, l’organisation d’une telle grammaire sous
+forme d’une hiérarchie de modules a l’aide d’une relation d’héritage facilite la tache, mais cela ne
+résoud pas tout. Par ailleurs dans l’analyse syntaxique, nous sommes confrontés a un second déﬁ,
+celui de l’explosion du nombre de structures syntaxiques candidates pour l’analyse d’une phrase.
+
+Pour répondre a ces deux déﬁs, nous pensons qu’il est utile d’analyser la grammaire de facon
+systématique pour prévoir les interactions entre les structures élémentaires qui la déﬁnissent. Un
+travail a commencé a étre mené sur FRIGRAM mais il peut s’étendre aux grammaires construites
+dans d’autres formalismes, pour peu que ces grammaires soient lexicalisées.
+
+Lorsque l’on analyse une phrase avec une grammaire lexicalisée, la premiere étape consiste a
+assigner a chaque mot de la phrase une structure syntaxique élémentaire de la grammaire. On
+obtient ce qu’on appelle une sélection lexicale. Le nombre de sélections lexicales possibles est
+exponentiel par rapport a la longueur de la phrase.
+
+Pour ﬁltrer les sélections lexicales, (Bonfante et al., 2009) ont introduit la notion de compagnon.
+Un compagnon d’une structure syntaxique élémentaire est une structure syntaxique élémentaire
+qui peut se combiner avec la premiere dans la composition syntaxique d’une phrase. Le principe
+de ﬁltrage est ensuite le suivant : si dans une sélection lexicale, il existe une structure syntaxique
+élémentaire qui ne trouve ni compagnon a gauche ni compagnon a droite, la sélection peut étre
+éliminée. L’app1icau'on de ce principe permet de réduire drastiquement le nombre de sélections
+lexicales. Les compagnons de chaque structure syntaxique élémentaire peuvent étre pré—calculés
+sur la grammaire et pour réduire le nombre de calculs, ceux—ci sont effectués sur les structures
+syntaxiques élémentaires avant ancrage par des mots particuliers.
+
+La faiblesse du principe de ﬁltrage fondé sur les compagnons est qu’il est totalement indifférent
+aux contraintes de localité. Ainsi, si un mot du début d’une longue phrase trouve le compagnon
+de la structure syntaxique qu’il ancre auprés d’un mot qui est en ﬁn de phrase, quelle que soit la
+longueur de la phrase, le principe est respecté.
+
+C’est pour pallier cet inconvénient que nous proposons d’aller plus loin dans l’analyse statique des
+interactions entre structures syntaxiques élémentaires de la grammaire. Considérant un couple
+particulier de compagnons, nous proposons un algorithme qui permet de prévoir uniquement
+d’apres la grammaire les structures syntaxiques élémentaires qui peuvent s’intercaler entre ces
+compagnons dans la composition syntaxique d’une phrase. Ce calcul devrait nous permettre
+d’aller plus loin dans le ﬁltrage des sélections lexicales par application du principe suivant : si
+dans une sélection lexicale, nous sommes sﬁrs que deux mots ont leurs structures syntaxiques
+qui sont compagnons, nous devons vériﬁer que tous les structures syntaxiques ancrant les mots
+intermédiaires sont dans l’ensemble pré—calculé selon notre algorithme.
+
+Dans la section 2, nous préciserons le concept de compagnon. Dans la section 3, nous décri—
+rons l’algorithme de calcul des structures syntaxiques élémentaires s’intercalant entre deux
+compagnons et dans la section 4, nous déroulerons l’algorithme sur un exemple.
+
+605 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+2 Les compagnons d’une structure syntaxique élémentaire
+
+Nous nous situons dans le cadre de formalismes grammaticaux o1‘1 les objets manipulés sont des
+structures syntaxiques notées SS_ynt. Parmi, cel1es—ci, nous distinguons les structures ﬁnales qui
+sont celles représentant la syntaxe complete des phrases. Une opération de composition binaire
+que nous noterons COMP permet de combiner les SS_ynt3. Les grammaires y sont déﬁnies comme
+des ensembles ﬁnis de SSynt, que nous appellerons structures syntaxiques e'le'mentaires et que nous
+noterons SS_yntE. Dans 1’uu'1isau'on que nous faisons de la notion de compagnon, il est nécessaire
+que les grammaires soient lexicalisées : les SSyntE doivent étre ancrées par des mots de la langue.
+Pour simpliﬁer1’exposé, on considérera méme que chaque SSyntE a une ancre unique.
+
+nPred nNp
+cat a 5 cat a np
+funct <~ objpred|obj|mod|cp||cle1l|\.oid funct <~ subjpred|subj|prepobj|objpred|obj|mod|cp||app|\.oid
+nsubj nlnﬂ nAttr nDet nNmax
+cat <~ np P can <—» v D cat s np cat e det —> cat <—» n
+funct a sub] funct <~b head funct a subjpred funct A det funct <—» head
+
+ 
+
+ 
+
+FIGURE 1 — Une SSyntE ancrantfemme compagnon a droite d’une SSyntE ancrant est
+
+Dans ces conditions, on appelle compagnon c‘1 droite (compagnon c‘1 gauche) d’une SS_yntE S1 toute
+SSyntE S2 telle que coMP(S1,S2) soit déﬁnie et soit compatible avec le fait que 1’ancre de S1
+précéde (suit) celle de S2 dans 1’ordre linéaire de la phrase.
+
+Appliquons cette notion au formalisme des GI o1‘1 les SSynt sont des foréts d’arbres ordonnés
+sous—spéciﬁés. Les noeuds représentent des syntagmes et leurs propriétés morpho—syntaxiques
+sont représentées par des traits qui présentent la particularité d’étre polarisés. Le systéme de
+polarités permet d’exprimer 1’état de saturation des SS_ynt et leur aptitude a interagir entre elles.
+Les structures ﬁnales sont des arbres saturés. L’opération de composition syntaxique COMP entre
+deux SSynt S1 et S2 consiste a fusionner un noeud de S1 avec un noeud de S2 de facon a saturer un
+trait polarisé de S1 qui ne l’était pas initialement4. Pour une description exhaustive du formalisme
+des GI, le lecteur peut se reporter a (Guillaume et Perrier, 2009). La grammaire a laquelle nous
+allons appliquer nos idées est la grammaire d’interaction du francais FRIGRAM.
+
+La ﬁgure 1 montre la SSyntE S851 ancrant le verbe est quand il prend un syntagme nominal comme
+
+3. L’opération COMP n’est pas nécessairement déterministe et il peut y avoir plusieurs facons de composer deux SSynt.
+4. Le résultat de l’opération COMP doit étre un arbre sous-spéciﬁé done on peut en tenir compte pour résoudre un
+certain nombre de contraintes comme le fait qu’un noeud doit avoir un pere unique.
+
+606 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+nPred
+cat 4? s
+funct (> objpred|obj|mod|cpl|cleﬂ|\.oid
+
+nSubj nlnﬂ nAttr-nNp
+cat 4% np D cat <—» v D cat <—» np
+funct —> subi funct 4-» head funct 4-» subjpred
+
+I
+
+nvanch nDet nNmax
+cat e det -D cat <—> n
+funct 4? det mnct <—» head
+
+ 
+
+ 
+
+FIGURE 2 — La SS_ynt résultant de la composition syntaxique de la SS_yntE ancrantfemme avec la
+SSyntE ancrant est
+
+attribut du sujet et un de ses compagnons a droite, la SS_yntE Sfemme ancrant le nom femme
+quand il est téte d’un syntagme nomina15. La ﬁgure 2 en fournit la justiﬁcation en montrant
+COMP (Sest,Sfe,,,,,,e) obtenu en fusionnant 1e noeud nAttr de S85, avec le noeud nNp de S femme de
+fagon a saturer les deux traits polarisés du premier. Le résultat de la fusion des deux noeuds est le
+noeud nAttr—nNp. L’ordre des noeuds dans 1’arbre montre bien que le compagnon est a droite.
+
+On peut calculer de facon systématique tous les compagnons a droite et a gauche des SSyntE
+d’une grammaire mais pour éviter d’avoir un nombre trop important de calculs 5 faire, on le fait
+sur les SSyntE non ancrées. Ainsi par exemple si on considére la SSyntE non ancrée correspondant
+2‘: Se“, on trouve dans FRIGRAM 129 compagnons perrnettant de saturer les traits du noeud nAttr :
+58 a gauche seulement, 59 a droite seulement et 12 qui sont a la fois a gauche et a droite. Pour
+avoir 1’ensemb1e des compagnons de Sm, i1 faut ajouter ceux qui perrnettent de saturer des traits
+polarisés de nSubj et de nPred.
+
+Dans une phrase donnée, 1e nombre de compagnons possibles pour une SS_yntE ancrant un mot
+est réduit et on utilise cette information pour ﬁltrer les sélections lexicales. (Bonfante et al., 2009)
+ont montré que le principe que toute SSyntE d’une sélection lexicale doit y trouver au moins un
+compagnon permet de ﬁltrer efﬁcacement les sélections lexicales. Ainsi pour la phrase "Marie est
+considérée comme une femme intelligente.", la grammaire FRIGRAM offre 13 047 840 sélections
+lexicales possibles et le ﬁltrage fondé sur les compagnons permet de réduire ce nombre a 354.
+
+5. Pour plus de lisibilité, tous les traits associés z‘1 chaque noeud n’ont pas été marqués. N’apparaissent que les traits
+cat etfunct.
+
+607 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Le but du travail présenté ici est de montrer qu’il est encore possible d’a1ler plus loin pour pallier
+une faiblesse du principe : il est indifférent a la distance entre une SSyntE et ses compagnons.
+Dans notre exemple, comme c’est indiqué plus haut, Sm doit aller jusqu’au mot une pour trouver
+son premier compagnon. L’idée de l’algorithme présenté a la section suivante est de prévoir a
+partir de la grammaire les SSyntE qui peuvent étre situées dans une sélection lexicale entre une
+SSyntE donnée et ses compagnons, calcul qui servira de base a un nouveau principe de ﬁltrage.
+
+3 L’a1gorithme de détection des structures syntaxiques élé-
+mentaires s’interca1ant entre deux compagnons
+
+L’algorithme va étre appliqué au formalisme des GI mais cette application peut étre étendu a
+tout formalisme manipulant des foréts d’arbres ordonnés avec des structures ﬁnales qui sont des
+arbres et une opération de composition qui est une forme de superposition d’arbres. 11 part de
+l’observation que la plupart du temps, dans FRIGRAM, la composition d’une SSyntE avec un de
+ses compagnons produit une SS_ynt qui déﬁnit une zone triangulaire dont la base est délimitée
+par les deux ancres issues des SSyntE qui ont été composées et dont le sommet est le premier
+ancétre commun. Désormais, nous appelleront une telle SS_ynt une structure bi—ancrée.
+
+Formellement, une structure bi—ancrée S est une SS_ynt qui a deux ancres distinguées Ag et Ad,
+la premiere, l’ancre gauche, se situant avant la seconde, l’ancre droite, dans l’ordre linéaire de
+la phrase. En plus, il existe dans S deux suites de noeuds R, N1, . . .,Ag et R, M1, . . .,Ad ayant un
+début commun, le noeud R, et telles que chaque noeud de la suite est ﬁls de celui qui le précéde.
+La ﬁgure 2 montre un exemple de structure bi—ancrée. Les deux suites de noeuds formant les
+cotés du triangle sont nPred, rtlnﬂ, nVanch et nPred, nAttr—nNp, nNmax, rLN.
+
+Ces deux suites permettent de déﬁnir une partition sur les noeuds de S entre ceux qui se situent a
+l’intérieur du triangle déﬁni par les deux chemins et ceux qui se situent a l’extérieur. Un noeud est
+interne s’il se situe aprés l’ancre gauche et avant l’ancre droite selon l’ordre déﬁni sur la structure
+bi—ancrée 5. Un noeud qui n’est pas interne, est un noeudfrontiére s’il fait partie d’une des deux
+listes de noeuds distinguées, sinon il est exteme.
+
+Le principe de l’algorithme s’appuie sur la forme particuliére d’une structure bi—ancrée qui a la
+conséquence suivante : toute SSyntE dont l’ancre s’insere entre les deux ancres distinguées doit
+étre reliée a un noeud interne ou frontiere. Elle peut 1’étre de facon directe par composition avec
+la structure bi—ancrée mais elle peut l’étre de facon indirecte via une chaine d’autres SSyntE.
+Ces SSyntE doivent toutes avoir la propriété d’étendre vers le bas la structure bi—ancrée avec un
+nouveau noeud interne. C’est cela qui va étre utilisé par1’a1gorithme qui se présente ainsi :
+
+fonction CALCULER_GRAPHE (S,Ag,Ad, noeuds)
+
+initialiser G au graphe vide
+
+tantque noeuds est non vide
+choisir un noeud N de noeuds et le retirer de cet ensemble
+Mf = CREER_MOTIF (N, S)
+pourchaque SSyntE S, de la grammaire
+
+si sUBsUMER(Mf, S,-)
+
+6. Si l’ordre est sous-spéciﬁé, un noeud est interne si, en ajoutant la contrainte de le placer aprés l’ancre gauche et
+avant l’ancre droite, on ne crée aucune incohérence dans l’ordre entre les noeuds de l’arbre.
+
+608 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+(Sl.’, Ag,-, Ad,-, A,-, noeuds,-) = SUPERPOSER (S,-, S , Ag, Ad, Mf)
+G, = CALCULER_GRAPHE (Sl.’,Ag,-,Ad,-, noeuds,-)
+
+si INTERNE(A,-, Si’, Ag,-, Ad,-))
+
+G = G U COMPLETER_GRAPHE(G,-, S,- ))
+sinon G = G U G,-
+retourner G
+
+La fonction CALCULER_GRAPHE prend en entrée une structure bi—ancrée S avec ses deux ancres
+distinguées gauche et droite Ag et Ad ainsi qu’un ensemble noeuds de S qui Vont étre le point de
+départ de l’expansion Vers le bas de S. Au départ, noeuds est initialisés aux noeuds internes et
+frontiere de S a l’exception des ancres Ag et Ad.
+
+En sortie, la fonction CALCULER_GRAPHE retourne un graphe dont les noeuds sont étiquetés par des
+SS_yntE de la grammaire. I1 s’agit en fait d’une forét d’arbres dont la sémantique est la suivante :
+
+Si une phrase est anal_yse'e avec succes par la grammaire (‘z partir de la SS_ynt S et si wl
+et wz sont les deux mots de la phrase attachés aux ancres distinguées de S, pour tout
+mot w situe’ entre wl et wz qui contribue c‘1 l’anal_yse avec la SSyntE S1 qu’il ancre, il
+existe une occurrence de S1 dans le graphe dont tous ses prédécesseurs dans le graphe
+participe (‘z l’anal_yse en ancrant des mots situe's entre wl et wz.
+
+Expliquons maintenant l’algorithme. Au départ on choisit un noeud N de l’ensemble noeuds que
+l’on retire de l’ensemble. Ce noeud Va servir de point de départ a l’expansion Vers le bas de S. A
+l’aide de la fonction CREER_MOTIF , on crée un motif M f qui Va permettre de ﬁltrer les SS_yntE de
+la grammaire pertinentes pour cette expansion. M f est formé du noeud N ainsi que de tous ses
+ancétres et tous ses fréres dans S. On ajoute en plus un ﬁls N’ de N qui est laissé complétement
+sous-spéciﬁé quant aux traits dont il est porteur. Il est seulement ordonné par rapport a ses freres
+éventuels qui sont sur la frontiere. Ce noeud est capital car c’est lui qui Va permettre l’expansion 7.
+
+Ensuite, on passe en revue toutes les SSyntE de la grammaire a l’aide du ﬁltre M f . La fonction
+booléenne SUBSUMER teste si M f subsume une SS_yntE S,- quelconque de la grammaire. Cela Veut
+dire que tout noeud de M f s’interpréte dans S, et que cette interprétation conserve les relations
+pere—ﬁls ainsi que celles de précédence. En plus, les traits attachés a chaque noeud de M f doivent
+aussi s’interpréter par des traits attachés a son noeud image dans S, en respectant un certain
+nombre de propriétés qui sont spéciﬁques au formalisme grammatical utilisé. Par exemple, pour
+les GI, la polarité du trait image doit étre compatible avec celle du trait antécédent.
+
+Ensuite, si le test est positif, a l’aide la fonction SUPERPOSER, on compose la SSyntE S,- avec S
+en suivant le motif M f et en utilisant l’opération COMP de composition syntaxique propre au
+formalisme. On obtient une SS_yntE Si’ et on distingue dans celle—ci les ancres gauche et droite
+Ag, et Adi qui sont la transposition dans S; des ancres Ag et Ad de S. En plus, on repére l’ancre
+A, apportée par Si car sa position Va jouer un r6le décisif pour la suite. La Variable noeuds,-
+représente l’ensemble des noeuds de S17 qui vont servir de point de départ aux expansions futures.
+Ce sont les noeuds internes de S17 qui n’étaient présents au départ dans noeuds.
+
+L’étape suivante consiste a appliquer récursivement la fonction CALCULER_GRAPHE. Elle Va per-
+mettre de récupérer un graphe G, et c’est la que l’ancre A,- Va jouer un r6le important par le
+biais de la fonction booléenne INTERNE. Cette fonction teste si l’ancre A,- est un noeud interne
+a la structure bi—ancrée Sf. Si nous reprenons notre exemple avec la phrase a analyser ‘'01)
+Marie est—elle considérée comme une femme intelligente ?", les SS_yntE associées aux mots oil et une
+
+7. Bien entendu, ce noeud est un minimum et l’expansion peut se faire a l’aide de plusieurs noeuds.
+
+609 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+vériﬁent toutes les deux la condition exprimée par la fonction SUBSUMER. Pour oL‘1, cela provient
+du fait que la SS_yntE modélise une extraction. Pourtant, seule la seconde vériﬁe la condition
+exprimée par la fonction INTERNE, le mot une se situant entre est et femme. Dans ce cas, il Va
+falloir ajouter S,- au graphe G,-. On l’ajoute comme nouvelle racine en le reliant par un arc a toutes
+les anciennes racines de G,-. C’est le role de la fonction COMPLETER_GRAPHE. I1 ne reste plus qu’a
+faire l’union du graphe obtenu avec G, dans l’état ou il est aprés utilisation d’un certain nombre
+de noeuds de noeuds. Si A,- est un noeud externe, on se contente de faire l’union de G,- avec G.
+
+4 Application a un exemple
+
+Appliquons l’algorithme a la structure bi-ancrée S de la ﬁgure 2. La valeur initiale de noeuds
+est l’ensemble {nInﬂ, nPred, nAttr—nNp, nDet, nNmax}. On choisit ensuite un noeud N dans
+cet ensemble, par exemple nlnfl. On crée le motif M f correspondant a l’aide de la fonction
+CREER_MOTIF. C’est le sous arbre de la structure bi-ancrée forme’ des trois noeuds nPred, nlnﬂ et
+nAttr-nNp. On y ajoute un nouveau ﬁls N ’ de nlnﬂ.
+
+nModif
+cal ~ v
+
+nAd\max
+> cat <—» adv
+funct <—> mod
+
+nV
+cal ~ v
+
+ 
+
+FIGURE 3 — SS_yntE ancrant les adverbes modiﬁcateurs de verbes situés aprés ces verbes
+
+Ensuite, on essaie de faire coincider le motif M f avec un sous-arbre de chaque SS_yntE de
+FRIGRAM. Prenons un cas ou l’appariement réussit, celui de la SSyntE ancrant les adverbes
+modiﬁcateurs de verbes et situés apres ces verbes, nommée ADVmod_V et représentée sur la
+ﬁgure 3. La condition sUBsUMER(Mf,ADVmod_V) est Vraie et on superpose alors ADVmod_V
+avec S en suivant le motif M f . Cela revient a étendre S en ajoutant comme frére droit de nVanch
+le noeud nAdvmax de ADVmod_V avec son ﬁls nAdv.
+
+On relance la fonction principale CALCULER_GRAPHE sur cette nouvelle structure bi-ancrée S15
+avec comme valeur pour noeudsi le singleton {nAdvmax}. Nous passerons sur le détail de son
+exécution en en donnant seulement le graphe Gi qu’elle retourne. Ce graphe est formé de deux
+noeuds isolés ADVmod_ADV1 etADVmod_ADV2 ancrant les adverbes modiﬁcateurs d’adverbes.
+
+Comme l’ancre de ADVmod_V est un noeud interne, la condition INTERNE est Vraie et on complete
+610 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+le graphe G qui est initialement vide a l’aide de la fonction COMPLETER_GRAPHE. On obtient
+un graphe de trois noeuds avec comme racine ADVmod_V et ses deux successeurs immédiats
+ADVmod_ADV1 etADVmod_ADV2.
+
+L’algorithme se poursuit par la sélection d’autre noeud de l’ensemble noeuds, nPred par exemple.
+Va s’ensuivre une extension de S vers le bas a partir de ce noeud. I1 serait trop long de la décrire
+en détail mais il est important de noter que cette extension va entrainer la création d’un noeud qui
+représente un syntagme propositionnel. Ce syntagme peut représenter une proposition relative
+telle que "qu’elle a" dans la phrase "Marie est avec l’expe’rience qu’elle a une femme intelligente.".
+Compte tenu de la récursivité de la langue liée aux propositions qui peuvent s’imbriquer les
+unes dans les autres a l’inﬁni, l’exécution de l’algorithme entre ici dans une boucle inﬁnie. Pour
+éviter la non terminaison de l’algorithme, il sufﬁt de couper l’extension vers le bas de la structure
+bi-ancrée quand on produit des noeuds source de bouclage ou si l’on atteint une certaine taille 8.
+
+En déﬁnitive, nous obtiendrons un graphe G acyclique qui n’est pas forcément complet. Il est
+éventuellement amputé vers la "ﬁn" mais ce qui est important c’est que toutes les racines peuvent
+étre calculées. Dans notre exemple, le graphe aura quelques dizaines de racines qui sont des
+SS_yntE ancrant des adverbes modiﬁcateurs de verbes ou de phrases, des adverbes entrant dans
+des constructions consécutives ou comparatives, des prépositions introduisant des compléments
+modiﬁcateurs de phrases, des pronoms comme tous ou chacun, des conjonctions de subordination
+introduisant des propositions circonstancielles, des déterminants et des adjectifs épithétes gauche.
+
+Si S,“ a un comme compagnon unique Sfemme 9 dans une sélection lexicale qui produit une
+analyse, selon la sémantique du graphe exposée plus haut (méme si ce graphe est incomplet),
+pour toute SS_yntE Sk s’intercalant entre les deux compagnons dans la sélection, il existe un
+chemin dans le graphe commencant a une racine et terminant a un noeud qui n’a pas de successeur
+ou est une occurrence de Sk.
+
+5 Conclusion
+
+Si le calcul des compagnons est implémenté, ce n’est pas le cas pour l’algorithme de détection
+des SS_yntE pouvant s’insérer entre deux compagnons. Seule son implémentation permettra de
+dire dans quelle mesure cet algorithme est utile pour accroitre l’efﬁcacité du ﬁltrage.
+
+Références
+
+BONFANTE, G., GUILLAUME, B. et MOREY, M. (2009). Polarization and abstraction of grammatical
+formalisms as methods for lexical disambiguation. In 1 1th International Conference on Parsing
+Technology, IWPT’09, Paris, France.
+
+GUILLAUME, B. et PERRIER, G. (2009). Interaction Grammars. Research on Language and
+Computation, 72171-208.
+
+8. Chaque appel récursif de la fonction CALCULER_GRAPHE entraine une augmentation de la taille de la structure
+bi-ancrée.
+9. Les deux SSyntE ne sont pas exactement Sm et Sfemme mais les SSyntE non ancrées dont elles sont issues.
+
+611 © ATALA
+

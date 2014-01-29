@@ -1,0 +1,777 @@
+TALN 2011, Montpellier, 27 juin -1” jui11et20ll
+
+Généralisation de l’alignement sous-phrastique par échantillonnage
+
+Adrien Lardilleuxl Francois Yvon” Yves Lepage3
+(1) LIMSI-CNRS, BP 133, 91403 Orsay Cedex
+(2) Université Paris-Sud
+(3) IPS, université Waseda, J apon
+Adrien.Lardil1eux@1imsi.fr, Francois.Yvon@limsi.fr, Yves.Lepage@aoni.waseda.jp
+
+Résumé. L’ alignement sous-phrastique consiste a extraire des traductions d’ unites textuelles de grain infe-
+rieur a la phrase a partir de textes multilingues paralleles alignés au niveau de la phrase. Un tel alignement est
+nécessaire, par exemple, pour entrainer des systemes de traduction statistique. L’ approche standard pour réaliser
+cette tache irnplique l’estirnation successive de plusieurs modeles probabilistes de complexité croissante et l’uti—
+lisation d’heuristiques qui perrnettent d’aligner des mots isolés, puis, par extension, des groupes de mots. Dans
+cet article, nous considérons une approche alternative, initialement proposée dans (Lardilleux & Lepage, 2008),
+qui repose sur un principe beaucoup plus simple, a savoir la comparaison des proﬁls d’occurrences dans des sous-
+corpus obtenus par échantillonnage. Apres avoir analyse les forces et faiblesses de cette approche, nous montrons
+comment améliorer la detection d’unités de traduction longues, et évaluons ces améliorations sur des taches de
+traduction automatique.
+
+Abstract. Sub—sentential aligmnent is the process by which multi-word translation units are extracted from
+sentence-aligned multilingual parallel texts. Such aligmnent is necessary, for instance, to train statistical machine
+translation systems. Standard approaches typically rely on the estimation of several probabilistic models of increa-
+sing complexity and on the use of various heuristics that make it possible to align, ﬁrst isolated words, then, by
+extension, groups of words. In this paper, we explore an alternative approach, originally proposed in (Lardilleux
+& Lepage, 2008), that relies on a much simpler principle, which is the comparison of occurrence proﬁles in sub-
+corpora obtained by sampling. After analyzing the strengths and weaknesses of this approach, we show how to
+improve the detection of long translation units, and evaluate these improvements on machine translation tasks.
+
+M0tS-CléS 3 alignement sous-phrastique, traduction automatique par fragments.
+
+Keywords: sub—sentential alignment, phrase—based machine translation.
+
+1 Introduction
+
+L’ alignement sous-phrastique consiste a extraire des traductions d’unités textuelles de grain inférieur a la phrase
+a partir de corpus multilingues paralleles, c’est—a—dire dont les phrases ont préalablement été mises en corres-
+pondance. Cette tache constitue la premiere étape de la plupart des systemes de traduction automatique fondés
+sur les données (traduction statistique et traduction par l’exemple). Les systemes qui concentrent aujourd’hui les
+efforts de recherche sont majoritairement des systemes statistiques par fragments (phrases en anglais), qui uti-
+lisent comme principale ressource une table de traductions, dérivée d’ alignements sous-phrastiques. Un telle table
+consiste en une liste pré—calculée de couples de traductions associant a chaque couple de fragments (source, cible)
+un certain nombre de scores reﬂétant la probabilité que source se traduise par cible.
+
+On peut globalement inscrire les méthodes d’ alignement sous-phrastique dans l’un des deux courants suivants :
+l’approche estimative, introduite par Brown et al. (1988), et l’approche associative, introduite par Gale & Church
+(1991). La premiere est la plus utilisée a ce jour, principalement parce qu’ elle est parfaitement intégrée a la traduc-
+tion automatique statistique, dont elle constitue un pilier depuis l’apparition des modeles IBM (Brown et al., 1993).
+Cette approche consiste a déﬁnir un modele probabiliste du corpus parallele dont les parametres sont estimés se-
+lon un processus de maximisation globale sur l’ensemble des couples de phrases disponibles. Pratiquement, le but
+est de determiner les meilleurs appariements possibles entre les mots sources et cibles dans chacun des couples
+de phrases paralleles. Dans la seconde approche, on établit une liste de traductions candidates soumises a un test
+d’ indépendance statistique, tels que l’information mutuelle (Fung & Church, 1994) ou le rapport de vraisemblance
+
+ADRIEN LARDILLEUX, FRANCOIS Yv0N, YvEs LEPAGE
+
+(Dunning, 1993) — voir (Melamed, 2000; Moore, 2005) pour des travaux recents dans cette lignee. Il s’agit ici
+d’ un processus de maximisation locale : chaque segment est traite independamment des autres. Cette approche est
+plus souvent utilisee pour extraire directement des couples de traductions, tandis que la premiere cherche avant
+tout a etablir des liens de traduction er1tre les mots sources et cibles de chacun des couples de phrases du corpus
+d’ entree. Ces liens permettent, dans un deuxieme temps, d’extraire des couples de traductions.
+
+Nous avons recemment propose une méthode d’alignement sous—phrastique (Lardilleux & Lepage, 2008, 2009;
+Lardilleux, 2010), apparentee aux methodes associatives, s’attaquant a un certain nombre de problemes souvent
+negliges dans le domaine : traitement sirnultane de multiples langues, parallelisme massif, passage a l’echelle
+au coeur de la méthode, et simplicite de mise en oeuvre. En moyenne, cette méthode s’est revelee meilleure que
+l’etat de l’art sur des taches de constitution de lexiques bilingues, mais en retrait sur des taches de traduction
+automatique par fragments (Lardilleux et al., 2009). Nous n’avions emis jusqu’alors que des hypotheses pour
+expliquer ces resultats a priori contradictoires. Dans cet article, nous proposons une analyse ﬁne du comportement
+de notre methode aﬁn de determiner l’origine de ces differences, ainsi qu’une generalisation destinee a ameliorer
+ses performances en traduction automatique par fragments.
+
+Cet article est organise de la fagon suivante : la section 2 presente une vue d’ensemble de la méthode d’ alignement
+d’ origine; la section 3 presente des experiences mettant en evidence l’origine de ses faiblesses; nous decrivons
+dans la section 4 une generalisation, et evaluons ses performances ; et la section 5 conclut ces travaux.
+
+2 Vue d’ensemble de la méthode d’alignement d’origine
+
+2.1 Principes de base
+
+Notre méthode d’alignement peut etre vue comme une emulation des methodes associatives, a la difference (ma-
+jeure) pres qu’elle ne se restreint pas a aligner des couples de mots1 (source, cible). Elle permet, en effet, de consi-
+derer des sequences de mots de taille variable, eventuellement discontinues, qui partagent strictement la meme
+distribution (repartition) dans les phrases du corpus parallele d’entree, independamment de leur langue. Ces se-
+quences constituent en fait un sous-ensemble des candidats de traduction qui obtiendraient un score maximal par
+des tests d’ association statistiques. Le nombre de sequences de mots ayant exactement la meme distribution etant
+reduit, nous ne recherchons pas ces sequences dans le corpus d’ entree meme, mais dans des sous—corpus de celui-
+ci, l’idee etant que plus un sous—corpus est petit, plus les mots qu’il contient ont de chances de partager la meme
+distribution, et que par consequent plus le nombre de mots alignes dans ce sous—corpus est elevee.
+
+Le coeur de la méthode consiste donc a extraire des alignements a partir de multiples sous—corpus independants
+construits par echantillonnage. En pratique, nous privilegions les sous—corpus de petite taille car ils sont plus
+rapides a traiter et semblent donner de meilleurs resultats (Lardilleux, 2010). Pour chaque sequence de mots de
+meme distribution dans un sous—corpus, deux alignements sont extraits : la sequence elle—meme, d’une part, et son
+complementaire, d’ autre part. Le nombre de sous—corpus a traiter n’etant pas deﬁni a l’avance, le processus est
+anytime, c’est—a—dire qu’il peut etre interrompu a tout moment par l’utilisateur, ou selon des criteres tels que le
+temps ecoule ou le taux de couverture du corpus de depart. Plus le nombre de sous—corpus traites est eleve, plus la
+couverture du corpus de depart est grande et plus les mesures d’ association sont precises. Les alignements extraits
+sont collectes a partir de l’ensemble des sous—corpus traites, et sont evalues par divers scores (probabilite de
+traduction et poids lexicaux (Koehn et al., 2003)) a proportion du nombre de fois qu’ils ont ete extraits. Le resultat
+est une table de traductions directement utilisable, par exemple, pour des taches de traduction automatique.
+
+2.2 Algorithme complet
+
+L’ algorithme d’extraction complet est schematise dans le tableau 1.
+
+La ﬁgure 1 illustre les principales etapes de l’algorithrne sur un exemple d’alignement d’un texte trilingue. Dans
+la suite de cet article consacre aux applications de l’alignement en traduction automatique, nous nous limiterons a
+une application bilingue de la méthode, bien que son caractere multilingue en constitue un atout majeur.
+
+1Nous employons le terme « mot» pour désigner toute forme graphique identiﬁée par un programme dc tokenisation.
+
+GENERALISATION DE L’ ALIGNEMENT SOUS-PHRASTIQUE PAR ECHANTILLONNAGE
+
+Entre’e : un corpus multilingue, ici arabe—francais-anglais.
+
+1 . e.U..'a5 0.. 1 53,33 <—> Un café , s’il vous plait. <—> One coffee , please .
+2 .  53,33 o.Ius <—> Ce café est excellent. <—> This coffee is excellent.
+3 . Jgf dti <—> Un the fort. <—> One strong tea.
+4 . 11,33‘ 53,33 <—> Un café fort. <—> One strong coffee .
+U
+
+Transformation en corpus alingue (= monolingue) en concate’nant les traductions
+d ’une meme phrase et distinguant les mots en fonction de leur langue d ’origine.
+Se’lection d ’un sous—corpus ale’atoire (ici, les trois premieres lignes du corpus d ’origine ).
+
+1 1. 1e.U..'a5 10.. 1: 153,33 Un; café; ,; s’il; vous; plait; .; One3 coffee3 ,3 please3 .3
+2 1. 15312.! 153,33 1 olus Ce; café; est; excellent; .; This3 coffee3 is3 excellent3 .3
+3 1. 1J:.35 161.5 Un; théz fort; .2 One3 strong3 tea3 .3
+
+U
+
+Indexation des mots (calcul des vecteurs de pre’sence). Les mots ayant me‘me distribution sont regroupe’s.
+
+. | 1 83.45 café; coffee3|One3 Un;|1: 1e\.L.'a.'o1&-‘,4 ,3 ,; plait; please3 s’il; vous; |1 oiu 1  Ce; This3 est; excellent; . . .
+
+|1-~23
+
+11111 1 1 1 111 1111 1 1 1 0 0 0 0 0 0
+21111 1 1 0 00 0 0000 0 0 0 1 1 1 1 1 1
+31110 0 0 1 10 0 0000 0 0 0 0 0 0 0 0 0
+
+U
+
+Chaque groupe de mots permet d ’extraire deux alignements par phrase ou il apparait.
+
+apparaissent dans
+
+Les mots : 1 _ d’ o1‘1 sont extraits :
+es phrases .
+1 153,33 café; coffee3
+_ _ , 1. 1e.U...'a§ 104: 1r U112 _ ,2 S112 VOIIS2 plait; .2 01163 _ ,3 please3 .3
+193: cafe; coffee3
+2 193: cafe; coffee3
+
+1. 15312.! _ 1 o.Ius Ce; _ est; excellent; .; This3 _ is3 excellent3 .3
+
+U
+De’compte des alignements et re’tablissement des limites entre langues.
+Arabe Frangais Anglais Décompte
+
+53,33 <—> café <—> coffee 2
+.élL.'a§0At <—> Un_,s’ilvousplait. <—> One_,please. 1
+.  _ o.Ius <—> Ce _ est excellent. <—> This _ is excellent. 1
+
+FIG. 1 — Vue d’ensemble de la méthode d’alignement. C’est la phase d’indexation et de constitution des groupes
+de mots (troisiéme étape sur la ﬁgure) que nous généraliserons dans la suite de Particle.
+
+ADRIEN LARDILLEUX, FRANCOIS YVON, YVES LEPAGE
+
+Transformer le corpus parallele d’entree, multilingue, en corpus alingue (= monolingue)
+Ir1itia1iser un tableau as sociatif CompteurAlignements
+Faire
+Sélectionner un sous-corpus par échantillonnage
+Indexer les mots par leur vecteur de presence dans les phrases du sous-corpus
+Les mots de meme distribution sont rassembles dans un meme groupe
+Pour chaque groupe de mots :
+Pour chaque phrase ou le gmupe apparait :
+Retablir l’ordre des mots du groupe
+CompteurAlignements[groupe] ++
+CompteurAlignements[ phrase - groupe] ++
+Jusqu’§ interruption par l’utilisateur ou temps imparti ecoule ou plus aucun alignement obtenu ou tout autre critere
+Calculer les scores des alignements
+
+TAB. 1 — Les etapes de la methode d’alignement.
+
+2.3 Résultats
+
+Dans cette section, nous resumons les principaux resultats et conclusions de (Lardilleux, 2010). Nous avons evalue
+cette methode d’a1ignement sur deux taches : en traduction automatique statistique par fragments et en constitu-
+tion de lexiques bilingues. L’implementation de notre methode, Anymalignz, est comparee a MGIZA++3 (Gao &
+Vogel, 2008), l’i1nplantation la plus recente des modeles IBM. Anymalign etant anytime, nous commengons en
+pratique par executer MGIZA++ avec ses parametres par defaut (5 iterations de chacun des modeles IBM1, HMM,
+IBM3 et IBM4), mesurons son temps d’execution, et executons Anymalign pendant la meme duree. Les corpus
+paralleles utilises dans les experiences sontprincipa1ementEuroparl (Koehn, 2005) et des extraits du BTEC (Take-
+zawa et al., 2002), distribues lors des campagnes d’ evaluation de traduction automatique IWSLT (Fordyce, 2007).
+Les extraits du BTEC sont constitues de 20 000 a 40 000 couples de phrases courtes alignees (10 mots anglais en
+moyenne) et ceux d’Europarl de 100 000 couples de phrases longues (30 mots anglais).
+
+Dans la tache de traduction automatique statistique par fragments, nous comparons les scores obtenus par Moses
+(Koehn et al., 2007) avec sa table de traductions par defaut, construite a partir des alignements de MGIZA++, et
+celle produite par Anymalign. En moyenne, Anymalign est en retrait de deux points BLEU (Papineni et al., 2002)
+sur l’ensemble des experiences que nous avons menees. Dans le meilleur des cas, nous avons obtenu un gain
+d’un point par rapport a MGIZA++ (BTEC, japonais—anglais) ; dans le pire, une perte de huit points (Europarl,
+ﬁnnois—anglais). Dans l’ensemble, les ecarts sont plus prononces sur Europarl que sur le BTEC.
+
+Dans la tache de constitution de lexiques bilingues, nous comparons les tables de traductions produites par les deux
+aligneurs avec un lexique bilingue de reference4. Dans un premier temps, ce lexique est ﬁltre de fagon qu’il ne
+contienne que des couples de traductions qui peuvent effectivement etre extraits par les aligneurs a partir du corpus
+parallele d’entree. En pratique, un couple de traductions du lexique de reference est conserve s’il s’agit d’une sous-
+sequence d’un couple de phrases du corpus parallele. Nous deﬁnissons alors le score d’une table de traductions
+relativement a ce lexique de reference ﬁltre comme la somme des probabilites de traduction source —> cible des
+alignements de la table de traductions presents dans la reference, divisee par le nombre d’entrees distinctes dans la
+reference. Le resultat s’interprete comme un score de rappel, entre 0 et 1. En moyenne, Anymalign est meilleur de
+7 % relativement a MGIZA++ sur l’ensemble des experiences que nous avons menees. Dans le meilleur des cas,
+nous avons obtenu un gain relatif de 70 % (Europarl, ﬁnnois-frangais) ; dans le pire une perte de 18 % (Europarl,
+suedois—ﬁnnois). Le genre de textes constituant le corpus ne semble pas avoir d’ inﬂuence maj eure sur ces scores.
+
+En resume, notre methode est en retrait sur les taches de traduction automatique par fragments, mais produit de
+meilleurs alignements de mots, comme l’attestent les resultats de comparaison avec lexiques de reference, dont les
+entrees sont majoritairement des mots simples (le nombre moyen de mots par entree est 1,2). Nous avons montre
+(Lardilleux et al., 2009) que cela est en fait principalement dﬁ a la faible capacite de cette methode a produire des
+alignements de n—grammes de mots avec n 2 2, come l’illustre la ﬁgure 2. Le but de la section suivante est de
+mettre en evidence l’origine de ces differences.
+
+Zhttp://users.info.unicaen.fr/~alardill/anymalign
+3http://geek.kyloo.net/software/doku.php/mgizazoverview
+4Nos lexiques proviennent principalement du site XDXF : http: / /xdxf . sourceforge . net
+
+GENERALISATION DE L’ ALIGNEMENT SOUS-PHRASTIQUE PAR ECHANTILLONNAGE
+
+{D  % I I I I I
+
+E MGIZA.4-+ Ii
+
+E 80 % Anymalign L _
+*3”
+
+5:: 60 % -
+3
+
+-:5
+
+3 40 % '
+E
+
+g 20 %
+
+8
+
+0 %
+
+FIG. 2 — Couverture de la partie source d’un echantillon d’Europarl francais—anglais par les tables de traductions
+de MGIZA++ et d’Anymalign. Anymalign aligne plus d’unigrammes, mais peu de n—grammes plus longs.
+
+3 Une analyse du comportement de la méthode
+
+Dans cette section, nous presentons des experiences montrant que deux causes principales sont £1 l’origine des
+resultats apparemment contradictoires presentes ci—dessus : les differences de fréquences des mots qui composent
+les sequences £1 aligner (cause propre £1 la méthode), et les fréquences de mots utiles £1 ces taches (cause propre £1
+la tache). Les experiences presentees ici sont realisees sur un extrait d’enViron 320 000 phrases d’Europarl, avec
+les couples de langues portugais-espagnol (cas extremes de langues proches dans nos experiences) et ﬁnnois—
+anglais (cas extreme de langues eloignees : le ﬁnnois est une langue ouralienne agglutinante, l’anglais une langue
+germanique d’inﬂuence romane isolante, ce qui s’exprime par une grande difference de taille des Vocabulaires).
+Le tableau 2 presente le nombre de mots de chaque partie de nos corpus.
+
+Langue Nombre de mots (tokens) Taille du vocabulaire
+
+portugais 9 249 177 87 341
+espagnol 9 330 199 85 366
+ﬁnnois 6 472 649 274 958
+anglais 8 955 995 53 704
+
+TAB. 2 — Caracteristiques des corpus utilises pour nos analyses.
+
+3.1 Différences de fréquences
+
+Nous avons precedemment montre (Lardilleux et al., 2009) qu’en pratique, la contrainte d’identite des distribu-
+tions qui est au coeur de la méthode empeche d’extraire des sequences composees de mots de fréquences diffe-
+rentes. Par exemple, un bigramme constitue d’un mot hapax suivi du point de ﬁn de phrase (assimile £1 un mot
+typographique) ne peut etre produit, car en supposant que le point apparaisse dans toutes les phrases du corpus
+d’ entree, la seule conﬁguration dans laquelle ces deux mots partageraient la meme distribution serait un sous-
+corpus constitue d’une seule phrase. Dans une telle conﬁguration, presque tous les mots seraient hapax, et la
+sequence extraite consisterait donc en l’unique phrase de ce sous—corpus. Le bigramme attendu serait donc << mas-
+que » et ne pourrait pas etre extrait isolement.
+
+Nous faisons un pas supplementaire en etudiant la taille des sous—corpus d’o1‘1les mots sont extraits en fonction de
+la frequence de ces mots. Etant donne un mot source ms £1 aligner isolement, trois cas peuvent se produire :
+
+1. dans un sous—corpus « trop petit », d’autres mots sources ont la meme distribution que ms. 11 n’est donc pas
+possible d’aligner ms isolement.
+
+2. dans un sous—corpus de taille << ideale », aucun autre mot source n’a la meme distribution que ms, et au moins
+un mot cible a cette distribution. ms peut donc etre aligne isolement.
+
+ADRIEN LARDILLEUX, FRANCOIS YVON, YVES LEPAGE
+
+3. dans un sous—corpus << trop grand », aucun autre mot source n’a la meme distribution que ms, mais aucun
+mot cible non plus. ms ne peut donc pas etre aligne du tout.
+
+ll existe ainsi une plage de tailles de sous—corpus qui permet d’extraire un mot isolement. Cette plage depend bien
+entendu du mot a extraire et plus particulierement de sa frequence. Ces plages sont determinees empiriquement
+en mesurant, pour chaque mot source d’un corpus parallele, la taille moyenne des sous—corpus a partir de laquelle
+il peut etre aligne isolement, ainsi que celle a partir de laquelle il ne peut plus etre aligne du tout. Pour cela, nous
+commencons par tirer aleatoirement un sous—corpus d’une seule phrase contenant ce mot, testons si le mot peut y
+etre aligne, puis recommencons ce test en augmentant le sous—corpus d’une nouvelle phrase tiree aleatoirement.
+Le processus s’arrete lorsque plus aucun mot cible n’a la meme distribution que le mot source teste.
+
+Chaque experience produit deux nombres : la taille a partir de laquelle le mot peut etre aligne isolement (passage
+du cas 1 au cas 2 ci—dessus), et celle a partir de laquelle le mot ne peut plus etre aligne du tout (du cas 2 au cas 3).
+Ce test est repete 1 000 fois pour chaque mot source, et nous effectuons la moyenne des mesures recueillies sur
+l’ensemble des 1 000 tirages. Les resultats sont presentes a la ﬁgure 3, par classes de mots de frequences proches.
+
+pt—>es fi—>en
+
+I I I I I I I I I I
+
+100 000
+10 000
+1 000
+100
+
+10
+
+1
+
+100 000
+10 000
+1 000
+100
+
+10
+
+1
+
+Non alignable Non alignable
+
+   
+
+1 10 100 1000 100 000 1 10 100 1000 100 000
+Nombre d’occurrences du mot Nombre d’occurrences du mot
+
+Taille moyenne des sous—corpus
+Taille moyenne des sous—corpus
+
+FIG. 3 — Tailles moyennes des sous—corpus a partir desquelles un mot source peut etre extrait en fonction de la
+frequence de ce mot. Dans la zone inferieure, le mot ne peut pas etre aligne isolement (cas 1). Dans la zone
+du milieu, le mot peut etre aligne isolement (cas 2). Dans la zone superieure, le mot ne peut pas etre aligne du
+tout (cas 3). Le petit sursaut de la limite superieure a l’extremite droite des deux graphiques est dﬁ au point de
+ﬁn de phrase, qui s’aligne plus facilement que les autres mots frequents : il peut etre aligne isolement dans des
+sous—corpus de 5 a 80 phrases environ.
+
+Ces graphiques nous permettent de faire deux remarques. D’abord, la plage des tailles << ideales » des sous—corpus,
+autrement dit la largeur de la zone du milieu, Varie grandement d’un couple de langues a l’autre. Notons que
+l’echelle logarithmique fait paraitre cette plage plus etroite qu’elle ne l’est en realite : le rapport moyen entre sa
+limite superieure et sa limite inferieure est de 2,2 pour le couple espagnol—portugais et 1,2 pour le couple ﬁnnois—
+anglais. Cette difference de rapport s’explique aisement par les differences de morphologie des langues dans
+chacun de ces couples. Nous pouvons donc nous attendre a ce que l’alignement d’un mot donne par Anymalign
+necessite le traitement de davantage de sous—corpus avec le couple ﬁnnois-anglais qu’aVec le couple portugais-
+espagnol, puisqu’il est alors plus difﬁcile de tirer aleatoirement un sous—corpus de la << bonne » taille.
+
+La seconde remarque nous interesse tout particulierement dans le cadre de cet article : plus un mot est frequent,
+plus les sous—corpus a partir desquels il est extrait sont petits, et reciproquement. Les mots rares (partie gauche
+des graphiques) sont donc alignes a partir de grands sous—corpus, tandis que les mots frequents (partie droite des
+graphiques) sont alignes a partir de petits sous—corpus, constitues par exemple de 5 a 9 phrases pour la Virgule. Ces
+resultats Valident nos premieres hypotheses : s’il est difﬁcile de tirer un sous—corpus dans lequel deux mots source
+de frequences differentes partagent la meme distribution, c’est avant tout parce que ces mots ne peuvent pas etre
+alignes a partir du meme sous—corpus. Pour aligner des mots de frequences differentes, il est necessaire de les
+extraire a partir de sous—corpus de tailles differentes. Nous proposerons une alternative dans la section suivante.
+
+GENERALISATION DE L’ ALIGNEMENT SOUS-PHRASTIQUE PAR ECHANTILLONNAGE
+
+3.2 Fréquences utiles
+
+La seconde explication des differences de resultats d’Anymalign sur les deux taches sur lesquelles il a eté évalué
+provient en fait de la tache elle—meme, ou pour etre plus précis du couple (aligneur, tache).
+
+Notre méthode et les modeles IBM reposent sur des intuitions opposées : la premiere tire parti de la rareté des
+mots pour les aligner (on reduit artiﬁciellement et temporairement la fréquence de tous les mots en se plagant dans
+un sous—corpus), tandis que les seconds sont estimés a partir des observations mesurées sur l’ensemble du corpus.
+En consequence, Anymalign aligne mieux les mots rares, tandis que MGIZA++ aligne mieux les mots frequents,
+comme l’illustre la ﬁgure 4.
+
+   
+
+pt—es fi—en
+ % I I . I I  % I I . I I
+Anymahgn (60 %) Anymalign (36 %)
+
+80 % - MGIZA++ (53 %) """" " - 80 % - MG1ZA++(26 %) ""  -
+3 60 % 3 60 % -
+o o
+O U
+V1 40 % V1 40 % -
+
+20 % 20 % -
+
+0 % I I I I I 0 % I I I I I
+1 10 100 1 000 100 000 1 10 100 1 000 100 000
+Nombre d’occurrences des mots Nombre d’occurrences des mots
+
+FIG. 4 — Scores obtenus par les tables de traductions produites par Anymalign et MGIZA++ sur la tache de
+constitution de lexiques bilingues. Les scores e11tre parentheses sont les scores globaux, calculés comme décrits au
+36 paragraphe de la section 2.3. Les courbes presentent le detail de ces scores, en fonction du nombre d’occurrences
+du mot source de chacun des alignements : un score a eté calcule localement pour chaque effectif de mot. Les
+courbes ont ete lissées pour ameliorer leur lisibilité.
+
+Ce qui nous intéresse ici n’est pas tant l’allure générale des courbes que leur position relative : la courbe corres-
+pondant a Anymalign est au—dessus de celle de MGIZA++ pour les mots d’effectif 1 a 5 000 environ, et en-dessous
+pour les effectifs supérieurs. Cela montre qu’Anymalign aligne mieux non seulement les mots rares, mais ega-
+lement les mots de fréquence interrnediaire. Cette observation a ete corroboree sur d’autres couples de langues
+(de—en, es-en, fr—en).
+
+Or, les mots rares étant beaucoup plus nombreux dans tout texte — cf. loi d’Estoup—Zipf (Zipf, 1965; Mandel-
+brot, l954; Montemurro, 2004) —, a fortiori dans notre corpus parallele ainsi que dans les tables de traductions
+produites, et notre protocole d’évaluation par comparaison avec lexiques de reference traitant les mots indepen-
+demment de leur fréquence, il est attendu que notre méthode obtienne de meilleurs scores en constitution de
+lexiques bilingues, puisque les mots qu’elle aligne le mieux sont au total les plus nombreux. A l’opposé, les mots
+frequents sont beaucoup moins nombreux, mais autrement plus importants en traduction automatique car ils y sont
+beaucoup plus sollicités : un mot frequent a plus de chances d’apparaitre dans un jeu de test qu’un mot rare. Cela
+peut expliquer, au moins pour partie, les scores plus faibles d’Anymalign en traduction automatique. Idealement,
+nous aimerions pouvoir utiliser les alignements de tel ou tel aligneur en fonction de la fréquence des mots, par
+exemple en combinant les tables de traductions produites par les aligneurs. Des experiences prelirninaires utilisant
+les probabilités de traduction d’Anyma1ign comme fonction de trait supplémentaire dans la table de traduction
+par defaut de Moses ont donné des resultats prometteurs. Cela sort cependant du cadre de cet article, et nous nous
+consacrons par la suite a l’alignement de mots de frequences differentes. Nous garderons néanmoins a l’esprit
+que, pour bien faire en traduction automatique, notre méthode devra également aligner plus efﬁcacement les mots
+frequents, ce que nous gardons pour des recherches futures.
+
+4 Généralisation de la méthode £1 toutes les chaines de mots
+
+Dans cette section, nous présentons une generalisation de la méthode destinee a ameliorer ses performances en
+traduction automatique statistique par fragments. En conformité avec la méthode d’origine, nous travaillerons
+
+ADRIEN LARDILLEUX, FRANCOIS YVON, YVES LEPAGE
+
+toujours sur les formes surfaciques des mots et sans ressource autre que le corpus d’entree (traitement endogene).
+Notre but est d’extraire davantage d’alignements de n—gra1nmes (chaines de mots) avec n 2 2 (cf. ﬁgure 2), tout
+en contoumant le probleme de l’extraction des mots de frequences differentes (section 3.1).
+
+4.1 Phase d’indexation
+
+Nous introduisons le traitement a un grain Variable en indexant des n—grammes plutot que des mots. Nous ne
+chercherons pas a effectuer une segmentation particuliere des phrases, par exemple en chunks, dont Vergne (2009)
+a montre qu’ils pouvaient etre determines de fagon endogene, mais traiterons plus simplement tous les n—gra1nmes
+de mots se chevauchant. Considerons le (sous-)corpus d’entree alingue5 suivant, constitue de trois phrases :
+
+1 abc
+2 abde
+3 ac
+
+L’indexation sur l’ensemble des n—gra1nmes de ce corpus, avant recensement des groupes de meme distribution
+servant de base a l’extraction des alignements, produit le resultat suivant :
+
+n=l n=2 n=3 n=4
+
+| a b c d e | ab ac bc bd de | abc abd bdc | abde
+
+l l l l 0 0 l 0 l 0 0 l 0 0 0
+2 l l O l l l 0 0 l l 0 l l l
+3 l 0 l 0 0 0 l 0 0 0 0 0 0 0
+
+Dans l’etape suivante, le recensement des groupes de meme distribution, nous introduisons un changement ma-
+jeur : si des n—gra1nmes de meme distribution se chevauchent, le groupe de mots resultant est constitue de l’union
+de ces n—grammes. Par exemple, les bigrammes de meme distribution bd et de formeront le groupe de mots bde.
+Autrement dit, les groupes ne sont plus constitues de mots de meme distribution, mais de mots issus de n—gra1nmes
+de meme distribution. Un meme mot peut desormais apparaitre dans plusieurs groupes, ce qui n’etait pas le cas
+dans la methode d’ origine.
+
+Ce changement souleve un probleme qui ne pouvait pas se produire avec la methode d’origine : des n—gra1nmes
+peuvent masquer des (n—l)—grammes, et ce recursivement. L’unigramme 17 est par exemple masque par le bi-
+gramme de meme distribution ab, car l’union de 17 et ab donne ab, et 17 ne peut plus etre aligne isolement. Il est
+donc necessaire de traiter l’introduction de chaque longueur de n—gramme de facon speciﬁque.
+
+4.2 Stratégie de constitution des groupes de mots
+
+Nous avons teste trois strategies :
+
+1. traiter separement les n—gra1nmes en fonction de leur longueur. Ainsi, les groupes de mots ne sont constr11its
+qu’a partir de n—grammes de meme longueur en source et en cible. Cela est bien entendu d’efﬁcacite limitee
+sur des couples de langues tels que ﬁnnois-anglais : il serait preferable d’autoriser l’extraction d’un seul
+mot d’une langue agglutinante avec plusieurs mots d’une langue isolante.
+
+2. permettre le melange de toutes les longueurs de n—gra1nmes, mais en aj outant progressivement chaque lon-
+gueur. L’ ensemble initial ne contient que des unigrammes (methode d’origine). Dans un deuxieme temps,
+nous ajoutons les bigrammes et recreons tous les groupes de mots : certains sont identiques (les decomptes
+des alignements correspondants sont renforces), d’autres sont nouveaux, d’autres enﬁn sont masques mais
+cela n’a pas d’i1nportance car ils ont deja ete extraits a partir des unigrammes. On ajoute ensuite les tri-
+grammes, etc. Les alignements sont extraits a chaque fois que des n—gra1nmes sont ajoutes.
+
+3. forcer l’alignement de n—gra1nmes de longueurs differentes, a contrepied de la premiere strategie, en traitant
+sequentiellement tous les couples de longueurs (source, cible) possibles (produit cartesien). Cela permet
+l’alignement de n—grammes de longueurs tres djfferentes en source et en cible, Voire trop : puisque nous
+n’aVons recours a aucune connaissance exterieure, Anymalign ne sait pas a priori quelle langue est traitee,
+et rien ne l’empeche par exemple de Vouloir aligner des unigrammes en anglais avec de longs n—gra1nmes en
+ﬁnnois, quand bien meme il est peu probable que le moindre alignement puisse etre produit a partir d’une
+telle conﬁguration. En outre, la complexite de cette approche est bien plus importante que celle des deux
+precedentes, et ne passe pas a l’echelle lorsque nous traitons plus de deux langues simultanement.
+
+5Comme décrit a la section 2, notre principal algorithms ne fait pas de différence entre corpus multilingues ct corpus monolingues.
+
+GENERALISATION DE L’ ALIGNEMENT SOUS-PHRASTIQUE PAR ECHANTILLONNAGE
+
+Pour comparer ces trois strategies, nous preparons un ensemble de 100 000 sous-corpus aleatoires issus d’Europarl
+(francais—anglais) et en extrayons les alignements selon chacune de ces strategies. Nous realisons l’expérience
+pour des longueurs maximales de n—gra1nmes allant de 1 a 5. Les tables de traductions (3 x 5 = 15 tables au total),
+obtenues a partir de ce méme ensemble de sous-corpus, sont évaluées sur les memes taches que précedemment :
+en traduction automatique statistique par fragments (les criteres d’ evaluation sont BLEU et TER (SnoVer et al.,
+2006)) et en constitution de lexiques bilingues. Les résultats sont presentes dans le tableau 3.
+
+Strategic n max. Score en lexique (%) BLEU (%) TER (%) Nombre d’entrées Long. moy. des entrées
+
+1 36,19 21,12 63,57 83 967 1,92
+2 36,71 22,62 61,93 277 858 2,79
+1. 3 36,66 23,08 62,06 366 971 3,13
+4 36,60 23,23 61,43 393 453 3,24
+5 36,58 22,92 62,14 399 810 3,27
+1 36,19 21,12 63,57 83 967 1,92
+2 37,08 23,63 60,68 290 631 2,78
+2 3 37,35 24,72 59,86 398 880 3,12
+4 37,45 24,47 60,69 436 760 3,25
+5 37,56 24,25 59,94 448 212 3,31
+1 36,19 21,12 63,57 83 967 1,92
+2 31,71 23,85 60,41 312 273 2,86
+3. 3 30,90 24,50 60,68 453 429 3,24
+4 30,48 24,47 59,96 507 359 3,39
+5 30,25 24,26 60,03 524 091 3,45
+
+TAB. 3 — Qualité et caractéristiques des tables de traductions produites selon chacune des trois strategies de consti-
+tution de groupes de mots, pour differente longueurs maximales de n—gra1nmes indexes. Les lignes ou n max. = 1
+sont identiques pour les trois strategies et correspondent a la méthode d’origine.
+
+Comme il était attendu, plus la longueur maximale des n—grammes indexes est grande, plus le nombre d’entrées
+dans la table de traductions et la longueur de ces entrees sont également élevés, car les alignements produits avec
+un n max. donné contiennent ceux produits avec un n max. inférieur (inclusion des tables). Les scores en consti-
+tution de lexiques augmentent de facon négligeable lorsque n max. augmente avec les deux premieres approches,
+mais se degradent de facon signiﬁcative avec la troisieme. Le gain en traduction automatique est signiﬁcatif avec
+les trois approches. La seconde semble néanmoins foumir des résultats tres légerement meilleurs selon les trois
+criteres d’ evaluation. Son temps d’ execution est légerement supérieur a celui de la premiere (au pire deux fois plus
+lent avec les 5—gra1nmes), mais bien en-dega de celui de la troisieme (de l’ordre de l’heure a celui de la joumée
+avec les 5—grammes).
+
+La stratégie que nous utiliserons par la suite sera donc la deuxieme. Elle constitue sur le fond un bon compromis
+entre les deux autres. La ﬁgure 5 presente le detail de la colonne << Nombre d’entrées » du tableau 3 pour cette
+deuxieme stratégie, et est a confronter avec la ﬁgure 2.
+
+Dans l’ensemble, l’ajout d’une longueur de n—grammes indexes, autrement dit le passage d’une courbe a celle i1n—
+médiatement au—dessus, augmente considérablement la quantité de 1’ ensemble des n—grammes produits (y compris,
+de fagon marginale, les n—gra1nmes de taille inférieure, mais cela n’est dﬁ qu’a l’extraction des complémentaires
+des groupes de mots). Le cas le plus signiﬁcatif est celui de l’indexation des bigrammes (n max. = 2), qui fait
+exploser la quantite de bigrammes en sortie, et dans une moindre mesure de toutes les tailles de n—gra1nmes supe-
+rieures. Le phénomene se produit également en indexant des n—grammes encore plus longs, mais cela est de moins
+en moins signiﬁcatif a mesure que n max. augmente. Le graphique semble montrer qu’il n’est pas utile d’indexer
+des n—gra1nmes de plus de 3 ou 4 mots, car cela se révele peu productif. Les n—grammes qui nous intéressent
+le plus sont de toute fagon ceux de longueur 1 a 3, parce que ce sont genéralement les plus utiles en traduction
+automatique par fragments.
+
+4.3 Expériences et nouveaux résultats
+
+Nous comparons a present notre méthode généralisée (indexation des n—grammes + constitution des groupes de
+mots selon la deuxieme stratégie testée) a MGIZA++ sur des taches de traduction automatique statistique par
+
+ADRIEN LARDILLEUX, FRANCOIS YVON, YVES LEPAGE
+
+ 
+
+0 140 000 n max. = 5 _,_
+8 120 000 n max. = 4 
+3 n max. = 3 .....x.....
+3 100 000 
+‘,2 80 000 1‘ max = 1 
+
+4,3 60 000
+
+_§ 40 000
+Q 20 000
+
+0
+
+ 
+
+1 2 3 4 5 6 7
+
+Longueur des entrees source (en mots)
+
+FIG. 5 — Distribution des n—gra1nmes dans les cinq tables de traductions obtenues par la deuxieme strategie de
+constitution de groupes de mots. Chaque courbe correspond a une ligne du tableau 3, et la somme des ordonnées
+de ses points reportés est égale a la Valeur indiquée dans la colonne << Nombre d’entrées » du tableau. La courbe
+la plus basse (n max. = 1) correspond a la méthode d’origine (cf. ﬁgure 2).
+
+Tache Entrainement Développement Test Références par phrase detest
+BTEC : ar-en 19 972 1 512 489 7
+BTEC : zh-en 19 972 1 512 989 7
+Europarl : ﬁ-en, fr-en, pt-es 318 804 500 1 000 1
+
+TAB. 4 — Caractéristiques des corpus utilises pour notre evaluation.
+
+Aligneur n max. BLEU (%) TER (%) Nombre d’entrées
+
+MGIZA++ 33,68 46,17 217 512
+Anymalign 1 26,33 51,17 170 521
+
+ar-en — 2 30,88 49,70 269 454
+— 3 31,81 51,48 273 197
+
+— 4 33,75 48,80 258 141
+
+MGIZA++ 15,46 70,49 141 773
+Anymalign 1 14,77 68,97 158 904
+
+zh-en — 2 16,35 71,70 263 315
+— 3 16,54 70,62 250 292
+
+— 4 16,84 69,45 269 353
+
+TAB. 5 — Résultats des taches de traduction sur le BTEC.
+
+Méme temps de traitement que MGIZA++ Temps théorique = 20 X MGIZA++
+Aligneur n max. BLEU (%) TER (%) Nombre d’entrées BLEU (%) TER (%) Nombre d’ entrées
+
+MGIZA++ 21,68 65,50 5 241 325
+Anymalign 1 13,73 77,57 1 871 639 13,54 74,34 5 178 683
+ﬁ-en - 2 14,39 76,59 890 644 16,21 71,18 5 948 094
+- 3 14,64 77,15 696 420 17,44 72,63 4 001 816
+- 4 12,79 78,46 279 437 16,80 71,34 2 266 448
+
+MGIZA++ 29,39 54,37 10 783 083
+Anymalign 1 22,74 61,85 1 755 334 23,58 61,09 7 882 822
+fr-en - 2 24,68 60,22 1 805 297 24,55 58,42 8 317 221
+- 3 24,40 59,77 1 074 258 25,29 57,66 6 943 421
+- 4 23,01 61,86 492 530 24,78 58,11 5 121 617
+
+MGIZA++ 38,22 47,47 17 828 592
+Anymalign 1 34,63 50,25 1 532 520 34,84 50,35 6 730 554
+pt-es - 2 36,03 49,63 987 884 36,72 49,10 7 295 581
+- 3 35,72 49,95 744 947 35,98 49,02 6 126 896
+- 4 35,18 50,34 342 168 37,01 48,71 3 926 578
+
+TAB. 6 — Résultats des taches de traduction sur Europarl.
+
+GENERALISATION DE L’ ALIGNEMENT SOUS-PHRASTIQUE PAR ECHANTILLONNAGE
+
+fragments. Le tableau 4 présente les caractéristiques des données utilisées pour chacune de ces experiences, et les
+tableaux 5 et 6 présentent les résultats.
+
+Les lignes ou n max. = 1 correspondent a la Version d’origine d’Anymalign. Comme décrit precédemment (sec-
+tion 2.3), Anymalign étant anytime, la condition d’arret que nous lui imposons depend du temps d’exécution de
+MGIZA++. Ce temps est constant quelle que soit la Valeur de n max. Le temps de traitement augmentant avec
+ce parametre, plus ce parametre est élevé et plus le nombre de sous-corpus traités est faible, contrairement aux
+experiences présentées dans la section 4.2 o1‘1l’ensemble des sous-corpus a traiter était ﬁxé a l’aVance, impliquant
+un temps de traitement dependant de n max. Théoriquement, les tables produites pour un n max. donné sont plus
+grandes que pour un n max. inférieur, a condition que l’aligneur soit execute sufﬁsamment longtemps. Cela ex-
+plique pourquoi les tables de traductions des tableaux 5 et 6 peuvent contenir moins d’entrées pour de plus grandes
+Valeurs de n max. En pratique, ces tables contiennent tout de meme davantage de longs n-grammes, ce qui permet
+une amelioration tres signiﬁcative des scores, malgré une table de traductions plus petite.
+
+Sur les taches impliquant le BTEC, les lignes ou n max. = 1 montrent que la Version d’origine d’Any1nalign
+obtient des scores BLEU comparables a MGIZA++ en chinois—anglais, et est loin derriere en arabe—anglais. La
+generalisation aux n-grammes lui permet de devancer MGIZA++ de plus d’un point BLEU en chinois—anglais, et
+de l’égaliser en arabe—anglais, soit un gain spectaculaire de 7 points BLEU.
+
+Sur les taches impliquant Europarl, les scores de la Version d’origine d’Any1nalign sont en retrait de facon signiﬁ-
+cative par rapport a MGIZA++, ce qui est conforme aux experiences que nous avions menées précédemment. Cela
+dit, la difference n’était pas aussi prononcee dans nos anciennes experiences : nous observions une difference de 2
+a 3 points BLEU en moyenne, alors qu’elle est ici de 6 points. Nous pensons que ce changement est dﬁ a la taille de
+notre corpus qui est désormais beaucoup plus élevé : 320 000 couples de phrases contre 100 000 précédemment.
+La taille des tables de traductions d’Anymalign, tres petites par rapport a celles de MGIZA++, semble indiquer
+que le temps d’exécution de notre méthode n’est pas sufﬁsant. Pour cette raison, le tableau 6 contient dans sa par-
+tie droite une deuxieme série de résultats, qui correspondent a l’exécution d’Anymalign pendant une durée totale
+égale a 20 fois le temps d’ execution de MGIZA++. En pratique, Anymalign étant massivement parallélisable, nous
+avons découpé les traitements en 140 processus et les avons executes sur un cluster, pour ﬁnalement proﬁter d’ un
+temps de traitement 7 fois plus rapide qu’aVec les resultats présentes dans la partie gauche du tableau. Les tailles
+des tables de traductions dans la partie droite du tableau sont plus proches de celles de MGIZA++, ce qui conﬁrme
+que le temps d’exécution n’était pas sufﬁsant5, mais le gain en BLEU de la Version d’origine d’Anymalign n’est
+pas signiﬁcatif pour autant. Il l’est par contre lorsque nous augmentons n max. : nous gagnons jusqu’a 3 points
+BLEU en ﬁnnois—anglais (n max. = 3) simplement en exécutant Anymalign plus longtemps. Dans tous les cas de
+la partie droite du tableau, l’indexation des n-grammes permet un gain en BLEU allant d’ 1,7 point en francais—
+anglais a pres de 4 points en ﬁnnois—anglais. En moyenne, les meilleurs scores d’Any1nalign sont désormais en
+retrait de 3,5 points BLEU par rapport a MGIZA++, divisant pratiquement par deux son retard initial.
+
+5 Conclusion
+
+Cet article a présenté une generalisation de notre méthode d’alignement sous—phrastique aﬁn d’améliorer ses
+résultats en traduction automatique. La méthode d’origine obtient de meilleurs résultats que l’état de l’art sur des
+taches de constitution de lexiques bilingues, mais des résultats inférieurs en traduction automatique statistique par
+fragments. Nous avons montré que ces differences ont principalement deux causes : les differences de fréquences
+des mots qui composent les sequences a aligner (cause propre a la méthode), et les fréquences de mots utiles a
+ces taches (cause propre a la tache). Pour pallier le premier probleme, nous avons propose une generalisation de
+la phase d’indexation de notre méthode, en ne considérant non plus le mot comme unite, mais le n—gramme. Le
+résultat de cette generalisation est un fort accroissement du nombre de n-grammes en sortie, qui mene a des gains
+tres signiﬁcatifs en traduction automatique par fragments (iusqu’a +7 points BLEU sur le couple arabe—anglais).
+Notre méthode fait désormais jeu égal avec l’état de l’art sur des taches << simples » de traduction automatique
+(BTEC), et nous avons pratiquement divisé son retard par deux sur des taches plus difﬁciles (Europarl). Pour aller
+plus loin, nous envisageons d’ étudier le cas de l’alignement des mots frequents, dont nous avons montré qu’ils
+étaient moins bien alignés que les mots rares par notre méthode, ainsi que la question de sa condition d’arret.
+
+6Cela souleve une autre question, qui est celle de la condition d’arrét d’Anyma1ign. Les présentes experiences montrent que nos criteres
+actuels sont insufﬁsants, ne serait-ce que pour effectuer une juste comparaison avec d’autres outils.
+
+ADRIEN LARDILLEUX, FRANCOIS YvON, YvEs LEPAGE
+
+Remerciements
+
+Les travaux présentes dans cet article ont eté partiellement ﬁnances par le proj et Cap Digital SAMAR.
+
+Références
+
+BROWN P., COCKE J ., DELLA PIETRA S., DELLA PIETRA V., J ELINEK F., MERCER R. & ROOss1N P. (1988).
+A Statistical Approach to Language Translation. In Proceedings of Coling’88, p. 71-76, Budapest.
+
+BROWN P., DELLA PIETRA S., DELLA PIETRA V. & MERCER R. (1993). The Mathematics of Statistical
+Machine Translation : Parameter Estimation. Computational Linguistics, 19(2), 263-311.
+
+DUNNING T. (1993). Accurate methods for the statistics of surprise and coincidence. Computational Linguistics,
+19(1), 61-74.
+
+FORDYCE C. S. (2007). Overview of the IWSLT 2007 Evaluation Campaign. In Proceedings of IWSLT 2007,
+p. 1-12, Trente.
+
+FUNG P. & CHURCH K. (1994). K-vec : A New Approach for Aligning Parallel Texts. In Proceedings of
+Coling’94, volume 2, p. 1096-1102, Kyoto.
+
+GALE W. & CHURCH K. (1991). Identifying Word Correspondences in Parallel Texts. In Proceedings of the
+fourth DARPA workshop on Speech and Natural Language, p. 152-157, Paciﬁc Grove.
+
+GAO Q. & VOGEL S. (2008). Parallel Implementations of Word Alignment Tool. In Software Engineering,
+Testing, and Quality Assurance for Natural Language Processing, p. 49-57, Columbus (Ohio, USA).
+
+KOEHN P. (2005). Europarl : A Parallel Corpus for Statistical Machine Translation. In Proceedings of MT
+Summit X, p. 79-86, Phuket.
+
+KOEHN P., HOANG H., BIRCH A., CALL1sON—BURCH C., FEDERICO M., BERTOLDI N., COwAN B., SHEN
+W., MORAN C., ZENs R., DYER C., BOJAR 0., CONSTANTIN A. & HERBST E. (2007). Moses : Open Source
+Toolkit for Statistical Machine Translation. In Proceedings of ACL 2007, p. 177-180, Prague.
+
+KOEHN P., OCH F. & MARCU D. (2003). Statistical Phrase—Based Translation. In Proceedings of HLT—NAACL
+2003, p. 48-54, Edmonton.
+
+LARDILLEUX A. (2010). Contribution des basses fre’quences a l ’alignement sous—phrastique multilingue : une
+approche diﬂérentielle. PhD thesis, université de Caen Basse—Normandie. 204 pages.
+
+LARDILLEUX A., CHEVELU J ., LEPAGE Y., PUTOIS G. & GOSME J . (2009). Lexicons or phrase tables ? An
+investigation in sa1npling—based multilingual alignment. In Proceedings of EBMT3, p. 45-52, Dublin.
+LARDILLEUX A. & LEPAGE Y. (2008). A truly multilingual, high coverage, accurate, yet simple, sub—sentential
+aligmnent method. In Proceedings of AMTA 2008, p. 125-132, Waikiki.
+
+LARDILLEUX A. & LEPAGE Y. (2009). Sampling—based multilingual alignment. In Proceedings of RANLP
+2009, p. 214-218, Borovets.
+
+MANDELBROT B. (1954). Structure formelle des textes et communication. Word, 10, 1-27.
+
+MELAMED D. (2000). Models of Translational Equivalence among Words. Computational Linguistics, 26(2),
+221-249.
+
+MONTEMURRO M. (2004). A generalization of the Zipf—Mandelbrot Law in Linguistics. Nonextensive Entropy :
+interdisciplinary applications. 12 pages.
+
+MOORE R. (2005). Association—Based Bilingual Word Alignment. In Proceedings of the ACL Workshop on
+Building and Using Parallel Texts, p. 1-8, Ann Arbor.
+
+PAPINENI K., ROUKOS S., WARD T. & ZHU W.—J. (2002). BLEU : a Method for Automatic Evaluation of
+Machine Translation. In Proceedings of ACL 2002, p. 311-318, Philadelphie.
+
+SNOvER M., DORR B., SCHWARTZ R., MICCIULLA L. & MAKHOUL J . (2006). A Study of Translation Edit
+Rate with Targeted Human Annotation. In Proceedings of AMTA 2006, p. 223-231, Cambridge.
+
+TAKEZAWA T., SUMITA E., SUGAYA F., YAMAMOTO H. & YAMAMOTO S. (2002). Toward a Broad—coverage
+Bilingual Corpus for Speech Translation of Travel Conversation in the Real World. In Proceedings of LREC
+2002, p. 147-152, Las Palmas de Gran Canaria.
+
+VERGNE J . (2009). Deﬁning the chunk as the period of the functions length and frequency of words on the
+syntagmatic axis. In Proceedings of LTC ’09, p. 85-89, Poznan.
+
+ZIPF G. (1965). The Psycho—Biology of Language : An Introduction to Dynamic Philology. Classic Series.
+Cambridge, USA : The MIT Press. Fist edition 1935.
+

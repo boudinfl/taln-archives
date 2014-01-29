@@ -1,0 +1,544 @@
+TALN 2004, Fés, 19-21 avril 2004
+
+Couplage d’un étiqueteur morpho-syntaxique et d’un
+analyseur partiel représentés sous la forme d’automates ﬁnis
+pondérés
+
+Alexis Nasr, Alexandra Volanschi*
+LATTICE—CNRS (UMR 8094)
+Université Paris 7
+{alexis.nasr, alexandra.volanschi} @ linguist.jussieu.fr
+
+Résumé - Abstract
+
+Cet article présente une maniere d’intégrer un étiqueteur morpho-syntaxique et un analyseur
+partiel. Cette integration permet de corriger des erreurs effectuées par l’étiqueteur seul. L’ etique-
+teur et l’analyseur ont été réalisés sous la forme d’automates pondérés. Des résultats sur un
+corpus du francais ont montré une dimintion du taux d’erreur de l’ordre de 12%.
+
+This paper presents a method of integrating a part-of-speech tagger and a chunker. This in-
+tegration lead to the correction of a number of errors made by the tagger when used alone.
+Both tagger and chunker are implemented as weighted ﬁnite state machines. Experiments on a
+French corpus showed a decrease of the word error rate of about 12%.
+
+Mots-clefs — Keywords
+
+Analyse morpho-syntaxique, analyse syntaxique partielle, automates ﬁnis pondérés
+Part-of-speech tagging, chunking, weighted ﬁnite state machines
+
+1 Introduction
+
+L’ étiquetage morpho-syntaxique constitue souvent une étape préliminaire a un certain nombre
+de traitements linguistiques plus poussés tels que l’analyse syntaxique totale ou partielle. Les
+processus d’étiquetage morpho-syntaxique reposent généralement sur l’hypothese que la cate-
+gorie d’un mot dépend d’un contexte local, qui est réduit a la catégorie du mot ou des deux mots
+précédents, dans le cas d’étiqueteurs probabilistes fondés sur les modeles de Markov cachés
+(MMC). Cette hypothese est généralement correcte et a permis la realisation d’étiqueteurs ef-
+ﬁcaces et précis (de l’ordre de 95% de mots correctement étiquetés) dont les parametres sont
+estimés a partir d’un corpus annoté. Il demeure que cette hypothese n’est pas toujours Vériﬁée
+
+Ce travail a été partiellement ﬁnancé par le projet WATSON dans le cadre de 1’action Technolangue.
+
+Nasr; Volanschi
+
+et est a l’origine d’une partie des erreurs d’etiquetage. Ces dernieres menent géneralement a
+des erreurs dans les traitements suivants, voire a leur échec, en particulier pour l’analyse syn-
+taxique. Cette situation est particulierement frustrante dans la mesure ou les traitements syntax-
+iques possedent souvent les connaissances qui auraient pu eviter les erreurs d’etiquetage. Le but
+de cet article est de pallier partiellement ce probleme en couplant les deux etapes d’étiquetage
+et d’analyse partielle. Dans un tel couplage, le choix de la catégorie d’un mot est effectué
+en tenant compte des connaissances propres a l’etiqueteur, mais aussi de celles provenant de
+l’analyseur partiel.
+
+Le type d’erreur que l’on vise a corriger peut etre illustré par la phrase suivante : la recapi-
+talisation n’est pas indispensable. Lors de l’etiquetage morpho-syntaxique de cette phrase, le
+choix de la catégorie correcte pour l’adjectif indispensable (adjectif qualiﬁcatif feminin sin-
+gulier) est delicat du fait que ce dernier peut etre feminin ou masculin et que le nom avec lequel
+il s’accorde (recapitalisation) est relativement eloigné de l’adjectif, du moins pour un étiqueteur
+probabiliste fonde sur un MMC. Dans un tel cas, un analyseur partiel regroupera respectivement
+les suites la recapitalisation, n’est pas et indispensable au sein d’unites appelees chunks. Le
+resultat de ce regroupement est le rapprochement des deux unites (la recapitalisation et indis-
+pensable) entre lesquelles s’effectue l’accord et la possibilité de le modéliser dans un MMC.
+Le modele de couplage propose ici se pose en alternative a un modele sequentiel ou l’analyseur
+partiel prend en entree la meilleure solution de l’étiqueteur. Il n’est alors plus possible de revenir
+sur les choix effectués par ce dernier.
+
+Cet article vise un autre objectif qui est de montrer l’avantage de réaliser ces traitements a l’aide
+d’automates ﬁnis ponderes et d’opérations sur ces derI1iers. Dans ce cadre, toutes les données
+(phrase a analyser, lexique, grammaire, n-grams) sont representées sous la forme d’automates
+et (quasiment) tous les traitements sont realises par des operations standard de manipulation
+d’automates. Cette homogenéite possede plusieurs avantages dont le premier est la facilite
+de combiner differents modules entre eux grace aux operations de combinaison d’automates,
+combinaisons plus difﬁciles a realiser lorsque les differents modules reposent sur des modeles
+formels differents. Un autre avantage de l’homogéneite de ce cadre est la facilite de mise
+en oeuvre : plus de formats spéciﬁques a concevoir pour différents types de donnees, plus
+d’algorithmes a adapter, a programmer et a optimiser. La realisation de tels traitements depend
+de maniere cruciale de l’existence de bibliotheques logicielles de manipulation d’automates.
+Dans le cadre de ce travail, nous avons utilise les outils FSM et GRM de ATT (8). Notre tra-
+vail se situe dans la mouvance du traitement probabiliste de la langue a l’aide d’automates
+pondéres, dont on trouvera un appercu dans (12). Il se distingue dans son esprit d’autres ap-
+proches fondées sur les automates ﬁnis non probabilistes, telles qu’INTEX (7), dans lesquelles
+des regles sont construites manuellement pour etre ensuite utilisees dans le cadre de traitements
+automatiques.
+
+L’ orgaI1isation de l’article est la suivante : dans la partie 2, on reprend quelques deﬁnitions con-
+cemant les automates ponderes et on introduit quelques notations. Les sections 3 et 4 décrivent
+respectivement les principes d’un étiqueteur probabiliste et d’un analyseur partiel et leur im-
+plementation sous la forme d’automates ponderes. Dans la section 5, l’integration des deux
+modules est décrite. Enﬁn, des experiences sont presentees dans la partie 6 et des travaux futurs
+sont atmonces dans la partie 7. La revue de la litterature n’a pas ete regroupee dans une section,
+nous avons préfere etablir des comparaisons avec d’autres travaux dans le cours de l’article.
+
+Couplage d’Lm étiqueteur morpho-syntaxique et d’Lm cmalyseurpartiel
+
+2 Déﬁnitions et notations
+
+Dans la suite de cet article, nous manipulerons deux types d’automates ﬁnis, des reconnaisseurs,
+qui permettent de reconnaitre des mots u construits sur un alphabet E (u E 2*) et des trans-
+ducteurs, qui permettent de reconnaitre des couples de mots (u, v) construits sur deux alphabets
+21 et 22 ((u, '0) E E’; X 2;). En plus des operations régulieres standard (union, concatenation
+et iteration) déﬁnies sur les deux types de machines, certaines operations sont spéciﬁques aux
+transducteurs, en particulier l’operation de composition, qui joue un r6le fondamental dans le
+reste de cet article. Etant domes deux transducteurs A et B reconnaissant respectivement les
+couples de mots (u, U) et ('0, 11)), la composition de A et B (notee A o B) est un transducteur qui
+reconnait le couple (u, 111).
+
+On deﬁnit de plus la notion de semi-anneau qui est un quintuplet (K, 69, ®, 5, l) tel que K est
+un ensemble de scalaires muni de deux operations généralement apellées addition (notée 69)
+et multiplication (notée ®) ayant chacune un element neutre note respectivement U et T. En
+associant a chaque transition d’un reconnaisseur un poids prenant sa valeur dans un ensemble
+K, on obtient un reconnaisseur pondére construit sur un semi-armeau sur l’ensemble K. Un
+reconnaisseur pondéré, en conjonction avec un semi-anneau K genere une fonction partielle
+qui associe aux mots du langage reconnu par le reconnaisseur des valeurs de K. Etant donné
+un reconnaisseur R et un mot u, la valeur associée a u par R, notee [[R]| (u), est le produit
+(®) des poids des transitions du chemin de R correspondant a u. Si plusieurs chemins de R
+permettent de reconnaitre u, alors |[R]|  est égale a la some (69) des poids des différents
+chemins correspondant a u. Etant donné un reconnaisseur pondere R, on deﬁnit l’opérateur
+n-meilleurs chemins, note mc(R, n) qui retourne le reconnaisseur constitue de l’union des 77.
+chemins les plus probables dans R. Toutes ces notions sont etendues aux transducteurs.
+
+Dans les experiences décrites dans ce papier on a associe aux transitions des transducteurs
+l’oppose de logarithmes de probabilitésl ; on a utilise le semi-atmeau tropical sur ]R+. Dans ce
+dernier, l’operation (8) correspond a l’addition usuelle (pour connaitre le poids d’un chemin on
+additionne les poids des transitions) alors que l’operation EB est le minimum (le poids associe par
+un transducteur a un mot reconnu est le minimum des poids de tous les chemins du transducteur
+reconnaissant le mot, c’est-a-dire le chemin ayant la meilleure probabilité).
+
+3 Etiquetage morpho-syntaxique
+
+Le processus d’étiquetage morpho-syntaxique utilise dans le cadre de ce travail reprend les
+principes de l’etiquetage morpho-syntaxique fonde sur les chaines de Markov cachées, introduit
+dans (5). Les états du MMC correspondent aux categories morpho-syntaxiques et les observ-
+ables aux mots du lexique. Ces derniers constituent l’alphabet EL et les etiquettes des categories
+morpho-syntaxiques constituent l’alphabet 20. Le processus d’etiquetage, dans un tel modele,
+consiste a retrouver la suite d’etats la plus probable etant donné une suite d’observables.
+
+Les parametres d’un MMC se divisent en probabilités d’emission et en probabilités de transi-
+tion. Une probabilité d’émission est la probabilité d’un mot etant donné une catégorie (P(m | c))
+
+1On préfere les logarithmes de probabilités aux probabilités pour des questions de stabilité numérique (les
+probabilités pouvant étre des réels tres petits, on risque de ne pas pouvoir les représenter en machine). L’ utilisation
+de l’opposé du logarithme permet d’ obtenir les chemins de probabilité maximale lors de1’uti]isation de l’opérateur
+n-meilleurs chemins.
+
+Nasr; Volanschi
+
+tandis qu’une probabilité de transition est la probabilité qu’une catégorie as suive directement
+une categorie y (P(m|y)). Ces deux ensembles de parametres permettent de calculer la prob-
+abilite jointe d’une suite de categories cl,” (une suite d’etats du modele) et d’une suite de
+mots mm (une suite d’observables) en utilisant les probabilités d’émission et de transition :
+
+P(01,mm1,n) = P(01)P(m1|C1)l_l?=2 P(mz'|0z')P(Cz'|Cz'—1)
+
+Un tel modele, appelé modele bigramme, repose sur l’hypothese markovienne qu’une catégorie
+ne depend que de la catégorie precédente. Cette hypothese, fort contraignante, peut etre assou-
+plie sans changer de cadre théorique en faisant dépendre une catégorie non plus de la catégorie
+precedente mais des deux categories precédentes pour aboutir a un modele trigramme qui est
+le modele generalement utilise pour une telle tache. Dans un modele trigramme, un état corre-
+spond non plus a une catégorie, mais a un couple de categories.
+
+Un tel MMC peut etre representé par deux
+transducteurs ponderes. Le premier, que nous
+appellerons E, et dont un exemple apparait dans
+la partie gauche de la ﬁgure 1 (dans cet exem-
+ple EL = {a, b} et EC = {A,B}) permet de
+
+représenter les probabilités d’emission. Son al-
+  phabet d’entree est 2,; et son alphabet de sortie
+a=B/—1ogP(a|B) A/_1°gP(A'A) A/—logP(A|B) B/_1°gP(B'B) 20. Ce transducteur est doté d’un seul etat, et
+possede autant de transitions (de l’unique état
+vers lui meme) qu’il y a de couples (m, c) ou m
+est un mot du lexique (m 6 EL) et c une catégorie (c E E0) tels que la probabilité d’emission
+P soit non nulle. L’oppose du logarithme de cette probabilité (— log P (m|c)) constitue
+le poids de la transition étiquetee (m, c). Dans la ﬁgure 1, une telle transition est étiquetée
+m : c/ — log P (m|c). Le second transducteur, ayant pour alphabet d’entree et de sortie EC
+(partie droite de la ﬁgure 1), appele T, permet de representer les probabilités de transition. Il
+reprend la structure du MMC : autant d’états que de categories et des transitions entre tout cou-
+ple d’états (ac, y) (oriente de a: vers y) tel que P(y|a:) est non nulle. Le poids de la transition est
+egal a — log P(y|ac)2. Dans le cas d’un modele trigramme, la structure de l’automate T est plus
+complexe : un etat correspond a une sequence de deux categories et les poids des transitions
+sont de la forme — log P
+
+          
+
+Figurel : Les transducteurs E et T
+
+La composition de E et de T (E o T) permet de combiner probabilites d’emission et de tran-
+sition pour aboutir a un transducteur dont l’alphabet d’entrée est EL et l’alphabet de sortie est
+EC. Un tel transducteur permet d’associer au couple (mm, C1,”) le poids |[E o T]|(c1,,,,m1,,,) =
+— 22:1 log — log P(c1) — 221:2 log P(c,-|c,-_1) qui n’est autre que l’opposé du loga-
+rithme de la probabilité P(c1,,.,,m1,,,), telle que déﬁnie ci-dessus.
+
+L’etiquetage d’une suite de mots particuliere M est realise en representant la suite M sous la
+forme d’un reconnaisseur de structure linéaire (une transition pour chaque mot de M), appele
+lui-meme M puis en effectuant la composition de M avec E o T. La recherche de la suite de
+categories la plus probable etant donné M est alors réalisee par la recherche du meilleur chemin
+dans le transducteur M o E o T. L’ étiqueteur s’ecrit donc : mc(M o E o T, 1)
+
+Les probabilités des trigrammes representées dans l’automate T ne sont généralement pas
+
+2Strictement parlant, 1’automate décrit est un reconnaisseur, mais il peut étre vu comme un transducteur dont
+1’alphabet de sortie est égal 2‘: 1’a1phabet d’entrée et dont chaque transition possede le meme symbole en entrée
+et en sortie. Un tel transducteur représente par consequent la relation identité réduite au langage reconnu par le
+reconnaisseur.
+
+Couplage d’un étiqueteur morpho-syntaxique et d’un cmalyseurpartiel
+
+estimees par simple maximum de vraisemblance sur un corpus d’apprentissage, car des tri-
+grammes apparaissant dans les textes a etiqueter peuvent n’avoir jamais éte observes dans le
+corpus d’apprentissage. C’est la raison pour laquelle on a recours a des methodes de lissage des
+probabilites, telles que les methodes de repli (10) qui consistent a se replier sur la probabilité
+du bigramme b c lorsque le trigramme a b c n’a pas ete observe dans le corpus et, lorsque
+le bigramme b c n’a pas éte observe, a se replier sur l’unigramme c. Un modele de repli peut
+étre directement représente sous la forme d’un automate comportant des transitions par défaut
+comme decrit dans (4). Etant donné un symbole oz, une transition par défaut emanant d’un etat
+q est empruntée lorsqu’il n’existe pas de transition emanant de q etiquetee par oz. Dans le cas du
+modele de repli, une transition par défaut est empruntee lorsqu’un trigramme ou un bigramme
+n’a jamais éte observe. Il ne nous est pas possible ici de décrire plus en detail la structure de
+tels automates. Pour plus de details, le lecteur est invite a se reférer a l’article cite ci-desssus.
+
+Plusieurs approches dans la litterature (14; ll; 9) utilisent les automates ﬁnis ponderés aﬁn de
+simuler le fonctionnement d’un MMC. Dans les trois cas, les n-grammes sont représentes sous
+la forme d’automates, de maniere proche de la notre. Cependant, ces travaux se distinguent du
+notre en ne modelisant pas directement les probablilites d’emission (P(m|c)) estimees sur un
+corpus d’apprentissage, mais en recourant a des classes d’ambigu'1'tes, qui sont des ensembles
+de categories associees a un mot.
+
+4 Analyse syntaxique partielle
+
+L’ analyse syntaxique partielle designe un ensemble de techniques dont le but est de mettre au
+jour une partie de la structure syntaxique d’une phrase, plus précisement, la structure asso-
+ciee aux fragments qui n’ont qu’une analyse possible. Par exemple, meme si une suite comme
+‘maison des sciences de l’homme’ constitue dans une grammaire traditionnelle un groupe nom-
+inal ayant une structure complexe avec plusieurs niveaux intermediaires, dans une analyse par-
+tielle elle sera segmentee en trois unites appelees chunks : [maison]gN [des sciences]gp [de
+l’homme]gp car le rattachement des syntagmes prépostionnels est potentiellement ambigu. Ap-
+pelée aussi chunking, l’analyse partielle a été introduite par (3) come reponse aux difﬁcultes
+d’analyse soulevees par le traitement robuste des textes tout-Venants.
+
+Plusieurs approches dont (2) ont aborde l’analyse partielle a l’aide des automates ﬁnis, plus
+précisement a l’aide des cascades de transducteurs ﬁnis. Une cascade de transducteurs est
+une succession de transducteurs ou chacun permet de reconnaitre un type de chunk. L’ entree
+de chaque transducteur est constituée par la sortie du transducteur precedent. Notre solution
+consiste en l’application simultanee, plutot que sequentielle, de tous les automates des chunks
+qui sont integrés au sein d’un MMC.
+
+Les chunks, du fait de leur caractere non récursif, peuvent etre représentés sous la forme
+d’automates ﬁnis construits sur l’alphabet 20. A chaque type de chunk K (par exemple chunk
+nominal, prepositionnel, ...) correspond un automate appele aussi K , qui reconnait toute
+sequence de categories qui constitue un chunk bien forme de type K. De plus, au chunk de
+type K sont associes deux symboles, un symbole de debut de chunk, note <K>, et un symbole
+de ﬁn de chunk, note < / K>. L’ ensemble des symboles de debut et de ﬁn de chunk constituent
+un nouvel alphabet appelé EEK. Les différents automates associes aux chunks sont regroupes
+entre eux au sein d’un transducteur, appelé A, qui constitue l’analyseur et dont la structure est
+representee dans la ﬁgure 2.
+
+Nasr; Volanschi
+
+L’alphabet d’entree de A est 20 et son al-
+phabet de sortie est 20 U SK. Il accepte en
+entree des sequences de categories et produit
+des sequences melant categories et symboles
+de debut et de ﬁn de chunk. Etant donné une
+sequence de categories C en entree, A produira
+en sortie la meme sequence dans laquelle toute
+occurrence d’un chunk de type K sera encadree
+des deux symboles <K> et < / K>. A est com-
+pose de deux parties, une partie superieure qui
+est elle meme composee des differents auto-
+Figure 2 : Structure de l’analyseur partiel A mates de chunks, notes K ,~ mis en parallele.
+
+ 
+
+Les transitions reliant l’état initial de A aux etats initaux des differents automates K ,~ permettent
+d’introduire les symboles de debut de chunk et les transititions reliant les états d’acceptation
+des automates Ki a l’etat F introduisent des symboles de ﬁn de chunk. La partie inferieure
+de A est composee d’autant de transitions qu’il y a de categories morpho-syntaxiques. Enﬁn
+une transition 8 reliant F a I permet de realiser une boucle et de reconnaitre ainsi plusieurs
+occurrences de chunks dans une sequence de categories.
+
+L’automate A reconnait n’importe quel mot C construit sur EC. L’analyse de C est realisee
+en representant C sous la forme d’un automate linéaire (une transition pour chaque catégorie
+constituant C) appele lui aussi C et en effectuant la composition C o A. On pourra remarquer
+que le produit de cette composition est ambigu, car pour chaque sous-mot 3 de C correspondant
+a un chunk K ,~, deux resultats seront produits : la reconnaissance de 3 en tant que chunk (passage
+a travers l’automate K,) et la reconnaissance de 3 comme une suite de categories ne constituant
+pas un chunk (passage dans les transitions de la partie inferieure de A). Parmi ces différents
+résultats, un seul nous interesse, celui dans lequel toute occurrence de chunk a ete marquee par
+l’introduction de balises de debut et de ﬁn de chunk. Il est facile de limiter le produit de la
+composition a ce seul resultat en associant a chaque transition intra chunk un poids de 0 et aux
+transitions extra chunk un poids de 1 et en ne gardant des résultats produits que le chemin de
+poids minimal. Le processus d’analyse peut etre representé par l’expression : mc(C o A, 1)
+
+5 Couplage de l’étiquetage et de l’analyse partielle
+
+Les modeles d’étiquetage morpho-syntaxique a l’aide des transducteurs ponderes cites dans la
+section 3, intégrent aussi (ou prevoient la possibilite d’intégrer) des contraintes syntaxiques
+dans le processus d’étiquetage. Kempe (11) prevoit la possibilite de composer la sortie du tag-
+ger avec des transducteurs encodant des regles de correction des erreurs les plus fréquentes,
+Tzoukerman (14) utilise des contraintes negatives aﬁn de diminuer de facon drastique la proba-
+bilite des chemins comportant des suites improbables d’étiquettes (par exemple un determinant
+suivi d’un verbe). D’un point de vue general, notre travail se distingue des autres par le fait
+qu’il integre deux modules complets (un module d’etiquetage et un module d’analyse partielle)
+au sein d’un seul, realisant l’etiquetage et l’analyse partielle. Il ne s’agit pas d’integrer dans
+un etiqueteur des grammaires locales concues pour éliminer certaines structures agrammati-
+cales, mais d’integrer véritablement l’information statistique avec les connaissances linguis-
+tiques modelisees par l’analyseur partiel dans le but d’améliorer la qualite de l’étiquetage.
+
+Couplage d’Lm étiqueteur morpho-syntaxique et d’Lm cmalyseurpartiel
+
+Le couplage de l’etiquetage morpho-syntaxique et du decoupage en chunks peut etre realise par
+simple composition des deux modeles que nous avons décrit : mc(mc(M o E o T, 1) o A, 1).
+Ce modele est une instance de l’architecture séquentielle que nous avons introduite et critiquee
+dans la section 1 : la selection d’une etiquette morpho-syntaxique est réalisée independamment
+de la tache d’analyse syntaxique (ici réalisee par un simple decoupage en chunks) et ne peut
+étre remise en cause par cette derniere.
+
+Il est possible de fournir a l’analyseur non plus le meilleur étiquetage possible mais l’ensemble
+de toutes les solutions de l’etiqueteur representées sous la forme d’un automate :mc(M o E o
+T o A, 1). Ceci montre la souplesse du traitement par automates ﬁnis. Mais un tel modele
+n’offre pas beaucoup d’interet dans la mesure ou l’analyseur n’a quasiment aucun pouvoir dis-
+criminant permettant de favoriser certaines des sorties de l’étiqueteur. En effet, contrairement
+a un analyseur fonde sur une grammaire hors-contexte, par exemple, qui n’associe une struc-
+ture qu’aux phrases appartenant au langage reconnu par la grammaire, notre analyseur accepte
+toutes les suites de categories, son role se borne a reconnaitre certaines sous-suites de cette
+derniere comme formant des chunks. C’est la raison pour laquelle nous allons introduire une
+version probabiliste de l’analyseur partiel. Ce dernier effectue un découpage en chunks d’une
+suite de categories et lui associe de plus une probabilité d’apres un modele dont les parametres
+ont ete estimes sur un corpus. Un tel modele n’a pas pour objectif de favoriser un découpage
+en chunks d’une meme suite de categories plutot qu’un autre (l’analyse en chunks est unique !).
+Son objectif est de fournir un moyen de comparer entre elles differentes sequences de cate-
+gories possibles pour une meme phrase. Pour cela, l’analyseur partiel associe a toute sequence
+de categories une probabilite qui est d’autant plus élevee que la sequence de categories corre-
+spond a des sequences de chunks bien formés, agencés dans un ordre lineaire observe sur un
+corpus d’apprentissage. Cette approche partage plusieurs points communs avec les travaux de
+(6) qui utilisent eux aussi des transducteurs ponderes pour réaliser un analyseur partiel proba-
+biliste. Cependant, dans leur cas, plusieurs découpages de la phrase en chunks sont possibles
+et l’objectif de l’analyseur est de fournir le decoupage le plus probable. De plus, leur analyseur
+prend en entree une sequence unique de categories.
+
+La probabilité d’une suite de categories découpée en chunks est calculee a partir de deux types
+de probabilités : des probabilités intra chunk et des probabilités inter chunks. Une probabilité
+intra chunk est la probabilité qu’une suite de categories cu, constitue un chunk d’un type K,.
+Cette probabilité est notée PI(c1,;, |K Les probabilités inter chunk sont les probabilités condi-
+tionnelles d’occurrence d’un chunk d’un type donné, etant domes les n — 1 chunks ou categories
+precedents (s’agissant d’une analyse partielle, certaines categories de la suite analysee ne seront
+pas intégrées dans des chunks). La probabilité associee par l’analyseur a une suite de categories
+est le produit des probabilités internes des chunks qui le composent et des probabilites externes
+de la sequence des chunks reconnus.
+
+Etantdonné la suite <s> D N V D N P D A N </s>3. Le découpageproposé par l’analyseur
+est:C = <S> <CN> D N </CN> V <CN> D N </CN> <CP> P D A N </CP> </S>
+
+La probabilité associée a cette sequence est le produit de la suite des chunks reconnus (notée
+PE(-)), et des probabilites internes de chacun des chunks :
+
+P(C) =PE(<S> <CN> V <CN> <CP> </S>) XP1(D N|<CN>)2 XPI(P D A N| <CP>)
+
+Les probabilités internes sont estimees par maximum de vraisemblance sur un corpus d’apprentis-
+
+30.1 D, N, V, P et A sont les étiquettes correspondant respectivement aux categories déterminant, nom, verbe,
+préposition et adjectif.
+
+Nasr; Volanschi
+
+sage, comme nous le verrons en 5.1. La probabilité d’une suite d’étiquettes de chunks et
+d’étiquettes morpho-syntaxique est calculee a l’aide d’un modele n-gram, appele modele ex-
+terne, appris lui aussi sur un corpus, qui modelise la probabilité d’un chunk etant donné les n — 1
+chunks ou categories précedentes. Dans le cas d’un modele externe bigramme, la probabilité
+externe de C est calculee de la maniere suivante :
+
+PE(C) = PE(<CN> | <S>) X PE(V| <CN>) X PE(<CN> |V) X PE(<CP> | <CN>) X PE(</S> | <CP>)
+
+5.1 Construction du modéle et estimation de ses paramétres
+
+L’estimation des parametres du modele externe et des modeles internes s’effectue en deux
+étapes a partir d’un corpus etiqueté. Lors d’une premiere etape, le corpus est analyse par
+l’analyseur partiel A. Le résultat de cette analyse est un nouveau corpus dans lequel des sym-
+boles de debut et de ﬁn de chunks ont éte introduits. Deux objets sont produits a partir de ce
+corpus. D’une part toutes les suites de categories correspondant a chaque type de chunk K ,~ et
+d’autre part un corpus hybride dans lequel toute occurrence de chunk a ete remplacee par un
+seul symbole, matérialisant le chunk (ce symbole n’est autre que la marque de debut de chunk).
+Le corpus hybride se présente donc sous la forme d’une sequence de categories et de symboles
+de chunk, trace du chunk qui a ete détecté a cet endroit. Le premier Va servir a estimer les
+probabilités intra chunks et le second les probabilites inter chunks. Les differentes étapes de ce
+traitement sont représentees dans la ﬁgure 3.
+
+L’estirnation des probabilites inter
+chunk a part1r du corpus hybr1de est
+
+identique a l’estimation des proba-
+, bilites n-gram décrite en 3 et sur
+
+ 
+
+laquelle nous ne reviendrons pas.
+
+remplacementdes chunks Ces probabilites sont représentées
+
+dans un transducteur (appelé mod-
+ele externe) reprenant la structure
+
+@stimation des probabilités intra chunkg (apprentissage du n-gram) dc T dans 13 ﬁgure 1 et dont
+les transitions sont etiquetees par
+
+modeles intra chunks modele inter chunks des catégories ou des symboles de
+, . . .
+opéraﬁon dc remplacement chunks. L est1mat1on des probabil-
+
+ités intra chunk est une simple es-
+modele ﬁnal
+
+timation par maximum de vraisem-
+blance. Etant donné un chunk 0;, et
+Figure 3 : Les étapes de la construction du modele n Suites diffél-entes (fétiquettes
+
+(51, 32, . . . sn) representant toutes les réalisations de ce chunk dans un corpus d’apprentissage,
+on note n,- le nombre d’occurrences de la suite c,-. La probabilité de 3, n’est autre que sa
+frequence relative : P(s,~) =  Cette probabilité est la probabilité du chen1in correspon-
+dant a 3, dans le reconnaisseur K ,-.
+
+I
+
+| différentes réalisations de chaque chunk | | corpus hybride |
+
+I
+
+       
+
+Les modeles intra chunks et le modele externe sont combines pour former un unique trans-
+ducteur a l’aide de l’operation de remplacement, intoduite dans (13). Cette derniere permet de
+remplacer dans le modele externe une transition < Ki > par l’automate K ,-. Le transducteur resul-
+tant est appelé AP (pour analyseur probabiliste). Le modele conjoint d’étiquetage et d’analyse
+est maintenant mc(M o E o AP, 1).
+
+Couplage d’un étiqueteur morpho-syntaxique et d’un cmalyseurpartiel
+
+6 Expériences
+
+Les experiences ont ete menees sur le corpus etiquete Paris 7 (1). Le corpus est constitue de
+900K mots etiquetes avec un jeu de 222 etiquettes indiquant la categorie et les traits mor-
+phologiques des mots. On a reserve une partie du corpus de 760K mots pour l’apprentissage
+(App). Les tests ont ete realises sur un fragment de 66K mots (Test). Le taux d’erreur du
+modele trigramme (note M1), tel qu’il est decrit dans la partie 3 sur Test est de 2, 18%4. Ce
+chiffre constitue notre point de reference. 28 grammaires de chunks differents ont ete construites
+manuellement. Ces grammaires appartiennent a une sous-classe des grammaires hors-contexte
+qui representent des langages réguliers et qui peuvent etre compilees sous forme d’automates
+aﬁn d’effectuer l’analyse partielle du corpus. Les probabilites intra chunks et les probabilites
+externes ont ete estimees sur App. Les experiences ont ete realisees grace aux librairies FSM et
+GRM de AT&T
+
+Les performances du modele mc(M o E o AP, 1) (note M2) sont quasiment identiques a celle
+de M1. Cependant, les deux modeles n’effectuent pas les memes erreurs. En effet, M2 corrige
+30% des erreurs effectuees par M1 mais effectue quasiment autant d’erreurs en plus. Ces
+nouvelles erreurs ont differentes causes dont certaines proviennent de l’hypothese du modele
+M2 que la forme d’un chunk (la suite de categories qui constituent le chunk) est independante
+du contexte d’occurrence de ce derI1ier. Cette hypothese n’est pas toujours valide, comme
+l’illustre la phrase ’la discussion a ete ouverte par l’article ...’. Dans cet exemple, ’ouverte’ a
+correctement ete etiquete participe passe’ par M1, alors que M2 l’a etiquete adjectif. La raison
+de cette erreur provient du fait que M2 a reconnu ’a ete ouverte’ comme chunk verbal et a choisi
+la categorie de ’ouverte’ independamment du contexte du chunk. M1 de son cete a tire parti
+du fait que ’ouverte’ etait suivi d’une preposition pour lui assigner la categorie participe passe’.
+Aﬁn de pallier partiellement ce probleme, nous avons combine les modeles M1 et M2 au sein
+du modele suivant : mc((M o E o AP) ﬂ (M o E o T), 1), note M3. Ce dernier ne conserve
+que les solutions communes 51 M1 et M2 auxquelles il associe la somme des poids attibuees
+par M1 et M2 ( [[M3]]  =  + [[M2]] (.'1:)5). Cette combinaison permet d’attenuer
+l’hypothese d’indépendance. En effet, la dependance entre la forme d’un chunk et son contexte
+d’occurrence est partiellement modelise par M1. Le taux d’erreur de M3 sur Test est de 1, 92%
+soit une diminution de 11, 9% par rapport a notre modele de reference : M1. Une analyse
+d’erreurs a montré que M3 corrige 15, 5% des erreurs de M1 mais effectue 7, 9% de nouvelles
+erreurs. Les raisons des erreurs effectuees par M3 sont diverses, certaines proviennent touj ours
+de l’hypothese d’independance citee ci-dessus, d’autres sont dues a l’estimation des probabilites
+intra chunk (la probabilite qu’une sequence de categories donnee constitue un chunk d’une
+nature donnee). Ces dernieres sont en effet estimees par simple maximum de vraisemblance
+et attribuent par consequent une probabilite nulle a une realisation de chunk qui n’a jamais
+ete observee dans App. Une forme de lissage de ces probabilites semble necessaire. D’autres
+erreurs proviennent des limites theoriques du modele et necessiteraient pour etre corrigees une
+analyse syntaxique complete.
+
+4Ce résultat est supérieur au résultat de (14) (4% de taux d’erreur) sur le meme corpus et avec le meme jeu
+d’étiquettes. Cette difference provient, au moins en partie, du fait que nous avons travaillé sans mots inconnus :
+tous les mots de Test apparaissent dans le dictionnaire. Nous avons effectue cette hypothese car 1’obj et de notre
+travail est d’étudier1’apport de 1’ana1yseur pa11:ie1 sur les performances d’un étiqueteur fondé sur les MC et nous
+estimons que 1’inﬂuence des mots inconnus sera quasiment la meme sur les différents modeles que nous avons
+testé.
+
+5Contrairement aux modeles M1 et M2 les poids associés a une sequence de mots par M3 ne correspondent
+pas a des probabilités.
+
+Nasr; Volanschi
+
+7 Conclusion
+
+Le travail presenté dans cet article a montré que la prise en compte de connaissances syn-
+taxiques, sous la forme d’une analyse partielle, permet d’améliorer le résultat d’un etique-
+teur morpho-syntaxique. II a aussi montré que les différentes étapes pouvaient étre realisees a
+l’aide d’automates pondérés. De nombreuses améliorations pourraient étre apportées au modele
+decrit, telles qu’une meilleure méthode d’estimation des probabilités intra chunk ainsi qu’une
+meilleure modélisation de l’inﬂuence du contexte sur la realisation d’un chunk.
+
+Références
+
+1. Anne Abeillé and Lionel Clement. A tagged reference corpus for french. In Proceedings LINC—EACL,
+Bergen, 1999.
+
+2. S. Abney. Partial parsing via ﬁnite-state cascades. In Workshop on Robust Parsing, 8th European
+Summer School in Logic, Language and Information, Prague, Czech Republic, pages 8-15., 1996.
+
+3. Steven P. Abney. Parsing by chunks. In Robert C. Berwick, Steven P Abney, and Carol Tenny, editors,
+Principle—Based Parsing: Computation and Psycholinguistics, pages 257-278. Kluwer, Dordrecht, 1991.
+
+4. Cyril Allauzen, Mehryar Mohri, and Brian Roark. Generalized algorithms for constructing statisti-
+cal language models. In 41st Meeting of the Association for Computational Linguistics, pages 40-47,
+Sapporo, Japon, 2003.
+
+5. L. R. Bahl and R. L. Mercer. Part of speech assignment by a statistical decision algorithm. In Pro-
+ceedings IEEE International Symposium on Information Theory, pages 88-89, 1976.
+
+6. Kuang-Hua Chen and Hsin-Hsi Chen. Extracting noun phrases from large-scale texts: A hybrid ap-
+proach and its automatic evaluation. In Meeting of the Association for Computational Linguistics, pages
+234-241, 1994.
+
+7. http://www.nyu.edu/pages/linguistics/intex/.
+8. http://www.research.att.co1n/sw/tools/{fsm,grrn}.
+
+9. Bryan Jurish. A hybrid approach to part-of-speech tagging. Technical report, Berlin-Brandenburgishe
+Akademie der Wissenschaften, 2003.
+
+10. Slava M. Katz. Estimation of probabilities from sparse data for the language model component of
+a speech recogniser. IEEE Transactions on Acoustics, Speech, and Signal Processing, 35(3):400-401,
+1987.
+
+11. André Kempe. Finite state transducers approximating hidden markov models. In ACL’97, pages
+460-467, Madrid, Spain, 1997.
+
+12. Mehryar Mohri. Finite-state transducers in language and speech processing. Computational Linguis-
+tics, 23(2), 1997.
+
+13. Mehryar Mohri. Robustness in Language and Speech Technology, chapter Weighted Grammars Tools:
+the GRM Library, pages 19-40. Jean-Claude Junqua and Gertjan Van Noord (eds) Kluwer Academic
+Publishers, 2000.
+
+14. Evelyne Tzoukermann and Dragomir R. Radev. Use of weighted ﬁnite state trasducers in part of
+speech tagging. Natural Language Engineering, 1997.
+

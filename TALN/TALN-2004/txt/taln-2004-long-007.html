@@ -1,0 +1,547 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Fusionner pour mieux analyser : Conception et &#233;valuation de la plate-forme de combinaison</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2004, F&#232;s, 19-21 avril 2004
+</p>
+<p>Fusionner pour mieux analyser :
+Conception et &#233;valuation de la plate-forme de combinaison
+</p>
+<p>Francis Brunet-Manquat
+</p>
+<p>GETA-CLIPS &#8211; Universit&#233; Joseph Fourier (Grenoble 1)
+BP 53 &#8211; 38041 Grenoble Cedex 9, France
+</p>
+<p>Francis.Brunet-Manquat@imag.fr
+</p>
+<p>R&#233;sum&#233; &#8211; Abstract
+L&#8217;objectif de cet article est de pr&#233;senter nos travaux concernant la combinaison d&#8217;analyseurs
+syntaxiques pour produire un analyseur plus robuste. Nous avons cr&#233;&#233; une plate-forme nous
+permettant de comparer des analyseurs syntaxiques pour une langue donn&#233;e en d&#233;coupant
+leurs r&#233;sultats en informations &#233;l&#233;mentaires, en les normalisant, et en les comparant aux
+r&#233;sultats de r&#233;f&#233;rence. Cette m&#234;me plate-forme est utilis&#233;e pour combiner plusieurs analyseurs
+pour produire un analyseur de d&#233;pendance plus couvrant et plus robuste. &#192; long terme, il sera
+possible de &#8220;compiler&#8221; les connaissances extraites de plusieurs analyseurs dans un analyseur
+de d&#233;pendance autonome.
+</p>
+<p>The goal of this article is to present our works about the combination of syntactic parsers to
+produce a more robust parser. We have built a platform which allows us to compare syntactic
+parsers for a given language by splitting their results in elementary pieces, normalizing them,
+and comparing them with reference results. The same platform is used to combine several
+parsers to produce a dependency parser, which is big construction broader and more robust
+than its component parsers. In the future, it should by possible to &#8220;compile&#8221; the knowledge
+extracted from several analyzers into an autonomous dependency parser.
+</p>
+<p>Mots Cl&#233;s &#8211; Keywords
+Analyse de d&#233;pendance, analyse syntaxique, combinaisons d&#8217;informations.
+</p>
+<p>Dependency parsing, syntactic parsing, Information combination.
+</p>
+<p>1 Introduction
+Notre laboratoire est impliqu&#233; dans deux projets internationaux importants : CSTAR et son
+projet europ&#233;en associ&#233; NESPOLE ! (http://nespole.itc.it) pour la traduction simultan&#233;e de
+l&#8217;oral et Universal Networking Language, UNL (http://www.unl.ias.unu.edu), pour la
+traduction de l&#8217;&#233;crit. Ces projets se caract&#233;risent notamment par la pr&#233;sence d&#8217;une
+repr&#233;sentation pivot des &#233;nonc&#233;s et par le fait que l&#8217;&#233;nonc&#233; &#224; traduire est susceptible d&#8217;&#234;tre
+bruit&#233;, c&#8217;est-&#224;-dire pas n&#233;cessairement conforme &#224; la grammaire acad&#233;mique de la langue
+fran&#231;aise. Dans un syst&#232;me &#224; pivot, l&#8217;&#233;nonc&#233; d&#8217;une langue source donn&#233;e est analys&#233; dans la
+repr&#233;sentation pivot avant d&#8217;&#234;tre g&#233;n&#233;r&#233; vers une ou plusieurs langues cibles. La n&#233;cessit&#233; de</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Francis Brunet-Manquat
+</p>
+<p>pouvoir traiter des entr&#233;es bruit&#233;es implique des outils robustes d&#8217;analyse de la langue,
+capables de fournir une analyse m&#234;me partielle de la phrase.
+</p>
+<p>L&#8217;objectif est de concevoir un analyseur prenant le &#171; meilleur &#187; d&#8217;un ensemble d&#8217;analyseurs.
+Le principe de notre travail est de combiner diff&#233;rents r&#233;sultats d&#8217;analyse obtenus pour le
+m&#234;me &#233;nonc&#233;, puis de calculer les meilleures informations pour obtenir la ou les meilleures
+analyses possibles. Notre approche se base sur la m&#233;thode dite du &#171; vote &#224; la majorit&#233; &#187;, plus
+une information sera commune aux diff&#233;rents analyseurs, plus le poids de cette information
+sera fort, et sur un apprentissage permettant d&#8217;adapter les poids associ&#233;s aux informations
+fournies en fonction de l&#8217;&#233;nonc&#233; (par exemple, entr&#233;e bruit&#233;e ou non) et des analyseurs.
+L&#8217;approche utilis&#233;e, dite par combinaison , a d&#233;j&#224; connu de nombreux succ&#232;s en
+reconnaissance de la parole (Fiscus 1997, Schwenck et Gauvain 2000), en &#233;tiquetage morpho-
+syntaxique (Halteren et al. 1998, Brill et al. 1998, Marquez et Padro 1998), en reconnaissance
+des entit&#233;s nomm&#233;s (Borthwick et al. 1998), en d&#233;sambigu&#239;sation du sens des mots (Pedersen,
+2000) et, plus r&#233;cemment, en analyse syntaxique (Henderson et Brill 1999, Inui et Inui 2000,
+Monceaux et Robba 2003). Ces travaux d&#233;montrent que combiner diff&#233;rents syst&#232;mes apporte
+le plus souvent une am&#233;lioration par rapport au meilleur syst&#232;me.
+</p>
+<p>Nos travaux en analyse syntaxique se diff&#233;rencient de ceux de nos pr&#233;d&#233;cesseurs par la
+m&#233;thode de combinaison employ&#233;e. En effet, notre plate-forme se compose &#224; la fois d&#8217;un
+m&#233;canisme de re-construction et d&#8217;un traitement statistique. De plus, nous basons notre plate-
+forme d&#8217;analyse sur une repr&#233;sentation par d&#233;pendances, d&#233;crivant les relations syntaxiques
+entre mots. En effet, l&#8217;analyse ant&#233;rieure sugg&#232;re fortement que ce type de repr&#233;sentation est
+plus adapt&#233; pour une analyse robuste. Il nous permet, par exemple, de repr&#233;senter clairement
+et simplement l&#8217;analyse partielle d&#8217;une phrase mal form&#233;e.
+</p>
+<p>Apr&#232;s avoir d&#233;taill&#233; la conception de notre plate-forme d&#8217;analyse, nous d&#233;crivons notre
+processus de construction de structures de d&#233;pendance. Ensuite, nous pr&#233;sentons les
+&#233;valuations obtenues suivies par une conclusion et une discussion sur les perspectives.
+</p>
+<p>2 Conception de la plate-forme d&#8217;analyse
+La plate-forme d&#8217;analyse ne doit pas int&#233;grer les analyseurs, mais elle doit &#234;tre capable
+d&#8217;extraire les informations linguistiques des r&#233;sultats qu&#8217;ils produisent, de les interpr&#233;ter, de
+les fusionner et enfin de produire un arbre de d&#233;pendance (ou plusieurs) combinant le meilleur
+des informations extraites.
+</p>
+<p>2.1 &#201;tapes du traitement
+Le processus support&#233; par la plate-forme comporte deux &#233;tapes : la normalisation des
+r&#233;sultats d&#8217;analyse et la construction des analyses de d&#233;pendance.
+</p>
+<p>L&#8217;&#233;tape de normalisation des r&#233;sultats d&#8217;analyse se compose de deux phases1 :
+&#8226; La phase d&#8217;extraction permet de r&#233;cup&#233;rer les informations linguistiques des r&#233;sultats
+</p>
+<p>obtenus &#224; partir des analyseurs linguistiques. Ces analyseurs se r&#233;partissent en trois
+cat&#233;gories en fonction des r&#233;sultats qu&#8217;ils fournissent (Monceaux et Robba 2002) :
+les analyseurs fond&#233;s sur les constituants qui retournent une segmentation en
+</p>
+<p>                                                 
+</p>
+<p>1
+ L&#8217;&#233;tape de normalisation a &#233;t&#233; d&#233;crite et &#233;valu&#233;e dans (Brunet-Manquat 2003).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Fusionner pour mieux analyser
+</p>
+<p>groupes, les analyseurs fond&#233;s sur les d&#233;pendances qui retournent les d&#233;pendances
+entre mots d&#8217;une phrase et les analyseurs fond&#233;s sur les constituants et les
+d&#233;pendances qui retournent une segmentation en groupes et des d&#233;pendances entre
+ces groupes et entre les mots.
+</p>
+<p>&#8226; La phase de projection traite les informations extraites pour obtenir un ensemble de
+structures de d&#233;pendance dites normalis&#233;es. &#192; chaque information contenue dans ces
+structures est associ&#233; un indice exprimant la confiance relative dans cette
+l&#8217;information (cat&#233;gories, variables grammaticales ou relations syntaxiques) en
+fonction de l&#8217;analyseur l&#8217;ayant produite. Ces indices sont pr&#233;calcul&#233;s lors d&#8217;une
+phase d&#8217;apprentissage (voir 2.3 Apprentissage des indices de confiance). Une
+structure de d&#233;pendance est d&#233;crite par une repr&#233;sentation matricielle qui pr&#233;sente de
+nombreux avantages : maniabilit&#233;, efficacit&#233;, etc. (voir 2.2 Matrice de d&#233;pendances
+(MD)).
+</p>
+<p>L&#8217;&#233;tape de construction d&#8217;un ensemble d&#8217;analyses de d&#233;pendance se compose de trois phases :
+&#8226; La phase de correspondance qui permet de lier les n&#339;uds des diff&#233;rentes structures
+</p>
+<p>normalis&#233;es fournies par l&#8217;&#233;tape pr&#233;c&#233;dente. Pour ce faire nous cr&#233;ons une structure,
+appel&#233;e r&#233;seau de segmentation, repr&#233;sentant diff&#233;rentes segmentations de la phrase
+(treillis) et permettant de lier les n&#339;uds des structures normalis&#233;es. Ce r&#233;seau peut
+&#234;tre vu comme un &#171; pivot de liaison &#187;  entre ces structures (voir 3.1 Correspondance
+des structures de d&#233;pendance).
+</p>
+<p>&#8226; La phase de fusion des informations linguistiques qui permet, &#224; l&#8217;aide des
+correspondances &#233;tablies pr&#233;c&#233;demment, d&#8217;obtenir une unique repr&#233;sentation de
+d&#233;pendance contenant toutes les informations linguistiques produites, m&#234;me les
+informations contradictoires. Toutes ces informations ainsi fusionn&#233;es verront leurs
+indices de confiance recalcul&#233;s (voir 3.2 Fusion des informations).
+</p>
+<p>&#8226; La phase de production qui permet de construire les nouvelles structures de
+d&#233;pendance en fonction des informations fusionn&#233;es, des indices de confiance
+recalcul&#233;s, et de contraintes linguistiques et structurelles de production (voir 3.3
+Production des structures de d&#233;pendance).
+</p>
+<p>2.2 Matrice de d&#233;pendances (MD)
+Notre plate-forme d&#8217;analyse est fond&#233;e sur les d&#233;pendances, c&#8217;est-&#224;-dire qu&#8217;elle retourne les
+d&#233;pendances entre les mots d&#8217;une phrase. Une structure de d&#233;pendance est d&#233;crite, dans notre
+plate-forme, par une repr&#233;sentation matricielle. Notre repr&#233;sentation, nomm&#233;e matrice de
+d&#233;pendance (MD), est un couple &lt;L, M&gt; compos&#233; de :
+</p>
+<p>&#8226; Une liste de n&#339;uds (L), un n&#339;ud &#233;tant compos&#233; d&#8217;informations linguistiques relatives
+aux mots qu&#8217;il d&#233;crit ;
+</p>
+<p>&#8226; Une matrice carr&#233;e (M) permettant de d&#233;crire les d&#233;pendances entre n&#339;uds. La case
+(i, j) contient l&#8217;ensemble des d&#233;pendances entre le n&#339;ud i et le n&#339;ud j de la liste de
+n&#339;uds.
+</p>
+<p>Figure 1 : Structure de d&#233;pendance syntaxique</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Francis Brunet-Manquat
+</p>
+<p>La MD correspondant &#224; la structure de d&#233;pendance syntaxique ci-dessus est :
+L =
+</p>
+<p>la :: cat=d&#233;terminant
+</p>
+<p>recherche :: cat=nom
+</p>
+<p>fran&#231;aise :: cat= adjectif
+</p>
+<p>perd :: cat=verbe
+</p>
+<p>ses :: cat=d&#233;terminant
+</p>
+<p>moyens :: cat=nom
+</p>
+<p>M =
+</p>
+<p>Une repr&#233;sentation matricielle des donn&#233;es pr&#233;sente deux avantages pour le traitement
+informatique :
+</p>
+<p>&#8226; Maniabilit&#233; : de nombreux outils math&#233;matiques sont associ&#233;s aux matrices : ajout,
+suppression, comparaison, etc. Tous ces outils permettent un traitement simple de
+l&#8217;information contenue dans une matrice.
+</p>
+<p>&#8226; Efficacit&#233; : les m&#233;thodes utilisant les matrices comme structures de donn&#233;es, telle que la
+reconnaissance de motifs ou la fusion de matrice, se montrent tr&#232;s efficaces et tr&#232;s simples &#224;
+mettre en place.
+</p>
+<p>2.3 Apprentissage des indices de confiance
+</p>
+<p>Dans (Brunet-Manquat 2003), nous pr&#233;sentons les r&#232;gles de projection permettant de transformer les
+informations extraites en un ensemble d&#8217;informations normalis&#233;es. &#192; chaque nouvelle information
+normalis&#233;e I (cat&#233;gories, variables grammaticales ou relations syntaxiques) est associ&#233; un indice de
+confiance. Cet indice exprime la confiance relative de l&#8217;information I en fonction de l&#8217;analyseur
+l&#8217;ayant produite.
+</p>
+<p>Les indices sont calcul&#233;s &#224; l&#8217;aide des &#233;valuations effectu&#233;es sur chaque analyseur. Pour chaque
+analyseur Ai, nous calculons les taux de rappel et de pr&#233;cision de chaque information linguistique I
+pouvant &#234;tre produite par Ai :
+</p>
+<p>RappelAi(I) = Nombre d&#8217;informations I correctes / Nombre d&#8217;informations I de r&#233;f&#233;rence
+Pr&#233;cisionAi(I) = Nombre d&#8217;informations I correctes / Nombre d&#8217;informations I propos&#233;es
+</p>
+<p>Un indice de confiance correspond au calcul de la F-mesure (efficacit&#233; globale) qui combine
+pr&#233;cision et rappel en une mesure unique :
+</p>
+<p>IndiceAi(I) =  ( Pr&#233;cisionAi(I) &#0; RappelAi (I) ) / ( Pr&#233;cisionAi (I) + RappelAi (I)) )
+Dans le cadre de nos travaux sur la construction d&#8217;un analyseur robuste et couvrant, ni le rappel ni la
+pr&#233;cision ne sont &#224; privil&#233;gier. La F-mesure permet de repr&#233;senter une moyenne harmonique entre
+ces deux mesures.
+</p>
+<p>3 Construction des structures de d&#233;pendance
+&#192; la fin de l&#8217;&#233;tape de normalisation, un ensemble de structures de d&#233;pendance est associ&#233; &#224; chaque
+phrase. La phase suivante consiste &#224; fusionner toutes ces structures pour obtenir une unique
+repr&#233;sentation de d&#233;pendances contenant toutes les informations linguistiques pr&#233;sentes dans ces</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Fusionner pour mieux analyser
+</p>
+<p>structures (cat&#233;gories, variables grammaticales, relations syntaxiques). Pour r&#233;aliser cette fusion, il
+faut, dans un premier temps, mettre en correspondance ces structures.
+</p>
+<p>3.1 Correspondance des structures de d&#233;pendance
+</p>
+<p>La correspondance de structures consiste &#224; regrouper les n&#339;uds repr&#233;sentant la m&#234;me segmentation
+dans la phrase (information commune minimale). Mais elle consiste &#233;galement &#224; repr&#233;senter les
+discordances issues des diff&#233;rentes segmentations des structures et dues, par exemple, aux mots
+compos&#233;s, aux entr&#233;es des dictionnaires (&#201;tats Unis ou &#201;tats_Unis), etc.
+Pour ce faire, nous cr&#233;ons une structure, appel&#233;e r&#233;seau de segmentation (RS), repr&#233;sentant les
+diff&#233;rentes segmentations de la phrase et permettant de lier les n&#339;uds des structures normalis&#233;es. Ce
+r&#233;seau peut &#234;tre vu comme un &#171; pivot de liaison &#187; entre ces structures. Ce r&#233;seau est un treillis,
+chaque n&#339;ud du r&#233;seau repr&#233;sentant une segmentation possible d&#8217;un mot et servant de liaison entre
+les n&#339;uds des structures de d&#233;pendance. Concr&#232;tement, un n&#339;ud Nrs d&#8217;un RS contient deux
+informations :
+</p>
+<p>&#8226; SNODE(Nrs) : intervalles repr&#233;sentant la sous-cha&#238;ne dans la phrase correspondant au n&#339;ud
+Nrs, Par exemple, les mots de la phrase &#171; On avait d&#233;nombr&#233; cent vingt-neuf candidats &#187;
+auront pour intervalles : On[1-2], avait[3-7], d&#233;nombr&#233;[8-15], etc. Cette information est
+bas&#233;e sur la proposition de (Boitet et Zaharin, 1988) Structured String-Tree
+Correspondences (SSTC).
+</p>
+<p>&#8226; L : un ensemble contenant les n&#339;uds des structures normalis&#233;es li&#233;s au n&#339;ud Nrs.
+</p>
+<p>La premi&#232;re &#233;tape consiste &#224; cr&#233;er un r&#233;seau de segmentation initial pour chaque arbre de
+d&#233;pendance. Chaque n&#339;ud Nrs d&#8217;un RS initial est cr&#233;&#233; en fonction d&#8217;un n&#339;ud Ni de la structure de
+d&#233;pendance Sk : SNODE(Nrs) = SNODE(Sk.Ni) et L(Nrs) = {Sk.Ni}. Les n&#339;uds du RS seront ins&#233;r&#233;s
+dans le treillis selon l&#8217;ordre d&#8217;apparition dans la phrase (en fonction du SNODE). Dans la suite du
+traitement, nous prendrons comme exemple les deux structures de d&#233;pendance et leurs RS initiaux
+suivants :
+</p>
+<p>Faisons la correspondance entre RS-1 et RS-2. Le premier r&#233;seau initial RS-1 est d&#233;sign&#233; comme le
+r&#233;seau de base RS-base, qui servira tout au long du traitement. La suite consiste &#224; introduire les
+particularit&#233;s des autres RS initiaux dans le r&#233;seau de base. Pour ce faire, nous utilisons deux r&#232;gles
+de construction :</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Francis Brunet-Manquat
+</p>
+<p>&#8226; R&#232;gle 1) Correspondance : Si le n&#339;ud Ni de RS-k est &#233;quivalent &#224; l&#8217;un des n&#339;uds Nrs de
+RS-base (l&#8217;&#233;quivalence est vraie si SNODE(Ni) == SNODE(Nrs)), Nrs sera li&#233; aux n&#339;uds de
+la structure que repr&#233;sente Ni : L(Nrs) = L(Nrs) &#0;  L(Ni).
+</p>
+<p>&#8226; R&#232;gle 2) Insertion : Si le n&#339;ud Ni de RS-k n&#8217;est &#233;quivalent &#224; aucun n&#339;ud de RS-base, le
+n&#339;ud Ni est ins&#233;r&#233; dans RS-base en fonction de son SNODE (ordre d&#8217;apparition dans la
+phrase).
+</p>
+<p>Les premiers n&#339;uds on[1-2], avait[3-7], d&#233;nombr&#233;[8-15] de RS-2 v&#233;rifient la premi&#232;re r&#232;gle, ils
+correspondent aux n&#339;uds on[1-2], avait[3-7], d&#233;nombr&#233;[8-15] de RS-base. Le quatri&#232;me n&#339;ud cent
+vingt-neuf[16-19] de RS-2 v&#233;rifie la seconde r&#232;gle, il est donc ins&#233;r&#233; dans RS-base. Le dernier n&#339;ud
+de RS-2 v&#233;rifie la premi&#232;re r&#232;gle. Nous obtenons donc le r&#233;seau suivant :
+</p>
+<p>Le r&#233;seau de segmentation final obtenu repr&#233;sente les segmentations possibles et lie les n&#339;uds des
+structures entre eux2. Maintenant que la correspondance entre les n&#339;uds des structures est &#233;tablie,
+nous pouvons fusionner ces structures pour fournir une unique repr&#233;sentation de d&#233;pendance
+combinant toutes les informations linguistiques relatives aux structures.
+</p>
+<p>3.2 Fusion des informations
+</p>
+<p>Les correspondances entre les diff&#233;rentes structures &#233;tant &#233;tablies, la phase de fusion des
+informations linguistiques peut d&#233;buter. La m&#233;thode utilis&#233;e lors de cette phase est bas&#233;e sur la
+m&#233;thode dite de &#171; vote &#224; la majorit&#233; &#187; : plus une information sera commune aux diff&#233;rents
+analyseurs, plus son poids augmentera, dans notre cas plus son indice de confiance augmentera.
+Chaque indice pourra &#234;tre vu comme le vote pond&#233;r&#233; de l&#8217;analyseur pour l&#8217;information, ce vote &#233;tant
+adapt&#233; aux diff&#233;rentes capacit&#233;s de l&#8217;analyseur en fonction de l&#8217;&#233;nonc&#233; (par exemple, entr&#233;e bruit&#233;e
+ou non) lors de la phase d&#8217;apprentissage.
+&#192; la fin de la phase de correspondance, &#224; chaque phrase sont associ&#233;s un ensemble de structures de
+d&#233;pendance et un r&#233;seau de segmentation permettant de les lier. La suite du traitement consiste &#224;
+cr&#233;er pour chaque r&#233;seau de segmentation une structure de d&#233;pendance, nomm&#233;e matrice de fusion
+(les n&#339;uds du RS serviront de n&#339;uds pour cette repr&#233;sentation), puis de la compl&#233;ter en fusionnant
+toutes les informations linguistiques contenues dans les structures de d&#233;pendance associ&#233;es.
+                                                 
+</p>
+<p>2
+ Nous proposons dans (Brunet-Manquat 2004) de parfaire la phase de correspondance en ajoutant des r&#232;gles de
+</p>
+<p>correspondance permettant de traiter les mots compos&#233;s, par exemple, en &#233;tablissant une relation entre le n&#339;ud
+&#201;tats_Unis et les n&#339;uds &#201;tats et Unis.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Fusionner pour mieux analyser
+</p>
+<p>Certaines informations linguistiques seront &#233;quivalentes, d&#8217;autres contradictoires (par exemple la
+d&#233;pendance SUBJ(x,y) est contradictoire avec la d&#233;pendance OBJ(x,y), les cat&#233;gories morpho-
+syntaxiques sont mutuellement contradictoires). Il ne s&#8217;agit pas simplement de regrouper toutes ces
+informations, il faut &#233;galement calculer de nouveaux indices de confiance, les indices de fusion,
+pour chaque information, en fonction des indices de confiance fournis par l&#8217;&#233;tape de normalisation.
+Deux calculs sont possibles : le calcul normalis&#233; ou le calcul corrig&#233;.
+</p>
+<p>Calcul normalis&#233; : l&#8217;indice de fusion de l&#8217;information I est &#233;gal &#224; la somme des indices de
+confiance divis&#233; par le nombre d&#8217;analyseurs pouvant fournir cette information : (n : nombre
+d&#8217;analyseurs pouvant fournir l&#8217;information I)
+</p>
+<p>Indice(I) =
+fusion  
+</p>
+<p>(
+&#0;
+</p>
+<p>( Ii )
+i=analyseur fournissant
+</p>
+<p>l'information I
+</p>
+<p>)
+</p>
+<p>n
+ 
+</p>
+<p>Par exemple, calculons l&#8217;indice de fusion &#224; associer &#224; l&#8217;information OBJ(x,y) (relation OBJ entre les
+mots x et y), fournie &#224; la fois par l&#8217;analyseur A1 et par l&#8217;analyseur A2. L&#8217;indice de fusion associ&#233; &#224;
+OBJ(x,y) est &#233;gal &#224; la somme des deux indices de confiance indice(OBJ::A1)=0,5 et
+indice(OBJ::A2)=0,7 divis&#233;e par le nombre d&#8217;analyseurs pouvant fournir ce type d&#8217;information (ici
+trois pour l&#8217;exemple), (0,5+0,7+0)/3 = 0,4. Si le troisi&#232;me analyseur fournit une information de type
+SUBJ entre les mots x et y, et si l&#8217;indice de confiance relatif &#224; cette information est de 0,8, l&#8217;indice
+de fusion associ&#233; &#224; SUBJ(x,y) est &#233;gal &#224; (0+0+0,8)/3 = 0,26.
+Calcul corrig&#233; : L&#8217;indice de fusion de l&#8217;information I est &#233;gal &#224; la somme des indices de confiance
+des informations I moins la somme (multipli&#233;e par un coefficient de correction &#0;) des indices de
+confiance des informations contradictoires &#224; l&#8217;information I, le tout divis&#233; par le nombre
+d&#8217;analyseurs pouvant fournir l&#8217;information I :
+</p>
+<p>Indice(I) =
+fusion  
+</p>
+<p>(
+&#0;
+</p>
+<p>( Ii )
+i=analyseur fournissant
+</p>
+<p>l'information I
+</p>
+<p>- &#0; &#0;
+&#0;
+</p>
+<p>( Ip )
+p=analyseur fournissant une
+</p>
+<p>information contradictoire &#224; I
+</p>
+<p>)
+</p>
+<p>n
+ 
+</p>
+<p>Pour l&#8217;exemple pr&#233;c&#233;dent, les relations syntaxiques entre les mots x et y sont contradictoires : soit
+OBJ(x,y), soit SUBJ(x,y). L&#8217;indice de fusion associ&#233; &#224; OBJ(x,y) est &#233;gal &#224; ((0,5+0,7) &#8211; (0,4 * 0,8))/3
+= 0,29 (en prenant comme coefficient de correction 0,4) et l&#8217;indice de fusion associ&#233; &#224; SUBJ(x,y) est
+&#233;gal &#224; (0,8 &#8211; 0,4 * (0,5+0,7))/3 = 0,1.
+Ces calculs favorisent les informations fournies par le plus grand nombre d&#8217;analyseurs. Les
+nouveaux indices de fusion ainsi calcul&#233;s serviront lors de la phase de production.
+</p>
+<p>3.3 Production des structures de d&#233;pendance
+</p>
+<p>Cette derni&#232;re phase permet de construire les nouvelles structures de d&#233;pendance gr&#226;ce aux
+informations recueillies pr&#233;c&#233;demment. Ces structures sont produites &#224; partir des indices de fusion
+associ&#233;s &#224; ces informations et de contraintes linguistiques et structurelles. Le m&#233;canisme de
+production est bas&#233; sur une m&#233;thode de satisfaction de contraintes comportant 3 r&#232;gles :
+Soit une information  I de type cat&#233;gorie morpho-syntaxique ou variable grammaticale d&#8217;une
+matrice de fusion MDfusion :
+</p>
+<p>&#8226; Pour chaque n&#339;ud N de MDfusion, elle est conserv&#233;e si son indice de fusion est sup&#233;rieur aux
+indices de fusion des informations contradictoires.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Francis Brunet-Manquat
+</p>
+<p>Pour les d&#233;pendances syntaxiques de MDfusion :
+&#8226; Une seule d&#233;pendance syntaxique entre deux n&#339;uds Niet Nk est conserv&#233;e, &#224; savoir
+</p>
+<p>l&#8217;information de d&#233;pendance ayant l&#8217;indice de fusion le plus fort de la case M(i,k) de
+MDfusion ;
+</p>
+<p>&#8226; Un n&#339;ud Ni ne d&#233;pend que d&#8217;un seul n&#339;ud Nk : de toutes les informations syntaxiques
+d&#233;signant Ni comme d&#233;pendant (colonne M(i) de MDfusion), seule  l&#8217;information ayant
+l&#8217;indice le plus fort est conserv&#233;e.
+</p>
+<p>En ce qui concerne le traitement des n&#339;uds discordants issus des diff&#233;rentes segmentations, nous
+choisissons de conserver seulement les n&#339;uds issus du &#171; meilleur &#187; segmenteur parmi nos
+analyseurs (l&#8217;analyseur ayant la segmentation en unit&#233; lexicale la plus proche du corpus de
+r&#233;f&#233;rence). Nous introduirons prochainement un m&#233;canisme associant &#224; chaque n&#339;ud un indice de
+confiance sur sa segmentation exactement comme les indices de confiance sur les informations
+linguistiques et permettant d&#8217;introduire une contrainte sur la segmentation lors de notre phase de
+production.
+</p>
+<p>4 Exp&#233;rimentation et mesures
+4.1 Corpus et analyseurs
+</p>
+<p>Nous disposons pour cette &#233;valuation de trois analyseurs syntaxiques : l&#8217;analyseur IFSP
+(Incremental Finite-State Parser) (Ait-Mokhtar et Chanod 1997) qui construit les groupes
+syntagmatiques noyaux des phrases en entr&#233;e, puis utilise la structure ainsi construite pour extraire
+des relations syntaxique entre mots, l&#8217;analyseur syntaxique du GREYC (Vergne 1998) qui combine
+des techniques d&#8217;&#233;tiquetage grammatical pour construire des segments non-r&#233;cursifs et un
+algorithme de calcul de d&#233;pendances pour calculer la structure fonctionnelle et l&#8217;analyseur XIP (Ait-
+mokhtar et al. 2002) qui disposent de diff&#233;rents processus linguistiques organis&#233;s de fa&#231;on
+incr&#233;mentale (annotation morphologique, d&#233;coupage en syntagme, extraction de d&#233;pendances) pour
+obtenir une analyse de d&#233;pendance.
+</p>
+<p>Le corpus utilis&#233; est le corpus arbor&#233; de l&#8217;universit&#233; Paris VII (Abeill&#233; et Cl&#233;ment 1999). Ce corpus
+est constitu&#233; d&#8217;un million de phrases extraites du journal Le Monde. Les phrases sont segment&#233;es en
+constituants et les mots sont annot&#233;s. Une petite partie de ce corpus a &#233;t&#233; normalis&#233;e pour
+correspondre &#224; un corpus constitu&#233; de d&#233;pendances. Nous utilisons pour cette exp&#233;rimentation un
+corpus de 200 phrases, choisies arbitrairement, constitu&#233; de phrases longues et complexes, 30 mots
+en moyenne par phrase (minimum 9 mots, maximum 73 mots). Par exemple :
+&#171; La cessation de paiement constat&#233;e, le tribunal de commerce nomme un administrateur judiciaire,
+qui doit &#233;valuer les dettes - alors gel&#233;es - et proposer soit un plan de continuation, soit la
+liquidation judiciaire. &#187;
+</p>
+<p>4.2 Calcul des indices de confiance
+</p>
+<p>Nous traitons dans un premier temps les 100 premi&#232;res phrases pour la phase d&#8217;apprentissage (voir
+table 1). Notre exp&#233;rimentation se restreint pour le moment &#224; 5 informations linguistiques : 3
+cat&#233;gories morpho-syntaxiques (nom, verbe et adjectif) et 2 d&#233;pendances syntaxiques (sujet et
+compl&#233;ment de tous types).
+Les mauvais r&#233;sultats concernant les d&#233;pendances s&#8217;expliquent par le nombre moyen de mots par
+phrases et par leurs complexit&#233;s. Les indices (F-mesures), ainsi calcul&#233;s, nous permettent de
+produire nos r&#233;sultats de combinaison sur les 100 phrases restantes.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Fusionner pour mieux analyser
+</p>
+<p>Corpus IFSP Vergne XIP
+</p>
+<p>Nb R P F R P F R P F
+</p>
+<p>Cat(Nom) 806 84,8 78,4 78,4 78,6 77,1 77,8 86,1 74,5 79,9
+</p>
+<p>Cat(Verb) 169 88,1 93,1 90,5 92,8 97,5 95,1 98,2 71,8 83,0
+</p>
+<p>Cat(Adj) 189 76,7 72,8 74,7 87,8 57,6 69,6 75,1 57,4 65,1
+</p>
+<p>Sujet 146 54,7 45,9 50,0 33,5 39,9 36,4 65,7 41,0 50,5
+</p>
+<p>Comp 750 53,4 22,0 31,2 49,6 37,9 43,0 49,3 29,2 36,7
+</p>
+<p>Table 1 : calcul des indices de confiance
+</p>
+<p>4.3 &#201;valuation des r&#233;sultats d&#8217;analyse
+Nous &#233;valuons maintenant nos r&#233;sultats et &#233;galement les r&#233;sultats des autres analyseurs (voir table
+2). Les r&#233;sultats de combinaison sont obtenus en utilisant le calcul normalis&#233; vu pr&#233;c&#233;demment.
+Toutes les F-mesures concernant notre plate-forme de combinaison sont sup&#233;rieures aux mesures
+effectu&#233;es sur les autres analyseurs. Ces mesures d&#233;montrent que combiner diff&#233;rents analyseurs
+apportent une am&#233;lioration par rapport aux autres analyseurs.
+</p>
+<p>Corpus IFSP Vergne XIP Combinaison
+</p>
+<p>Nb R P F R P F R P F R P F
+</p>
+<p>Cat(Nom) 684 85,6 77,2 81,2 82,6 76,7 79,5 87,1 75,6 80,9 87,5 81,8 84,6
+</p>
+<p>Cat(Verb) 181 85,6 93,9 89,5 91,7 91,2 91,4 97,7 65,0 78,1 90,6 94,2 92,3
+</p>
+<p>Cat(Adj) 174 81,6 85,0 83,2 87,9 74,2 80,5 80,4 60,3 68,9 77,0 86,4 81,4
+</p>
+<p>Sujet 148 58,1 45,9 51,3 33,1 35,7 34,3 70,9 39,9 51,0 67,5 43,8 53,1
+</p>
+<p>Comp 671 26,4 58,7 36,4 49,0 35,8 41,4 53,0 30,6 38,8 59,1 32,7 42,1
+</p>
+<p>Table 2 : &#233;valuation des analyseurs et des r&#233;sultats de combinaison
+</p>
+<p>5 Bilan et perspectives
+Notre plate-forme permet de comparer des analyseurs syntaxiques pour une langue donn&#233;e en
+d&#233;coupant leurs r&#233;sultats en informations &#233;l&#233;mentaires, en les normalisant, et en les comparant aux
+r&#233;sultats de r&#233;f&#233;rence. Cette m&#234;me plate-forme combine plusieurs analyseurs pour produire un
+analyseur de d&#233;pendance plus couvrant et plus robuste que ces composants. Les &#233;valuations
+effectu&#233;es pr&#233;c&#233;demment d&#233;montrent que notre m&#233;thode de combinaison, un m&#233;canisme de re-
+construction associ&#233; &#224; un traitement statistique, apportent une am&#233;lioration par rapport aux autres
+analyseurs.
+</p>
+<p>&#192; court terme, notre plate-forme sera test&#233;e sur d&#8217;autres langues (une exp&#233;rimentation est en cours
+de r&#233;alisation sur l&#8217;anglais). Nous comptons &#233;galement combiner d&#8217;autres types d&#8217;analyseur
+(s&#233;mantique par exemple) aux analyseurs syntaxiques pour produire des structures de d&#233;pendance
+multi-niveaux, contenant plusieurs niveaux linguistiques : s&#233;mantique, logique, syntaxique, etc. &#192;
+plus long terme, nous comptons apprendre de cette combinaison. Par exemple, il sera possible de
+&#171; compiler &#187; les connaissances extraites de plusieurs analyseurs dans un seul analyseur de
+d&#233;pendance autonome.
+</p>
+<p>Remerciements
+Je tiens &#224; remercier Xerox et Jacques Vergne pour m&#8217;avoir permis d&#8217;utiliser les analyseurs.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Francis Brunet-Manquat
+</p>
+<p>R&#233;f&#233;rences
+ABEILLE A. and L. CLEMENT (1999). A tagged reference corpus for French, LINC&#8217;99 Proceedings,
+EACL workshop, Bergen.
+AIT-MOKHTAR S. and CHANOD JP. (1997), Incremental finite-state parsing, in Applied Natural
+Language Processing 1997, April 1997, Washington.
+AIT-MOKHTAR S., CHANOD JP. and ROUX C. (2002), Robustness beyond Shallowness: Incremental
+Deep Parsing, in Natural Language Engineering, 8 (2/3), pp 121-144, Cambridge University Press.
+BOITET CH. and ZAHARIN Y. (1988), &#8220;Representation trees and string-tree correspondences&#8221;,
+published in COLING-88, pp 59-64.
+BRILL E. and WU J. (1998) Classifier Combinaison for Improved Lexical Disambiguation. In Proc.
+of the 17th COLING, pp. 191-195.
+BROTHWICK A., STERLING J., AGICHTEIN E. and GRISHMAN R. (1998) Exploiting diverse knowledge
+sources via maximum entropy in named entity recognition. Proceedings of the sixth workshop on
+very large corpora, pages 152-160, Montreal.
+BRUNET-MANQUAT F. (2003), &#8220;Fusionner pour mieux analyser: quelques id&#233;es et une premi&#232;re
+exp&#233;rience&#8221;, Proceedings of RECITAL&#8217;03, vol. 1/2, France, 10-14 juin 2003, pp. 429-438.
+BRUNET-MANQUAT F. (2004), &#8220;Description et conception d&#8217;une plate-forme robuste combinant des
+analyseurs d&#8217;&#233;nonc&#233;&#8221;, journal on line ISDM, vol. 13, f&#233;vrier 2004, 12 pages.
+FISCUS J.G. (1997), &#8220;A post-processing system to yield reduced error word rates: Recognizer output
+voting error reduction (ROVER)&#8221;, published in IEEE Workshop on Automatic Speech Recognizer
+and Understanding, pp 347-354.
+HALTEREN H., J. ZAVREL and W. DAELEMANS (1998). Improving data driven wordclass tagging by
+system combination. In Proc. of the 17th COLING.
+HENDERSON, J. C. and BRIL E. (1999). Exploiting Diversity in Natural Language Processing:
+Combining Parsers. In Proc. of the 1999 SIGDAT Conference on EMNLP and VLC, pp. 187-194.
+ILLOUZ G. (1999), &#8220;M&#233;ta-&#233;tiqueteur adaptatif: vers une utilisation pragmatique des resources
+linguistiques&#8221;, published in TALN&#8217;99.
+INUI T. and INUI K. (2000), Committee-based Decision Making in Probabilistic Partiel Parsing, In
+Proc. of COLING-2000.
+MARQUEZ and PADRO (1998). On the evaluation and comparaison of taggers : the effect of noise in
+test corpora. Actes COLING/ACL&#8217;98, Montreal, Canada.
+MONCEAUX L. and ISABELLE ROBBA I. (2002), &#8220;Les analyseurs syntaxiques : atouts pour une
+analyse des questions dans un syst&#232;me de question-r&#233;ponse ? &#8221;, Actes de TALN&#8217;2003, pp.195-204.
+PEDERSEN T. (2000), A Simple Approach to Building Ensembles of Naive Bayesian Classifiers for
+Word Sense Disambigusation In Proc. of the NAACL, pp. 63-69, 2000.
+SCHWENK H. and GAUVAIN J.L. (2000), &#8220;Combining multiple speech recognizers using voting and
+language model information&#8221;, published in IEEE International Conference on Speech and Language
+Processing (ICSLP), pp. II:915-918.
+VERGNE J. and GIGUET E. (1998), Regards th&#233;orique sur le &#171; Tagging &#187;, Actes de TALN&#8217;1998,
+pp 24-33.</p>
+
+</div></div>
+</body></html>

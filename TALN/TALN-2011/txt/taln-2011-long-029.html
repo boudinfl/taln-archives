@@ -1,0 +1,926 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Classification en polarit&#233; de sentiments avec une repr&#233;sentation textuelle &#224; base de sous-graphes d&#8217;arbres de d&#233;pendances</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2011, Montpellier, 27 juin &#8211; 1er juillet 2011
+</p>
+<p>Classification en polarit&#233; de sentiments avec une repr&#233;sentation textuelle
+&#224; base de sous-graphes d&#8217;arbres de d&#233;pendances
+</p>
+<p>Alexander Pak, Patrick Paroubek
+alexpak@limsi.fr, pap@limsi.fr
+</p>
+<p>Universit&#233; de Paris-Sud, Laboratoire LIMSI-CNRS, B&#226;timent 508,
+F-91405 Orsay Cedex, France
+</p>
+<p>R&#233;sum&#233;. Les approches classiques &#224; base de n-grammes en analyse supervis&#233;e de sentiments ne peuvent
+pas correctement identifier les expressions complexes de sentiments &#224; cause de la perte d&#8217;information induite par
+l&#8217;approche &#171; sac de mots &#187; utilis&#233;e pour repr&#233;senter les textes. Dans notre approche, nous avons recours &#224; des sous-
+graphes extraits des graphes de d&#233;pendances syntaxiques comme traits pour la classification de sentiments. Nous
+repr&#233;sentons un texte par un vecteur compos&#233; de ces sous-graphes syntaxiques et nous employons un classifieurs
+SVM &#233;tat-de-l&#8217;art pour identifier la polarit&#233; d&#8217;un texte. Nos &#233;valuations exp&#233;rimentales sur des critiques de jeux
+vid&#233;o montrent que notre approche &#224; base de sous-graphes est meilleure que les approches standard &#224; mod&#232;les
+&#171; sac de mots &#187; et n-grammes. Dans cet article nous avons travaill&#233; sur le fran&#231;ais, mais notre approche peut
+facilement &#234;tre adapt&#233;e &#224; d&#8217;autres langues.
+</p>
+<p>Abstract. A standard approach for supervised sentiment analysis with n-grams features cannot correctly
+identify complex sentiment expressions due to the loss of information incurred when representing texts with bag-
+of-words models. In our research, we propose to use subgraphs from sentence dependency parse trees as features
+for sentiment classification. We represent a text by a feature vector made from extracted subgraphs and use a state
+of the art SVM classifier to identify the polarity of a text. Our experimental evaluations on video game reviews
+show that using our dependency subgraph features outperforms standard bag-of-words and n-gram models. In this
+paper, we worked with French, however our approach can be easily adapted to other languages.
+</p>
+<p>Mots-cl&#233;s : analyse de sentiments, analyse syntaxique, arbre de d&#233;pendances, SVM.
+Keywords: sentiment analysis, parsing, dependency tree, SVM.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>ALEXANDER PAK, PATRICK PAROUBEK
+</p>
+<p>1 Introduction
+</p>
+<p>L&#8217;approche &#171; sac de mots &#187; est un des premiers mod&#232;les de repr&#233;sentation textuelle, qui est de nos jour encore
+souvent utilis&#233; pour l&#8217;analyse de sentiments. Le texte y est repr&#233;sent&#233; comme un ensemble de n-grammes sans
+prise en consid&#233;ration de leur ordre d&#8217;apparition dans le texte, ni des relations qui les relient au sein du texte. Des
+approches classiques en apprentissage automatique (Naive Bayes or SVM) utilisent ensuite cette repr&#233;sentation
+pour construire des syst&#232;mes de classification en sentiments des textes. L&#8217;exactitude 1 de ce genre d&#8217;approche
+peut &#234;tre tr&#232;s &#233;lev&#233;e, tout particuli&#232;rement lorsque l&#8217;on utilise des techniques avanc&#233;es de s&#233;lection de traits, en
+conjonction avec des lexiques additionnels extraits de textes identifi&#233;s au pr&#233;alable comme porteur d&#8217;opinion.
+Cependant, nous sommes convaincus que des mod&#232;les capables d&#8217;identifier des expressions plus complexes de
+sentiments, allant au del&#224; de la simple reconnaissance de construction comme &#171; bon film &#187; ou &#171; jeu d&#233;plorable &#187;,
+doivent permettre d&#8217;obtenir de meilleurs syst&#232;mes de classification. Un des probl&#232;mes de l&#8217;approche sac de mots
+r&#233;side dans la perte d&#8217;information lors de la construction de la repr&#233;sentation des textes, vus comme des collections
+de termes dissoci&#233;s. Or les relations qu&#8217;entretiennent les mots au sein du texte sont souvent tr&#232;s importantes dans
+la d&#233;termination pr&#233;cise du degr&#233; ou de la polarit&#233; d&#8217;un sentiment. Si nous consid&#233;rons la phrase : &#171; Ce film est
+mauvais &#187;, elle exprime de mani&#232;re &#233;vidente un sentiment n&#233;gatif et un syst&#232;me de classification standard &#224; base
+d&#8217;unigrammes n&#8217;aura pas de mal &#224; la classer comme n&#233;gative, pourvu qu&#8217;il ait &#233;t&#233; suffisamment entra&#238;n&#233; sur des
+donn&#233;es appropri&#233;es. Dans le cas d&#8217;un &#233;nonc&#233; un peu plus complexe comme : &#171; Ce film n&#8217;est pas mauvais &#187;,
+un mod&#232;le unigramme simple sera probablement mis en &#233;chec, mais un mod&#232;le utilisant des bigrammes sera
+lui capable de d&#233;tecter l&#8217;occurrence de &#171; pas mauvais &#187; comme un terme &#224; connotation positive. Consid&#233;rons
+maintenant un exemple encore plus complexe comme : &#171; Ce film est &#233;tonnamment pas si mal &#187; et l&#224; les syst&#232;mes
+&#224; base d&#8217;unigrammes et de bigrammes vont probablement se tromper. Dans cet exemple, il faudrait qu&#8217;ils soient
+associ&#233;s &#224; un traitement plus sophistiqu&#233; de la n&#233;gation.
+</p>
+<p>En plus d&#8217;&#234;tre incapables de prendre en compte toutes les expressions de n&#233;gation, les mod&#232;les n-grammes sont
+incapables de repr&#233;senter les d&#233;pendances longue distance. Un mod&#232;le de bigrammes pourra identifier &#171; J&#8217;ai
+appr&#233;ci&#233; &#187; comme un motif &#224; connotation positive dans l&#8217;&#233;nonc&#233; &#171; J&#8217;ai appr&#233;ci&#233; le film &#187;, mais pas dans &#171; J&#8217;ai
+beaucoup appr&#233;ci&#233; le film &#187;. Nous pensons qu&#8217;il faut recourir &#224; d&#8217;autres mod&#232;les que le mod&#232;le sac de mots si
+nous voulons progresser dans l&#8217;identification automatique des sentiments en utilisant une classification plus fine,
+qui rende par exemple compte de l&#8217;intensit&#233; d&#8217;un sentiment en plus de sa polarit&#233;, car les mod&#232;les sac de mots ne
+nous fournissent pas assez d&#8217;information.
+</p>
+<p>Pour aller au del&#224; des mod&#232;les sac de mots, nous proposons d&#8217;utiliser les arbres de d&#233;pendances issus de l&#8217;analyse
+syntaxique des phrases pour g&#233;n&#233;rer des sous-graphes, qui serviront &#224; repr&#233;senter un texte. Un arbre de d&#233;pen-
+dances est une repr&#233;sentation graphique associ&#233;e &#224; une phrase, dans laquelle les n&#339;uds correspondent aux mots
+de la phrase et les arcs repr&#233;sentent des relations syntaxiques entre les n&#339;uds comme : objet, sujet, modifieur etc.
+La Figure 1 repr&#233;sente un arbre de d&#233;pendance syntaxique pour la phrase &#171; Je n&#8217;aime pas beaucoup le poisson &#187;.
+Une telle repr&#233;sentation des phrases est parfaitement adapt&#233;e &#224; l&#8217;analyse de sentiment voire m&#234;me &#224; la fouille
+d&#8217;opinion car :
+&#8211; &#192; partir de l&#8217;arbre de d&#233;pendances, nous pouvons facilement identifier le sous-graphe contenant la n&#233;gation
+</p>
+<p>&#171; ne
+NEGAT
+&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; aime &#187;.
+</p>
+<p>&#8211; Nous pouvons identifier les marqueurs d&#8217;intensit&#233; : &#171; beaucoup V MOD_POSIT1&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; aime &#187;
+&#8211; De m&#234;me pour la source d&#8217;une expression d&#8217;opinion : &#171; Je SUBJ&#8722;&#8722;&#8722;&#8722;&#8594; aime &#187; et la cible d&#8217;une expression opinion :
+</p>
+<p>&#171; aime OBJ&#8722;&#8722;&#8722;&#8594; poisson &#187;
+</p>
+<p>Comme pour les mod&#232;les &#224; base de n-grammes, notre approche utilise un param&#232;tre de taille pour calibrer les
+sous-graphes extraits des arbres de d&#233;pendance pour repr&#233;senter un texte. Nous posons que la taille d&#8217;un sous-
+graphe est &#233;gale au nombre de ses arcs. Ainsi, un sous graphe de taille 1 contiendra un arc et deux n&#339;uds, un sous
+graphe de taille 2 contiendra 2 arcs et 3 n&#339;uds, etc. La Figure 2 contient la repr&#233;sentation de l&#8217;&#233;nonc&#233; &#171; J&#8217;aime
+bien le poisson &#187; au moyen de sous-graphes de taille 2.
+</p>
+<p>Dans la section suivante, nous expliquons en d&#233;tails comment obtenir la repr&#233;sentation &#224; base de sous-graphes
+d&#8217;un texte &#224; partir des arbres de d&#233;pendances syntaxiques qui lui sont associ&#233;s. Ensuite, nous montrons comment
+utiliser cette repr&#233;sentation pour indexer des critiques de jeux vid&#233;o et pour entra&#238;ner un classifieur en polarit&#233; de
+sentiments &#224; base de SVM. Nous pr&#233;sentons notre protocole d&#8217;&#233;valuation et les r&#233;sultats obtenus par notre mod&#232;le
+</p>
+<p>1. accuracy</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>SENTIMENT POLARITY CLASSIFICATION USING DEPENDENCY TREE SUBGRAPHS TEXT REPRESENTATION
+</p>
+<p>Je
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>b e a u c o u p
+</p>
+<p>VMOD_POSIT1
+</p>
+<p>l e
+</p>
+<p>DETERM_DEF
+</p>
+<p>n e
+</p>
+<p>NEGAT
+</p>
+<p>FIGURE 1 &#8211; Un arbre de d&#233;pendance syntaxique pour la phrase &#171; Je n&#8217;aime pas beaucoup le poisson &#187;. Les n&#339;uds
+repr&#233;sentent des mots , les arcs des relations entre les mots. Le mot &#171;pas&#187; ne figure pas explicitement dans le
+diagramme, car il est encod&#233; par la relation de n&#233;gation.
+</p>
+<p>Je
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>Je
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>a i m e
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>b i e n
+</p>
+<p>VMOD_POSIT1
+</p>
+<p>b i e n
+</p>
+<p>VMOD_POSIT1
+</p>
+<p>FIGURE 2 &#8211; Une repr&#233;sentation de la phrase &#171; J&#8217;aime bien le poisson &#187; avec des sous-graphes de taille 2. La
+relation &#171; d&#233;terminant &#187; contenant le n&#339;ud &#171; le &#187; a &#233;t&#233; &#233;cart&#233;e.
+</p>
+<p>dans la Section 3, une pr&#233;sentation des recherches ant&#233;rieures dans le domaine dans la Section 4 et la conclusion
+sur nos travaux en section 5.
+</p>
+<p>2 Notre approche
+</p>
+<p>2.1 Repr&#233;sentation &#224; base de sous-graphes de d&#233;pendances
+</p>
+<p>Nous utilisons la sortie en d&#233;pendances typ&#233;es de l&#8217;analyseur syntaxique Xerox Incremental Parser (XIP) (A&#239;t-
+Mokhtar et al., 2002) pour construire l&#8217;arbre de d&#233;pendances de la phrase. La Table 1 contient un exemple de
+d&#233;pendances produites par XIP.
+</p>
+<p>SUBJ(VERB :aime, PRON :Je)
+OBJ(VERB :aime, NOUN :poisson)
+VMOD_POSIT1(VERB :aime, ADV :beaucoup)
+DETERM_DEF(NOUN :poisson, DET :le)
+NEGAT(VERB :aime)
+</p>
+<p>TABLE 1 &#8211; Les d&#233;pendances produites par XIP pour la phrase : &#171; Je n&#8217;aime pas beaucoup le poisson &#187;
+</p>
+<p>Chaque ligne de la sortie de XIP contient une unique d&#233;pendance qui correspond &#224; une description des relations
+grammaticales entre les mots de la phrase (de Marnee &amp; Manning, 2008). Chaque d&#233;pendance peut &#234;tre vue</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>ALEXANDER PAK, PATRICK PAROUBEK
+</p>
+<p>comme un triplet &lt;Type, Source, Cible&gt;, o&#249; Type d&#233;termine la relation grammaticale (ex. sujet, objet, etc.) entre
+la Source et la Cible. La source et la cible sont repr&#233;sent&#233;s comme des mots associ&#233;s &#224; leur &#233;tiquette grammati-
+cale. XIP produit aussi des relations unaires, que nous cat&#233;gorisons en deux types distincts, avec pour chacun un
+traitement sp&#233;cifique :
+</p>
+<p>1. N&#233;gations (ex. NEGAT(VERB:aime)) Nous transformons une relation unaire en relation ternaire par
+l&#8217;ajout de la particule &#8217;ne&#8217; comme cible. Ainsi, nous obtenons : NEGAT(VERB:aime, NEG:ne)
+</p>
+<p>2. Entit&#233;s XIP reconna&#238;t et &#233;tiquette les entit&#233;s telles que les noms de personnes, dates, temps, noms de lieux
+etc. Ces informations n&#8217;&#233;tant pas utiles pour la d&#233;tection des sentiments, elles sont ignor&#233;es.
+</p>
+<p>Nous &#233;cartons aussi la relation SEQNP, qui indique les &#233;num&#233;rations dans les phrases ; ceci afin de r&#233;duire la taille
+de l&#8217;index, la suppression de cette relation n&#8217;ayant pas d&#8217;impact notoire sur nos r&#233;sultats.
+</p>
+<p>De l&#8217;ensemble de relations produit par XIP pour chaque &#233;nonc&#233;, nous voulons obtenir un arbre dans lequel chaque
+n&#339;ud poss&#232;de un sens compl&#232;tement d&#233;termin&#233;. Dans notre exemple, un n&#339;uds comme &#171; ne &#187; n&#8217;a pas de sens
+intrins&#232;que et le n&#339;ud &#171; aime &#187; poss&#232;de un sens partiel (il lui manque la prise en compte de la n&#233;gation dans
+son interpr&#233;tation). Par cons&#233;quent, nous avons besoin de fusionner certains n&#339;ud et de retirer certaines relations.
+Nous avons d&#233;cid&#233; de r&#233;duire le nombre de relations avec lesquelles travailler, car XIP produit plus de 90 types de
+relations (une liste compl&#232;te est pr&#233;sent&#233;e en 5.).
+</p>
+<p>2.1.1 R&#233;duction du jeu de relations
+</p>
+<p>Nous avons simplifi&#233; le jeu de relations de d&#233;pendances en ne consid&#233;rant que les classes g&#233;n&#233;riques en appliquant
+les r&#232;gles d&#8217;assimilation de la Table 2.
+</p>
+<p>NMOD_* -&gt; NMOD les modifieurs de nom (ante et post pos&#233;s)
+VMOD_* -&gt; VMOD les diff&#233;rents modifieurs de verbe
+SUBJ_* -&gt; SUBJ les diff&#233;rents sujets
+OBJ_* -&gt; OBJ les diff&#233;rents compl&#233;ments d&#8217;objet directs
+DEEPSUBJ* -&gt; SUBJ le sujet profond est assimil&#233; au sujet de surface
+</p>
+<p>TABLE 2 &#8211; R&#232;gles de simplification des relations de d&#233;pendances.
+</p>
+<p>En outre, lors de la construction de l&#8217;arbre de d&#233;pendance, nous excluons certains arcs qui ne sont pas indispens-
+ables &#224; notre analyse :
+&#8211; Les d&#233;terminants, ainsi &#171; le DETERM_DEF&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; film &#187; devient &#171; film &#187;, mais nous conservons les quantificateurs
+</p>
+<p>(DETERM_NUM, DETERM_QUANT, DETERM_QUANT_DEF, DETERM_QUANT_DEM).
+&#8211; Les pronoms possessifs, ainsi &#171; mon DETERM_POSS&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; livre &#187; devient &#171; livre &#187;.
+&#8211; Les relations modifieur de nom NMOD, lorsque la source et la cible sont tous deux des noms,
+</p>
+<p>ainsi &#171; livre NMOD_POSIT1&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; cuisine &#187; devient &#171; livre &#187;.
+Au final, le jeu de relation de d&#233;pendances que nous consid&#233;rons pour notre analyse est donn&#233; en Table 3.
+</p>
+<p>ADJMOD modifieur d&#8217;adjectif
+ADVMOD modifieur d&#8217;adverbe
+DETERM_NUM d&#233;terminant num&#233;rique
+DETERM_QUANT quantificateur
+NMOD modifieur de nom
+OBJ compl&#233;ment d&#8217;objet direct
+SUBJ sujet (de surface ou profond)
+VMOD modifieur de verbe
+</p>
+<p>TABLE 3 &#8211; Jeu de relations de d&#233;pendances final.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>SENTIMENT POLARITY CLASSIFICATION USING DEPENDENCY TREE SUBGRAPHS TEXT REPRESENTATION
+</p>
+<p>2.1.2 Combinaison de n&#339;uds
+</p>
+<p>Nous utilisons les r&#232;gles suivantes pour combiner les n&#339;uds :
+&#8211; n&#339;uds li&#233;s par la relation de n&#233;gation (NEGAT), ainsi l&#8217;arc &#171; ne NEGAT&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; aime &#187; devient un n&#339;uds simple &#171; ne
+</p>
+<p>aime &#187;
+&#8211; verbes auxiliaires et principaux (AUXIL), ainsi l&#8217;arc &#171; a AUXIL&#8722;&#8722;&#8722;&#8722;&#8722;&#8594; aim&#233; &#187; devient un n&#339;uds simple &#171; a aim&#233; &#187;
+&#8211; verbes passifs, r&#233;fl&#233;chis et compos&#233;s (AUXIL, AUXIL_PASSIVE, REFLEX, OBJ_SPRED,
+COORDITEMS_SC)
+</p>
+<p>Un exemple d&#8217;arbre issu de l&#8217;application des r&#232;gles pr&#233;c&#233;dentes est donn&#233; dans la figure Figure 3.
+</p>
+<p>n e  a i m e
+</p>
+<p>Je
+</p>
+<p>SUBJ
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>b e a u c o u p
+</p>
+<p>VMOD
+</p>
+<p>FIGURE 3 &#8211; Arbre de d&#233;pendance obtenu pour la phrase &#171; Je n&#8217;aime pas beaucoup le poisson &#187;, apr&#232;s combinaison
+des n&#339;uds et r&#233;duction des arcs.
+</p>
+<p>Finalement, la phrase est repr&#233;sent&#233;e par un le jeu de tous les sous-graphes possibles pour une taille S, o&#249; S est
+&#233;gal au nombre d&#8217;arc des sous-graphes. Dans nos exp&#233;riences, nous avons utilis&#233; S = 1, 2, 3.
+</p>
+<p>2.1.3 N&#339;ud universel
+</p>
+<p>La majorit&#233; des expressions de sentiment ont la m&#234;me structure grammaticale. Par exemple, dans les expressions
+suivantes : &#171; J&#8217;aime le poisson &#187; et &#171; J&#8217;aime le film &#187; seul l&#8217;objet diff&#232;re tandis que le reste de la construction reste
+le m&#234;me. Nous aimerions entra&#238;ner notre syst&#232;me &#224; reconna&#238;tre ces expressions. Pour cela, nous avons ajout&#233; un
+n&#339;ud universel, repr&#233;sentant la classe de tous les mots, dans les sous-graphes (Arora et al., 2010).
+Pour chaque sous-graphe obtenu &#224; l&#8217;&#233;tape pr&#233;c&#233;dente, nous g&#233;n&#233;rons une permutation des sous-graphes contenants
+plusieurs nombres (de 0 &#224; S &#8722; 1) de n&#339;uds universels. Pour ce faire, nous rempla&#231;ons tout &#224; tour chaque n&#339;ud
+d&#8217;un sous-graphe par un n&#339;ud universel, sauf pour les verbes, les adjectifs et les adverbes car ils peuvent exprimer
+des sentiments. Par ailleurs, nous interdisons d&#8217;avoir deux n&#339;uds universels adjacents. Un exemple de l&#8217;emploi
+des n&#339;uds universels avec la phrase &#171; Je SUBJ&#8722;&#8722;&#8722;&#8722;&#8594; aime OBJ&#8722;&#8722;&#8722;&#8594; poisson &#187; est d&#233;crit dans la Figure 4.
+</p>
+<p>Je
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>Je
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>X
+</p>
+<p>a i m e
+</p>
+<p>SUBJ
+</p>
+<p>X
+</p>
+<p>OBJ
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>p o i s s o n
+</p>
+<p>OBJ
+</p>
+<p>FIGURE 4 &#8211; Sous-graphes avec n&#339;ud universel (X) obtenus pour &#171; J&#8217;aime le poisson &#187;</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>ALEXANDER PAK, PATRICK PAROUBEK
+</p>
+<p>2.2 Construction des vecteurs de traits
+</p>
+<p>Nous repr&#233;sentons un texte donn&#233; T comme un vecteur de traits T = {w1, w2, &#183; &#183; &#183; , wK}, o&#249; wi est le poid d&#8217;un
+sous-graphe i dans le texte T et K est le nombre de sous-graphes dans T . Nous utilisons le sch&#233;ma de pond&#233;ration
+delta TFIDF liss&#233;, car il a permis d&#8217;obtenir la meilleure performance dans des recherches ant&#233;rieures (Paltoglou
+&amp; Thelwall, 2010).
+</p>
+<p>wi = tfi &#183;&#8710;idfi (1)
+</p>
+<p>&#8710;idfi = log
+N1 &#183; df2 + 0.5
+</p>
+<p>N2 &#183; df1 + 0.5
+(2)
+</p>
+<p>o&#249; N1 et N2 repr&#233;sentent le nombre total de documents de classe 1 et 2, df1 et df2 sont des classes de fr&#233;quences
+du graphe i (c.a.d. le nombre de documents de classes 1 et 2 dans lesquelles le graphe appara&#238;t). Dans notre cas,
+les classes 1 et 2 sont des documents positifs et n&#233;gatifs.
+</p>
+<p>3 Exp&#233;riences et r&#233;sultats
+</p>
+<p>3.1 Les donn&#233;es
+</p>
+<p>Nous utilisons des critiques de jeux vid&#233;o issues du projet DOXA 2, dont le but est la construction d&#8217;une plateforme
+industrielle de fouille d&#8217;opinion.
+</p>
+<p>Le corpus est constitu&#233; de critiques de jeux vid&#233;o provenant de 8 sites d&#233;di&#233;s 3. Le corpus et ses annotations sont
+d&#233;crites dans (Paroubek et al., 2010). Les annotations synth&#233;tisent les sentiments exprim&#233;s par les auteurs des
+critiques au niveau du document et du paragraphe (d&#233;finis arbitrairement comme un empan de texte d&#8217;environ 100
+mots). Un exemple d&#8217;annotation est fourni dans la table 4.
+</p>
+<p>Attribut Valeur
+cat&#233;gorie s&#233;mantique une liste de 1 &#224; 5 cat&#233;gories d&#8217;opinion DOXA, ex. &#171; recommandation_suggestion &#187;
+polarit&#233; &#8722;,&#177;,+, neutre
+intensit&#233; faible-moyen, fort
+th&#232;me la cible de l&#8217;expression d&#8217;opinion s&#233;lectionn&#233;e dans une taxonomie du domaine consid&#233;r&#233;
+</p>
+<p>(une liste de 1 &#224; 5 concepts)
+lien lorsque plusieurs cat&#233;gories s&#233;mantiques et plusieurs th&#232;mes sont pr&#233;sents,
+</p>
+<p>le lien peut &#234;tre fait entre certaines opinions s&#8217;ils sont plus particuli&#232;rement associ&#233;s.
+justification r&#233;f&#233;rence au paragraphe/segment de texte qui repr&#233;sente au mieux l&#8217;opinion annot&#233;e
+</p>
+<p>TABLE 4 &#8211; Annotation d&#8217;opinon DOXA au niveau document et paragraphe.
+</p>
+<p>Dans les annotations DOXA, la polarit&#233; d&#8217;un sentiment est exprim&#233;e au moyen d&#8217;une &#233;chelle de six valeurs :
+neutre, tr&#232;s-n&#233;gatif, faible-moyen-n&#233;gatif, mixte, faible-moyen-positif, fort-positif. Nous avons s&#233;lectionn&#233; tous
+les documents ayant une polarit&#233; positive (forst-positif et faible-moyen-positif), ainsi que tous les documents avec
+une polarit&#233; n&#233;gative (fort-n&#233;gatif et faible-moyen-n&#233;gatif) que nous avons r&#233;partis dans deux classes distinctes.
+Nous n&#8217;avons pas utilis&#233; les documents annot&#233;s comme neutre (pas d&#8217;expression de sentiment) ni ceux annot&#233;
+mixte (qui contiennent &#224; la fois des expressions positives et n&#233;gatives, r&#233;sultant en une interpr&#233;tation mitig&#233;e).
+Notre corpus contient donc 387 documents consid&#233;r&#233;s &#224; teneur positive et 250 &#224; teneur n&#233;gative. Nous avons
+ensuite divis&#233; le sous corpus des documents positifs en deux parties : un corpus d&#8217;entra&#238;nement et un corpus de
+tests, en s&#233;lectionnant pour ce dernier, tous les documents qui ont &#233;t&#233; annot&#233;s par deux annotateurs. Le sous-corpus
+n&#233;gatif a subit le m&#234;me d&#233;coupage. La Table 5 r&#233;sume les caract&#233;ristiques de notre corpus.
+</p>
+<p>2. https ://www.projet-doxa.fr/index.php
+3. www.ecrans.fr, www.gamehope.com, www.gamepro.fr, www.jeuxactu.com, www.jeuxvideo.com, www.jeuxvideo.fr, www.play3-
+</p>
+<p>live.com</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>SENTIMENT POLARITY CLASSIFICATION USING DEPENDENCY TREE SUBGRAPHS TEXT REPRESENTATION
+</p>
+<p>Classe Entra&#238;nement Tests
+Positif 334 53
+Negatif 197 35
+Total 531 88
+</p>
+<p>TABLE 5 &#8211; Nombre de documents par classe
+</p>
+<p>3.2 &#201;valuation
+Nous avons entra&#238;n&#233; un classifieur SVM &#224; base de n-grammes (Pang et al., 2002) avec un sch&#233;ma de pond&#233;ration
+delta TFIDF (Paltoglou &amp; Thelwall, 2010), que nous utilisons pour obtenir une mesure de performance de base.
+Les n&#233;gations ont &#233;t&#233; trait&#233;es en attachant la particule de n&#233;gation successivement au mot qui la pr&#233;c&#232;de et au
+mot qui la suit lors de la g&#233;n&#233;ration des n-grammes (Pak &amp; Paroubek, 2010). Nous avons g&#233;n&#233;r&#233; trois types de
+classieurs, respectivement &#224; base de n-grammes, de bigrammes et de trigrammes.
+</p>
+<p>De mani&#232;res similaire, pour notre mod&#232;le &#224; base de sous-graphes de d&#233;pendances, nous avons utilis&#233; trois types
+de mod&#232;les, utilisant respectivement des sous-graphes de taille 1, 2 et 3.
+</p>
+<p>Aussi bien pour le mod&#232;le &#224; n-gramme que pour notre mod&#232;le &#224; sous-graphes de d&#233;pendances, nous avons utilis&#233;
+une impl&#233;mentation libre de classifieur SVM issue de la librairie LIBLINEAR (Fan et al., 2008), avec des valeurs
+de param&#232;tre par d&#233;faut et un noyau lin&#233;aire. Le classifieur a d&#8217;abord &#233;t&#233; entra&#238;n&#233; sur un jeu de 531 documents puis
+&#233;valu&#233; sur un ensemble de 88 documents. L&#8217;exactitude moyenne et la pr&#233;cision moyenne (Manning &amp; Sch&#252;tze,
+1999) ont &#233;t&#233; choisies comme mesures d&#8217;&#233;valuation.
+</p>
+<p>exactitude =
+vp+ vn
+</p>
+<p>vp+ vn+ fp+ fn
+(3)
+</p>
+<p>precision =
+vp
+</p>
+<p>vp+ fp
+(4)
+</p>
+<p>o&#249; vp est le nombre de documents class&#233;s correctement comme positifs (vrais positifs), vn est le nombre de
+document class&#233;s correctement comme &#233;tant n&#233;gatifs (vrais n&#233;gatifs), fp est le nombre de document incorrecte-
+ment identifi&#233;s comme positifs (faux positifs) et fn est le nombre de document incorrectement identifi&#233;s comme
+n&#233;gatifs (faux n&#233;gatifs).
+</p>
+<p>3.3 R&#233;sultats
+</p>
+<p>Les r&#233;sultats de l&#8217;&#233;valuation sont donn&#233;s dans la Table 6. Les mentions unigramme, bigramme et trigramme
+correspondent respectivement aux trois mod&#232;les de base n-gramme, tandis que les mentions subgraph-1, subgraph-
+2 et subgraph-3 correspondent &#224; nos mod&#232;les &#224; sous-graphes de d&#233;pendances, respectivement de taille 1, 2 et 3.
+</p>
+<p>Mod&#232;le Exactitude moy. (%) Pr&#233;cision moy. (%) Pr&#233;cpos (%) Pr&#233;cneg (%)
+unigramme 73.86 69.57 90.57 48.57
+bigramme 72.73 69.11 86.79 51.43
+trigramme 64.77 60.08 83.02 37.14
+subgraph-1 78.41 74.80 92.45 57.14
+subgraph-2 64.77 61.05 79.25 42.86
+subgraph-3 60.23 59.22 64.15 54.29
+</p>
+<p>TABLE 6 &#8211; Comparaison des mesures d&#8217;exactitude et de pr&#233;cision pour des mod&#232;les unigramme, bigramme et
+trigramme par rapport &#224; nos mod&#232;les &#224; sous-graphes de d&#233;pendances de tailles 1, 2 et 3.
+</p>
+<p>Comme le montre la table de mesures, la meilleure valeur d&#8217;exactitude est obtenue avec un mod&#232;le &#224; sous-graphes
+de d&#233;pendances de taille 1 (78.41%). Quant &#224; elle, la meilleur valeur d&#8217;exactitude pour les mod&#232;les &#224; n-grammes
+est obtenue avec un mod&#232;le unigramme (73.86%). Les performances des mod&#232;les n-gramme se d&#233;gradent au fur
+et &#224; mesure que l&#8217;ordre du mod&#232;le augmente. Le m&#234;me ph&#233;nom&#232;ne se produit avec les mod&#232;les &#224; base de sous-
+graphes de d&#233;pendances : l&#8217;exactitude diminue avec l&#8217;accroissement de la taille des sous-graphes. D&#8217;apr&#232;s nous,</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>ALEXANDER PAK, PATRICK PAROUBEK
+</p>
+<p>ce ph&#233;nom&#232;ne provient de la taille des donn&#233;es, qui n&#8217;est pas suffisante pour que les mod&#232;les d&#8217;ordres sup&#233;rieurs
+soient confront&#233;s &#224; suffisamment d&#8217;exemples d&#8217;apprentissage.
+</p>
+<p>Puisque dans nos donn&#233;es, nous avons plus de documents d&#8217;opinion positive, la pr&#233;cision moyenne de classifica-
+tion est meilleure pour ces derniers. La combinaison des mod&#232;les unigramme, bigramme and trigramme en vue
+d&#8217;obtenir de meilleurs r&#233;sultats de classification n&#8217;a pas r&#233;pondu &#224; nos attentes de mani&#232;re significative. De la
+m&#234;me mani&#232;re, la combinaison des mod&#232;les &#224; base de sous-graphes de d&#233;pendances de diff&#233;rentes tailles n&#8217;a pas
+produit d&#8217;am&#233;lioration significative non plus.
+</p>
+<p>Dans les Figure 5 et 6 nous pr&#233;sentons les 10 sous-graphes les plus fr&#233;quents de taille 1 et les 5 sous-graphes les
+plus fr&#232;quents de taille 2 (selectionn&#233;s avec le score &#8710;idf ) respectivement pour les classes de documents positifs
+et n&#233;gatifs.
+</p>
+<p>8
+</p>
+<p>i n t &#233; r &#234; t
+</p>
+<p>DETERM_NUM
+</p>
+<p>p r o p o s &#233;
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>X
+</p>
+<p>c o m p l &#232; t e
+</p>
+<p>SUBJ
+</p>
+<p>&#224;  j o u e r
+</p>
+<p>a g r &#233; a b l e
+</p>
+<p>ADJMOD
+</p>
+<p>X
+</p>
+<p>g a r d e
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>g a r d e
+</p>
+<p>SUBJ
+</p>
+<p>s o n t
+</p>
+<p>i n d i s p e n s a b l e
+</p>
+<p>OBJ
+</p>
+<p>i n d i s p e n s a b l e
+</p>
+<p>e s t
+</p>
+<p>OBJ
+</p>
+<p>m u s i c a u x
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>&#224;  f i n s
+</p>
+<p>X
+</p>
+<p>VMOD
+</p>
+<p>a g r &#233; a b l e
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>t r &#232; s
+</p>
+<p>ADJMOD
+</p>
+<p>X
+</p>
+<p>s o n t
+</p>
+<p>SUBJ
+</p>
+<p>i n d i s p e n s a b l e
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>e s t
+</p>
+<p>SUBJ
+</p>
+<p>i n d i s p e n s a b l e
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>g a r d e
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>SUBJ
+</p>
+<p>X
+</p>
+<p>i n d i s p e n s a b l e
+</p>
+<p>SUBJ
+</p>
+<p>s o n t
+</p>
+<p>OBJ
+</p>
+<p>FIGURE 5 &#8211; Sous-graphes extraits des critiques de jeux vid&#233;o positives
+</p>
+<p>4 Travaux apparent&#233;s
+</p>
+<p>Une premi&#232;re exp&#233;rience par (Pang et al., 2002), utilisant la repr&#233;sentation &#171; sac de mots &#187; avec des traits binaires
+et des classfieurs SVM, est devenue une base pour de nombreux travaux dans le domaine de la classification
+des sentiments. Les auteurs ont am&#233;lior&#233; leur syst&#232;me dans (Pang &amp; Lee, 2004) en utilisant un d&#233;tecteur de
+subjectivit&#233; bas&#233; sur la notion de coupe minimale dans un graphe. L&#8217;utilisation d&#8217;un d&#233;tecteur de subjectivit&#233; a
+permi de diminuer le bruit et se concentrer uniquement sur les phrases exprimant des sentiments. Cette m&#233;thode
+a am&#233;lior&#233; la pr&#233;cision de 82.7% &#224; 86.4%. Par la suite, de nombreux travaux ont utilis&#233; des techniques avanc&#233;es
+et des lexiques additionels pour augmenter l&#8217;espace de trait ou bien pour affiner la s&#233;lection des traits pertinents,
+am&#233;liorant ainsi la pr&#233;cision de la classification. (Whitelaw et al., 2005) utilise des groupes d&#8217;appr&#233;ciation, comme
+&#171; very good &#187; (tr&#232;s bon) ou &#171; not terribly funny &#187; (pas vraiment dr&#244;le) dans le cadre de la th&#233;orie de l&#8217;appr&#233;ciation
+(Appraisal theory) en combinaison avec le mod&#232;le &#171; sac de mots &#187; et a obtenu une pr&#233;cision de 90.2% sur le jeu
+de donn&#233;es de critiques de films. (Aue &amp; Gamon, 2005) a utilis&#233; les SVM avec une s&#233;lection de traits par registre
+de probabilit&#233; et a obtenu une pr&#233;cision de 90.2% sur le m&#234;me jeu de donn&#233;es.
+L&#8217;arbre de d&#233;pendances des phrases a &#233;t&#233; largement utilis&#233; dans le domaine de l&#8217;analyse de sentiments. Une
+recherche r&#233;cente par (Arora et al., 2010) a not&#233; les probl&#232;mes de la repr&#233;sentation habituelle des textes par une
+approche &#171; sac de mots &#187;. Les auteurs sugg&#233;raient d&#8217;utiliser leur algorithme pour extraire les traits de sous-graphe</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>SENTIMENT POLARITY CLASSIFICATION USING DEPENDENCY TREE SUBGRAPHS TEXT REPRESENTATION
+</p>
+<p>d &#8217;  a t t e n d r e
+</p>
+<p>e n  d r o i t
+</p>
+<p>NMOD
+</p>
+<p>d &#8217;  a t t e n d r e
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>3
+</p>
+<p>i n t &#233; r &#234; t
+</p>
+<p>DETERM_NUM
+</p>
+<p>X
+</p>
+<p>d &#8217;  a t t e n d r e
+</p>
+<p>VMOD
+</p>
+<p>a f f r o n t e m e n t s
+</p>
+<p>X
+</p>
+<p>SUBJ
+</p>
+<p>l i c e n c e
+</p>
+<p>X
+</p>
+<p>OBJ
+</p>
+<p>f l a g r a n t
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>p i &#232; t r e
+</p>
+<p>X
+</p>
+<p>NMOD
+</p>
+<p>o n
+</p>
+<p>a  f a i t
+</p>
+<p>SUBJ
+</p>
+<p>d e v o i r
+</p>
+<p>v o n t
+</p>
+<p>OBJ
+</p>
+<p>c&#8217;
+</p>
+<p>e s t
+</p>
+<p>SUBJ
+</p>
+<p>m o c h e
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>s o n t
+</p>
+<p>SUBJ
+</p>
+<p>s i m p l i s t e s
+</p>
+<p>OBJ
+</p>
+<p>5
+</p>
+<p>X
+</p>
+<p>DETERM_NUM
+</p>
+<p>X
+</p>
+<p>DETERM_NUM
+</p>
+<p>X
+</p>
+<p>v o n t
+</p>
+<p>SUBJ
+</p>
+<p>d e v o i r
+</p>
+<p>OBJ
+</p>
+<p>X
+</p>
+<p>s &#8217;  e m p &#234; c h e r
+</p>
+<p>SUBJ
+</p>
+<p>p e u t  n e
+</p>
+<p>OBJ
+</p>
+<p>FIGURE 6 &#8211; Sous-graphes extraits des critiques de jeux vid&#233;o n&#233;gatives
+</p>
+<p>par la programmation g&#233;n&#233;tique. Cependant, les traits obtenues n&#8217;&#233;taient pas utilis&#233;es pour remplacer le mod-
+&#232;le n-gramme classique, mais plut&#244;t comme un jeu de traits compl&#233;mentaire. Un travail r&#233;cent par (Nakagawa
+et al., 2010) utilise un arbre de d&#233;pendances pour obtenir des traits qui sont utilis&#233;es pour entra&#238;ner un classifieur
+CRF pour la d&#233;tection de la polarit&#233; des sentiments. Dans (Zhuang et al., 2006), les auteurs utilisent des arbres
+de d&#233;pendances pour extraire les paires trait-opinion, ou le premier membre de la paire est un terme trait (ex.
+&#171; movie &#187;/film) et le second est un porteur d&#8217;opinion (ex. &#171; masterpiece &#187;/chef d&#8217;&#339;uvre). Les arbres de d&#233;pen-
+dances sont utilis&#233;s afin d&#8217;&#233;tablir les relations entre les mots traits et les mots-cl&#233;s d&#8217;opinion. Dans (Chaumartin,
+2007), l&#8217;arbre de d&#233;pendance est utilis&#233; pour normaliser des titres vers des formes grammaticalement correctes,
+avant analyse des sentiments. Dans (Meena &amp; Prabhakar, 2007), les auteurs utilisent l&#8217;arbre de d&#233;pendances et
+WordNet pour effectuer une analyse en sentiments.
+</p>
+<p>5 Conclusion
+</p>
+<p>Avec l&#8217;explosion du nombre de blogs et le d&#233;veloppement des r&#233;seaux sociaux, la fouille d&#8217;opinion et l&#8217;analyse
+de sentiments sont devenus des domaines d&#8217;int&#233;r&#234;t pour la recherche. Un travail pionnier sur la classification
+supervis&#233;e en sentiments &#224; base de n-grammes ayant produit des r&#233;sultats prometteurs, de nombreux chercheurs
+ont d&#233;velopp&#233; ce type de mod&#232;le. Cependant, l&#8217;approche &#171; sac de mots &#187; pour repr&#233;senter un texte ne permet
+pas de prendre en compte des expressions complexes de sentiments et ne se pr&#234;te que difficilement &#224; l&#8217;utilisation
+de mod&#232;les sophistiqu&#233;s de sentiments, qui n&#233;cessitent d&#8217;identifier entre autres, l&#8217;intensit&#233; d&#8217;une opinion ou la
+source/cible d&#8217;une expression d&#8217;opinion. Clairement, un nouveau type de mod&#232;le est n&#233;cessaire afin d&#8217;obtenir de
+meilleures performances en classification automatique de sentiments et en fouille d&#8217;opinion. Dans nos travaux,
+nous avons d&#233;velopp&#233; une nouvelle repr&#233;sentation &#224; base de sous-graphes extraits des arbres de d&#233;pendances
+syntaxiques. Nous repr&#233;sentons un texte comme une collection de sous-graphes, o&#249; les n&#339;uds sont des mots
+(ou des classes de mots) et les arcs des d&#233;pendances syntaxiques entre ceux-ci. Une telle repr&#233;sentation &#233;vite la
+perte d&#8217;information associ&#233;e &#224; l&#8217;emploi de mod&#232;les &#171; sac de mots &#187; pour repr&#233;senter un texte, ces derniers &#233;tant
+bas&#233;s uniquement sur des collections de n-grammes de mots. Nous avons test&#233; notre mod&#232;le sur un ensemble
+de critiques de jeux vid&#233;o, d&#233;velopp&#233; dans le cadre du projet DOXA sur la fouille d&#8217;opinion. Ainsi nous avons
+pu montrer qu&#8217;un classifieur SVM utilisant des traits construits &#224; partir des sous-graphes extraits des arbres de
+d&#233;pendances, donne de meilleurs r&#233;sultats que les syst&#232;mes traditionnels &#224; base d&#8217;unigrammes. L&#8217;exactitude la
+plus &#233;lev&#233;e que nous ayons mesur&#233;e sur des textes en fran&#231;ais est de 75%. Nous pensons que cette mesure peut</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>ALEXANDER PAK, PATRICK PAROUBEK
+</p>
+<p>encore &#234;tre am&#233;lior&#233;e par l&#8217;utilisation de techniques avanc&#233;es de s&#233;lection de traits ou l&#8217;utilisation de lexiques
+d&#233;di&#233;s &#224; l&#8217;analyse de sentiments et d&#8217;opinion.
+</p>
+<p>Remerciements
+Ces travaux ont re&#231;u le soutien financier du projet DOXA du p&#244;le de comp&#233;titivit&#233; CAP-DIGITAL.
+</p>
+<p>R&#233;f&#233;rences
+A&#207;T-MOKHTAR S., CHANOD J.-P. &amp; ROUX C. (2002). Robustness beyond shallowness : incremental deep
+parsing. Nat. Lang. Eng., 8, 121&#8211;144.
+ARORA S., MAYFIELD E., PENSTEIN-ROS&#201; C. &amp; NYBERG E. (2010). Sentiment classification using auto-
+matically extracted subgraph features. In Proceedings of the NAACL HLT 2010 Workshop on Computational
+Approaches to Analysis and Generation of Emotion in Text, CAAGET &#8217;10, p. 131&#8211;139, Morristown, NJ, USA :
+Association for Computational Linguistics.
+AUE A. &amp; GAMON M. (2005). Customizing Sentiment Classifiers to New Domains : a Case Study. In Proc.
+International Conference on Recent Advances in NLP.
+CHAUMARTIN F.-R. (2007). Upar7 : a knowledge-based system for headline sentiment tagging. In Proceedings
+of the 4th International Workshop on Semantic Evaluations, SemEval &#8217;07, p. 422&#8211;425, Morristown, NJ, USA :
+Association for Computational Linguistics.
+DE MARNEE M.-C. &amp; MANNING C. D. (2008). Stanford typed dependencies manual.
+http ://nlp.stanford.edu/software/dependencies_manual.pdf.
+FAN R.-E., CHANG K.-W., HSIEH C.-J., WANG X.-R. &amp; LIN C.-J. (2008). Liblinear : A library for large
+linear classification. J. Mach. Learn. Res., 9, 1871&#8211;1874.
+MANNING C. D. &amp; SCH&#220;TZE H. (1999). Foundations of statistical natural language processing. Cambridge,
+MA, USA : MIT Press.
+MEENA A. &amp; PRABHAKAR T. V. (2007). Sentence level sentiment analysis in the presence of conjuncts using
+linguistic analysis. In Proceedings of the 29th European conference on IR research, ECIR&#8217;07, p. 573&#8211;580, Berlin,
+Heidelberg : Springer-Verlag.
+NAKAGAWA T., INUI K. &amp; KUROHASHI S. (2010). Dependency tree-based sentiment classification using
+crfs with hidden variables. In Human Language Technologies : The 2010 Annual Conference of the North
+American Chapter of the Association for Computational Linguistics, HLT &#8217;10, p. 786&#8211;794, Morristown, NJ,
+USA : Association for Computational Linguistics.
+PAK A. &amp; PAROUBEK P. (2010). Twitter as a corpus for sentiment analysis and opinion mining. In Proceedings
+of the Seventh conference on International Language Resources and Evaluation (LREC &#180;10), Valletta, Malta :
+European Language Resources Association (ELRA).
+PALTOGLOU G. &amp; THELWALL M. (2010). A study of information retrieval weighting schemes for sentiment
+analysis. In Proceedings of the 48th Annual Meeting of the Association for Computational Linguistics, ACL &#8217;10,
+p. 1386&#8211;1395, Morristown, NJ, USA : Association for Computational Linguistics.
+PANG B. &amp; LEE L. (2004). A sentimental education : Sentiment analysis using subjectivity summarization
+based on minimum cuts. In Proceedings of the ACL, p. 271&#8211;278.
+PANG B., LEE L. &amp; VAITHYANATHAN S. (2002). Thumbs up ? : sentiment classification using machine learning
+techniques. In Proceedings of the ACL-02 conference on Empirical methods in natural language processing -
+Volume 10, EMNLP &#8217;02, p. 79&#8211;86, Morristown, NJ, USA : Association for Computational Linguistics.
+PAROUBEK P., PAK A. &amp; MOSTEFA D. (2010). Annotations for opinion mining evaluation in the industrial
+context of the doxa project. In N. C. C. CHAIR), K. CHOUKRI, B. MAEGAARD, J. MARIANI, J. ODIJK, S.
+PIPERIDIS, M. ROSNER &amp; D. TAPIAS, Eds., Proceedings of the Seventh conference on International Language
+Resources and Evaluation (LREC&#8217;10), Valletta, Malta : European Language Resources Association (ELRA).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>SENTIMENT POLARITY CLASSIFICATION USING DEPENDENCY TREE SUBGRAPHS TEXT REPRESENTATION
+</p>
+<p>WHITELAW C., GARG N. &amp; ARGAMON S. (2005). Using appraisal groups for sentiment analysis. In Pro-
+ceedings of the 14th ACM international conference on Information and knowledge management, CIKM &#8217;05, p.
+625&#8211;631, New York, NY, USA : ACM.
+ZHUANG L., JING F. &amp; ZHU X.-Y. (2006). Movie review mining and summarization. In Proceedings of the
+15th ACM international conference on Information and knowledge management, CIKM &#8217;06, p. 43&#8211;50, New
+York, NY, USA : ACM.
+</p>
+<p>Annexe A. Liste des d&#233;pendences produites par XIP
+ADJMOD
+</p>
+<p>ADJMOD_POSIT1
+ADJMOD_PROPQUE
+</p>
+<p>ADVMOD
+AUXIL_PASSIVE
+</p>
+<p>CONNECT
+CONNECT_REL
+CONNECT_SUBJ
+</p>
+<p>COORD
+COORDITEMS
+COORDITEMS_SC
+</p>
+<p>COREF_POSIT1_REL
+COREF_REL
+</p>
+<p>DATE*
+DATE_PERIODE*
+</p>
+<p>DEEPOBJ
+DEEPSUBJ
+</p>
+<p>DEEPSUBJ_PASSIVE
+DEEPSUBJ_PROPQUE
+</p>
+<p>DETERM
+DETERM_DEF
+DETERM_DEM
+DETERM_INT
+DETERM_NUM
+DETERM_POSS
+DETERM_QUANT
+DETERM_QUANT_DEF
+DETERM_QUANT_DEM
+</p>
+<p>LIEU*
+LIEU_BATIMENT*
+LIEU_CONTINENT*
+LIEU_IMPERSO*
+LIEU_PAYS*
+LIEU_PAYS_REGION*
+LIEU_QUARTIER*
+LIEU_REGION*
+LIEU_REGION_VILLE*
+LIEU_VILLE*
+</p>
+<p>NEGAT*
+NEGAT_SUBJ
+</p>
+<p>NMOD
+NMOD_NUM
+NMOD_POSIT1
+NMOD_POSIT2
+NMOD_POSIT3
+NMOD_PROPQUE
+NMOD_REL
+</p>
+<p>OBJ
+OBJ_COORD
+OBJ_COORD_SPRED
+OBJ_PROPQUE
+OBJ_PROPQUE_COORD
+OBJ_PROPQUE_SPRED
+OBJ_REL
+OBJ_SPRED
+OBJ_SUBJ
+</p>
+<p>ORG*
+ORG_BATIMENT_LIEU*
+ORG_ENTREPRISE*
+</p>
+<p>PERSONNE*
+PREPMOD
+PREPOBJ_REL
+SEQNP**
+SUBJ
+</p>
+<p>SUBJ_COORD
+SUBJ_IMPERSO
+SUBJ_IMPERSO_COORD
+SUBJ_IMPERSO_PASSIVE
+SUBJ_PASSIVE
+SUBJ_PASSIVE_COORD
+SUBJ_PASSIVE_PROPQUE
+SUBJ_PASSIVE_REL
+SUBJ_PROPQUE
+SUBJ_REFLEXIVE
+SUBJ_REL
+SUBJ_REL_COORD
+SUBJ_SUBJ
+</p>
+<p>SUBJCLIT
+SUBJCLIT_PASSIVE
+</p>
+<p>URL*
+VMOD
+</p>
+<p>VMOD_COORD
+VMOD_COORD_SPRED
+VMOD_IMPERSO
+VMOD_POSIT1
+VMOD_POSIT1_SUBJ
+VMOD_POSIT1_SUBORD
+VMOD_POSIT2
+VMOD_PROPQUE
+VMOD_REL
+VMOD_SPRED
+VMOD_SUBJ
+VMOD_SUBORD
+</p>
+<p>Les relations sont marqu&#233;es d&#8217;un ast&#233;risque (*), une s&#233;quence de relation SEQNP est marqu&#233;e par (**).</p>
+
+</div></div>
+</body></html>

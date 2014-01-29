@@ -1,614 +1,430 @@
-TALN 2009, Senlis, 24-26 juin 2009
-
+TALN 2009, Senlis, 24–26 juin 2009
 Analyse déductive pour les grammaires d’interaction
-
 Joseph Le Roux
 NCLT, Dublin City University
 jleroux@computing.dcu.ie
-
-Resume. Nous proposons un algorithme d’analyse pour les grammaires d’interaction qui
-utilise le cadre formel de l’analyse deductive. Cette approche donne un point de vue nouveau sur
-ce probleme puisque les methodes precedentes reduisaient ce demier a la reecriture de graphes
-et utilisaient des techniques de resolution de contraintes. D’autre part, cette presentation per-
-met de decrire le processus de maniere standard et d’exhiber les sources d’indeterminisme qui
-rendent ce probleme difﬁcile.
-
+Résumé. Nous proposons un algorithme d’analyse pour les grammaires d’interaction qui
+utilise le cadre formel de l’analyse déductive. Cette approche donne un point de vue nouveau sur
+ce problème puisque les méthodes précédentes réduisaient ce dernier à la réécriture de graphes
+et utilisaient des techniques de résolution de contraintes. D’autre part, cette présentation per-
+met de décrire le processus de manière standard et d’exhiber les sources d’indéterminisme qui
+rendent ce problème difficile.
 Abstract. We propose a parsing algorithm for Interaction Grammars using the deductive
 parsing framework. This approach brings new perspectives on this problem, departing from
 previous methods relying on constraint-solving techniques to interpret it as a graph-rewriting
 problem. Furthermore, this presentation allows a standard description of the algorithm and a
-ﬁne-grained inspection of the sources of non-determinism.
-
-M0tS-CléS I Analyse syntaxique, grammaires d’interaction.
-
+fine-grained inspection of the sources of non-determinism.
+Mots-clés : Analyse syntaxique, grammaires d’interaction.
 Keywords: Parsing, Interaction Grammars.
-
 1 Introduction
-
-Une grammaire d’interaction (GI) (Guillaume & Perrier, 2008) permet de decrire la syntaxe
-d’une langue en insistant sur la valence, c’est-a-dire la capacite des mots a se combiner. Cette
-valence s’eXprime au moyen de polarites qui decorent les syntagmes ou les traits associes a
-ces syntagmes. D’autres formalismes utilisent cette notion, comme les grammaires catego-
-rielles (Lambek, 1958), les grammaires d’uniﬁcation polarisees (Kahane, 2004) ou encore les
-grammaires minimalistes (Chomsky, 1995). Une autre caracteristique des GI est l’utilisation de
-structures dites sous-speciﬁees. Les grammaires de (Duchier & Thater, 1999) utilisent aussi ces
-structures mais avec un systeme de polarites moins riche.
-
-Dans cet article, nous presentons un algorithme proche de celui decrit par (Earley, 1970) pour
-l’analyse des grammaires hors-contexte. D’autres methodes d’analyse existent pour les GI,
-comme par exemple la methode shift-reduce de (Bonfante et al., 2003) qui reduit l’analyse a
-la reecriture de graphes. Ici, nous considerons une approche radicalement differente. Nous in-
-troduisons notre algorithme en utilisant une methode standard de ce domaine : l’analyse deduc-
-tive (Shieber et al., 1995). Cette approche evite d’inventer des notions et des notations ad hoc.
-Elle permet aussi aux lecteurs qui y sont habitues de comprendre rapidement les speciﬁcites de
-l’analyse des GI. (Le Roux, 2007) decrit un algorithme tres proche mais notre presentation, en
-decomposant la prediction, est bien plus simple.
-
-Le reste de l’article s’organise comme suit : nous presentons les GI (section 2), puis nous de-
-
+Une grammaire d’interaction (GI) (Guillaume & Perrier, 2008) permet de décrire la syntaxe
+d’une langue en insistant sur la valence, c’est-à-dire la capacité des mots à se combiner. Cette
+valence s’exprime au moyen de polarités qui décorent les syntagmes ou les traits associés à
+ces syntagmes. D’autres formalismes utilisent cette notion, comme les grammaires catégo-
+rielles (Lambek, 1958), les grammaires d’unification polarisées (Kahane, 2004) ou encore les
+grammaires minimalistes (Chomsky, 1995). Une autre caractéristique des GI est l’utilisation de
+structures dites sous-spécifiées. Les grammaires de (Duchier & Thater, 1999) utilisent aussi ces
+structures mais avec un système de polarités moins riche.
+Dans cet article, nous présentons un algorithme proche de celui décrit par (Earley, 1970) pour
+l’analyse des grammaires hors-contexte. D’autres méthodes d’analyse existent pour les GI,
+comme par exemple la méthode shift-reduce de (Bonfante et al., 2003) qui réduit l’analyse à
+la réécriture de graphes. Ici, nous considérons une approche radicalement différente. Nous in-
+troduisons notre algorithme en utilisant une méthode standard de ce domaine : l’analyse déduc-
+tive (Shieber et al., 1995). Cette approche évite d’inventer des notions et des notations ad hoc.
+Elle permet aussi aux lecteurs qui y sont habitués de comprendre rapidement les spécificités de
+l’analyse des GI. (Le Roux, 2007) décrit un algorithme très proche mais notre présentation, en
+décomposant la prédiction, est bien plus simple.
+Le reste de l’article s’organise comme suit : nous présentons les GI (section 2), puis nous dé-
 Joseph Le Roux
-
 crivons l’algorithme (section 3). Nous discutons ensuite certains aspects techniques de l’algo-
 rithme (section 4) avant de conclure (section 5).
-
 2 Les grammaires d’interaction
-
-Nous reprenons la déﬁnition des GI donnée par (Guillaume & Perrier, 2008) 1. Cependant, nous
-présentons ici une version sans structure de traits de maniere a simpliﬁer l’exposé.
-
+Nous reprenons la définition des GI donnée par (Guillaume & Perrier, 2008) 1. Cependant, nous
+présentons ici une version sans structure de traits de manière à simplifier l’exposé.
 2.1 Descriptions d’arbre polarisées
-
 La structure fondamentale des GI est la description d’arbre polarisée (DAP) qui représente un
-fragment d’arbre d’analyse. Elle contient des noeuds polarisés, c’est-a-dire décorés de polarités.
-
-Les GI distinguent 4 polarités IF’ = {—>, <—, :, ~}, respectivement positive, negative, neutre
+fragment d’arbre d’analyse. Elle contient des nœuds polarisés, c’est-à-dire décorés de polarités.
+Les GI distinguent 4 polarités P = {→,←,=,∼}, respectivement positive, négative, neutre
 et virtuelle. Un multi-ensemble de polarités est saturé s’il contient exactement une polarité
-positive et exactement une polarité negative, ou bien s’il ne contient aucune polarité positive ni
-negative et au moins une polarité neutre. Un multi-ensemble de polarités est superposable s’il
-contient au plus une polarité positive et au plus une polarité negative.
-
-Les noeuds polarisés sont étiquetés par une catégorie et une polarité. Un ensemble de noeuds est
-saturé (resp. superposable) si tous ses éléments ont la meme catégorie et si le multi-ensemble
+positive et exactement une polarité négative, ou bien s’il ne contient aucune polarité positive ni
+négative et au moins une polarité neutre. Un multi-ensemble de polarités est superposable s’il
+contient au plus une polarité positive et au plus une polarité négative.
+Les nœuds polarisés sont étiquetés par une catégorie et une polarité. Un ensemble de nœuds est
+saturé (resp. superposable) si tous ses éléments ont la même catégorie et si le multi-ensemble
 induit par leur polarité est saturé (resp. superposable).
-
-Une DAP est un graphe. Il existe quatre relations binaires déﬁnies sur les noeuds polarisés d’une
-DAP : la parenté immédiate >, la parenté lache >*, la précédence immédiate < et la précédence
-lache <+. De plus, pour étre valide une DAP doit vériﬁer :
-
-— > et >* déﬁnissent une structure d’arbre,
-
-— < et <4“ ne sont déﬁnies que pour des noeuds ayant le meme antécédent par >.
-
-Dans chaque DAP il existe des noeuds feuilles (sans descendant par > ou >*), appelés ancres.
-Pour alléger l’exposé , si n >* m, on appelle m un noeud contraint (par n) et pour un ensemble
-Nde noeuds, on déﬁnitN> = {N|E|M e N, M > N} et/\f>* = {N|E|M e N, M >* N}.
-
+Une DAP est un graphe. Il existe quatre relations binaires définies sur les nœuds polarisés d’une
+DAP : la parenté immédiate>, la parenté lâche >∗, la précédence immédiate≺ et la précédence
+lâche ≺+. De plus, pour être valide une DAP doit vérifier :
+– > et >∗ définissent une structure d’arbre,
+– ≺ et ≺+ ne sont définies que pour des nœuds ayant le même antécédent par >.
+Dans chaque DAP il existe des nœuds feuilles (sans descendant par > ou >∗), appelés ancres.
+Pour alléger l’exposé , si n >∗ m, on appelle m un nœud contraint (par n) et pour un ensemble
+N de nœuds, on définit N> = {N |∃M ∈ N ,M > N} et N>∗ = {N |∃M ∈ N ,M >∗ N}.
 2.2 Grammaires d’interaction
-
-Une GI est un tuple Q = {E}, (C, S, 73, phon}, ou E est l’alphabet des symboles terminaux, (C
-est l’alphabet des symboles non-terminaux (ou categories), S E (C est le symbole initial, 73 est
-un ensemble de DAP dont les noeuds sont étiquetés par des éléments de (C X IE” et phon est une
-fonction partielle des noeuds de 73 vers 2. Elle n’est déﬁnie que pour les ancres.
-
-Le résultat d’une analyse syntaxique est un arbre syntaxique, c’est-a-dire un arbre totalement
-ordonné dans lequel tous les noeuds sont étiquetés par une catégorie. On note lab(A) l’étiquette
-du noeud A. Certains noeuds feuilles F sont étiquetés par un terminal t. Dans ce cas, on notera
-m0t(F) = t, et m0t(F) = 5 sinon.
-
-On notera M > N si le noeud M est le pere du noeud N et N > [N1, . . . , Nk] si le noeud N est
-le pere des noeuds de la liste ordonnée [N 1, . . . , N 1,]. L’ ordre entre noeuds ﬁls s’eXprime a l’aide
-
-1. Nous reportons les lecteurs a cet article pour ce qui conceme l’utilisation linguistique des GI.
-
+Une GI est un tuple G = {Σ,C, S,P, phon}, où Σ est l’alphabet des symboles terminaux, C
+est l’alphabet des symboles non-terminaux (ou catégories), S ∈ C est le symbole initial, P est
+un ensemble de DAP dont les nœuds sont étiquetés par des éléments de C× P et phon est une
+fonction partielle des nœuds de P vers Σ. Elle n’est définie que pour les ancres.
+Le résultat d’une analyse syntaxique est un arbre syntaxique, c’est-à-dire un arbre totalement
+ordonné dans lequel tous les nœuds sont étiquetés par une catégorie. On note lab(A) l’étiquette
+du nœud A. Certains nœuds feuilles F sont étiquetés par un terminal t. Dans ce cas, on notera
+mot(F ) = t, et mot(F ) = ε sinon.
+On notera M ≫ N si le nœud M est le père du nœud N et N ≫ [N1, . . . , Nk] si le nœud N est
+le père des nœuds de la liste ordonnée [N1, . . . , Nk]. L’ordre entre nœuds fils s’exprime à l’aide
+1. Nous reportons les lecteurs à cet article pour ce qui concerne l’utilisation linguistique des GI.
 Un analyseur syntaxique descendant pour les GI
-
-de de la relation <<. M << N indique que N est le successeur immédiat de M. On notera
-<<+ la cloture transitive de << et >>* la cloture réﬂexive transitive de >>.
-
-Enﬁn nous avons besoin de la projection phonologique PP d’un noeud, déﬁnie récursivement :
-
-PP(M) 2 { ii]2P(Siv,)A.J. 1>21[l(1\/?,:)] ms(i)t(]\]if)>:?EN1,...,Nk]
-
-Un arbre syntaxique T est un modéle du multi-ensemble de DAP D s’il existe une fonction
-totale I des noeuds de D (notés ND) vers les noeuds de T (notés NT) qui vériﬁe :
-
-si A 6 NT alors I ’1(A) est saturé et non-vide.
-
-si M,N €NDetM > Nalors I(M) >> I(N)
-
-si M,N €NDetM >* Nalors I(M) >>* I(N)
-
-si M,N €NDetM < Nalors I(M) << I(N)
-
-siM,N €NDetM <+ NalorsI(M) <<+ I(N)
-
-si A,B €NTetA >> Balors ilexisteM E I‘1(A) etN E I‘1(B) tels queM > N
-siA 6 NT alors lab(A) = lab(M) pour tout M E I‘1(A)
-
-si M 6 ND et ph0n(M) = m alors PP(I(M)) = [m]
-
-9°.\‘.°‘S":'>!-”!‘-)1“
-
-I-/3tant donné une G1 9 = {E}, (C, S, 73,ph0n} et une phrase p = m1,...,m,, de 2*, un arbre
-syntaxique T est un arbre d’analyse pour p s’il existe un multi-ensemble D de DAP issues de 73
-tel que T est un modele de D, la racine R de T est étiquetée par S et PP(R) = [m1, . . . ,m,,].
-Le langage engendré par 9 est l’ensemble des phrases de 2* pour lesquelles il existe un arbre
+de de la relation ≺≺. M ≺≺ N indique que N est le successeur immédiat de M . On notera
+≺≺+ la clôture transitive de ≺≺ et ≫∗ la clôture réflexive transitive de ≫.
+Enfin nous avons besoin de la projection phonologique PP d’un nœud, définie récursivement :
+{
+[t] si M ≫ [] et mot(M) = t
+PP (M) =
+[PP (N1) . . . PP (Nk)] si M ≫ [N1, . . . , Nk]
+Un arbre syntaxique T est un modèle du multi-ensemble de DAP D s’il existe une fonction
+totale I des nœuds de D (notés ND) vers les nœuds de T (notés NT ) qui vérifie :
+1. si A ∈ NT alors I−1(A) est saturé et non-vide.
+2. si M,N ∈ ND et M > N alors I(M)≫ I(N)
+3. si M,N ∈ ND et M >∗ N alors I(M)≫∗ I(N)
+4. si M,N ∈ ND et M ≺ N alors I(M) ≺≺ I(N)
+5. si M,N ∈ ND et M ≺+ N alors I(M) ≺≺+ I(N)
+6. si A,B ∈ NT et A≫ B alors il existe M ∈ I−1(A) et N ∈ I−1(B) tels que M > N
+7. si A ∈ NT alors lab(A) = lab(M) pour tout M ∈ I−1(A)
+8. si M ∈ ND et phon(M) = m alors PP (I(M)) = [m]
+Étant donné une GI G = {Σ,C, S,P, phon} et une phrase p = m1, . . . , mn de Σ∗, un arbre
+syntaxique T est un arbre d’analyse pour p s’il existe un multi-ensembleD de DAP issues de P
+tel que T est un modèle de D, la racine R de T est étiquetée par S et PP (R) = [m1, . . . , mn].
+Le langage engendré par G est l’ensemble des phrases de Σ∗ pour lesquelles il existe un arbre
 d’analyse.
-
-3 Déﬁnition de l’algorithme
-
+3 Définition de l’algorithme
 Nous utilisons le cadre de l’analyse déductive (Shieber et al., 1995) pour expliquer notre algo-
-rithme : un état de l’analyse est décrit par un item et des regles de déduction permettent d’ obtenir
-de nouveaux items a partir d’items déja créés. On applique ces regles jusqu’a stabilisation de
-l’ensemble d’items. L’ analyse est amorcée par la création d’un item axiome. La phrase d’entrée
-appartient au langage si un item spéciﬁque, appelé item but est créé durant l’analyse 2.
-
+rithme : un état de l’analyse est décrit par un item et des règles de déduction permettent d’obtenir
+de nouveaux items à partir d’items déjà créés. On applique ces règles jusqu’à stabilisation de
+l’ensemble d’items. L’analyse est amorcée par la création d’un item axiome. La phrase d’entrée
+appartient au langage si un item spécifique, appelé item but est créé durant l’analyse 2.
 3.1 Les items
-
-Nos items sont de la forme [A(H, N, F) —> on B, i, j, (0, U,  Ils sont constitués d’une regle
-pointée, de deux indices de position 0 3 i 3 j 3 n, o1‘1 12 est la longueur de la phrase d’entrée,
-et d’un triplet d’ensembles de noeuds qui controle l’utilisation des noeuds contraints.
-
-La regle pointée A(H, N, F) —> 04 o B afﬁrme qu’il existe un noeud A de l’arbre d’analyse,
-modele de l’ensemble H U N U F. Les elements A; dans oz sont également des noeuds de l’arbre
-
-/-\ /
-
-syntaxique. Ils indiquent que des sous-analyses ont deja eté effectuées et que l’on a trouvé pour
-
+Nos items sont de la forme [A(H,N, F )→ α•β, i, j, (O,U,D)]. Ils sont constitués d’une règle
+pointée, de deux indices de position 0 ≤ i ≤ j ≤ n, où n est la longueur de la phrase d’entrée,
+et d’un triplet d’ensembles de nœuds qui contrôle l’utilisation des nœuds contraints.
+La règle pointée A(H,N, F ) → α • β affirme qu’il existe un nœud A de l’arbre d’analyse,
+modèle de l’ensemble H ∪N ∪F . Les éléments Al dans α sont également des nœuds de l’arbre
+syntaxique. Ils indiquent que des sous-analyses ont déjà été effectuées et que l’on a trouvé pour
 2. Nous présentons ici un reconnaisseur. Pour en faire un analyseur, il faudrait garder l’historique des items.
-
 Joseph Le Roux
-
-ces noeuds des ensembles d’antécédents saturés. Les éléments Bk(Hk)de B signiﬁent qu’il existe
-un noeud Bk dans l’arbre syntaxique dont un sous-ensemble des antécédents est H 1,. De plus H ;,
-est constitué uniquement de noeuds dans (H U N U F) >. Cet item prédit que l’arbre syntaxique
-contient A > [A1...A,,B1...Bl] et que PP(A1) o - - - o PP(A,,) = [m,-+1 . . .mj].
-
-C’est le controle de l’utilisation des noeuds contraints qui complique la tache de l’analyseur. Le
-
-triplet d’ensembles de noeuds (O, U, D) permet de veriﬁer les contraintes sur ces noeuds :
-
-— Les ensemble 0 et D contiennent des noeuds contraints qui seront disponibles quand on cher-
-chera des antécédents pour prédire l’existence d’un nouveau noeud dans l’arbre syntaxique.
-
-— Les noeuds de 0 seront utilisés obligatoirement dans la sous-analyse courante. Pour qu’un
+ces nœuds des ensembles d’antécédents saturés. Les élémentsBk(Hk)de β signifient qu’il existe
+un nœud Bk dans l’arbre syntaxique dont un sous-ensemble des antécédents est Hk. De plus Hk
+est constitué uniquement de nœuds dans (H ∪N ∪ F )>. Cet item prédit que l’arbre syntaxique
+contient A≫ [A1 . . . AkB1 . . . Bl] et que PP (A1) ◦ · · · ◦ PP (Ak) = [mi+1 . . . mj].
+C’est le contrôle de l’utilisation des nœuds contraints qui complique la tâche de l’analyseur. Le
+triplet d’ensembles de nœuds (O,U,D) permet de vérifier les contraintes sur ces nœuds :
+– Les ensemble O et D contiennent des nœuds contraints qui seront disponibles quand on cher-
+chera des antécédents pour prédire l’existence d’un nouveau nœud dans l’arbre syntaxique.
+– Les nœuds de O seront utilisés obligatoirement dans la sous-analyse courante. Pour qu’un
 item puisse compléter une analyse, il faudra impérativement que cet ensemble soit vide.
-
-— L’ ensemble U contient des noeuds qui étaient disponibles puis ont été utilisés sans que l’on
-ait encore vériﬁé a quelle sous-analyse ils devaient appartenir.
-
+– L’ensemble U contient des nœuds qui étaient disponibles puis ont été utilisés sans que l’on
+ait encore vérifié à quelle sous-analyse ils devaient appartenir.
 Par ailleurs, on utilisera 3 symboles supplémentaires :
-
-— T, la partie gauche de la regle pointée axiome. On peut voir T comme une racine ajoutée a
+– ⊤, la partie gauche de la règle pointée axiome. On peut voir ⊤ comme une racine ajoutée à
 l’arbre syntaxique durant sa construction.
-
-— Le point 0 po11rra devenir I ou O dans les regles de preparation a la prédiction (pl et pg) pour
-indiquer que les items les contenant ne peuvent pas étre utilisés dans d’autres regles.
-
-Nous aurons besoin de construire des suites d’ensembles de noeuds superposables qui respectent
-
-les relations de précédence des DAP. I-/3tant donné un ensemble de noeuds N, nous déﬁnissons :
-
-0rd(/\/) = {[N1 . .  (/\/'1-)1S,-5;, est une partition de N’/\
-1 3 i 3 k,/V, est superposable /\
-sin1,n2 E./\[et’fl1 '< 712 alors   < 711 GAG‘ etng E./\fj+1/\
-sin1,n2 E/Vetnl <+ n2 alorsE|1 3 i <3’ 3 kt.q.n1 E/V,-etng 
-
-3.2 Les régles de déduction
-
-Dans cette section, on suppose vouloir analyser une phrase d’entrée p = ml, . . . , mn avec une
-GI Q = {E,(C, S,73,ph0n}.
-
-Axiome C’est la regle de départ. On se prepare a prédire un noeud de catégorie initiale S.
-Aucun mot n’a été lu et il n’y a aucune contrainte sur les relations laches.
-
-10113
-
-[T —> oS(0), 0, 0, ((2), (Z), (2))
-
-Prédiction C’est la regle qui permet de commencer une sous-analyse. Nous l’avons divisée
-en 3 sous-regles pour introduire les différentes contraintes séparément.
-
-N: —> 05. C(Hc)ﬂai7ja (OaUa
-[C(HCa070) —) -ajaja (07 (J71) U 
-
-1
-
-Dans cette premiere étape, on Va commencer une nouvelle sous-analyse a la limite de l’analyse
-courante, en position j. On indique que le focus se situe sur un noeud C, pour lequel on a déja
-choisi une partie des antécédents Hg.
-
+– Le point • pourra devenir  ou  dans les règles de préparation à la prédiction (p1 et p2) pour
+indiquer que les items les contenant ne peuvent pas être utilisés dans d’autres règles.
+Nous aurons besoin de construire des suites d’ensembles de nœuds superposables qui respectent
+les relations de précédence des DAP. Étant donné un ensemble de nœuds N , nous définissons :
+ord(N ) = {[N1 . . .Nk]| (Ni)1≤i≤k est une partition de N∧
+1 ≤ i ≤ k,Ni est superposable ∧
+si n1, n2 ∈ N et n1 ≺ n2 alors ∃1 ≤ j < k t.q. n1 ∈ Nj et n2 ∈ Nj+1∧
+si n1, n2 ∈ N et n1 ≺+ n2 alors ∃1 ≤ i < j ≤ k t.q. n1 ∈ Ni et n2 ∈ Nj}
+3.2 Les règles de déduction
+Dans cette section, on suppose vouloir analyser une phrase d’entrée p = m1, . . . , mn avec une
+GI G = {Σ,C, S,P, phon}.
+Axiome C’est la règle de départ. On se prépare à prédire un nœud de catégorie initiale S.
+Aucun mot n’a été lu et il n’y a aucune contrainte sur les relations lâches.
+ax
+[⊤ → •S(∅), 0, 0, (∅, ∅, ∅)]
+Prédiction C’est la règle qui permet de commencer une sous-analyse. Nous l’avons divisée
+en 3 sous-règles pour introduire les différentes contraintes séparément.
+[A(H,N, F )→ α • C(Hc)β, i, j, (O,U,D)]
+p1
+[C(HC, ∅, ∅)→ , j, j, (∅, U,D ∪O)]
+Dans cette première étape, on va commencer une nouvelle sous-analyse à la limite de l’analyse
+courante, en position j. On indique que le focus se situe sur un nœud C, pour lequel on a déjà
+choisi une partie des antécédents HC .
 Un analyseur syntaxique descendant pour les GI
-
-Les noeuds de 0, qui sont les noeuds a utiliser obligatoirement dans la sous-analyse de A de-
-viennent des noeuds disponibles pour l’analyse de 0 et toutes les sous-analyses suivantes.
-
-HgUNg750
-
-. . H UN est su e osable
-OH I U D 0 0 P‘?
-[ ( Ca0aQ))—) 7.7737(0): 17 1)] NCCD1U,P
-
-[o<Ho, No, a» a 9,931’, (0, U2, um“ D2 : D1_ NC
-U2 2 U1 U (D1 
-
-Dans cette seconde sous-regle, les antécédents de 0 sont complétés avec l’ensemble de noeuds
-NC, choisis parmi les noeuds disponibles D1 et les racines des DAP de la GI dans 73 3. Le triplet
-de veriﬁcation est ensuite mis a jour. Les noeuds contraints choisis pour compléter O ne sont
-plus disponibles et sont ajoutés a l’ensemble des noeuds utilisés.
-
-Hg U NC U F0 est saturé
-
-7 E 0Td((HCUNCUFC)>) * *
-FC :  Qi7Q0 g (HG U NC')> aQi+1 g 
-O = (HOUNgUFg)>* — Fa
-
-aucun noeud ancre dans Hg U NC U Fg
-
-[C(HCaNC70) —> .7j7j7 (07 U7
-[C(HC'a NC: FC) —) .7/7.7.7.7.: (O: U: 
-
-Dans la demiere étape de la prediction, on complete les antécédents de 0 avec des noeuds
-contraints par des noeuds déja antécédents de 0. On peut aussi sélectionner des noeuds dans
-la cloture transitive de cette relation a condition que leur prédécesseurs aient été eux-memes
-sélectionnés. L’ ensemble des antécédents doit alors étre saturé. Il faut ensuite prédire la forme
-des prochaines sous-analyses. Pour cela, il faut grouper les ﬁls des antécédents et respecter leur
-categories et les relations de précédence qui existent entre eux. On choisit donc une partition
-de (H0, NC, Fg)> qui respecte ord. Enﬁn, les noeuds a utiliser obligatoirement dans les sous-
-analyses sont les noeuds contraints par les antécédents qui ne sont pas eux-mémes antécédents.
-
-Balayage C’est la regle qui vériﬁe les prédictions déja effectuées par la présence d’un terminal
-a la position courante de l’analyse. C’est un cas particulier de la regle précédente quand l’un
-des antécédents de 0 est une ancre.
-
-Hg U NC U Fa est saturé
-(HgUNCUFg)> = 0
-[C(HC7NC70)—>.7j7j7 b FC:UiQi7Q0 Q (HCUNC)>*aQi+1 
-[C(Hg, N0, F0) —> o,j,j + 1, ((2), U, 13)] (H0 U N0 U F0)>* — F0 = (2)
-
-un unique noeud ancre a dans Hg U NC U Fg
-Ph0n(a) = pg-+1
-
-Si on lit sur la chaine d’entrée le terminal attendu a la position courante, on fait progresser
-l’analyse. Cette regle ne s’applique que si tous les noeuds contraints par les antécédents sont
-eux-mémes antécédents, puisqu’il n’y a pas de sous-analyse dans laquelle utiliser ces noeuds.
-
-3. Par abus de langage, on notera de la meme fagon une DAP et sa racine. Il faut également noter qu’une racine
-peut etre sélectionnée plusieurs fois (si plusieurs occurrences du meme mot apparaissent dans la phrase a analyser
-par exemple) et qu’un renommage de noeuds peut s’imposer pour distinguer chaque occurrence.
-
+Les nœuds de O, qui sont les nœuds à utiliser obligatoirement dans la sous-analyse de A de-
+viennent des nœuds disponibles pour l’analyse de C et toutes les sous-analyses suivantes.
+ H
+[ 
+C ∪NC 6= ∅
+H
+C(HC , ∅, ∅)→ , j, j, (∅, U1, D
+C ∪NC est superposable
+1)]
+p2 NC ⊂ D1 ∪ P
+[C(HC , NC , ∅)→ , j, j, (∅, U2, D2)]  D2 = D1 −NC
+U2 = U1 ∪ (D1 ∩NC)
+Dans cette seconde sous-règle, les antécédents de C sont complétés avec l’ensemble de nœuds
+NC , choisis parmi les nœuds disponibles D1 et les racines des DAP de la GI dans P 3. Le triplet
+de vérification est ensuite mis à jour. Les nœuds contraints choisis pour compléter C ne sont
+plus disponibles et sont ajoutés à l’ensemble des nœuds utilisés.
+ H N aturé
+[ 
+C ∪ C ∪ FC est s
+γ ∈ or
+C(HC , NC , ∅)→ , j, j, (∅, U,D)] ⋃d((HC ∪NC ∪ FC)>)
+p3 FC = C ∪NC)>
+∗
+, Qi+1 ⊆ Q
+>∗
+[C(H iC , NC , FC)→ •γ, j, j, (O,U,D)]  i
+Qi, Q0 ⊆ (H
+ O = (HC ∪NC ∪ FC)>
+∗
+− FC
+aucun nœud ancre dans HC ∪NC ∪ FC
+Dans la dernière étape de la prédiction, on complète les antécédents de C avec des nœuds
+contraints par des nœuds déjà antécédents de C. On peut aussi sélectionner des nœuds dans
+la clôture transitive de cette relation à condition que leur prédécesseurs aient été eux-mêmes
+sélectionnés. L’ensemble des antécédents doit alors être saturé. Il faut ensuite prédire la forme
+des prochaines sous-analyses. Pour cela, il faut grouper les fils des antécédents et respecter leur
+catégories et les relations de précédence qui existent entre eux. On choisit donc une partition
+de (HC , NC , FC)> qui respecte ord. Enfin, les nœuds à utiliser obligatoirement dans les sous-
+analyses sont les nœuds contraints par les antécédents qui ne sont pas eux-mêmes antécédents.
+Balayage C’est la règle qui vérifie les prédictions déjà effectuées par la présence d’un terminal
+à la position courante de l’analyse. C’est un cas particulier de la règle précédente quand l’un
+des antécédents de C est une ancre.
+ H turé C
+∪NC ∪ FC est sa
+
+∗
+[  (HC ∪⋃NC ∪ FC)
+> = ∅
+C(HC , NC , ∅)→ , j, j, (∅, U,D)] F ,Q
+b C
+= i Qi, Q0 ⊆ (HC ∪NC)
+>
+i+1 ⊆ Q
+>∗
+i
+[C(HC, NC , FC)→ •, j, j + 1, (∅, U,D)]  (H C
+∪NC ∪ FC)>
+∗
+− FC = ∅
+ un unique nœud ancre a dans HC ∪NC ∪ FC
+phon(a) = pj+1
+Si on lit sur la chaîne d’entrée le terminal attendu à la position courante, on fait progresser
+l’analyse. Cette règle ne s’applique que si tous les nœuds contraints par les antécédents sont
+eux-mêmes antécédents, puisqu’il n’y a pas de sous-analyse dans laquelle utiliser ces nœuds.
+3. Par abus de langage, on notera de la même façon une DAP et sa racine. Il faut également noter qu’une racine
+peut être sélectionnée plusieurs fois (si plusieurs occurrences du même mot apparaissent dans la phrase à analyser
+par exemple) et qu’un renommage de nœuds peut s’imposer pour distinguer chaque occurrence.
 Joseph Le Roux
-
-7>  | V) S |
-NP d°"
-
-Jean Marie semble den
-
-= NP ~NP <—s = NP <—NP > = V pl <—s <— NP > = V Jean 8
-
-~ 8 —> 3 ~ NP <— s
-= CPL que mble
-CPL “P v 8
-~ v —> NP = NP aims’ <— NP = F;UN mgrie Np _ a\i/"'6' , Np
-
-FIGURE 1 — les DAP et l’arbre d’analyse pour Jean que Marie semble aimer dart.
-
-Complétion Cette regle permet de revenir d’une sous-analyse et d’étendre l’analyse courante.
-
-Ng§D1UO1UP
-
-[A(H, N, F) _> 04 . C(Hc)ﬂ, my (01, U1, 191)] D2 9 (D1 U 01) ‘ N0
-
-[C(Ho, No, F0) —> 7-,9’, Is, (0, U2, 192)] c 31 3% _ U
-lA(HaN7F)—>O5C.ﬂaiak7(O3aU3aD3)l 
-U3 2 U2 — 01
-
-On doit ici s’assurer que la sous-analyse de 0 peut étre branchée sur l’analyse courante :
-
-— L’ensemble des noeuds disponibles dans la sous-analyse est un sous-ensemble des noeuds
+S
+-> NP ~ NP -> NP -> S -> S
+dort .
+NP
+V PUN
+Jean Marie semble dort
+~ NP <- S <- NP <- S <- NP
+= NP = NP = V = V Jean
+S
+NP
+que
+~ S -> S ~ NP <- S
+= CPL que sembleNP S
+CPL V
+aimer .
+~ V -> NP = NP <- NP Marie aimer
+= V = PUN NP NPNP V
+FIGURE 1 – les DAP et l’arbre d’analyse pour Jean que Marie semble aimer dort.
+Complétion Cette règle permet de revenir d’une sous-analyse et d’étendre l’analyse courante.
+ N C
+⊆ D1 ∪ O1 ∪ P
+[A(H,N, F )→ α • C(H Cc)β, i, j, (O 1, U1, D1)]  D2 ⊆ (D1 ∪ O1)−N
+U
+[C(H 1
+⊆ U2
+C , NC , FC)→ γ•, j, k, (∅, U2, D2)] c O
+[ 3
+= O1 − U2
+A(H,N, F )→ αC • β, i, k, (O 3, U3, D3)]  D3 = D1 − U2
+U3 = U2 − O1
+On doit ici s’assurer que la sous-analyse de C peut être branchée sur l’analyse courante :
+– L’ensemble des nœuds disponibles dans la sous-analyse est un sous-ensemble des nœuds
 disponibles dans l’analyse principale. En d’autres termes, la sous-analyse a pu utiliser des
-noeuds qui étaient disponibles dans l’analyse principale mais n’a pas pu rendre de nouveaux
-noeuds disponibles sans les avoir utilisés.
-
-— Pour les memes raisons, l’ensemble des noeuds utilisés dans l’analyse principale doit étre un
-sous-ensemble des noeuds utilisés dans la sous-analyse.
-
-— On retire des noeuds a utiliser obligatoirement ceux qui ont été utilisés dans la sous-analyse.
-
-Item but L’analyse réussit si l’on obtient [T —> So, 0, n, (0, (Z), 
-
+nœuds qui étaient disponibles dans l’analyse principale mais n’a pas pu rendre de nouveaux
+nœuds disponibles sans les avoir utilisés.
+– Pour les mêmes raisons, l’ensemble des nœuds utilisés dans l’analyse principale doit être un
+sous-ensemble des nœuds utilisés dans la sous-analyse.
+– On retire des nœuds à utiliser obligatoirement ceux qui ont été utilisés dans la sous-analyse.
+Item but L’analyse réussit si l’on obtient [⊤ → S•, 0, n, (∅, ∅, ∅)].
 3.3 Exemple
-
-Pour voir comment les relations de parenté lache sont controlées, nous allons analyser la phrase
-Jean que Marie semble aimer dart. On peut voir les DAP utilisées pour l’analyse sur la Figure 1.
-Elles proviennent du logiciel LEOPAR 4. Nous appellerons les descriptions j, q, m, s, a, d et p et
-nous désignerons les positions des noeuds par leur adresse de Gorn. Par exemple la racine de la
-DAP associée a Marie est m et le noeud le plus éloigné de la racine de la DAP associée a semble
-est 331. Les relations > et >* sont représentées par des traits, respectivement plein et pointillé.
-Les relations < et <4“ sont représentées par des ﬂeches, respectivement noire et colorée. Les
-items qui permettent d’arriver une analyse et les regles pour les produire sont listés dans la
+Pour voir comment les relations de parenté lâche sont contrôlées, nous allons analyser la phrase
+Jean que Marie semble aimer dort. On peut voir les DAP utilisées pour l’analyse sur la Figure 1.
+Elles proviennent du logiciel LEOPAR 4. Nous appellerons les descriptions j, q,m, s, a, d et p et
+nous désignerons les positions des nœuds par leur adresse de Gorn. Par exemple la racine de la
+DAP associée à Marie est m et le nœud le plus éloigné de la racine de la DAP associée à semble
+est s31. Les relations > et >∗ sont représentées par des traits, respectivement plein et pointillé.
+Les relations ≺ et ≺+ sont représentées par des flèches, respectivement noire et colorée. Les
+items qui permettent d’arriver une analyse et les règles pour les produire sont listés dans la
 Table 1.
-
-4. Ce logiciel est disponible a http : //leopar . loria . fr/.
-
+4. Ce logiciel est disponible à http://leopar.loria.fr/.
 Un analyseur syntaxique descendant pour les GI
-
-L’ algorithme commence par prédire une racine S image de d et p (items 1, 2 et 3), puis ordonne
-les ﬁls de ces noeuds (item 4). L’ analyse se poursuit par la prédiction d’un noeud NP dont un
-des antécédents doit étre d1, puisque d a été choisi plus tot. L’analyse se poursuit jusqu’a la
-prédiction du noeud S (item 12) dont la projection phonologique est que Marie semble aimer.
-Ce noeud a pour antécédents Q2 et 3. Le noeud (122 contraint par q; n’est pas antécédent, il doit
-donc étre obligatoirement utilisé dans cette sous-analyse et il est ajouté a l’ensemble 0 de cet
-item. Ce noeud devient ensuite disponible pour l’analyse de que et semble mais n’est pas utilisé.
-Il est donc toujours dans l’ensemble 0 de l’item 22, ainsi que dans celui de l’item 24.
-
-Les items 25, 26 et 27 décrivent la prédiction du noeud S dont la projection phonologique est
-aimer. On sélectionne (122 comme antécédent qui devient utilisé (ensemble U). Lors de la com-
-plétion du S dont la projection phonologique est que Marie semble aimer (item 34), 1e contrat
-qui forcait l’utilisation de (122 a été rempli et on retire donc ce noeud des noeuds obligatoires. Le
-reste de l’analyse ne pose pas de probleme particulier.
-
+L’algorithme commence par prédire une racine S image de d et p (items 1, 2 et 3), puis ordonne
+les fils de ces nœuds (item 4). L’analyse se poursuit par la prédiction d’un nœud NP dont un
+des antécédents doit être d1, puisque d a été choisi plus tôt. L’analyse se poursuit jusqu’à la
+prédiction du nœud S (item 12) dont la projection phonologique est que Marie semble aimer.
+Ce nœud a pour antécédents q2 et s. Le nœud q22 contraint par q2 n’est pas antécédent, il doit
+donc être obligatoirement utilisé dans cette sous-analyse et il est ajouté à l’ensemble O de cet
+item. Ce nœud devient ensuite disponible pour l’analyse de que et semble mais n’est pas utilisé.
+Il est donc toujours dans l’ensemble O de l’item 22, ainsi que dans celui de l’item 24.
+Les items 25, 26 et 27 décrivent la prédiction du nœud S dont la projection phonologique est
+aimer. On sélectionne q22 comme antécédent qui devient utilisé (ensemble U). Lors de la com-
+plétion du S dont la projection phonologique est que Marie semble aimer (item 34), le contrat
+qui forçait l’utilisation de q22 a été rempli et on retire donc ce nœud des nœuds obligatoires. Le
+reste de l’analyse ne pose pas de problème particulier.
 4 Discussion
-
 4.1 Correction et complétude
-
-L’ algorithme présenté maintient un invariant tout au long de l’analyse. Chaque item de la forme
-
-[A(H, N, F) —> 04 o B, i,j, (O, U, D)] assure que:
-
-— A est modele d’un ensemble saturé de noeuds qui ne sont plus disponibles pour étre antécé-
-dents d’un autre noeud de l’arbre syntaxique en construction. Il en est de méme des noeuds
-dans oz. Les conditions 1, 7 et 3 (cas réﬂexii) que doit vériﬁer un modele sont respectées.
-
-— Les ensembles Bk sont superposables. On a B], Q (A‘1)> (conditions 2 et 6)
-
-— l’ordre des ozﬂ est compatible avec les relations d’ordre des DAP (conditions 4 et 5).
-
-— PP(0z1) o . . . o PP(0z;) = [m,-+1---mj]
-
-— les noeuds de 0 sont des noeuds contraints en relation avec des noeuds de DAP qui sont
+L’algorithme présenté maintient un invariant tout au long de l’analyse. Chaque item de la forme
+[A(H,N, F )→ α • β, i, j, (O,U,D)] assure que :
+– A est modèle d’un ensemble saturé de nœuds qui ne sont plus disponibles pour être antécé-
+dents d’un autre nœud de l’arbre syntaxique en construction. Il en est de même des nœuds
+dans α. Les conditions 1, 7 et 3 (cas réflexif) que doit vérifier un modèle sont respectées.
+– Les ensembles βk sont superposables. On a βk ⊆ (A−1)> (conditions 2 et 6)
+– l’ordre des αβ est compatible avec les relations d’ordre des DAP (conditions 4 et 5).
+– PP (α1) ◦ . . . ◦ PP (αl) = [mi+1 · · ·mj ]
+– les nœuds de O sont des nœuds contraints en relation avec des nœuds de DAP qui sont
 antécédents de A et qui n’ont pas encore été utilisés comme antécédents.
-
-— les noeuds de D sont des noeuds contraints en relation avec des noeuds de DAP qui sont
-antécédents de noeuds de l’arbre syntaxique situés entre sa racine et A et qui n’ont pas encore
+– les nœuds de D sont des nœuds contraints en relation avec des nœuds de DAP qui sont
+antécédents de nœuds de l’arbre syntaxique situés entre sa racine et A et qui n’ont pas encore
 été utilisés comme antécédents
-
-— un noeud N de U est un noeud contraint en relation par >* avec un noeud de DAP qui est
-antécédent d’un noeud situé a la fois entre la racine de l’arbre syntaxique et A, distinct de A
-et entre la racine et I (N) (condition 3).
-
-On peut vériﬁer cet invariant par induction sur les regles. En d’autres termes un tel item afﬁrme
-
-qu’il existe une fonction partielle J des noeuds d’un sous-ensemble des DAP d’une GI vers
-
-un arbre syntaxique de racine étiquetée par 0 et qui a pour projection phonologique ml . . .mj.
-
-Cette fonction J est similaire a la fonction I des modeles. Elle vériﬁe les memes propriétés mais
-
-les conditions 2-5 ne sont respectées que si les deux noeuds sont dans le domaine. L’ algorithme
-
-étend cette fonction J jusqu’a (1) l’obtention d’une fonction totale et (2) la couverture complete
-de la chaine d’entrée. J déﬁnit alors un arbre syntaxique qui est un arbre d’analyse.
-
+– un nœud N de U est un nœud contraint en relation par >∗ avec un nœud de DAP qui est
+antécédent d’un nœud situé à la fois entre la racine de l’arbre syntaxique et A, distinct de A
+et entre la racine et I(N) (condition 3).
+On peut vérifier cet invariant par induction sur les règles. En d’autres termes un tel item affirme
+qu’il existe une fonction partielle J des nœuds d’un sous-ensemble des DAP d’une GI vers
+un arbre syntaxique de racine étiquetée par O et qui a pour projection phonologique m1 . . .mj .
+Cette fonction J est similaire à la fonction I des modèles. Elle vérifie les mêmes propriétés mais
+les conditions 2–5 ne sont respectées que si les deux nœuds sont dans le domaine. L’algorithme
+étend cette fonction J jusqu’à (1) l’obtention d’une fonction totale et (2) la couverture complète
+de la chaîne d’entrée. J définit alors un arbre syntaxique qui est un arbre d’analyse.
 D’autre part, s’il existe un arbre syntaxique pour une GI et une phrase d’entrée, un parcours
-préﬁxe de cet arbre permet de retrouver les items créés par l’algorithme
-
-00\IChO‘(H>0Dl\'JI—\
-
-[T —> 05(0), 0, 0, ((2), (2), 
-
-[S(0, 2), (2)) —> I, 0, 0, ((2), 2), (2))]
-
-[S(Q), {d, p}, 0) —> O, 0, 0, ((2), (2), (2))]
-
-[S((2), {d, p}, 0) —> oNP(d1)V(d2)PUN(p1), 0, 0, (0, 0, 0)]
-[NP({d1}, 0, 0) —> I, 0, 0, (0, 0, 0)]
-
-[NP({d1}:  Q}:  9 .: 0: 0: (0: 0: 
-
-[NP({d1}:  Q}:  9 .NP(j1: Q1)S(Q2): 0: 0: (0: 0: 
-[NP({j1: Q1}: 0:  9 .: 0: 1: (0: 0: 
-
-[NP({d1}:  Q}:  9 NP . S(Q2): 0: 1: (0: 0: 
-
-[S({Q2}: 0:  9 -: 1: 1: (0: 0: 
-
-[S({Q2}: {S}:  9 .: 1: 1: (0: 0: 
-
-[5({‘J2}: {S}: 0) —> 'CPL(Q21)NP(31)V(32)5(33): 1: 1: ({‘J22}: 0: 0)]
-[CPL({Q21}: 0:  9 -: 1: 1: (0: 0: {Q22})}
-
-[CPL({Q21}: 0:  9 .: 1: 1: (0: 0: {Q22})}
-
-[CPL(‘{Q21}:0:0) —’ ':1:2:(0:0:‘{Q22})]
-
-[5({<12}:{8}:0) —> CPL ° NP(81)V(82)5(83): 1: 2: ({q22}: 9): 2)]
-[NP({31}: 0:  9 -: 2: 2: (0: 0: {Q22})}
-
-[NP({31}: {m}:  9 .: 2: 2: (0: 0: {Q22})}
-
-[NP({31}: {m}:  9 .NP(m1): 2: 2: (0: 0: {Q22})}
-[NP({m1}: 0:  9 .: 2: 3: (0: 0: {Q22})}
-
-[NP({31}: {m}:  9 NP’: 2: 3: (0: 0: {Q22})}
-
-[5({q2}: {S}: (2)) —> CPL NP ° V(82)S(8a): 1: 3: ({q22}: 9): 0)]
-[1/({32}: 0:  9 .: 3: 4: (0: 0: {Q22})}
-
-[S({q2}, {.9}, (2)) —> CPL NP V o S(s3), 1, 4, ({q22}, (2), (2))]
-[S({33}: 0:  9 -: 4: 4: (0: 0: {Q22})}
-
-[S({33}: {a: Q22}:  9 .: 4: 4: (0: {Q22}: 
-
-]S({33}: ‘[0: G22}: 0) —> °NP((11:331))/((12:Q221)NP(Q222:(13):4:4: (0: ‘{(J22}:({))]
-
-[NP({a1: 331}: 0:  9 .: 4: 4: (0: {Q22}: 
-
-[3({8s}: {a: Q22}: (2)) —> NP 0 V(a2: q221)NP(q222, as): 4: 4: ((2): {(122}: 0)]
-
-[1/((02: Q221}: 0: 0) " ': 4: 5: (0: {(122}: 0)]
-
-[S({33}: {a: Q22}:  9 NP V . NP(Q222: Q3): 4: 5: (0: {Q22}: 
-[NP({Q222: a3}: 0:  9 .: 5: 5: (0: {Q22}: 
-
-[S({33}: {a: Q22}:  9 NP V NP’: 4: 5: (0: {Q22}: 
-[S({q2}, {s}, 0) —: CPL NP V 30, 1, 5, (0, 0, 0)]
-[NP({d1}, {j, q}, 0) —> NP So, 0, 5, (0, 0, 0)]
-
-[S(0, {d, p}, 0) —> NP 0 V(d2)PUN(p1), 0, 5, (0, 0, 0)]
-[V({d2}, (2),  —> 0, 5, 6, ((2), (2), 
-
-[S(0, {d,p}, 0) —> NP V . PUN(p1), 0, 6, (0, 0, 0)]
-[PUN({P1}: 0, 0) _: ., 6, 7, (0, 0, 0)]
-
-[S(0, {d,p}, 0) —: NP V PUNo, 0, 7, (0, 0, 0)]
-
-[T —> So, 0, 7, (0, 0, 0)]
-
-TABLE 1 — Items pour 1’analyse de Jean que Marie semble aimer dart.
-
+préfixe de cet arbre permet de retrouver les items créés par l’algorithme
 Joseph Le Roux
-
-(9 0 P2 0 P1(22)
-c(22, 23)
-
-pl (24)
-
-pg (25)
-
-P3 (26)
-
-P3 0 P2 0 P1(27)
-c(27, 28)
-
-b 0 P2 0 P1(29)
-c(29, 30)
-
-P3 0 P2 0 P1(31)
-c(31, 32)
-
-c(24, 33)
-
-c(9, 34)
-
-c(4, 35)
-
-b 0 P2 0 P1(36)
-c(36, 37)
-
-b 0 P2 0 P1(38)
-c(38, 39)
-
-c(1, 40)
-
-Un analyseur syntaxique descendant pour les G1
-
+1 [⊤ → •S(∅), 0, 0, (∅, ∅, ∅)] ax
+2 [S(∅, ∅, ∅)→ , 0, 0, (∅, ∅, ∅)] p1(1)
+3 [S(∅, {d, p}, ∅)→ , 0, 0, (∅, ∅, ∅)] p2(2)
+4 [S(∅, {d, p}, ∅)→ •NP(d1)V (d2)PUN(p1), 0, 0, (∅, ∅, ∅)] p3(3)
+5 [NP({d1}, ∅, ∅)→ , 0, 0, (∅, ∅, ∅)] p1(4)
+6 [NP({d1}, {j, q}, ∅)→ , 0, 0, (∅, ∅, ∅)] p2(5)
+7 [NP({d1}, {j, q}, ∅)→ •NP(j1, q1)S(q2), 0, 0, (∅, ∅, ∅)] p3(6)
+8 [NP({j1, q1}, ∅, ∅)→ •, 0, 1, (∅, ∅, ∅)] b ◦ p2 ◦ p1(7)
+9 [NP({d1}, {j, q}, ∅)→ NP • S(q2), 0, 1, (∅, ∅, ∅)] c(7, 8)
+10 [S({q2}, ∅, ∅)→ , 1, 1, (∅, ∅, ∅)] p1(9)
+11 [S({q2}, {s}, ∅)→ , 1, 1, (∅, ∅, ∅)] p2(10)
+12 [S({q2}, {s}, ∅)→ •CPL(q21)NP(s1)V (s2)S(s3), 1, 1, ({q22}, ∅, ∅)] p3(11)
+13 [CPL({q21}, ∅, ∅)→ , 1, 1, (∅, ∅, {q22})] p1(12)
+14 [CPL({q21}, ∅, ∅)→ , 1, 1, (∅, ∅, {q22})] p2(13)
+15 [CPL({q21}, ∅, ∅)→ •, 1, 2, (∅, ∅, {q22})] b(14)
+16 [S({q2}, {s}, ∅)→ CPL • NP(s1)V (s2)S(s3), 1, 2, ({q22}, ∅, ∅)] c(12, 15)
+17 [NP({s1}, ∅, ∅)→ , 2, 2, (∅, ∅, {q22})] p1(16)
+18 [NP({s1}, {m}, ∅)→ , 2, 2, (∅, ∅, {q22})] p2(17)
+19 [NP({s1}, {m}, ∅)→ •NP(m1), 2, 2, (∅, ∅, {q22})] p3(18)
+20 [NP({m1}, ∅, ∅)→ •, 2, 3, (∅, ∅, {q22})] b ◦ p2 ◦ p1(19)
+21 [NP({s1}, {m}, ∅)→ NP•, 2, 3, (∅, ∅, {q22})] c(19, 20)
+22 [S({q2}, {s}, ∅)→ CPL NP • V (s2)S(s3), 1, 3, ({q22}, ∅, ∅)] c(16, 21)
+23 [V ({s2}, ∅, ∅)→ •, 3, 4, (∅, ∅, {q22})] b ◦ p2 ◦ p1(22)
+24 [S({q2}, {s}, ∅)→ CPL NP V • S(s3), 1, 4, ({q22}, ∅, ∅)] c(22, 23)
+25 [S({s3}, ∅, ∅)→ , 4, 4, (∅, ∅, {q22})] p1(24)
+26 [S({s3}, {a, q22}, ∅)→ , 4, 4, (∅, {q22}, ∅)] p2(25)
+27 [S({s3}, {a, q22}, ∅)→ •NP(a1, s31)V (a2, q221)NP(q222, a3), 4, 4, (∅, {q22}, ∅)] p3(26)
+28 [NP({a1, s31}, ∅, ∅)→ •, 4, 4, (∅, {q22}, ∅)] p3 ◦ p2 ◦ p1(27)
+29 [S({s3}, {a, q22}, ∅)→ NP • V (a2, q221)NP(q222, a3), 4, 4, (∅, {q22}, ∅)] c(27, 28)
+30 [V ({a2, q221}, ∅, ∅)→ •, 4, 5, (∅, {q22}, ∅)] b ◦ p2 ◦ p1(29)
+31 [S({s3}, {a, q22}, ∅)→ NP V • NP(q222, a3), 4, 5, (∅, {q22}, ∅)] c(29, 30)
+32 [NP({q222, a3}, ∅, ∅)→ •, 5, 5, (∅, {q22}, ∅)] p3 ◦ p2 ◦ p1(31)
+33 [S({s3}, {a, q22}, ∅)→ NP V NP•, 4, 5, (∅, {q22}, ∅)] c(31, 32)
+34 [S({q2}, {s}, ∅)→ CPL NP V S•, 1, 5, (∅, ∅, ∅)] c(24, 33)
+35 [NP({d1}, {j, q}, ∅)→ NP S•, 0, 5, (∅, ∅, ∅)] c(9, 34)
+36 [S(∅, {d, p}, ∅)→ NP • V (d2)PUN(p1), 0, 5, (∅, ∅, ∅)] c(4, 35)
+37 [V ({d2}, ∅, ∅)→ •, 5, 6, (∅, ∅, ∅)] b ◦ p2 ◦ p1(36)
+38 [S(∅, {d, p}, ∅)→ NP V • PUN(p1), 0, 6, (∅, ∅, ∅)] c(36, 37)
+39 [PUN({p1}, ∅, ∅)→ •, 6, 7, (∅, ∅, ∅)] b ◦ p2 ◦ p1(38)
+40 [S(∅, {d, p}, ∅)→ NP V PUN•, 0, 7, (∅, ∅, ∅)] c(38, 39)
+41 [⊤ → S•, 0, 7, (∅, ∅, ∅)] c(1, 40)
+TABLE 1 – Items pour l’analyse de Jean que Marie semble aimer dort.
+Un analyseur syntaxique descendant pour les GI
 4.2 Complexité
-
-Le probleme de l’analyse des GI est un probleme NP-difﬁcile dans le cas lexicalisé et méme en
-l’absence d’ambigu'1'té lexicale (Bonfante et al., 2003).
-
-En regardant les regles de notre algorithme, on peut voir plusieurs sources d’indéterIninisme :
-
-— dans la regle pg, il faut choisir de nouveaux antécédents (l’ensemble NC) qui soient super-
-
-posables avec les antécédents hérités des choix précédents (l’ensemble H0). Ces nouveaux
-antécédents sont a choisir parmi les noeuds disponibles et les racines des DAP de la GI uti-
-lisée. 11 y a un nombre exponentiel de tels choix, d’autant plus grand que les GI réalistes
+Le problème de l’analyse des GI est un problème NP-difficile dans le cas lexicalisé et même en
+l’absence d’ambiguïté lexicale (Bonfante et al., 2003).
+En regardant les règles de notre algorithme, on peut voir plusieurs sources d’indéterminisme :
+– dans la règle p2, il faut choisir de nouveaux antécédents (l’ensemble NC) qui soient super-
+posables avec les antécédents hérités des choix précédents (l’ensemble HC). Ces nouveaux
+antécédents sont à choisir parmi les nœuds disponibles et les racines des DAP de la GI uti-
+lisée. Il y a un nombre exponentiel de tels choix, d’autant plus grand que les GI réalistes
 contiennent plus de 2000 DAP.
-Cependant, en pratique, on Va ﬁltrer les choix possibles grace aux catégories et aux polarités.
-De plus, les GI utilisées dans l’implantation LEOPAR sont lexicalisées. On ne Va donc consi-
+Cependant, en pratique, on va filtrer les choix possibles grâce aux catégories et aux polarités.
+De plus, les GI utilisées dans l’implantation LEOPAR sont lexicalisées. On ne va donc consi-
 dérer qu’un sous-ensemble des DAP de la grammaire, qui correspond aux DAP qui ont pour
-ancre un mot de la phrase d’entrée. Enﬁn, des techniques de ﬁltrages lexical (supertagging)
-tres efﬁcaces ont été développées pour les GI, comme (Bonfante et al., 2006) qui permettent
-de restreindre de facon drastique le nombre de DAP qui peuvent étre utilisées.
-
-— dans la regle p3 et la regle b, il faut choisir un sous-ensemble de noeuds contraints par des
-antécédents déja choisis. Ici encore il existe un nombre exponentiel de choix. Cependant,
-dans les GI utilisées en pratique, les noeuds des DAP ont au plus un successeur par la relation
->* et il n’existe pas de chaine de noeuds reliés par >*. On peut donc borner le nombre de
-noeuds dans Fg par le nombre de noeuds dans H C U NC.
-
-— dans la regle p3, on doit ordonner et partitionner les ﬁls par > des antécédents. Dans le cas ou
-il n’existe aucune relation de précédence entre ces ﬁls, il y a a nouveau un nombre exponentiel
-de possibilité. Cependant, en pratique, le nombre de noeuds a ordonner/partitionner est petit.
-On peut imaginer calculer l’ordre de facon paresseuse en l’étendant a chaque complétion,
+ancre un mot de la phrase d’entrée. Enfin, des techniques de filtrages lexical (supertagging)
+très efficaces ont été développées pour les GI, comme (Bonfante et al., 2006) qui permettent
+de restreindre de façon drastique le nombre de DAP qui peuvent être utilisées.
+– dans la règle p3 et la règle b, il faut choisir un sous-ensemble de nœuds contraints par des
+antécédents déjà choisis. Ici encore il existe un nombre exponentiel de choix. Cependant,
+dans les GI utilisées en pratique, les nœuds des DAP ont au plus un successeur par la relation
+>∗ et il n’existe pas de chaîne de nœuds reliés par >∗. On peut donc borner le nombre de
+nœuds dans FC par le nombre de nœuds dans HC ∪NC .
+– dans la règle p3, on doit ordonner et partitionner les fils par > des antécédents. Dans le cas où
+il n’existe aucune relation de précédence entre ces fils, il y a à nouveau un nombre exponentiel
+de possibilité. Cependant, en pratique, le nombre de nœuds à ordonner/partitionner est petit.
+On peut imaginer calculer l’ordre de façon paresseuse en l’étendant à chaque complétion,
 comme le proposent (Nederhof et al., 2003) pour les pomset-CFG.
-
-On remarque que la regle qui fait intervenir le plus d’indices de position est la complétion et
-
-qu’il n’y a pas d’indéterminisme a cette étape. Ce n’est donc pas directement la taille de la
-
-phrase qui rend le probleme de l’analyse des GI difﬁcile mais la taille de la GI et des DAP a
-
-considérer. La longueur de la phrase ne joue qu’un role indirect, le nombre de DAP utilisables
-
+On remarque que la règle qui fait intervenir le plus d’indices de position est la complétion et
+qu’il n’y a pas d’indéterminisme à cette étape. Ce n’est donc pas directement la taille de la
+phrase qui rend le problème de l’analyse des GI difficile mais la taille de la GI et des DAP à
+considérer. La longueur de la phrase ne joue qu’un rôle indirect, le nombre de DAP utilisables
 augmentant avec le nombre de mots.
-
 5 Conclusion
-
 Nous avons présenté un algorithme d’analyse pour les GI. Bien que nous ayons utilisé une
-version sans structure de traits, nous pensons qu’il n’y a aucune difﬁculté majeure a y ajouter
-un mécanisme d’uniﬁcation.
-
-L’ originalité de notre travail réside dans l’utilisation du cadre formel de 1’ analyse déductive pour
-un formalisme qui se réclame de l’approche par théorie des modéles (Pullum & Scholz, 2001).
-Ce cadre formel permet de distinguer les sources de l’indéterIr1inisme qui rendent difﬁcile le
-probleme de l’analyse dans les GI. Ce travail est donc un premier pas vers une étude plus
+version sans structure de traits, nous pensons qu’il n’y a aucune difficulté majeure à y ajouter
+un mécanisme d’unification.
+L’originalité de notre travail réside dans l’utilisation du cadre formel de l’analyse déductive pour
+un formalisme qui se réclame de l’approche par théorie des modèles (Pullum & Scholz, 2001).
+Ce cadre formel permet de distinguer les sources de l’indéterminisme qui rendent difficile le
+problème de l’analyse dans les GI. Ce travail est donc un premier pas vers une étude plus
 approfondie de sa complexité.
-
-A l’avenir, il sera intéressant de rechercher, comme pour la méthode shift-reduce ou comme
+À l’avenir, il sera intéressant de rechercher, comme pour la méthode shift-reduce ou comme
 pour les (k-)TT-MCTAG (Kallmeyer & Parmentier, 2008), des approximations de l’algorithme
-ou du formalisme qui ne considerent qu’un nombre borné de noeuds a chaque étape, de maniere
-
+ou du formalisme qui ne considèrent qu’un nombre borné de nœuds à chaque étape, de manière
 Joseph Le Roux
-
-a rendre l’analyse efﬁcace (polynomiale).
-
+à rendre l’analyse efficace (polynomiale).
 Références
-
 BONFANTE G., GUILLAUME B. & PERRIER G. (2003). Analyse syntaxique électrostatique.
 Traitement Automatique des Langues.
-
 BONFANTE G., LE ROUX J. & PERRIER G. (2006). Lexical disambiguation with polarities
-and automata. In 0. H. IBARRA & H.-C. YEN, Eds., The I I th International Conference on
+and automata. In O. H. IBARRA & H.-C. YEN, Eds., The 11th International Conference on
 Implementation and Application of Automata (CIAA 2006).
-
 CHOMSKY N. (1995). The Minimalist Program. MIT Press.
-
-DUCHIER D. & T HATER S. (1999). Parsing with tree descriptions : a constraint based ap-
-proach. In Natural Language Understanding and Logic Programming NLULP’99, Dec I999,
+DUCHIER D. & THATER S. (1999). Parsing with tree descriptions : a constraint based ap-
+proach. In Natural Language Understanding and Logic Programming NLULP’99, Dec 1999,
 Las Cruces, New Mexico.
-
-EARLEY J. (1970). An efﬁcient context-free parsing algorithm. Communications of the ACM,
-13(2), 94-102.
-
+EARLEY J. (1970). An efficient context-free parsing algorithm. Communications of the ACM,
+13(2), 94–102.
 GUILLAUME B. & PERRIER G. (2008). Interaction Grammars. Research Report RR-6621,
 INRIA.
-
-KAHANE S. (2004). Grammaires d’uniﬁcation polarisées. In TALN2004, F es, Maroc, p. 233-
+KAHANE S. (2004). Grammaires d’unification polarisées. In TALN2004, Fès, Maroc, p. 233–
 242.
-
 KALLMEYER L. & PARMENTIER Y. (2008). Convertir des grammaires d’arbres adjoints
-a composantes multiples avec tuples d’arbres (TT-MCTAG) en grammaires a concaténation
-d’interValles (RCG). In I5e Conférence sur le Traitement Automatique des Langues Natu-
+à composantes multiples avec tuples d’arbres (TT-MCTAG) en grammaires à concaténation
+d’intervalles (RCG). In 15e Conférence sur le Traitement Automatique des Langues Natu-
 relles, Avignon France : ATALA.
-
 LAMBEK J. (1958). The mathematics of sentence structure. American Mathematical Monthly,
-65(3), 154-170.
-
-LE ROUX J. (2007). La coordination dans les grammaires d ’interaction. PhD thesis, Ecole
-Doctorale IAEM Lorraine; Institut National Polytechnique de Lorraine - INPL.
-
+65(3), 154–170.
+LE ROUX J. (2007). La coordination dans les grammaires d’interaction. PhD thesis, Ecole
+Doctorale IAEM Lorraine ; Institut National Polytechnique de Lorraine - INPL.
 NEDERHOF M., SATTA G. & SHIEBER S. (2003). Partially ordered multiset context-free
 grammars and ID/LP parsing. In Proceedings of the Eighth International Workshop on Parsing
-Technologies, p. 171-182, Nancy, France.
-
+Technologies, p. 171–182, Nancy, France.
 PULLUM G. & SCHOLZ B. (2001). On the distinction between model-theoretic and
-generative-enumerative syntactic frameworks. In Proccedings of the 4th conference on L0-
+generative-enumerative syntactic frameworks. In Proccedings of the 4th conference on Lo-
 gical Aspects of Computational Linguistics.
-
 SHIEBER S., SCHABES Y. & PEREIRA F. P. (1995). Principles and implementation of deduc-
-tive parsing. Journal of Logic Programming, 24(1-2), 3-36.
-
+tive parsing. Journal of Logic Programming, 24(1–2), 3–36.

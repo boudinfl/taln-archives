@@ -1,566 +1,391 @@
-TALN 2005, Dourdan, 6-10 juin 2005
-
-XMG : Un Compilateur de Méta-Grammaires EXtensible*
-
+TALN 2005, Dourdan, 6–10 juin 2005
+XMG : Un Compilateur de Méta-Grammaires Extensible∗
 Denys Duchier (1), Joseph Le Roux (2), Yannick Parmentier (2)
-(1) LIFL — UMR CNRS 8022- Universite des Sciences et Technologies de Lille
-Batiment M3 59655 Villeneuve d’Ascq Cedex
-duchier@liﬂ.fr
-(2) INRIA / LORIA — Institut National Polytechnique de Lorraine — Universite
-Henri Poincare Nancy 1
-615, rue du J ardin Botanique — 54 600 Villers—Les—Nancy
-{lerouX,parmenti} @ loria.fr
-
-M0tS-Cl€fS I Grammaires, compilation, ressources linguistiques, Grammaires d’Arbres
+(1) LIFL - UMR CNRS 8022- Université des Sciences et Technologies de Lille
+Bâtiment M3 59655 Villeneuve d’Ascq Cédex
+duchier@lifl.fr
+(2) INRIA / LORIA - Institut National Polytechnique de Lorraine - Université
+Henri Poincaré Nancy 1
+615, rue du Jardin Botanique - 54 600 Villers-Lès-Nancy
+{leroux,parmenti}@loria.fr
+Mots-clefs : Grammaires, compilation, ressources linguistiques, Grammaires d’Arbres
 Adjoints, Grammaires d’Interaction
-
-K€yWOFdS2 Grammars, compilation, linguistic resources, Tree Adjoining Grammars, In-
+Keywords: Grammars, compilation, linguistic resources, Tree Adjoining Grammars, In-
 teraction Grammars
-
-Résumé Dans cet article, nous présentons un outil permettant de produire automatique—
+Résumé Dans cet article, nous présentons un outil permettant de produire automatique-
 ment des ressources linguistiques, en l’occurence des grammaires. Cet outil se caractérise par
 son extensibilité, tant du point de vue des formalismes grammaticaux supportés (grammaires
-d’arbres adjoints et grammaires d’interaction a l’heure actuelle), que de son architecture mo-
-dulaire, qui facilite l’intégration de nouveaux modules ayant pour but de veriﬁer la validité des
+d’arbres adjoints et grammaires d’interaction à l’heure actuelle), que de son architecture mo-
+dulaire, qui facilite l’intégration de nouveaux modules ayant pour but de vérifier la validité des
 structures produites. En outre, cet outil offre un support adapté au développement de gram-
-maires a portée sémantique.
-
+maires à portée sémantique.
 Abstract In this paper, we introduce a new tool for automatic generation of linguistic
 resources such as grammars. This tool’s main feature consists of its extensibility from different
 points of view. On top of supporting several grammatical formalisms (Tree Adjoining Gram-
 mars and Interaction Grammars for now), it has a modular architecture which eases the integra-
 tion of modules dedicated to the checking of the output structures. Furthermore, this tool offers
 adapted support to the development of grammars with semantic information.
-
-* Nous tenons a remercier Benoit Crabbe, Claire Gardent, Guy Perrier et Eric De La Clergerie pour les
-nombreuses discussions qui nous ont aidees dans le cadre de ce travail.
-
-13
-
-14
-
+∗* Nous tenons à remercier Benoît Crabbé, Claire Gardent, Guy Perrier et Eric De La Clergerie pour les
+nombreuses discussions qui nous ont aidées dans le cadre de ce travail.
 D. Duchier, J. Le Roux et Y. Parmentier
-
 1 La production automatique de grammaires
-
-Dans le cadre du developpement d’ applications de TALN (analyseurs syntaxiques par exemple),
-un certain nombre de ressources linguistiques est necessaire, parmi lesquelles des grammaires.
-Nous nous interessons ici aux grammaires fortement lexicalisees associant a chaque mot un
-ensemble de structures syntaxiques decrivant son comportement dans chaque emploi.
-
+Dans le cadre du développement d’applications de TALN (analyseurs syntaxiques par exemple),
+un certain nombre de ressources linguistiques est nécessaire, parmi lesquelles des grammaires.
+Nous nous intéressons ici aux grammaires fortement lexicalisées associant à chaque mot un
+ensemble de structures syntaxiques décrivant son comportement dans chaque emploi.
 1.1 Le besoin de production automatique
-
-Par opposition aux grammaires de regles, les grammaires fortement lexicalisees utilisees en lin-
-guistique informatique, comme les grammaires d’arbres adjoints lexicalisees (TAG), les gram-
-maires d’interaction (IG) ou les grammaires categorielles reportent la connaissance de la langue
-dans le lexique. Un tel lexique peut étre Vu comme une fonction associant a un mot de la langue
-l’ensemble des structures syntaxiques representant ses usages. Pour avoir une bonne couverture,
-il est necessaire que le lexique associe a chaque mot un maximum de structures. Par exemple
-pour analyser les expressions ci—dessous, le lexique doit associer au Verbe mange (en TAG) les
+Par opposition aux grammaires de règles, les grammaires fortement lexicalisées utilisées en lin-
+guistique informatique, comme les grammaires d’arbres adjoints lexicalisées (TAG), les gram-
+maires d’interaction (IG) ou les grammaires catégorielles reportent la connaissance de la langue
+dans le lexique. Un tel lexique peut être vu comme une fonction associant à un mot de la langue
+l’ensemble des structures syntaxiques représentant ses usages. Pour avoir une bonne couverture,
+il est nécessaire que le lexique associe à chaque mot un maximum de structures. Par exemple
+pour analyser les expressions ci-dessous, le lexique doit associer au verbe mange (en TAG) les
 structures suivantes :
-
-La pomme que Jean mange  Jean qui mange une pomme.
-
-K N
-
-Jean mange la pomme.
-
-P N P /\
-
-que N qui mange
-
-P
-maiige l /\ N Y N
-V
-I
-
+Jean mange la pomme. La pomme que Jean mange ... Jean qui mange une pomme. ...
+N
+N
+P N P
+N P
+N V N N P ...
+mange N V N
+que N V qui mange
 mange
-
-Cette taille de lexique ne Va pas sans problemel. Comme les regles syntaxiques sont éclatées a
-travers le lexique, l’analyse d’un nouveau phenomene linguistique ou, pire, sa revision peuvent
-avoir de graves consequences sur la coherence de la grammaire. Si les premiers lexiques a
-large couverture furent ecrits a la main, leur generation automatique devient de plus en plus
-pressante, de maniere a (1) pouvoir garantir la coherence de l’ensemble et (2) pouvoir reviser
-une grammaire rapidement, meme quand le lexique devient important. Nous avons developpe
-un formalisme, dont l’implantation est XMG, qui, a partir d’une description metagrammaticale
-concise genere toutes les structures associees aux mots du lexique. Notre approche se Veut la
-plus independante possible des formalismes grammaticaux et capable de gerer simultanement
-les aspects syntaxiques et semantiques du lexique.
-
+Cette taille de lexique ne va pas sans problème1. Comme les règles syntaxiques sont éclatées à
+travers le lexique, l’analyse d’un nouveau phénomène linguistique ou, pire, sa révision peuvent
+avoir de graves conséquences sur la cohérence de la grammaire. Si les premiers lexiques à
+large couverture furent écrits à la main, leur génération automatique devient de plus en plus
+pressante, de manière à (1) pouvoir garantir la cohérence de l’ensemble et (2) pouvoir réviser
+une grammaire rapidement, même quand le lexique devient important. Nous avons développé
+un formalisme, dont l’implantation est XMG, qui, à partir d’une description métagrammaticale
+concise génère toutes les structures associées aux mots du lexique. Notre approche se veut la
+plus indépendante possible des formalismes grammaticaux et capable de gérer simultanément
+les aspects syntaxiques et sémantiques du lexique.
 1.2 Principes de la production automatique
-
-Le lexique est extrémement redondant : d’une part, une meme structure syntaxique peut étre
-as sociee a plusieurs entrees lexicales (e. g. les Verbes transitifs auront un grand nombre de struc-
-tures syntaxiques en commun) et d’autre part les differentes structures lexicales partagent des
-
-1Les problemes purement informatiques ne sont pas évoqués ici.
-
-XMG : Un Compilateur de Meta—Grammaires Extensible
-
-fragments communs importants (e.g. le fragment sujet—Verbe se retrouve de tres nombreuses
-fois). L’ idee qui s’est imposee des les premiers travaux de generation automatique de lexique
-par (Candito, 1996) est de ne decrire que ces fragments elementaires, pouvant heriter les uns des
+Le lexique est extrêmement redondant : d’une part, une même structure syntaxique peut être
+associée à plusieurs entrées lexicales (e.g. les verbes transitifs auront un grand nombre de struc-
+tures syntaxiques en commun) et d’autre part les différentes structures lexicales partagent des
+1Les problèmes purement informatiques ne sont pas évoqués ici.
+XMG : Un Compilateur de Méta-Grammaires Extensible
+fragments communs importants (e.g. le fragment sujet-verbe se retrouve de très nombreuses
+fois). L’idée qui s’est imposée dès les premiers travaux de génération automatique de lexique
+par (Candito, 1996) est de ne décrire que ces fragments élémentaires, pouvant hériter les uns des
 autres, puis de les combiner pour former toutes les structures syntaxiques du lexique. Ces com-
-binaisons constituent la justiﬁcation linguistique de cette approche2. En effet elles doivent expli-
-quer la formation des differentes structures apparentees (par exemple la relation entre les formes
-actives et passives d’un meme Verbe). Les differents formalismes metagrammaticaux doivent
-donc rendre exprimables la notion de fragments reutilisables, la speciﬁcation de leur structure
-et la maniere de les combiner pour produire des structures completes. Par exemple, (Candito,
-1996) explique les croisements par un ensemble de contraintes (de 3 types) que doivent Veri-
-ﬁer les structures ﬁnales et (Gaiffe, Crabbe et Roussanaly, 2002) les justiﬁe en assouplissant
-la notion de contrainte par une approche ou besoins et ressources doivent etre satisfaits. Notre
-approche les explique par deux actions primitives l ’accnmnlation et la composition disjonctive
-auxquelles peuvent etre aj outees des contraintes (sensibilite aux ressources, comme par exemple
-un langage de couleur, Voir section 2.2). Mais XMG se distingue des approches anterieures par
+binaisons constituent la justification linguistique de cette approche2. En effet elles doivent expli-
+quer la formation des différentes structures apparentées (par exemple la relation entre les formes
+actives et passives d’un même verbe). Les différents formalismes métagrammaticaux doivent
+donc rendre exprimables la notion de fragments réutilisables, la spécification de leur structure
+et la manière de les combiner pour produire des structures complètes. Par exemple, (Candito,
+1996) explique les croisements par un ensemble de contraintes (de 3 types) que doivent véri-
+fier les structures finales et (Gaiffe, Crabbé et Roussanaly, 2002) les justifie en assouplissant
+la notion de contrainte par une approche où besoins et ressources doivent être satisfaits. Notre
+approche les explique par deux actions primitives l’accumulation et la composition disjonctive
+auxquelles peuvent être ajoutées des contraintes (sensibilité aux ressources, comme par exemple
+un langage de couleur, voir section 2.2). Mais XMG se distingue des approches antérieures par
 trois aspects fondamentaux :
-
-1. XMG est multi—formalisme, c’est a dire qu’il ne se limite pas a un formalisme syntaxique
+1. XMG est multi-formalisme, c’est à dire qu’il ne se limite pas à un formalisme syntaxique
 en particulier,
-
-2. XMG est extensible, d’une part on peut lui aj outer des niveaux de description pour traiter
-de nouveaux formalismes (aussi bien syntaxiques que semantiques), et d’autre part, on
-peut l’etendre en deﬁnissant des modules de contraintes additionnelles que les structures
+2. XMG est extensible, d’une part on peut lui ajouter des niveaux de description pour traiter
+de nouveaux formalismes (aussi bien syntaxiques que sémantiques), et d’autre part, on
+peut l’étendre en définissant des modules de contraintes additionnelles que les structures
 grammaticales produites doivent respecter,
-
-3. la description metagrammaticale est Vue comme un programme logique dont XMG est
-le compilateur, ce qui nous permet de reutiliser des techniques issues de la pro grammation
-lo gique.
-
-1.3 L’eXtensibilité de XMG
-
-XMG presente une grande originalite Vis a Vis des autres cadres meta—grammaticaux : il est a la
-fois multi—formalisme 3 (genere aussi bien des TAG que des IG), et extensible. Cette extensibilite
-est atteinte d’une part grace a un langage de controle muni des operations d’accumulation et de
-composition disjonctive qui sont generales, et ne decrivent que des relations de fragment a frag-
-ment. Ce langage est donc independant du formalisme grammatical cible et permet d’exprimer
-des combinaisons tres ﬁnes. D’autre part, dans XMG, chaque fragment peut contenir un nombre
-arbitraire de niveaux de description (appeles aussi dimensions) tels que le niveau syntaxique,
-semantique, etc. Ces dimensions ne sont pas completement independantes puisqu’elles peuvent
-partager de l’information (en particulier pour l’interface syntaxe / semantique). En outre, chaque
-dimension est munie de son propre langage de description qui Varie selon le type d’information
-contenue. Par exemple, pour les TAG et les IG la dimension syntaxique est representee par
-un langage de description d’arbres integrant l’uniﬁcation et ou chaque noeud est equipe d’une
-structure de traits, tandis que pour les grammaires de dependances extensibles (XD G) les entrees
-lexicales seraient des structures de traits atomiques. Enﬁn, XMG est extensible par l’ajout de
-modules speciﬁques pour traiter les structures intermediaires produites. Il existe deux types de
-
-2Les approches anterieures ne s’interessaient qu’au probleme de redondance.
-
-3Les approches de meta—grammaires precedentes ne permettaient que la production de grammaires TAG, bien
-que les travaux de (Clement et Kinyon, 2003) montrent qu’i1 est possible d’adapter le resultat obtenu pour generer
+3. la description métagrammaticale est vue comme un programme logique dont XMG est
+le compilateur, ce qui nous permet de réutiliser des techniques issues de la programmation
+logique.
+1.3 L’extensibilité de XMG
+XMG présente une grande originalité vis à vis des autres cadres méta-grammaticaux : il est à la
+fois multi-formalisme 3 (génère aussi bien des TAG que des IG), et extensible. Cette extensibilité
+est atteinte d’une part grâce à un langage de contrôle muni des opérations d’accumulation et de
+composition disjonctive qui sont générales, et ne décrivent que des relations de fragment à frag-
+ment. Ce langage est donc indépendant du formalisme grammatical cible et permet d’exprimer
+des combinaisons très fines. D’autre part, dans XMG, chaque fragment peut contenir un nombre
+arbitraire de niveaux de description (appelés aussi dimensions) tels que le niveau syntaxique,
+sémantique, etc. Ces dimensions ne sont pas complètement indépendantes puisqu’elles peuvent
+partager de l’information (en particulier pour l’interface syntaxe / sémantique). En outre, chaque
+dimension est munie de son propre langage de description qui varie selon le type d’information
+contenue. Par exemple, pour les TAG et les IG la dimension syntaxique est représentée par
+un langage de description d’arbres intégrant l’unification et où chaque nœud est équipé d’une
+structure de traits, tandis que pour les grammaires de dépendances extensibles (XDG) les entrées
+lexicales seraient des structures de traits atomiques. Enfin, XMG est extensible par l’ajout de
+modules spécifiques pour traiter les structures intermédiaires produites. Il existe deux types de
+2Les approches antérieures ne s’intéressaient qu’au problème de redondance.
+3Les approches de méta-grammaires précédentes ne permettaient que la production de grammaires TAG, bien
+que les travaux de (Clément et Kinyon, 2003) montrent qu’il est possible d’adapter le résultat obtenu pour générer
 des grammaires fonctionnelles lexicales (LFG).
-
-15
-
-16
-
 D. Duchier, J. Le Roux et Y. Parmentier
-
-modules : (1) ceux qui creent de nouVelles structures (par exemple, pour TAG, en produisant des
-arbres a partir de descriptions) et (2) ceux qui ﬁltrent les structures correctes suiVant des criteres
-linguistiques (Voir section 2.2).
-
-A ce jour, la support du multi—formalisme a ete Valide dans XMG Via TAG et 1G, cependant il
-n’est pas encore possible de selectionner la dimension syntaxique a utiliser (seule un langage
-de description d’arbres a ete implante) : l’extensibilite declarative n’est pas encore atteinte.
-
-Par la suite, nous allons tout d’abord presenter le procede de compilation de XMG, ensuite
-nous Verrons concretement comment produire automatiquement une grammaire TAG, enﬁn nous
-aborderons la question de l’integration de XMG dans une chaine de TALN.
-
+modules : (1) ceux qui créent de nouvelles structures (par exemple, pour TAG, en produisant des
+arbres à partir de descriptions) et (2) ceux qui filtrent les structures correctes suivant des critères
+linguistiques (voir section 2.2).
+A ce jour, la support du multi-formalisme a été validé dans XMG via TAG et IG, cependant il
+n’est pas encore possible de sélectionner la dimension syntaxique à utiliser (seule un langage
+de description d’arbres a été implanté) : l’extensibilité déclarative n’est pas encore atteinte.
+Par la suite, nous allons tout d’abord présenter le procédé de compilation de XMG, ensuite
+nous verrons concrètement comment produire automatiquement une grammaire TAG, enfin nous
+aborderons la question de l’intégration de XMG dans une chaîne de TALN.
 2 Un procédé de compilation basé sur des techniques de pro-
 grammation logique
-
-Dans cette section, nous allons decrire le procede de compilation de meta—grammaire utilise par
-XMG. Plus precisement, nous allons presenter (a) le langage abstrait dont XMG est l’implan—
-tation. Notons que nous ne presentons pas ici la syntaxe concréte du langage (Voir section 3
-pour cela), mais le langage de plus bas niVeau dans lequel cette syntaxe est traduite lors de la
-compilation. Nous presenterons egalement (b) l’architecture de XMG, qui par sa modularite,
-s’adapte aisement a differents formalismes grammaticaux.
-
+Dans cette section, nous allons décrire le procédé de compilation de méta-grammaire utilisé par
+XMG. Plus précisément, nous allons présenter (a) le langage abstrait dont XMG est l’implan-
+tation. Notons que nous ne présentons pas ici la syntaxe concrète du langage (voir section 3
+pour cela), mais le langage de plus bas niveau dans lequel cette syntaxe est traduite lors de la
+compilation. Nous présenterons également (b) l’architecture de XMG, qui par sa modularité,
+s’adapte aisément à différents formalismes grammaticaux.
 2.1 Un langage de représentation étendu
-
-Combinaison de fragments Nous avons Vu a la section précedente que la compilation d’une
-meta—grammaire correspondait a la combinaison de fragments4. Nous pouvons deﬁnir de telles
-combinaisons sous forme de regles de reecriture. Par exemple, considerons l’arbre syntaxique
-associe a une entree lexicale telle que voit (i.e. un Verbe transitif) dans le formalisme TAG. Dis-
-
-posant des fragments d’arbres Sujet, Acti f et Object, nous pouvons reecrire l’arbre VerbeTmn32't2' f
-
+Combinaison de fragments Nous avons vu à la section précédente que la compilation d’une
+méta-grammaire correspondait à la combinaison de fragments4. Nous pouvons définir de telles
+combinaisons sous forme de règles de réécriture. Par exemple, considérons l’arbre syntaxique
+associé à une entrée lexicale telle que voit (i.e. un verbe transitif) dans le formalisme TAG. Dis-
+posant des fragments d’arbres Sujet, Actif et Object, nous pouvons réécrire l’arbre V erbeTransitif
 comme la conjonction de ces 3 fragments :
-
 VerbeTransitif Sujet Actif Objet
-A A5 T Sn
-N V N _ N V + V + V N
-Voit  ... Voit
-Ce qui s’ecrit egalement comme suit :
-VerbeTrcmsity‘ —> Sujet /\ Actif /\ Objet (1)
-
-Nous nous ramenons ainsi au formalisme des grammaires de clauses déﬁnies (DCG), dans le-
+S S S S
+N V N = N V + V + V N
+... voit ... . . . voit . . .
+Ce qui s’écrit également comme suit :
+VerbeTransitif → Sujet ∧ Actif ∧ Objet (1)
+Nous nous ramenons ainsi au formalisme des grammaires de clauses définies (DCG), dans le-
 quel les terminaux ne seraient pas des mots mais des fragments d’arbres. La compilation d’une
-meta—grammaire s’identiﬁe alors a la compilation d’un programme logique. Dans XMG, la
-
-“Nous laissons provisoirement de cote la question de la contrainte des combinaisons, Voir 2.2.
-
-XMG : Un Compilateur de Meta—Grammaires Extensible
-
-meta—grammaire est decrite au moyen d’un langage de representation, qui comprend les notions
+méta-grammaire s’identifie alors à la compilation d’un programme logique. Dans XMG, la
+4Nous laissons provisoirement de côté la question de la contrainte des combinaisons, voir 2.2.
+XMG : Un Compilateur de Méta-Grammaires Extensible
+méta-grammaire est décrite au moyen d’un langage de représentation, qui comprend les notions
 d’abstraction (cf 2) et de composition conjonctive et disjonctive (cf 3).
-
-Clause
-But ::=
-
-Nom —> But (2)
-Description I Nom I BntVBnt I But/\Bnt (3)
-
-On remarque que XMG fournit un langage expressif incluant la disj onction et de ce fait introduit
-de l’indeterminisme dans la combinaison des fragments d’arbres. Ainsi, nous pouvons preciser
-l’exemple precedent de l’arbre associe aux Verbes transitifs en speciﬁant que le sujet peut etre
-sous forme canonique on sous forme relative, etc. Cela s’enonce Via la regle suivante :
-
-Snjet —> SnjetCan V SnjetRel V . . . (4)
-
-Description des fragments Les fragments denotes par les abstractions (nommees egalement
-classes) de notre langage de representation sont decrits au moyen de contraintes de dominance :
-
-Description ::= :v—>y I x—>+y I a:—>*y I :c<y I :c<+y I :v<*y I :z:[f:E] I :v(p:E)
-
+Clause ::= Nom → But (2)
+But ::= Description | Nom | But ∨ But | But ∧ But (3)
+On remarque que XMG fournit un langage expressif incluant la disjonction et de ce fait introduit
+de l’indéterminisme dans la combinaison des fragments d’arbres. Ainsi, nous pouvons préciser
+l’exemple précédent de l’arbre associé aux verbes transitifs en spécifiant que le sujet peut être
+sous forme canonique ou sous forme relative, etc. Cela s’énonce via la règle suivante :
+Sujet → SujetCan ∨ SujetRel ∨ . . . (4)
+Description des fragments Les fragments dénotés par les abstractions (nommées également
+classes) de notre langage de représentation sont décrits au moyen de contraintes de dominance :
+Description ::= x → y | x →+ y | x →∗ y | x ≺ y | x ≺+ y | x ≺∗ y | x[f :E] | x(p:E)
 (5)
-
-ou :17, y representent des Variables de noeuds, —> la dominance immediate, —>+ la dominance
-stricte, —>* la dominance large, < la precedence immediate, <+ la precedence stricte, <* la
-precedence large, :cI f :E] l’association du trait f au noeud :3 et x(p:E) l’association de la pro-
-priete p a ce meme noeud :5.
-
-Ainsi, nous disposons d’un langage sufﬁsamment expressif pour supporter les formalismes syn-
-taxiques bases sur les descriptions d’ arbres, telles que les grammaires TAG et1G.
-
-Representation semantique L’extensibilite de XMG se retrouve egalement dans le fait qu’il
-offre un support adequat a l’integration d’une representation sémantique dans la meta—grammaire.
-En effet, notre langage de representation permet non seulement de placer dans les classes des
-informations syntaxiques (e.g. descriptions d’ arbres), mais egalement des representations se-
-mantiques. A l’heure actuelle, un langage a base de structures predicatives a ete implante :
-Description ::= €:p(E1,...,E,,) I -u€:p(E1,...,E,,) I E, < E, (6)
-Ici, €:p(E1, ..., En) represente le predicat p avec les arguments E1, .., E,,, et etiquete par 6, -u
-l’operateur de negation, et E, < E, la portee entre les Variables semantiques E, et Ej.
-
-Un tel langage peut servir, par exemple, a associer aux arbres des informations de type seman-
+où x, y représentent des variables de noeuds, → la dominance immédiate, →+ la dominance
+stricte, →∗ la dominance large, ≺ la précédence immédiate, ≺+ la précédence stricte, ≺∗ la
+précédence large, x[f :E] l’association du trait f au noeud x et x(p:E) l’association de la pro-
+priété p à ce même noeud x.
+Ainsi, nous disposons d’un langage suffisamment expressif pour supporter les formalismes syn-
+taxiques basés sur les descriptions d’arbres, telles que les grammaires TAG et IG.
+Représentation sémantique L’extensibilité de XMG se retrouve également dans le fait qu’il
+offre un support adéquat à l’intégration d’une représentation sémantique dans la méta-grammaire.
+En effet, notre langage de représentation permet non seulement de placer dans les classes des
+informations syntaxiques (e.g. descriptions d’arbres), mais également des représentations sé-
+mantiques. A l’heure actuelle, un langage à base de structures prédicatives a été implanté :
+Description ::= `:p(E1, ..., En) | ¬`:p(E1, ..., En) | Ei ¿ Ej (6)
+Ici, `:p(E1, ..., En) représente le prédicat p avec les arguments E1, .., En, et étiqueté par `, ¬
+l’opérateur de négation, et Ei ¿ Ej la portée entre les variables sémantiques Ei et Ej .
+Un tel langage peut servir, par exemple, à associer aux arbres des informations de type séman-
 tique plate comme dans (Gardent et Kallmeyer, 2003).
-
-En reprenant notre comparaison entre meta—grammaire et DCG se pose la question de la dis-
+En reprenant notre comparaison entre méta-grammaire et DCG se pose la question de la dis-
 tinction entre information syntaxique et information sémantique. Cela est rendu possible par
-l’utilisation de dimensions, correspondant chacune a un accnmnlatenr speciﬁque dans le for-
-malisme des grammaires de clauses deﬁnies etendnes (EDCG) (Van Roy, 1990).
-
-Ainsi, la combinaison de classes (i. e. d’informations syntaxiques ou semantiques) donne lieu a
-l’ accumulation de leur contenu dans des structures dediees. L’ expression (3) Vue precedemment
-est alors etendue en remplacant Description par :
-
+l’utilisation de dimensions, correspondant chacune à un accumulateur spécifique dans le for-
+malisme des grammaires de clauses définies étendues (EDCG) (Van Roy, 1990).
+Ainsi, la combinaison de classes (i.e. d’informations syntaxiques ou sémantiques) donne lieu à
+l’accumulation de leur contenu dans des structures dédiées. L’expression (3) vue précédemment
+est alors étendue en remplacant Description par :
 Dimension += Description
-
-17
-
 D. Duchier, J. Le Roux et Y. Parmentier
-
 Ce type accumulation permet de traiter plusieurs dimensions. A l’heure actuelle, XMG dispose
-de 3 dimensions, notees syn, sem et dyn. Les deux premieres representent les dimensions syn-
-taxique et semantique et la demiere une dimension utilisee pour l’accumulation d’informations
+de 3 dimensions, notées syn, sem et dyn. Les deux premières représentent les dimensions syn-
+taxique et sémantique et la dernière une dimension utilisée pour l’accumulation d’informations
 lexicales.
-
-Notons que ces dimensions peuvent partager des Variables logiques, ce qui permet un develop-
-pement relativement naturel d’une interface syntaxe/ semantique au niveau meta— grammatical.
-
-Portée des variables Dans les approches anterieures les noms de Variables ont une portee glo-
-bale a la meta—grammaire. Ce qui pose des problemes de conﬂits de noms, passe un certain
-nombre de classes. Dans XMG, les identiﬁants ont par defaut une portee limitee a la clause, a
-laquelle est integre un procede d’export d’identiﬁants. Ainsi, il est possible de speciﬁer avec
-precision le domaine de Visibilite d’une Variable. Plus precisement, a chaque clause est associee
-une structure de traits contenant les identiﬁants exportes, (2) devient :
-
-Clause ::= (f1:E1, . . .,f,,:E,,) c Nom —> But (7)
-
-Et l’appel de classe s’accompagne de l’acces a la structure d’export (notee Var ici), (3) est
-remplacee par :
-
-Bat ::= Dim -|—= Description I Var c Nom I But V But I But /\ But (8)
-
-On peut acceder alors a un identiﬁant X Via la notation pointee Var.X.
-
+Notons que ces dimensions peuvent partager des variables logiques, ce qui permet un dévelop-
+pement relativement naturel d’une interface syntaxe / sémantique au niveau méta-grammatical.
+Portée des variables Dans les approches antérieures les noms de variables ont une portée glo-
+bale à la méta-grammaire. Ce qui pose des problèmes de conflits de noms, passé un certain
+nombre de classes. Dans XMG, les identifiants ont par défaut une portée limitée à la clause, à
+laquelle est intégré un procédé d’export d’identifiants. Ainsi, il est possible de spécifier avec
+précision le domaine de visibilité d’une variable. Plus précisément, à chaque clause est associée
+une structure de traits contenant les identifiants exportés, (2) devient :
+Clause ::= 〈f1:E1, . . . , fn:En〉 ⇐ Nom → But (7)
+Et l’appel de classe s’accompagne de l’accès à la structure d’export (notée Var ici), (3) est
+remplacée par :
+But ::= Dim += Description | Var ⇐ Nom | But ∨ But | But ∧ But (8)
+On peut accéder alors à un identifiant X via la notation pointée Var.X.
 2.2 Une architecture modulaire
-
-En section 1, nous avons presente les caracteristiques de XMG, dont le fait qu’il supporte plu-
-sieurs formalismes syntaxiques. Cette caracteristique est fortement liee a l’architecture modu-
+En section 1, nous avons présenté les caractéristiques de XMG, dont le fait qu’il supporte plu-
+sieurs formalismes syntaxiques. Cette caractéristique est fortement liée à l’architecture modu-
 laire du compilateur.
-
-Des modules dédiés La compilation d’une meta—grammaire se fait en plusieurs phases, dont
-certaines different suivant le formalisme. Chacune de ces phases est prise en charge par un
-module speciﬁque.
-
+Des modules dédiés La compilation d’une méta-grammaire se fait en plusieurs phases, dont
+certaines diffèrent suivant le formalisme. Chacune de ces phases est prise en charge par un
+module spécifique.
 Actuellement XMG comporte 3 modules principaux :
-
-a) La partie avant (i. e. le compilateur proprement dit) traduit la meta—grammaire en instructions
-exprimees dans un langage de plus bas niveau.
-
-b) Ces instructions sont ensuite executees par une machine Virtuelle (MV) de type Warren ’s
-Abstract Machine (WAM, Voir (Ait—Kaci, 1991)).
-
-Cette MV realise l’uniﬁcation des structures de donnees de la meta—grammaire (i. e. struc-
-tures de traits associees aux noeuds, traits polarises pour 1G, etc), puis l’accumulation des
-dimensions pour une combinaison de classes donnee. En sortie de la MV, nous disposons
-de donnees accumulees dans chaque dimension, dans le cas des TAG, des descriptions
+a) La partie avant (i.e. le compilateur proprement dit) traduit la méta-grammaire en instructions
+exprimées dans un langage de plus bas niveau.
+b) Ces instructions sont ensuite exécutées par une machine virtuelle (MV) de type Warren’s
+Abstract Machine (WAM, voir (Ait-Kaci, 1991)).
+Cette MV réalise l’unification des structures de données de la méta-grammaire (i.e. struc-
+tures de traits associées aux noeuds, traits polarisés pour IG, etc), puis l’accumulation des
+dimensions pour une combinaison de classes donnée. En sortie de la MV, nous disposons
+de données accumulées dans chaque dimension, dans le cas des TAG, des descriptions
 d’arbres dont il faut calculer les solutions.
-
 c) En plus de la partie avant et de la MV, qui sont communes aux formalismes des TAG et
-des 1G, XMG integre un module de resolution de descriptions d’arbres. Ce module est
-programme sous forme d’un resolveur de contraintes (Voir (Duchier et Niehren, 2000)
-pour une description complete du procede).
-
-XMG : Un Compilateur de Meta—Grammaires Extensible
-
-U11 résolveur extensible La modularité dans XMG est encore étendue par la programmation
+des IG, XMG intègre un module de résolution de descriptions d’arbres. Ce module est
+programmé sous forme d’un résolveur de contraintes (voir (Duchier et Niehren, 2000)
+pour une description complète du procédé).
+XMG : Un Compilateur de Méta-Grammaires Extensible
+Un résolveur extensible La modularité dans XMG est encore étendue par la programmation
 de modules additionnels optionnels et paramétrables. Ces modules permettent d’étendre les
-fonctionnalites du module de resolution pour, par exemple, contraindre les modeles produits
-par XMG selon des criteres spéciﬁques, appelés aussi principes.
-
-Les principes instanciables presents dans XMG actuellement sont de 3 types :
-
-i) un principe de couleurs. Comme annoncé a la section 1.2, dans un contexte de déVeloppe—
-ment de grammaires a large couverture par combinaison de fragments, une idee majeure
-consiste a contraindre les combinaisons acceptables en intégrant un systeme de gestion
-de ressources. Pour gerer les ressources en TAG, XMG integre un langage de couleurs. Ce
+fonctionnalités du module de résolution pour, par exemple, contraindre les modèles produits
+par XMG selon des critères spécifiques, appelés aussi principes.
+Les principes instanciables présents dans XMG actuellement sont de 3 types :
+i) un principe de couleurs. Comme annoncé à la section 1.2, dans un contexte de développe-
+ment de grammaires à large couverture par combinaison de fragments, une idée majeure
+consiste à contraindre les combinaisons acceptables en intégrant un système de gestion
+de ressources. Pour gérer les ressources en TAG, XMG intègre un langage de couleurs. Ce
 langage permet d’indiquer quels fragments d’arbres nécessitent quels autres fragments
-pour former un modele Valide (une presentation de l’emploi d’un langage de couleurs
-pour produire une grammaire TAG est donnée dans (Crabbe et Duchier, 2004)).
-
-ii) un principe d’unicité paramétré par une propriete de noeuds. Ce principe permet de garantir
-la Validité des solutions produites par XMG par rapport a une contrainte linguistique
-d’unicité telle que : dans un arbre TAG, il ne peut y avoir deux extracti0ns5.
-
-iii) un principe de rang paramétré par un nombre entier, permettant de realiser l’ordonnance—
+pour former un modèle valide (une présentation de l’emploi d’un langage de couleurs
+pour produire une grammaire TAG est donnée dans (Crabbé et Duchier, 2004)).
+ii) un principe d’unicité paramétré par une propriété de noeuds. Ce principe permet de garantir
+la validité des solutions produites par XMG par rapport à une contrainte linguistique
+d’unicité telle que : dans un arbre TAG, il ne peut y avoir deux extractions5.
+iii) un principe de rang paramétré par un nombre entier, permettant de réaliser l’ordonnance-
 ment des clitiques dans les arbres TAG produits.
-
 3 Cas d’étude : une méta-grammaire pour TAG
-
-Voyons a present comment ecrire une méta—grammaire pour TAG avec XMG. Pour cela nous
-allons introduire la syntaxe concréte de XMG, qui est destinée a étre traduite dans le langage
+Voyons à présent comment écrire une méta-grammaire pour TAG avec XMG. Pour cela nous
+allons introduire la syntaxe concrète de XMG, qui est destinée à être traduite dans le langage
 abstrait présenté précédemment lors de la compilation. Notons que nous n’entrons pas ici dans
-les aspects du développement de grammaires a large couverture, nous nous focalisons sur un
-exemple simple, introductif Vis a Vis des possibilités offertes par XMG.
-
-Nous allons considerer la meta—grammaire permettant de generer les arbres TAG pour les Verbes
-transitifs a l’actif avec sujet canonique ou extrait er objet sous forme canonique (exemple 1 de
-la section 2.l)6.
-
-Les déclarations La premiere information que doit fournir notre méta—grammaire consiste en
-la speciﬁcation du resolveur utilise (si nous en utilisons un). Ici nous allons utiliser le principe
-d’unicite de la fonction grammaticale sujet :
-
+les aspects du développement de grammaires à large couverture, nous nous focalisons sur un
+exemple simple, introductif vis à vis des possibilités offertes par XMG.
+Nous allons considérer la méta-grammaire permettant de générer les arbres TAG pour les verbes
+transitifs à l’actif avec sujet canonique ou extrait et objet sous forme canonique (exemple 1 de
+la section 2.1)6.
+Les déclarations La première information que doit fournir notre méta-grammaire consiste en
+la spécification du résolveur utilisé (si nous en utilisons un). Ici nous allons utiliser le principe
+d’unicité de la fonction grammaticale sujet :
 use unicity with (fg = suj) dims (syn)
-
-Cette instruction indique a XMG que le résolveur ne doit accepter que les solutions pour les-
+Cette instruction indique à XMG que le résolveur ne doit accepter que les solutions pour les-
 quelles il n’y a qu’un seul noeud ayant la propriété fg = suj (respect du principe d’unicité).
-
-Ensuite, nous déclarons les types de données utilises. Ces types permettent de typer les proprie-
+Ensuite, nous déclarons les types de données utilisés. Ces types permettent de typer les proprié-
 tés et structures de traits qui seront associées aux noeuds dans les descriptions syntaxiques :
-
 type CAT={n,v,p}
 type FG={suj,obj}
 property fg : FG
 feature cat : CAT
-
-5 Nous adoptons cette convention dans un contexte meta—grammatica1, bien que certains exemples de phrases a
-double extraction existent (cf (Abeille, 2002)).
-
-6Nous ne presentons pas le formalisme TAG ici, 1e lecteur est dirige Vers (J oshi et Schabes, 1997) pour une telle
+5Nous adoptons cette convention dans un contexte méta-grammatical, bien que certains exemples de phrases à
+double extraction existent (cf (Abeillé, 2002)).
+6Nous ne présentons pas le formalisme TAG ici, le lecteur est dirigé vers (Joshi et Schabes, 1997) pour une telle
 introduction.
-
-19
-
-20
-
 D. Duchier, J. Le Roux et Y. Parmentier
-
-Les classes A présent, nous pouvons déﬁnir 1e contenu de nos classes, i.e. les fragments d’ arbres.
-Considérons 1e fragment correspondant au sujet canonique. Ce1ui—ci est composé de 3 noeuds
-at, y et ,2, tels que :3 —> y /\ at —> z /\ y < ,2. Ce qui s’écrit comme suit dans la syntaxe de XMG
-(at —> y correspond a node ?X{node ?Y}):
-
+Les classes A présent, nous pouvons définir le contenu de nos classes, i.e. les fragments d’arbres.
+Considérons le fragment correspondant au sujet canonique. Celui-ci est composé de 3 noeuds
+x, y et z, tels que x → y ∧ x → z ∧ y ≺ z. Ce qui s’écrit comme suit dans la syntaxe de XMG
+(x → y correspond à node?X{node?Y}) :
 class SujetCan
 export ?X ?Z
 declare ?X ?Y ?Z
-
 { <syn>{
 node ?X [cat = s]{
 node ?Y (fg=suj)[cat=n]
 node ?Z [cat = v]
-
 }
-
-La classe ObjetCan s’écrit de facon sirnilaire. La classe SujetRe1 correspond a 1’arbre du sujet
+}
+}
+La classe ObjetCan s’écrit de façon similaire. La classe SujetRel correspond à l’arbre du sujet
 en position relative. Le fragment d’arbre correspondant étant :
-
 class SujetRel
 export ?Y ?Z
 declare ?X ?Y ?Z ?U ?V
-
-{ <syr1>{ N
-node ?U [cat = n]{ ///\\\
+{ <syn>{ N
+node ?U [cat = n]{
 node ?V [cat = n] N P
-node ?X [cat = p]{ //N\
-node ?Y (fg=suj)[cat=n] DI ‘V
+node ?X [cat = p]{
+node ?Y (fg=suj)[cat=n] N V
 node ?Z [cat = v]
-
 }
-
-I1 ne nous reste plus alors qu’ a déﬁnir les classes Actif et VerbeTransitif. La clas se Actif contient
-deux noeuds at, y tels que :3 —> y et la classe VerbeTransitif se déﬁnit en suivant la regle donnée
+}
+}
+}
+Il ne nous reste plus alors qu’à définir les classes Actif et VerbeTransitif. La classe Actif contient
+deux noeuds x, y tels que x → y et la classe VerbeTransitif se définit en suivant la règle donnée
 en (4) :
-
 class VerbeTransitif
 declare ?SU ?OB ?AC
 {
-{ ?SU = SujetCan[] |
-?OB = ObjetCan[] ;
-?SU.?X = ?OB.?X ;
-?SU.?X = ?AC.?X ;
-
-?SU = SujetRel[] } ;
-?AC = Actif[] ;
-?SU.?Z = ?OB.?Y ;
-?SU.?Z = ?AC.?Y
-
-Dans cette classe, on remarque la presence de conjonctions représentées par le symbole ; et
-d’une disjonction représentée par | . On utilise la Variable SU (respectivement OB et AC) pour
-désigner la structure de traits d’export de la classe SujetCan ou de la classe SujetRe1 (respecti-
+{ ?SU = SujetCan[] | ?SU = SujetRel[] } ;
+?OB = ObjetCan[] ; ?AC = Actif[] ;
+?SU.?X = ?OB.?X ; ?SU.?Z = ?OB.?Y ;
+?SU.?X = ?AC.?X ; ?SU.?Z = ?AC.?Y
+}
+Dans cette classe, on remarque la présence de conjonctions représentées par le symbole; et
+d’une disjonction représentée par |. On utilise la variable SU (respectivement OB et AC) pour
+désigner la structure de traits d’export de la classe SujetCan ou de la classe SujetRel (respecti-
 vement de la classe ObjetCan et de la classe Actif).
-
 On remarque ici que nous procédons par égalité entre noeuds pour contraindre la combinaison
-des fragments d’arbres. I1 s’agit du procédé de base. Pour passer au développement de meta-
-grammaires de taille importante, 1’emp1oi d’un langage de couleur offre une meilleure ﬂexibilité
-dans la déﬁnition des classe et permet d’a11éger la gestion des noms de Variables.
-
-XMG : Un Compilateur de Meta—Grammaires Extensible
-
- 
-
-X —|'.:a1 ‘xierheT|'ansitif-Solution I - III X
-I syntax  semantics | X .;,-4 _
-.cat : n l
-_,_n\ trace I
-(f_,_,.---"‘’ \ cubjetcan
-T‘ at . V'3Vb'3Tr3n3”if ;--” “M. \."erbeTran3itif
-cat . n cat. [:3 Act” g,» «xi _
-,./" '“~-,, 3 - cat : n cat : V cat : n imlf
-»- A-». '-|J3tH3| SuJetCan
-"X K‘ interface Terface
-cat : n cat : H-' cat n - m
-
-trace summary
-
-‘In.
-"H.
-
-trace summarﬂ
-
-FIG. 1 — Arbres TAG produits par XMG
-
-Les évaluations Une fois les classes de notre méta—grammaire écrites, nous pouvons demander
-a XMG de calculer tous les arbres TAG correspondants. Cela se fait en demandant l’évaluati0n
+des fragments d’arbres. Il s’agit du procédé de base. Pour passer au développement de méta-
+grammaires de taille importante, l’emploi d’un langage de couleur offre une meilleure flexibilité
+dans la définition des classe et permet d’alléger la gestion des noms de variables.
+XMG : Un Compilateur de Méta-Grammaires Extensible
+FIG. 1 – Arbres TAG produits par XMG
+Les évaluations Une fois les classes de notre méta-grammaire écrites, nous pouvons demander
+à XMG de calculer tous les arbres TAG correspondants. Cela se fait en demandant l’évaluation
 de la classe : value VerbeTransitif
-
-Résultat La classe VerbeTransitif genere deux solutions, qui correspondent aux arbres de la
-ﬁgure 1.
-
-4 Intégration dans une chaine de TALN
-
-Le systeme XMG produit des grammaires au format XML7 utilisables pour l’analyse syntaxique
-ou la generation :
-
-Analyse syntaxique Nous avons Vu en section 1 que l’un des buts de la production automatique
-de grammaires etait d’éViter les problemes lies a la redondance entre structures syntaxiques.
-Dans le cas de TAG, on évite aus si cette redondance en utilisant un lexique a 3 niveaux : lemmes,
-formes ﬂéchies et structures syntaxiques. Dans ce contexte, la méta—grammaire produit non pas
-des arbres qui seraient associés chacun a une ou plusieurs unite(s) lexicale(s), mais un ensemble
-de structures syntaxiques nomcmcrées L’ association structure syntaxique — unite(s) lexicale(s)
-est alors réalisée par 1’ analyseur syntaxique. Pour cela, il est nécessaire d’ aj outer a ces structures
-non—ancrées certaines informations sur la morphologie des unites lexicales qui peuvent étre
-accueillies. Ces informations prennent la forme de structures de traits (Voir (Crabbe, Gaiffe et
-Roussanaly, 2003)). XMG, par sa dimension dyn contenant des matrices attributs—Valeurs, offre
+Résultat La classe VerbeTransitif génère deux solutions, qui correspondent aux arbres de la
+figure 1.
+4 Intégration dans une chaîne de TALN
+Le système XMG produit des grammaires au format XML7 utilisables pour l’analyse syntaxique
+ou la génération :
+Analyse syntaxique Nous avons vu en section 1 que l’un des buts de la production automatique
+de grammaires était d’éviter les problèmes liés à la redondance entre structures syntaxiques.
+Dans le cas de TAG, on évite aussi cette redondance en utilisant un lexique à 3 niveaux : lemmes,
+formes fléchies et structures syntaxiques. Dans ce contexte, la méta-grammaire produit non pas
+des arbres qui seraient associés chacun à une ou plusieurs unité(s) lexicale(s), mais un ensemble
+de structures syntaxiques non-ancrées L’association structure syntaxique – unité(s) lexicale(s)
+est alors réalisée par l’analyseur syntaxique. Pour cela, il est nécessaire d’ajouter à ces structures
+non-ancrées certaines informations sur la morphologie des unités lexicales qui peuvent être
+accueillies. Ces informations prennent la forme de structures de traits (voir (Crabbé, Gaiffe et
+Roussanaly, 2003)). XMG, par sa dimension dyn contenant des matrices attributs-valeurs, offre
 un support adéquat pour cette association.
-
-Génération L’ utilisation de grammaires produites automatiquement en generation pose des pro-
-blemes differents. Un genérateur aura pour but de produire un ensemble de phrases a partir d’une
-representation semantique. La aussi, pour éviter la redondance, il y a un découpage structures
-syntaxiques — unite(s) lexicale(s). Par contre, leur association s’accompagne de l’instanciation
-des arguments du prédicat sémantique dans l’arbre. Pour pouvoir accéder a ces arguments dans
-la structure syntaxique, nous pouvons utiliser la dimension dyn et la coindexation er1tre traits
-(Voir (Gardent et Kow, 2004)).
-
-71es DTD pour grammaires TAG et IG sont fournies dans le systeme XMG disponible librement a 1’adresse
-http : //sourcesup . cru . fr/xmg.
-
-21
-
-22
-
+Génération L’utilisation de grammaires produites automatiquement en génération pose des pro-
+blèmes différents. Un générateur aura pour but de produire un ensemble de phrases à partir d’une
+représentation sémantique. Là aussi, pour éviter la redondance, il y a un découpage structures
+syntaxiques – unité(s) lexicale(s). Par contre, leur association s’accompagne de l’instanciation
+des arguments du prédicat sémantique dans l’arbre. Pour pouvoir accéder à ces arguments dans
+la structure syntaxique, nous pouvons utiliser la dimension dyn et la coindexation entre traits
+(voir (Gardent et Kow, 2004)).
+7les DTD pour grammaires TAG et IG sont fournies dans le système XMG disponible librement à l’adresse
+http://sourcesup.cru.fr/xmg.
 D. Duchier, J. Le Roux et Y. Parmentier
-
 Conclusion
-
-XMG offre un cadre de travail adapte au developpement de grammaires de taille relativement
-importante (Voir (Crabbe, 2005a)). Une grammaire TAG du Frangais a large couverture a ainsi
-pu etre developpee par B. Crabbe (Crabbe, 2005b), celle—ci est en cours d’eValuation en analyse
-syntaxique sur la suite de tests TSNLP. Les premiers resultats sont encourageants, la couverture
-de la grammaire produite etant superieure a 75%. Pour donner un ordre d’idee, cette meta-
-grammaire contient 246 classes, representant 55 familles (ie cadres de sous—categorisation), et
-generant 5075 arbres non—ancres en 20 minutes de compilation (sur Pentium 4 — 2,66 Ghz et
-1 Go de memoire Vive).
-
-Nous travaillons a l’heure actuelle a la production de grammaires a portee semantique dans une
-optique d’analyse syntaxique combinee avec un calcul semantique. Nous Visons egalement l’in—
-tegration a XMG d’une bibliotheque de dimensions ayant chacune un langage de representation
-propre. Cette bibliotheque a pour but d’offrir a l’utilisateur des outils adaptes lui permettant de
-creer des instances de meta—grammaire pour un formalisme cible arbitraire.
-
-References
-
-Abeille A. (2002), Une grammaire electronique du frangais , CNRS Editions, Paris.
-
-Ait—Kaci H. (1991) , Warren’s Abstract Machine : A Tutorial Reconstruction, Logic Programming .' Proc.
+XMG offre un cadre de travail adapté au développement de grammaires de taille relativement
+importante (voir (Crabbé, 2005a)). Une grammaire TAG du Français à large couverture a ainsi
+pu être développée par B. Crabbé (Crabbé, 2005b), celle-ci est en cours d’évaluation en analyse
+syntaxique sur la suite de tests TSNLP. Les premiers résultats sont encourageants, la couverture
+de la grammaire produite étant supérieure à 75%. Pour donner un ordre d’idée, cette méta-
+grammaire contient 246 classes, représentant 55 familles (ie cadres de sous-catégorisation), et
+générant 5075 arbres non-ancrés en 20 minutes de compilation (sur Pentium 4 - 2,66 Ghz et
+1 Go de mémoire vive).
+Nous travaillons à l’heure actuelle à la production de grammaires à portée sémantique dans une
+optique d’analyse syntaxique combinée avec un calcul sémantique. Nous visons également l’in-
+tégration à XMG d’une bibliothèque de dimensions ayant chacune un langage de représentation
+propre. Cette bibliothèque a pour but d’offrir à l’utilisateur des outils adaptés lui permettant de
+créer des instances de méta-grammaire pour un formalisme cible arbitraire.
+Références
+Abeillé A. (2002), Une grammaire électronique du français , CNRS Editions, Paris.
+Ait-Kaci H. (1991) , Warren’s Abstract Machine : A Tutorial Reconstruction, Logic Programming : Proc.
 of the Eighth International Conference, K. Furukawa , MIT Press, Cambridge, MA.
-
-Candito M.H. (1996), A principle—based hierarchical representation of LTAGs , Proceedings of the 15th
+Candito M.H. (1996), A principle-based hierarchical representation of LTAGs , Proceedings of the 15th
 International Conference on Computational Linguistics (COLING’96), Kopenhagen.
-
-Clement L., Kinyon A. (2003), Generating LFGs with a MetaGrammar , Proceedings of the 8th Interna-
+Clément L., Kinyon A. (2003), Generating LFGs with a MetaGrammar , Proceedings of the 8th Interna-
 tional Lexical Functional Grammar Conference, Saratoga Springs, NY.
-
-Crabbe B. (2005a), Grammatical development with XMG, Fifth International Conference on Logical
+Crabbé B. (2005a), Grammatical development with XMG, Fifth International Conference on Logical
 Aspects of Computational Linguistics (LACL05), Bordeaux.
-
-Crabbe B. (2005b), Representation inforrnatique de grammaires fortement lexicalisees — Application a la
-grammaire d’arbres adjoints, These de Doctorat (a paraitre), Universite Nancy 2.
-
-Crabbe B., Gaiffe B., Roussanaly A. (2003), Une plate—forrne de conception et d’exploitation d’une
-grammaire d’arbres adjoints lexicalises, Actes de la conference TALN’2003 Batz—sur—mer.
-
-Crabbe B., Duchier D. (2004), Metagrammar Redux , International Workshop on Constraint Solving and
-Language Processing — CSLP 2004, Copenhagen.
-
+Crabbé B. (2005b), Représentation informatique de grammaires fortement lexicalisées - Application à la
+grammaire d’arbres adjoints, Thèse de Doctorat (á paraître), Université Nancy 2.
+Crabbé B., Gaiffe B., Roussanaly A. (2003), Une plate-forme de conception et d’exploitation d’une
+grammaire d’arbres adjoints lexicalisés, Actes de la conférence TALN’2003 Batz-sur-mer.
+Crabbé B., Duchier D. (2004), Metagrammar Redux , International Workshop on Constraint Solving and
+Language Processing - CSLP 2004, Copenhagen.
 Duchier D., Niehren J. (2000), Dominance Constraints with Set Operators, Proceedings of the First
 International Conference on Computational Logic (CL2000).
-
-Gaiffe B., Crabbe B., Roussanaly A. (2002), A New Metagrammar Compiler , Proceedings of the 6th
+Gaiffe B., Crabbé B., Roussanaly A. (2002), A New Metagrammar Compiler , Proceedings of the 6th
 International Workshop on Tree Adjoining Grammars and Related Frameworks (TAG+6), Venice.
 Gardent C., Kallmeyer L. (2003), Semantic construction in FTAG , Proceedings of the 10th meeting of
 the European Chapter of the Association for Computational Linguistics, Budapest.
-
-Gardent C., Kow E. (2004) , Generation et selection de paraphrases grammaticales , journee ATALA sur
-la generation de Langue Naturelle, Paris.
-
-J oshi A., Schabes Y. (1997), Tree—Adjoining Grammars , Handbook of Formal Languages , G. Rozenberg
+Gardent C., Kow E. (2004) , Génération et sélection de paraphrases grammaticales , journée ATALA sur
+la génération de Langue Naturelle, Paris.
+Joshi A., Schabes Y. (1997), Tree-Adjoining Grammars , Handbook of Formal Languages , G. Rozenberg
 and A. Salomaa , Springer, Berlin, New York.
-
 Van Roy P. (1990), Extended DCG Notation : A Tool for Applicative Programming in Prolog, Technical
 Report UCB/CSD 90/583, Computer Science Division, UC Berkeley.
-

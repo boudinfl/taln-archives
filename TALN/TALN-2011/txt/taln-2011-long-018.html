@@ -1,0 +1,1005 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Acquisition automatique de terminologie &#224; partir de corpus de texte</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2011, Montpellier, 27 juin - 1er juillet 2011
+</p>
+<p>Acquisition automatique de terminologie &#224; partir de corpus de texte
+</p>
+<p>Edmond Lassalle
+</p>
+<p>(1) Orange Labs, 2 avenue Pierre Marzin
+22 307 Lannion - France
+</p>
+<p>edmond.lassalle@orange-ftgroup.com
+</p>
+<p>R&#233;sum&#233; :
+</p>
+<p>Les applications de recherche d'informations chez Orange sont confront&#233;es &#224; des flux importants de 
+donn&#233;es textuelles, recouvrant des domaines larges et &#233;voluant tr&#232;s rapidement. Un des probl&#232;mes &#224; 
+r&#233;soudre est de pouvoir analyser tr&#232;s rapidement ces flux, &#224; un niveau &#233;lev&#233; de qualit&#233;. Le recours &#224; un  
+mod&#232;le  d'analyse  s&#233;mantique,  comme  solution,  n'est  viable  qu'en  s'appuyant  sur  l'apprentissage 
+automatique  pour  construire  des  grandes  bases  de  connaissances  d&#233;di&#233;es  &#224;  chaque  application. 
+L'extraction  terminologique  d&#233;crite  dans  cet  article  est  un  composant  amont  de  ce  dispositif  
+d'apprentissage.  Des  nouvelles  m&#233;thodes  d'acquisition,  bas&#233;e  sur  un  mod&#232;le  hybride  (analyse  par 
+grammaires de chunking et analyse statistique &#224; deux niveaux), ont &#233;t&#233; d&#233;velopp&#233;es pour r&#233;pondre aux 
+contraintes de performance et de qualit&#233;.
+</p>
+<p>Abstract :
+</p>
+<p>Information retrieval applications by Orange must process tremendous textual dataflows which cover  
+large domains and evolve rapidly. One problem to solve is to analyze these dataflows very quickly, with  
+a high quality level.  Having a semantic analysis model as a solution is reliable only if unsupervised 
+learning is used to build large knowledge databases dedicated to each application.  The terminology 
+extraction described in this paper is a prior component of the learning architecture. New acquisition  
+methods, based on hybrid model (chunking analysis coupled with two-level statistical analysis) have  
+been developed to meet the constraints of both performance and quality.
+</p>
+<p>Mots-cl&#233;s : Apprentissage automatique, acquisition terminologique, entropie, grammaires de chunking
+Keywords: Unsupervised learning, terminology acquisition, entropy, chunking analysis</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>EDMOND LASSALLE
+</p>
+<p>1 Introduction
+</p>
+<p>Une am&#233;lioration significative de la qualit&#233; des moteurs de recherche concerne l'identification des locutions 
+en tant  qu'unit&#233;s  de  sens.  C'est  aussi  une  difficult&#233;  dans le  cas  de  certaines  applications d'Orange.  Le 
+probl&#232;me est  en effet  de pouvoir  prendre en compte une terminologie en constante &#233;volution dans des 
+domaines li&#233;s &#224;  l'actualit&#233;  (presse,  journaux t&#233;l&#233;vis&#233;s...).  Il  s'agit  en plus de traiter  en continu des flux 
+importants  de  donn&#233;es  pour  indexer  les  nouveaux  documents  entrants  mais  aussi  pour  acqu&#233;rir  une 
+terminologie  &#233;vanescente  (fuite  de  p&#233;trole,  nuage  de  cendres,  Jean  Paul  II,  Sidi  Bouzid,  Antoine  de 
+L&#233;ocour ...). Les m&#233;thodes d'acquisition automatique de terminologie &#224; partir de corpus trouvent ici leur 
+enti&#232;re justification. 
+</p>
+<p>Un examen de diff&#233;rents mod&#232;les d'apprentissage, de leur ad&#233;quation aux corpus dans nos applications va 
+motiver une architecture hybride diff&#233;rente de celles connues et &#233;tudi&#233;es &#224; ce jour. Ce choix oblige &#224; innover 
+dans les m&#233;thodes d'analyse linguistique et  statistique pour r&#233;pondre aux contraintes op&#233;rationnelles de 
+qualit&#233;. L'objet de nos travaux est alors, d'avoir un syst&#232;me &#171;homog&#232;ne&#187; pour limiter le biais statistique 
+inh&#233;rent aux interactions dans tout mod&#232;le hybride. La loi binomiale r&#233;gissant le comportement des mots  
+constitue donc la seule hypoth&#232;se de d&#233;part. Des observations exp&#233;rimentales, une mod&#233;lisation formalis&#233;e 
+permettent ensuite de d&#233;river par calcul les autres lois. Les r&#233;sultats obtenus vont confirmer la pertinence de 
+cette d&#233;marche. Dans la suite de l'article, une description du mod&#232;le d'apprentissage, des m&#233;thodes d'analyse 
+statistique va donner un &#233;clairage sur le fonctionnement de notre composant linguistique.
+</p>
+<p>2 Motivation d'un mod&#232;le hybride d'acquisition terminologique
+</p>
+<p>Le choix d'une architecture est dict&#233; par le type de corpus d'apprentissage. Le n&#244;tre est constitu&#233; de textes  
+d&#233;crivant des vid&#233;os sur un mois d'actualit&#233;s (http://www.2424actu.fr/actualite-du-jour/). A chaque instant, 
+on dispose de 100 000 textes pour un total de 5 millions de mots. Chaque texte comprend un titre suivi d'un 
+r&#233;sum&#233; court comme : &#171;Tunisie : affrontements &#224; Sidi Bouzid. De nouveaux affrontements violents ont eu  
+lieu dans la nuit dans la r&#233;gion de Sidi Bouzid, dans le  centre-ouest de la Tunisie, faisant un bless&#233; par  
+balle et des  d&#233;g&#226;ts mat&#233;riels importants, a-t-on appris dimanche de sources syndicales Des centaines de  
+Tunisiens ont particip&#233; &#224; une manifestation.&#187;
+</p>
+<p>Dans ce type de corpus,  certaines locutions &#8211; &#233;tant communes (d&#233;g&#226;ts mat&#233;riels,  sources syndicales) &#8211; 
+peuvent &#234;tre obtenues hors m&#233;thodes d'apprentissage, mais d'autres (Sidi Bouzid ou Camp Nou) risquent de 
+ne pas figurer dans un r&#233;f&#233;rentiel lexical qui serait &#233;tabli a priori. Le probl&#232;me &#224; traiter est donc d'avoir un 
+r&#233;f&#233;rentiel  de  mots  simples  exhaustif,  incluant  des  mots  inconnus.  Une  analyse  visant  &#224;  extraire  des 
+locutions devra ensuite identifier des constructions bien form&#233;es de groupes de mots, puis reconna&#238;tre la 
+nature compositionnelle ou fig&#233;e du sens port&#233; par ces constructions, y compris celles comportant des mots 
+inconnus. Les solutions &#224; cette probl&#233;matique peuvent &#234;tre d'ordre statistique ou mixte, mais excluent une 
+approche symbolique confront&#233;e au probl&#232;me d'exhaustivit&#233;.
+</p>
+<p>2.1 Mod&#232;les statistiques
+L'apport des m&#233;thodes statistiques concerne la quantification de la compositionalit&#233;. L'occurrence d'un mot 
+mi dans un corpus est mod&#233;lis&#233; par une loi de Bernoulli de param&#232;tre p i. Le comportement d'un mot dans le 
+corpus est ensuite expliqu&#233; par sa fr&#233;quence d'occurrences et donc par une v.a.r de loi binomiale B(n,p i). 
+Estimer  le  degr&#233;  de  compositionalit&#233;  de  deux  mots  contigus  revient  alors  &#224;  d&#233;terminer  le  degr&#233;  de 
+d&#233;pendance des v.a.r associ&#233;es &#224; ces mots. Deux m&#233;thodes exp&#233;rimentales permettent de r&#233;aliser ce calcul :
+</p>
+<p>&#8226; La  premi&#232;re  n&#233;cessite  une  fen&#234;tre  d'observation  (par  exemple  la  phrase)  pour  estimer  les 
+probabilit&#233;s d'occurrences et de cooccurrences &#224; partir d'un comptage fr&#233;quentiel. Elle conduit au 
+calcul de l'information mutuelle (Church et al.,  1990) ou &#224; la mesure de Dice (Smadja, 1993).  
+Citons aussi  pour cette  m&#233;thode, le calcul de la  log-perplexit&#233;  (Kit,  2002) qui a l'avantage de 
+prendre en compte des s&#233;quences de N mots mais n&#233;cessite en contre partie un mod&#232;le de langue  
+pour viabiliser l'estimation de la probabilit&#233; de telles s&#233;quences.
+</p>
+<p>&#8226; La seconde r&#233;alise un comptage fr&#233;quentiel direct de la cooccurrence, de la non-cooccurrence et 
+des  non-occurrences  de  deux  mots  contigus  pour  d&#233;terminer  la  log-vraisemblance  des  2  v.a.r 
+associ&#233;es (Dunning, 1993) ou aussi leur corr&#233;lation via le calcul du &#967;2.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> ACQUISITION AUTOMATIQUE DE TERMINOLOGIE &#192; PARTIR DE CORPUS DE TEXTE
+</p>
+<p>Le r&#233;sultat pour ces 2 m&#233;thodes est un classement suivant une &#171;vraisemblance d'&#234;tre une locution&#187;. La 
+difficult&#233; restant est de d&#233;terminer la valeur de seuillage, mais aussi de mesurer l'importance des termes par  
+rapport au corpus applicatif. 
+</p>
+<p>Pour traiter ce dernier point, les mod&#232;les les plus avanc&#233;s (Kit, 2002) (Vu et al., 2008) (Kageura et al., 1996) 
+caract&#233;risent les s&#233;quences extraites par le crit&#232;re d'unithood, validant statistiquement la coh&#233;rence de la 
+s&#233;quence, et par le crit&#232;re de termhood, caract&#233;risant la sp&#233;cificit&#233; de la s&#233;quence par rapport au corpus 
+applicatif.  En  l'absence  d'analyse  linguistique,  le  premier  crit&#232;re  permet  de  valider  la  construction 
+syntaxique  de  la  s&#233;quence  tandis  que  le  second  crit&#232;re  valide  &#224;  la  fois  la  non-compositionalit&#233;  et 
+l'importance de cette s&#233;quence. Cette approche est adapt&#233;e pour les domaines techniques o&#249; le vocabulaire 
+est limit&#233;, o&#249; les expressions fig&#233;es peuvent &#234;tre longues comme  Alt&#233;ration des facteurs de coagulation  
+sanguine,  o&#249; le  crit&#232;re de sp&#233;cificit&#233;  est  assez proche du crit&#232;re de non-compositionalit&#233;.  Une variante 
+int&#233;ressante  (Frantzi  et  al.,  1999)  est  d'introduire  le  filtrage  de  cat&#233;gories  grammaticales  et  de  palier 
+l'absence d'analyse syntaxique par des mesures statistiques (AC/NC-value). 
+</p>
+<p>2.2 Mod&#232;les hybrides
+Le  mod&#232;le  le  plus  usit&#233;  est  bas&#233;  sur  un  fonctionnement  en  tandem  du  composant  linguistique  et  du 
+composant statistique. L'avantage d'une telle architecture concerne la modularit&#233;. L'analyse linguistique est 
+charg&#233;e  d'annoter  le  corpus initial  (&#233;tiquetage  grammatical,  parenth&#233;sage et  &#233;tiquetage  des  syntagmes).  
+L'analyse statistique reprend les informations annot&#233;es pour produire une liste de termes class&#233;s suivant un 
+ordre de vraisemblance. Cette approche permet en plus de reprendre pour le deuxi&#232;me composant (Daille,  
+1996) les mesures utilis&#233;es par les mod&#232;les statistiques. L'inconv&#233;nient du mod&#232;le en tandem concerne le 
+biais statistique. Les &#233;valuations que nous avons men&#233;es (Lassalle et al., 2011) sur Acabit ont indiqu&#233; un  
+diff&#233;rentiel  de  30%  du  taux  de  pr&#233;cision  suivant  que  nous  utilisons  en  amont,  comme  composant 
+linguistique, l'analyseur de Brill (Brill, 1992) coupl&#233; au lemmatiseur Flem (Namer, 2000) ou l'analyseur Tilt 
+(Heinecke et al., 2008).
+</p>
+<p>Seul un couplage fin entre analyse linguistique et analyse statistique permettrait de minimiser ce biais. Ce 
+qui exclut une r&#233;utilisation des mesures de classement des mod&#232;les statistiques car ces derni&#232;res n&#233;cessitent, 
+dans le calcul, des donn&#233;es globales et non partielles comme c'est le cas dans un couplage fin. Cela nous  
+conduit &#224; sp&#233;cialiser nos m&#233;thodes d'analyse statistique dans deux directions :
+</p>
+<p>&#8226; la premi&#232;re pour d&#233;tecter les &#233;l&#233;ments saillants (analyse de r&#233;gularit&#233;)
+&#8226; la seconde pour estimer la non-compositionalit&#233; des constructions syntaxiques.
+</p>
+<p>Le r&#244;le de l'analyse linguistique dans cette approche hybride est de proposer successivement des ensembles 
+&#171;statistiquement coh&#233;rents&#187; de constructions syntaxiques. Ce que nous pr&#233;ciserons apr&#232;s avoir d&#233;crit dans 
+un premier temps les analyses statistiques. 
+</p>
+<p>3 Analyse statistique de la r&#233;gularit&#233;
+</p>
+<p>Les  finalit&#233;s  de  l'analyse  statistique  d&#233;crite  dans  cette  section  sont  triples.  La  m&#234;me  observation  
+exp&#233;rimentale permet en effet de d&#233;duire les caract&#233;ristiques des mots dans le corpus, suivant : 
+</p>
+<p>&#8226; une loi de distribution d&#233;crivant leur occurrence, 
+&#8226; des propri&#233;t&#233;s macroscopiques autorisant leur regroupement au sein de cat&#233;gories grossi&#232;res, 
+&#8226; et le degr&#233; de saillance permettant d'identifier les mots importants dans le corpus. 
+</p>
+<p>Seul, le calcul de saillance est pr&#233;&#233;minent dans l'acquisition de terminologie. La loi de distribution permet 
+de d&#233;duire la loi conjugu&#233;e a priori et elle  est plut&#244;t utilis&#233;e dans nos mod&#233;lisations bay&#233;siennes, comme 
+dans  la  cat&#233;gorisation1 ou  dans l'indexation.  Le  regroupement  des  mots  en  cat&#233;gories  grossi&#232;res,  bien 
+qu'utile dans le processus d'acquisition terminologique, n&#233;cessite une extension (restant &#224; faire) du calcul de 
+saillance.
+</p>
+<p>3.1 Loi de distribution des mots
+Si l'on accepte que l'occurrence d'un mot dans un corpus suit une loi de Bernoulli de param&#232;tre p, alors sa  
+fr&#233;quence d'apparition dans une fen&#234;tre de n mots d'un corpus suit la loi binomiale B(n,p). La valeur de p est 
+en g&#233;n&#233;ral tr&#232;s faible, &#224; l'exception des mots grammaticaux et des termes de domaine (dans le cas de corpus 
+1Blei D.M., (2003). Latent Dirichlet Allocation, Journal of Machine Learning Research</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>EDMOND LASSALLE
+</p>
+<p>sp&#233;cialis&#233;s comme ceux de la m&#233;decine, des finances,...). Il est donc possible pour les grandes valeurs de n 
+d'approximer la loi binomiale B(n,p) par une loi de Poisson ou par une gaussienne discr&#233;tis&#233;e (Saporta 
+2006).
+</p>
+<p>L'int&#233;r&#234;t d'une loi de Poisson P(&#955;) par rapport &#224; une gaussienne est d'avoir l'esp&#233;rance et la variance &#233;gales &#224; 
+&#955;. Pour les grandes valeurs de &#955; (&#955;&gt;18), P(&#955;) peut &#234;tre confondue &#224; une loi de Gauss (Saporta, 2006), avec 
+l'avantage d'&#234;tre caract&#233;ris&#233;e par un seul param&#232;tre. L'estimation d'un seul param&#232;tre (esp&#233;rance = variance) 
+plut&#244;t que 2 pr&#233;sente un gain important en qualit&#233; dans l'apprentissage &#224; condition que la loi de Poisson soit  
+justifi&#233;e. 
+</p>
+<p>Le probl&#232;me est donc de savoir, &#224; partir d'observations exp&#233;rimentales, quand repr&#233;senter les fr&#233;quences 
+d'occurrence par une loi de Poisson, c'est &#224; dire, pour les grandes valeurs de fr&#233;quence quand repr&#233;senter par 
+une gaussienne &#224; un seul param&#232;tre ou par une gaussienne &#224; 2 param&#232;tres. Nous nous appuierons sur le  
+th&#233;or&#232;me suivant (Saporta, 2006) pour affecter exp&#233;rimentalement les mots observ&#233;s dans l'une de ces 2 
+cat&#233;gories. 
+Th&#233;or&#232;me :
+Si Xn est une suite de variables binomiales B(n,p) telles que quand n&#8594;&#8734; et p&#8594;0, np tend vers une limite 
+finie &#955;. Alors Xn converge en loi vers une variable de Poisson P(&#955;)
+</p>
+<p>3.2 M&#233;thode exp&#233;rimentale
+Une loi empirique comme celle de Zipf permet d'estimer si le contenu d'un texte est porteur de sens ou s'il  
+rel&#232;ve  d'une  &#233;criture  al&#233;atoire.  Par  contre,  cette  loi  n'est  pas  adapt&#233;e  &#224;  une  analyse  plus  fine,  car 
+approximative et non discriminante pour les faibles valeurs de fr&#233;quence de mot (i.e class&#233; en rang &#233;lev&#233;  
+dans la loi  de Zipf).  Nous proposons donc une nouvelle m&#233;thode d'analyse dynamique de corpus pour 
+caract&#233;riser  les  probabilit&#233;s  d'occurrence des  mots,  et  simultan&#233;ment  pour  classer  ces  derniers  en mots 
+grammaticaux (mots &quot; vides &quot;), mots sp&#233;cialis&#233;s de domaine ou mots courants :
+</p>
+<p>&#8226; Le corpus est analys&#233; en flux continu. L'observation est r&#233;alis&#233;e p&#233;riodiquement c'est-&#224;-dire qu'on 
+fige le comptage fr&#233;quentiel de tous les mots tous les k mots observ&#233;s dans le corpus. Si, apr&#232;s  
+avoir parcouru n premiers mots, on a d&#233;compt&#233; f i occurrences d'un mot mi alors fi &#8764; npi, o&#249; pi est la 
+probabilit&#233; d'apparition du mot mi. D'apr&#232;s le pr&#233;c&#233;dent th&#233;or&#232;me, il suffit d'observer l'&#233;volution de 
+fi en fonction de n quand n varie de 0 &#224; taille maximale du corpus (que l'on consid&#232;re comme tr&#232;s  
+grand #  &#8734;). En fonction de l'allure de la courbe fi(n) observ&#233;e, on peut ensuite opter pour la loi 
+d&#233;crivant le mieux la fr&#233;quence d'apparition du mot mi.
+</p>
+<p>&#8226; Si fi(x) tend vers une droite asymptote d'&#233;quation y=cte alors le th&#233;or&#232;me pr&#233;c&#233;dent s'applique. La 
+distribution du mot mi peut &#234;tre alors mod&#233;lis&#233;e par une loi de Poisson (et donc, pour les grandes 
+valeurs de n, par une gaussienne &#224; un seul param&#232;tre &#955;). Dans une &#233;tude exp&#233;rimentale, une courbe 
+faiblement croissante, par exemple en log(x) peut aussi &#234;tre accept&#233;e comme une approximation 
+acceptable de la droite asymptote y=cte (log-lin&#233;arit&#233;). 
+</p>
+<p>Exp&#233;rimentalement,  l'analyse  de  corpus  &#171;relativement&#187;  homog&#232;nes,  comme  le  n&#244;tre,  montre  que  les 
+fr&#233;quences des mots croissent plut&#244;t lin&#233;airement. Nous retiendrons donc pour les grandes valeurs de n, un  
+distribution gaussienne &#224; 2 param&#232;tres. De plus, l'analyse de la courbe d'&#233;volution de chaque mot permet de 
+classer ce dernier dans l'une des cat&#233;gories pr&#233;c&#233;demment &#233;voqu&#233;es. S'agissant d'un choix empirique des 
+crit&#232;res discriminants pour le classement, ce choix est justifi&#233; surtout par des observations dont l'exemple 
+suivant est d&#233;crite en illustration. 
+</p>
+<p>3.3 R&#233;sultat exp&#233;rimental et calcul de saillance
+Les mots de, monsieur, cheval et chien ont &#233;t&#233; choisis pour repr&#233;senter des classes de mots grammaticaux, 
+de mots sp&#233;cialis&#233;s et de mots d'emploi g&#233;n&#233;ral. Leur courbe de fr&#233;quence cumul&#233;e est analys&#233;e sur notre 
+corpus d'actualit&#233;s. L'accroissement en fr&#233;quence du mot de est logiquement la plus rapide comme l'indique 
+la figure ci-dessous. Comparativement, les courbes d'&#233;volution des mots chien et monsieur paraissent plates. 
+Ce n'est pas le cas comme l'indique la figure suivante lorsqu'on change le facteur d'&#233;chelle sur l'axe y. On 
+constate aussi que la courbe de croissance du mot de est plus r&#233;guli&#232;re autour de la droite qui la sous-tend 
+tandis que les courbes de croissance des mots monsieur et chien sont plus dispers&#233;es.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> ACQUISITION AUTOMATIQUE DE TERMINOLOGIE &#192; PARTIR DE CORPUS DE TEXTE
+</p>
+<p>On cherche donc &#224; quantifier cette dispersion pour servir de crit&#232;re de discrimination des mots &#224; des fins de 
+classement ou d'ordonnancement. La dispersion peut &#234;tre traduite par la variance ou mieux, pour disposer 
+d'une &#233;chelle de valeur uniformis&#233;e, par la forme normalis&#233;e qu'est le coefficient de variation.
+Le calcul du coefficient de variation se fait comme suit : si f1, f2, ..., fk d&#233;signent la suite de fr&#233;quences 
+cumul&#233;es suivant le comptage d&#233;crit  plus haut,  et si  n1,n2,...,nk d&#233;signent les nombres cumul&#233;s de mots 
+</p>
+<p>parcourus pour d&#233;compter  les fi,  alors la  moyenne &#57538;=
+f k
+nk
+</p>
+<p>et  la  variance  &#963; telle  que &#57544;2=&#57502;&#8721;
+i=1
+</p>
+<p>k&#8722;1 f i&#57475;1&#8722;f i
+n i&#57475;1&#8722;ni
+</p>
+<p>&#8722;&#57538;&#57503;
+2
+</p>
+<p> 
+</p>
+<p>permettent de calculer le coefficient de variation, &#233;gal &#224; &#57544;
+&#57538;
+</p>
+<p> .
+</p>
+<p>3.4 Utilisation du coefficient de variation
+L'utilisation du coefficient de variation sur une &#233;chelle de valeur scalaire permet d'ordonner les mots (et les 
+locutions une fois apprises) suivant un indice de notori&#233;t&#233;. Intuitivement, ce ne sont pas les mots les plus 
+fr&#233;quents  qui  pr&#233;sentent  un  int&#233;r&#234;t  mais  plut&#244;t  ceux  utilis&#233;s  le  plus  r&#233;guli&#232;rement  dans  de  nombreux 
+contextes. En plus, en associant &#224; chaque locution apprise sa cat&#233;gorie grammaticale, et en se focalisant sur  
+les cat&#233;gories les plus porteuses d'information comme les groupes nominaux ou les patronymes, on arrive 
+ainsi &#224; extraire des &#233;l&#233;ments saillants mais &#233;vanescents comme nuage de cendres, fuite de p&#233;trole...
+</p>
+<p>3.5 Regroupement en cat&#233;gories grossi&#232;res
+</p>
+<p>Le coefficient  de  variation  permet  d'estimer  l'importance  de  chaque mot  pris  isol&#233;ment  par  rapport  au 
+corpus.  Exp&#233;rimentalement,  il  permet une s&#233;paration effective des mots grammaticaux des autres mots.  
+Mais  pour  regrouper  les  mots  restants  en  cat&#233;gories  grossi&#232;res,  on  a  besoin  de  plus  d'informations,  et 
+notamment de quantifier les interactions entre mots.
+</p>
+<p>Pour pouvoir r&#233;utiliser les m&#234;mes calculs exp&#233;rimentaux que pr&#233;c&#233;demment sur la fr&#233;quence des mots,  et 
+pour conserver une coh&#233;rence dans le formalisme de calcul, on remarquera qu'il existe un parall&#232;le entre le 
+coefficient de variation et la notion de tfxidf en recherche d'information (cette derni&#232;re correspond dans les 
+mod&#232;les probabilistes &#224; la probabilit&#233; d'avoir un document pertinent contenant un terme t). L'extension de 
+cette mesure locale, li&#233;e &#224; un document, vers une mesure globale sur le corpus se fait naturellement par la 
+notion  d'entropie E&#57502;t &#57503;=&#8721;
+</p>
+<p>d&#8712;D
+&#8722;pt log &#57502;pt&#57503;
+</p>
+<p>.  Plus  un  terme  est  uniform&#233;ment  distribu&#233;,  plus  sa  valeur 
+d'entropie est &#233;lev&#233;e. La notion d'entropie sur un terme isol&#233; s'&#233;tend ensuite &#224; celle sur des couples de termes 
+</p>
+<p>t1 et  t2 via la notion d'information mutuelle I &#57502;t 1,t 2&#57503;=&#8721;
+d&#8712;D
+</p>
+<p>p &#57502;t1, t 2&#57503; log&#57502;
+p&#57502;t 1,t 2&#57503;
+</p>
+<p>p &#57502;t 1&#57503;p &#57502;t 2&#57503;
+&#57503; .  Plut&#244;t  que d'utiliser 
+</p>
+<p>l'information mutuelle comme crit&#232;re de regroupement des mots en cat&#233;gories, on utilisera la notion de 
+coefficient  de  corr&#233;lation  lin&#233;aire  entre  couple  de  termes  t1 et  t2,  qui  est  l'extension  de  la  notion  de 
+coefficient de variation :
+</p>
+<p>&#57543;=
+&#57544;t1 , t2
+&#57544;t1&#57544;t2
+</p>
+<p>o&#249; &#57544; t1, t2  est la covariance de t1  et t 2 , et &#57544;t2&#57544;t2  leur variance respective .
+</p>
+<p>Il s'agit a posteriori d'un calcul &#233;quivalent puisque I &#57502;t 1,t 2&#57503;=&#8722;
+1
+2
+</p>
+<p>log &#57502;1&#8722;&#57543;2&#57503; .
+</p>
+<p>La  r&#233;alisation  de  cette  partie  est  pr&#233;vue  pour  la  prochaine  version  du  composant  d'acquisition 
+terminologique.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>EDMOND LASSALLE
+</p>
+<p>4 Analyse statistique de la compositionalit&#233;2
+</p>
+<p>La compositionalit&#233; des mots est &#233;valu&#233;e en linguistique par leur potentiel combinatoire. C'est un comptage  
+fr&#233;quentiel, pour un mot donn&#233;, de l'appariement d'autres mots dans les constructions observ&#233;es dans un 
+corpus. Le potentiel combinatoire sert d'indicateur pour faciliter le travail d'analyse d'un lexicologue. Ce 
+crit&#232;re  n'est  cependant  pas  adapt&#233;  &#224;  un  apprentissage  non  supervis&#233;,  o&#249;  l'analyse  doit  &#234;tre  r&#233;alis&#233;e 
+automatiquement. Une notion plus appropri&#233;e concerne l'entropie, ce qui va &#234;tre pr&#233;cis&#233; ci-apr&#232;s.
+</p>
+<p>Supposons que, dans un corpus, nous ayons observ&#233; 4 fois, le mot  b&#226;ton dont deux avec le qualificatif 
+rouge,  une  avec  bleu et  une  avec  vert.  Si  l'on souhaite  ne garder  qu'un  seul  indicateur  qui  r&#233;sume la 
+distribution, estim&#233;e &#224; &#57502;12 ,
+</p>
+<p>1
+4
+</p>
+<p>,1
+4
+&#57503; , la somme des probabilit&#233;s pr&#233;sente peu d'int&#233;r&#234;t comme indicateur. Par 
+</p>
+<p>contre en &#233;tudiant la quantit&#233; d'information (Shannon, 1948) que chacun des pr&#233;c&#233;dents qualificatifs peut 
+apporter  au mot  b&#226;ton,  soit &#57502;&#8722;log &#57502;12 &#57503; ,&#8722;log &#57502;
+</p>
+<p>1
+4
+&#57503; ,&#8722; log&#57502;1
+</p>
+<p>4
+&#57503;&#57503; la  moyenne attendue (esp&#233;rance) est  une bonne 
+</p>
+<p>indication du degr&#233; de compositionalit&#233; du mot, soit &#8722;12 log &#57502;12 &#57503;&#8722;14 log &#57502;14 &#57503;&#8722;14 log&#57502;14 &#57503;=1 .5 dans le cas d'une 
+&#233;chelle logarithmique en base 2.
+</p>
+<p>Cette valeur d'entropie indique la quantit&#233; d'information que peut recevoir en moyenne chaque mot. Si un 
+mot m1 a &#233;t&#233; observ&#233; n fois dans un corpus, son entropie a une valeur entre 0 et log(n). Une valeur nulle 
+traduit l'existence d'un mot m2 dont la probabilit&#233; d'observer en cooccurrence avec m1, vaut 1. Le mot m1 est 
+dans ce cas non compositionnel puisque fortement li&#233; &#224; m2. C'est le cas des mots comme coch&#232;re, aujourd , 
+lurette ou  escampette. A l'oppos&#233;, une valeur maximale de l'entropie, log(n), correspond &#224; la distribution 
+&#233;quiprobable c'est-&#224;-dire &#224; un fort degr&#233; de compositionalit&#233;. Normalement, c'est vers cette valeur maximale 
+que tendent les mots grammaticaux.
+</p>
+<p>4.1 Champ de compositionalit&#233;
+</p>
+<p>Intuitivement, si un mot est employ&#233; dans son sens compositionnel, il est fort possible de trouver, dans le 
+corpus, ce mot associ&#233; &#224; d'autres mots &#224; des degr&#233; divers. Par exemple b&#226;ton peut &#234;tre associ&#233; &#224; rouge, vert, 
+jaune... et peut-&#234;tre moins &#224; joyeux, espi&#232;gle, content. Le champ de compositionalit&#233; d'un mot m correspond 
+&#224; une distribution probabiliste sur l'ensemble des mots mi et traduit la probabilit&#233; d'observer mi sachant 
+qu'on a observ&#233; le mot m. Cette distribution peut &#234;tre r&#233;sum&#233;e par sa moyenne (entropie), sa variance et sa  
+loi  de  distribution.  Le  champ ainsi  d&#233;fini  permet  d'introduire  la  notion  d'intervalle  de  confiance  et  de 
+d&#233;terminer  de  quelle  mani&#232;re  une  construction  est  jug&#233;e  compositionnelle.  Dans  le  cas  d'une  locution  
+comme retour de b&#226;ton, il n'existe pas de forme alt&#233;r&#233;e ou modifi&#233;e ne comportant qu'une partie de mots de 
+ce groupe. Si la locution est souvent employ&#233;e dans le corpus, la fr&#233;quence d'association est plus &#233;lev&#233;e que 
+le cas des constructions compositionnelles, ce qui doit permettre &#224; une analyse statistique de conclure que 
+l'un des mots retour ou b&#226;ton n'appartient pas au champ compositionnel de l'autre mot.
+</p>
+<p>4.2 M&#233;thode exp&#233;rimentale
+</p>
+<p>Pour  chaque mot  m0,  l'entropie  et  la  variance  sont  d&#233;duites  exp&#233;rimentalement  &#224;  partir  d'un comptage 
+fr&#233;quentiel de cooccurrences :
+</p>
+<p>&#8226; Pour chaque mot m0, on proc&#232;de au comptage de cooccurrence f0,i (resp. fi,0) des mots mi contigus 
+au mot m0 &#224; droite (resp. &#224; gauche). Le positionnement gauche/droite refl&#232;te la nature s&#233;quentielle 
+du corpus de texte.
+</p>
+<p>&#8226; Pour &#233;valuer le degr&#233; de compositionalit&#233;, le comptage ne devrait porter que sur les mots m i ayant 
+un sens compositionnel avec le mot m0 et exclure les mots mi lorsque m0mi constitue une locution. 
+Au stade de l'apprentissage, on ne dispose pas d'une telle information. L'hypoth&#232;se est que les mots  
+mi constituant  une  locution  sont  en  plus  faible  nombre  que  les  mots  mi portant  un  sens 
+compositionnel. Cela justifie l'approximation dans l'estimation de la moyenne et de la variance.
+</p>
+<p>&#8226; Pour tenir compte de la masse absente (due au manque d'exhaustivit&#233; de tout corpus), on proc&#232;de &#224; 
+un lissage de Laplace. La valeur de lissage est plus petite que 1, en raison des faibles fr&#233;quences de 
+cooccurrence.
+</p>
+<p>2 Les notions de compositionalit&#233;, de champ de compositionalit&#233;... sont revues ici dans une logique calculatoire</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> ACQUISITION AUTOMATIQUE DE TERMINOLOGIE &#192; PARTIR DE CORPUS DE TEXTE
+</p>
+<p>&#8226; La probabilit&#233; p0,i d'observer le mot mi est estim&#233;e par p0,i=
+f 0,i
+&#8721;
+</p>
+<p>j
+f 0, j  . L'entropie &#181;0 et la variance &#963;0 
+</p>
+<p>sont estim&#233;s par &#57538;0=&#8722;&#8721;
+j
+</p>
+<p>p0, j log p0, j
+ et &#57544;0
+</p>
+<p>2=&#8721;
+j
+</p>
+<p>p0, j&#57502;&#57538;0&#8722;log p0, j&#57503;
+2
+</p>
+<p>.
+</p>
+<p>4.3 Mod&#233;lisation de la loi de compositionalit&#233;
+</p>
+<p>Il reste &#224; d&#233;terminer la loi de distribution des log p0,i pour pouvoir fixer l'intervalle de confiance &#224; l'int&#233;rieur 
+duquel une association de mots est consid&#233;r&#233;e comme compositionnelle. 
+</p>
+<p>&#8226; Pour chaque mot m0, la cooccurrence d'un mot mi peut &#234;tre consid&#233;r&#233;e comme une &#233;preuve de 
+Bernoulli et la fr&#233;quence de cooccurrence comme une v.a.r Xi de loi binomiale de param&#232;tre pi.
+</p>
+<p>&#8226; Pour les grandes valeurs de fr&#233;quence, la loi de X i peut &#234;tre approxim&#233;e par une loi gaussienne. 
+</p>
+<p>Nous nous int&#233;ressons pour la suite  &#224; la v.a.r  
+X i
+n0
+</p>
+<p> o&#249;  n0 est  le  nombre total  de cooccurrences 
+</p>
+<p>observ&#233;es pour le mot m0.
+X i
+n0
+</p>
+<p>suit &#233;galement une loi gaussienne que nous d&#233;signerons par X.
+</p>
+<p>Pour la suite, &#181;0 peut &#234;tre consid&#233;r&#233;e comme un r&#233;sultat d'observation d'une v.a.r Y=&#8721;
+i
+</p>
+<p>X i
+n 0
+</p>
+<p>log&#57502;
+X i
+n0
+&#57503;
+</p>
+<p>. On est 
+</p>
+<p>donc amen&#233; &#224; &#233;tudier en premier la loi de X log(X) connaissant la loi de X. 
+</p>
+<p>4.4 Approximation de Y par une gaussienne.
+</p>
+<p>X &#233;tant une distribution connue, on cherche, pour ce faire, &#224; d&#233;terminer la fonction de distribution g de la  
+v.a.r Y=X log(X) &#224; partir de la fonction de distribution f de X.
+</p>
+<p>La  d&#233;marche  classique  consiste  &#224;  &#233;valuer  &#224;  partir  de  F,  fonction  de  r&#233;partition  de  X,  la  fonction  de  
+r&#233;partition G de Y alors : G &#57502; y&#57503;=P &#57502;Y&#57476;y=&#57556;&#57502;x &#57503;&#57503; avec &#57556;&#57502;x&#57503;=&#8722;x log&#57502;x &#57503; .
+</p>
+<p>La fonction &#981; n'est pas bijective. Elle est d&#233;finie, s'agissant de valeurs de probabilit&#233;, sur l'intervalle [0,1] . 
+Elle est croissante sur [0,1
+</p>
+<p>e
+] et d&#233;croissante sur [1
+</p>
+<p>e
+,1] .
+</p>
+<p>La fonction inverse &#981;-1 est d&#233;termin&#233;e graphiquement &#224; partir de &#981; par la sym&#233;trie axiale par rapport &#224; la 
+droite  d'&#233;quation  y=x.  &#981;-1 est  bivalu&#233;e  et  elle  est  compos&#233;e  d'une  branche  strictement  croissante 
+&#57556;1
+&#8722;1 : [0,1
+</p>
+<p>e
+]&#57484;[0,1
+</p>
+<p>e
+] et d'une branche strictement d&#233;croissante &#57556;0&#8722;1 : [0,1e ]&#57484;[
+</p>
+<p>1
+e
+</p>
+<p>,1]
+. 
+</p>
+<p>Plus pr&#233;cis&#233;ment, si W0 et W-1 sont les branches d&#233;finies sur [&#8722;1
+e
+</p>
+<p>,1]  de la fonction W de Lambert
+3
+, partie 
+</p>
+<p>r&#233;elle, alors &#57556;0&#8722;1 &#57502; y&#57503;= &#8722;yW 0 &#57502; y&#57503;
+et &#57556;1
+</p>
+<p>&#8722;1 &#57502; y&#57503;= &#8722;y
+W 1 &#57502; y&#57503;
+</p>
+<p>. Par suite:
+</p>
+<p>P&#57502;Y&#57476;y &#57503;=P&#57502; X&#57476;&#57556;1
+&#8722;1&#57502;x &#57503;&#57503;&#57475;1&#8722;P&#57502; X&#57477;&#57556;0
+</p>
+<p>&#8722;1&#57502;x &#57503;&#57503; ce qui peut s'&#233;crire : G &#57502; y&#57503;=F &#57502; &#8722; yW&#8722;1 &#57502; y&#57503;
+&#57503;&#57475;1&#8722;F &#57502; &#8722;y
+</p>
+<p>W0 &#57502; y&#57503;
+&#57503;
+</p>
+<p>. La d&#233;riv&#233;e 
+</p>
+<p>de  W  &#233;tant W ' &#57502;y &#57503;= W &#57502;x&#57503;x &#57502;1&#57475;W &#57502;x&#57503;&#57503; ,  les  d&#233;riv&#233;es  de
+&#8722;y
+</p>
+<p>W&#8722;1&#57502; y&#57503;
+et  de &#8722;yW0 &#57502; y&#57503;
+</p>
+<p>sont  respectivement &#8722;11&#57475;W&#8722;1&#57502; y &#57503;
+et
+</p>
+<p>&#8722;1
+1&#57475;W 0&#57502; y&#57503;
+</p>
+<p>d'o&#249;  la  fonction  de  distribution  : g &#57502;y &#57503;=
+&#8722;f &#57502; &#8722; y
+</p>
+<p>W&#8722;1&#57502; y &#57503;
+&#57503;
+</p>
+<p>1&#57475;W&#8722;1 &#57502; y&#57503;
+&#57475;
+</p>
+<p>f &#57502; &#8722;y
+W0 &#57502; y&#57503;
+</p>
+<p>&#57503;
+</p>
+<p>1&#57475;W 0&#57502; y&#57503;
+o&#249;  g  et  f  sont  les  d&#233;riv&#233;es 
+</p>
+<p>respectives de G et F.
+</p>
+<p>La fonction de Lambert est difficile &#224; mettre en &#339;uvre dans un calcul num&#233;rique du fait des ph&#233;nom&#232;nes 
+d'oscillation lorsqu'on doit utiliser son d&#233;veloppement en s&#233;rie limit&#233;e. Nous nous contenterons donc de 
+rechercher l'allure g&#233;n&#233;rale de la courbe g(y) afin de l'approximer par une fonction plus simple. 
+</p>
+<p>3 la fonction de Lambert peut &#234;tre visualis&#233;e ici : http://math.asu.edu/~kawski/MAPLE/274/images/Lambert8.gif</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>EDMOND LASSALLE
+</p>
+<p>Domaine de variation de g
+</p>
+<p>La fonction
+g &#57502;y &#57503;=
+</p>
+<p>&#8722;f &#57502; &#8722; y
+W&#8722;1&#57502; y &#57503;
+</p>
+<p>&#57503;
+</p>
+<p>1&#57475;W&#8722;1 &#57502; y&#57503;
+&#57475;
+</p>
+<p>f &#57502; &#8722;y
+W0 &#57502; y&#57503;
+</p>
+<p>&#57503;
+</p>
+<p>1&#57475;W 0&#57502; y&#57503;
+</p>
+<p>est d&#233;finie sur [0,1/e] et de domaine de variation [0,1]. 
+</p>
+<p>Pour y &#57484;0, &#8722;11&#57475;W&#8722;1 &#57502; y&#57503;
+&#57484;0  et &#8722;1
+</p>
+<p>1&#57475;W0 &#57502; y&#57503;
+&#57484; 1
+</p>
+<p>Pour y &#57484;1e ,
+&#8722;1
+</p>
+<p>1&#57475;W&#8722;1&#57502; y &#57503;
+&#57484;&#8734;  et &#8722;1
+</p>
+<p>1W 0&#57502; y &#57503;
+&#57484;&#8734;
+</p>
+<p>Si maintenant f est une partie gaussienne d&#233;finie sur [0,1], f est associ&#233;e &#224; W
+-1(y) sur [0,1/e] et &#224; W0(y) sur 
+</p>
+<p>[1/e,1], 3 cas de figures se pr&#233;sentent suivant que l'esp&#233;rance &#181; et la variance &#963; de la fonction f conduisent &#224; 
+un recouvrement important de la valeur critique 1/e par la gaussienne d&#233;finie par f. 
+</p>
+<p>&#8226; Pour  &#181; &#8810; 1/e, c'est la composante
+&#8722;f &#57502; &#8722;y
+</p>
+<p>W&#8722;1&#57502; y &#57503;
+&#57503;
+</p>
+<p>1&#57475;W&#8722;1 &#57502; y&#57503;
+dans g qui est pr&#233;dominante. Par suite g peut 
+</p>
+<p>&#234;tre approxim&#233;e par une gaussienne avec une asym&#233;trie (skew n&#233;gatif) d'autant moins marqu&#233;e que 
+&#181; est proche de 0. 
+</p>
+<p>&#8226; De  mani&#232;re  similaire  pour  &#181; proche  de  1,  c'est  la  composantedans  g
+f &#57502; &#8722;y
+</p>
+<p>W0 &#57502; y&#57503;
+&#57503;
+</p>
+<p>1&#57475;W 0&#57502; y&#57503;
+ qui  est 
+</p>
+<p>pr&#233;dominante. Et par suite g peut &#234;tre approxim&#233;e par une gaussienne avec une asym&#233;trie (skew 
+positif) d'autant moins marqu&#233;e que &#181; est proche de 1. 
+</p>
+<p>&#8226; Dans le cas d'un recouvrement cons&#233;quent de la valeur critique 1/e par la gaussienne, l'allure de la 
+distribution  g  n&#233;cessite  une  analyse  approfondie,  autour  de  1/e,  du  comportement  joint  de
+f &#57502; &#8722;y
+</p>
+<p>W&#8722;1&#57502; y&#57503;
+&#57503; modul&#233; par 1+W
+</p>
+<p>-1(y) d'une part, et de f &#57502; &#8722;yW0 &#57502; y&#57503;
+&#57503; modul&#233; par 1+W0(y) d'autre part. Ce 
+</p>
+<p>cas ne sera pas trait&#233; ici. 
+En pratique, nous ne nous int&#233;resserons qu'au premier cas, o&#249; &#181; &lt;&lt; 1/e. En effet, la taille d'un vocabulaire 
+type est de 50000 &#224; 300000 mots (sans distinction des cat&#233;gories grammaticales). Ce qui fait, dans nos 
+estimations de &#181; &#224; partir d'un comptage fr&#233;quentiel, et en effectuant un lissage de Laplace pour prendre en  
+compte la masse absente, que la valeur de &#181; est tr&#232;s &#233;loign&#233;e de 1/e et plut&#244;t proche de 0. La repr&#233;sentation 
+de la distribution g par une gaussienne est dans ce cas justifi&#233;e. 
+</p>
+<p>Si, maintenant, X1 et X2 sont 2 v.a.r de loi f1 et f2, alors la loi de X1+X2 est le produit de convolution f1*f2. Et 
+dans le cas o&#249; X1 et  X2 sont des gaussiennes, X1+X2 est  aussi  une gaussienne. En fonction des calculs 
+estimatifs  pr&#233;c&#233;dents  et  dans  les  conditions  de  nos  exp&#233;rimentations,  nous  admettrons  que 
+Y=&#8721;
+</p>
+<p>i
+</p>
+<p>X i
+n 0
+</p>
+<p>log&#57502;
+X i
+n0
+&#57503; peut &#234;tre approxim&#233;e par une loi gaussienne.
+</p>
+<p>4.5 Mise en &#339;uvre de l'identification de non-compositionalit&#233;
+</p>
+<p>Le  comptage  fr&#233;quentiel  d&#233;crit  dans &#167;4.2 permet  d'associer  &#224;  chaque  mot,  pris  individuellement,  des 
+caract&#233;ristiques de compositionalit&#233;  &#224; droite (resp. &#224; gauche)  via la moyenne et la variance. L'hypoth&#232;se 
+d'une distribution gaussienne permet ensuite de d&#233;finir un intervalle de confiance fix&#233; exp&#233;rimentalement &#224;  
+95% (ce qui correspond &#224; une valeur de 1.96 d'&#233;cart pour une gaussienne). 
+</p>
+<p>Pour tout mot m1 de moyenne &#171;&#224; droite&#187; &#181;d,1 et de variance &#171;&#224; droite&#187; &#963;d,1, si m1 est suivi de m2, de moyenne 
+&#171;&#224; gauche&#187; &#181;g,2 et de variance &#171;&#224; gauche&#187; &#963;g,2 , m1m2 est non compositionnel:
+</p>
+<p>&#8226; si -log(pdg,12) &lt; &#181;d,1 - 1.96x &#963;d,1  o&#249; pdg,12 est la probabilit&#233; d'avoir le mot m2 qui suit le mot m1
+&#8226; ou si -log(pgd,21) &lt; &#181;g,2  - 1.96x&#963;g,2  o&#249; pgd,21 est la probabilit&#233; d'avoir le mot m1 qui pr&#233;c&#232;de le mot m2</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> ACQUISITION AUTOMATIQUE DE TERMINOLOGIE &#192; PARTIR DE CORPUS DE TEXTE
+</p>
+<p>5 Couplage du mod&#232;le linguistique
+</p>
+<p>Le composant linguistique dispose au d&#233;part :
+&#8226; d'un lexique du fran&#231;ais comportant 300 000 formes fl&#233;chies, d&#233;crites par la partie du discours et 
+</p>
+<p>des traits d'accord 
+&#8226; de r&#232;gles de grammaires de chunking (Abney, 1994) de type hors contexte, d&#233;crites sous forme 
+</p>
+<p>normale de Chomsky et regroup&#233;es par paquets homog&#232;nes
+&#8226; de  m&#233;ta-r&#232;gles  r&#233;gissant  les  paquets  de  r&#232;gles  afin  de  rendre,  autant  que  possible,  l'analyse 
+</p>
+<p>d&#233;terministe.
+De plus, la profondeur d'analyse est limit&#233;e pour couvrir des syntagmes de moins de 6 mots, ce qui est  
+suffisant  dans  nos  applications.  Cette  hypoth&#232;se  permet  de  traduire  les  r&#232;gles  initiales  en  r&#232;gles  de 
+grammaires r&#233;guli&#232;res au sein de chaque paquet de r&#232;gles.
+Une  premi&#232;re  analyse  lexicale  du  corpus  permet  de  recenser  le  vocabulaire  utilis&#233;  et  de  compl&#233;ter  le 
+r&#233;f&#233;rentiel lexical initial par les nouveaux mots simples inconnus. L'ajout de ces mots inconnus dans le  
+r&#233;f&#233;rentiel lexical est r&#233;alis&#233; seulement apr&#232;s seuillage suivant leur fr&#233;quence d'occurrence et leur coefficient 
+de variation.
+</p>
+<p>5.1 Analyse lexicale et syntaxique du corpus
+</p>
+<p>S'agissant de grammaires de chunking, l'absence du non-terminal initial S impose une analyse &#171;bottom-up&#187;. 
+Il s'agit donc d'une analyse LR classique (Aho et al., 1977) avec une utilisation particuli&#232;re du chart parsing.
+En effet, plut&#244;t que de cr&#233;er un espace de chart pour l'analyse de chaque phrase du corpus, on construit  
+successivement des niveaux de chart couvrant tout le corpus et de la mani&#232;re suivante :
+</p>
+<p>&#8226; on dispose d'un r&#233;f&#233;rentiel lexical de mots simples et de locutions, et d'un r&#233;f&#233;rentiel des syntagmes 
+en cours de construction
+</p>
+<p>&#8226; le r&#233;f&#233;rentiel des syntagmes est vide au d&#233;part (&#233;ventuellement celui des locutions aussi)
+&#8226; le r&#233;f&#233;rentiel lexical et le r&#233;f&#233;rentiel des syntagmes sont utilis&#233;s pour indexer tout le corpus
+&#8226; le r&#233;sultat de chaque indexation correspond alors &#224; un niveau du chart
+&#8226; une analyse du coefficient de variation des syntagmes du r&#233;f&#233;rentiel permet d'&#233;liminer les &#233;l&#233;ments  
+</p>
+<p>les moins pertinents
+&#8226; une analyse de la compositionalit&#233; des syntagmes figurant dans le r&#233;f&#233;rentiel des syntagmes permet 
+</p>
+<p>d'identifier les locutions et de les reverser dans le r&#233;f&#233;rentiel des locutions
+&#8226; on applique  ensuite  un  nouveau paquet  de  r&#232;gles  de  grammaires  pour  identifier  de  nouveaux 
+</p>
+<p>syntagmes et pour les reverser dans le r&#233;f&#233;rentiel des syntagmes
+Le processus se termine apr&#232;s &#233;puisement des paquets de r&#232;gles.
+</p>
+<p>5.2 Mise en &#339;uvre du syst&#232;me
+</p>
+<p>Les r&#233;sultats qui suivent sont issus du corpus d'actualit&#233;s d&#233;crit pr&#233;c&#233;demment dans  &#167;2. Les donn&#233;es, en 
+constante &#233;volution, correspondent aux actualit&#233;s de janvier 2011. Les listes ci-apr&#232;s correspondent &#224; des 
+extraits de patronymes et de groupes nominaux class&#233;s par ordre de pertinence d&#233;croissante. Un r&#233;f&#233;rentiel  
+terminologique unique est dans un premier temps appris sur le corpus global d'actualit&#233;s puis &#171;projet&#233;&#187; sur 
+des plus petits corpus th&#233;matis&#233;s, par analyse du coefficient de variation intra corpus. 
+</p>
+<p>Patronymes 
+culturel
+</p>
+<p>GN
+culturel
+</p>
+<p>Patronymes 
+sport
+</p>
+<p>GN sport Patronymes 
+international
+</p>
+<p>GN international
+</p>
+<p>-nicolas sarkozy
+-johnny hallyday
+-fr&#233;d&#233;ric mitterrand
+-conrad murray
+-dany boon
+-ben ali 
+-john barry
+-brice taton 
+-robert de niro 
+- luc chatel 
+</p>
+<p>-golden globes
+-homicide 
+involontaire
+-premier ministre
+-discours d un roi 
+-grand palais 
+-los angeles 
+-premi&#232;re fois 
+-poivre d arvor 
+-sol majeur 
+</p>
+<p>-andy murray 
+-caroline wozniacki 
+-paris sg 
+-jean pierre dick 
+-claude onesta 
+-kim clijsters 
+-justine henin 
+-wilfried tsonga 
+-cyril despres 
+-stanislas wawrinka 
+</p>
+<p>-autres sports 
+-quarts de finale 
+-championnats 
+&#233;trangers 
+-t&#234;te de s&#233;rie 
+-finale de la coupe 
+-championnat du 
+monde 
+-fin de la saison 
+-milieu de terrain 
+</p>
+<p>-ben ali 
+-laurent gbagbo 
+-nicolas sarkozy 
+-sidi bouzid 
+-zine ben 
+-saad hariri 
+-vincent delory 
+-jean claude 
+duvalier 
+-silvio berlusconi 
+</p>
+<p>-premier ministre 
+-affaires &#233;trang&#232;res 
+-service fran&#231;ais 
+-ancien pr&#233;sident 
+-d&#233;part du pr&#233;sident 
+-pr&#233;sident d&#233;chu 
+-pr&#233;sident tunisien 
+-conf&#233;rence de 
+presse 
+-forces de l ordre </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>EDMOND LASSALLE
+</p>
+<p>-xavier beauvois 
+-beverly hills
+-marc olivier fogiel
+-sofia coppola
+-justin bieber
+-quentin tarantino
+-laurent gerra
+-caroline lachowsky
+-claude monet
+-fran&#231;ois fillon
+-ernest hemingway
+-alexandre jardin
+-jean dutourd 
+</p>
+<p>-biographie d 
+hemingway
+-priorit&#233; sant&#233; 
+-haute couture
+-bande dessin&#233;e
+-mise en sc&#232;ne 
+-accus&#233; de plagiat 
+-t&#234;te de bois 
+-meilleur film 
+-jeu vid&#233;o 
+-nouvelles 
+technologies 
+-t&#233;l&#233; r&#233;alit&#233; 
+-pluies diluviennes 
+-premier album 
+-bande dessin&#233;e d 
+angoul&#234;me
+</p>
+<p>-jos&#233; mourinho 
+-michel desjoyeaux 
+-st&#233;phane sessegnon
+-paris fc
+-fran&#231;ois gabart 
+-jean tigana 
+-saint etienne 
+-lo&#239;ck peyron 
+-carlos sainz 
+-dimitri payet 
+-brian joubert 
+-tomas berdych 
+-lionel messi
+</p>
+<p>-ballon d or 
+-journal du mercato 
+-finale du tournoi 
+-champion du 
+monde 
+-fran&#231;ais jean 
+-coupe de la ligue 
+-ski alpin 
+-match en retard 
+-nuit des fran&#231;ais 
+-rumeurs du 
+mercato
+-tenant du titre 
+-quart de finale 
+-nuit derni&#232;re 
+-premi&#232;re fois 
+-conf&#233;rence de 
+presse 
+</p>
+<p>-beno&#238;t xvi 
+-fran&#231;ois fillon 
+-mohamed elbaradei 
+-alain jupp&#233; 
+-nelson mandela 
+-gilles trequesser 
+-mohamed 
+ghannouchi 
+-antoine de l&#233;ocour 
+-eric zemmour 
+-jean st&#233;phane 
+-johan vande 
+-tarek amara 
+-henri pierre 
+-eric faye 
+</p>
+<p>-r&#233;gime du pr&#233;sident 
+-ministre des 
+affaires 
+-nouveau 
+gouvernement 
+-journaliste de l afp 
+-droits de l homme 
+-jeunes fran&#231;ais 
+-pr&#233;sident am&#233;ricain
+-minist&#232;re de l 
+int&#233;rieur 
+-d&#233;mission du 
+gouvernement 
+-pr&#233;sident sortant 
+-union europ&#233;enne 
+-ministre de la 
+d&#233;fense 
+-communaut&#233; 
+internationale 
+-fran&#231;ais enlev&#233;s 
+</p>
+<p>6 Conclusion
+</p>
+<p>L'approche que nous venons de d&#233;crire confirme qu'il est possible de concevoir un syst&#232;me d'acquisition de 
+terminologie performant en temps d'ex&#233;cution et aussi de tr&#232;s bonne qualit&#233;. Le taux de pr&#233;cision4 obtenu est 
+de l'ordre de 90% (Lassalle et al., 2011). Les principales raisons de ces performances sont li&#233;es &#224; :
+</p>
+<p>&#8226; une architecture de chart parsing couvrant tout le corpus, &#233;vitant ainsi des redondances d'analyse 
+des m&#234;mes syntagmes
+</p>
+<p>&#8226; le regroupement des syntagmes analys&#233;es dans un m&#234;me r&#233;f&#233;rentiel, permettant ainsi un couplage 
+avec l'analyse statistique tout en minimisant le biais
+</p>
+<p>&#8226; une sp&#233;cialisation des analyses statistiques entre la d&#233;tection des locutions et le classement de ces  
+derni&#232;res en fonction du corpus applicatif
+</p>
+<p>7 Annexe :
+</p>
+<p>Extrait de la grammaire de chunking permettant d'identifier les patronymes :
+</p>
+<p>#Cat prenoms.prenoms
+</p>
+<p>&#8226; (CatLoc1 prenoms.prenoms) &#8594;(CatMot prenoms) (CatMot prenoms)
+&#8226; (CatLoc1 prenoms.prenoms) &#8594;(CatMot particule.prefixe) (CatMot prenoms)
+</p>
+<p>#Cat PRENOMS.particule
+</p>
+<p>&#8226; (CatLoc1 PRENOMS.particule) &#8594;(CatMot prenoms) (CatMot particule)
+&#8226; (CatLoc1 PRENOMS.particule) &#8594;(CatMot prenoms) (CatLoc1 particule.particule)
+&#8226; (CatLoc1 PRENOMS.particule) &#8594;(CatLoc1 prenoms.prenoms) (CatMot particule)
+&#8226; (CatLoc1 PRENOMS.particule) &#8594;(CatLoc1 prenoms.prenoms) (CatLoc1 particule.particule)
+</p>
+<p>#syntagme PATRO
+ avec d&#233;tection de non-compositionalit&#233;
+</p>
+<p>&#8226; (CatLoc1 PATRO) &#8594;(CatLoc1 PRENOMS.particule) (CatMot patronyme) + (SeuilleOr $LOCBIN1)
+&#8226; (CatLoc1 PATRO) &#8594;(CatLoc1 PRENOMS.particule) (CatMot prenoms) + (SeuilleOr $LOCBIN1)
+&#8226; (CatLoc1 PATRO) &#8594;(CatLoc1 PRENOMS.particule) (CatMot v.stat) + (SeuilleOr $LOCBIN1)
+&#8226; (CatLoc1 PATRO) &#8594;(CatLoc1 prenoms.prenoms) (CatMot patronyme) + (SeuilleOr $LOCBIN1)
+</p>
+<p>4 Le taux de rappel n'est  pas pertinent pour un mod&#232;le d'apprentissage statistique. En effet,  un nombre minimal  
+d'occurrences (environ 4) d'une m&#234;me locution est n&#233;cessaire pour que cette derni&#232;re puisse &#234;tre identifi&#233;e, ce qui  
+exclut  des  locutions  dont  la  fr&#233;quence d'apparition  est  trop  faible.  Enfin,  l'estimation  de ce taux  n&#233;cessite  un  
+recensement manuel des locutions dans le corpus de test, ce pour un co&#251;t en g&#233;n&#233;ral prohibitif. Une solution (que 
+nous n'avons pas mise en &#339;uvre) consisterait &#224; &#233;chantillonner le corpus pour estimer le nombre moyen de locutions 
+observ&#233;es tous les n mots analys&#233;s et de le comparer avec le nombre total des locutions extraites divis&#233; par la taille 
+(en nombre de mots) du corpus d'apprentissage.  </p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p> ACQUISITION AUTOMATIQUE DE TERMINOLOGIE &#192; PARTIR DE CORPUS DE TEXTE
+</p>
+<p>&#8226; (CatLoc1 PATRO) &#8594;(CatLoc1 prenoms.prenoms) (CatMot v.stat) + (SeuilleOr $LOCBIN1)
+</p>
+<p>R&#233;f&#233;rences 
+</p>
+<p>ABNEY S.T.,(1994). PARSING BY CHUNKS. BELL COMMUNICATION RESEARCH.
+</p>
+<p>AHO A.,SETHI R., ULLMAN J.D.(1977). Compilers: Principles, Techniques, and Tools. Dragon Book.
+</p>
+<p>BRILL E.,(1992). A Simple Rule Based Part of Speech Tagger. ACL.
+</p>
+<p>CHURCH K.,  HANKS P.,(1996).  WORD ASSOCIATION NORMS,  MUTUAL INFORMATION,  AND LEXICOGRAPHY. 
+COMPUTATIONAL LINGUISTICS. 16, 22-29.
+</p>
+<p>CORLESS ET AL.,(1996). On the Lambert W function. Adv. Computational Maths. 5, 329-359.
+</p>
+<p>DAILLE B.,(1996).  Study  and  Implementation  of  Combined  Techniques  for  Automatic  Extraction  of 
+Terminology. MIT Press., 49-66.
+</p>
+<p>DUNNING T.D.,(1993). Accurate Methods for the Statistics. Computational Linguistics. 19(1), 61-74.
+</p>
+<p>FRANTZI K.T., ANANIADOU S., TSUJII J.,(1998). The C-value/NC-value Method of Automatic Recognition of 
+Multi-word Terms. ECDL'98, 585-604.
+</p>
+<p>HEINECKE J., SMITS G., CHARDENON C., GUIMIER DE NEEF E.,MAILLEBUAU E., BOUALEM M., (2008). TILT : plate-
+forme pour le traitement des langues naturelles. TAL Vol. 49.
+</p>
+<p>KIT C.,(2002). Corpus Tools for Retrieving and Deriving Termhood Evidence. The 5th East Asia Forum of  
+Terminology, 69-80.
+</p>
+<p>LASSALLE E.,  CASIMIR P.K.,  GUIMIER DE NEEF E.,(2011).  Evaluation des outils  d'extraction terminologique 
+Quezao et Acabit. EGC 2011, 131, 136.
+</p>
+<p>NAMER F.,(2000). Flemm : Un analyseur flexionnel de fran&#231;ais &#224; base de r&#232;gles. Traitement Automatique des  
+Langues pour la Recherche d'Information. Hermes, 523-547.
+</p>
+<p>NAZARENKO A.,  ZARGAYOUNA H.,  HAMON O.,  VAN PUYMBROUCK J.,(2009).  Evaluation  des  outils 
+terminologiques : enjeux, difficult&#233;s et propositions. TA Vol. 50, 257-281.
+</p>
+<p>PAPOULIS A.,(2002). Probability, Random Variables ans Stochastic Processes. Mac Graw Hill.
+</p>
+<p>SAPORTA G., (2006). Probabilit&#233;, analyse des donn&#233;es et statistique. Ed. Technip.
+</p>
+<p>SHANNON C.E.,(1948). A Mathematical Theory of Communication. The Bell System Technical Journal. 27, 
+623-656.
+</p>
+<p>SMADJA F.,(1993). XTRACT : An Overview. Computer and the Humanities Kluwer Academic Publishers.
+</p>
+<p>TSURUOKA Y.,(2005). Chunk Parsing Revisited. 9th IWPT.
+</p>
+<p>VU T., AW A.T., ZHANG M.,(2008). Term Extraction Through Unithood And Termhood Unification. IJNLP.</p>
+
+</div></div>
+</body></html>

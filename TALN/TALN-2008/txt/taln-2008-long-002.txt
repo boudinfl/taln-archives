@@ -1,482 +1,382 @@
-TALN 2008, Avignon, 9-13 juin 2008
-
+TALN 2008, Avignon, 9–13 juin 2008
 Réécriture et Détection d’Implication Textuelle
-
 Paul Bedaride 1 Claire Gardent 2
-(1) Université Henri Poincare/LORIA, Nancy
+(1) Université Henri Poincaré/LORIA, Nancy
 (2) CNRS/LORIA, Nancy
 Paul.Bedaride@loria.fr,Claire.Gardent@loria.fr
-
-Résumé. Nous présentons un systeme de normalisation de la variation syntaxique qui
-permet de Inieux reconnaitre la relation d’implication textuelle entre deux phrases. Le systeme
+Résumé. Nous présentons un système de normalisation de la variation syntaxique qui
+permet de mieux reconnaître la relation d’implication textuelle entre deux phrases. Le système
 est évalué sur une suite de tests comportant 2 520 paires test et les résultats montrent un gain en
-précision par rapport a un systeme de base variant entre 29.8 et 78.5 points la complexité des
+précision par rapport à un système de base variant entre 29.8 et 78.5 points la complexité des
 cas considérés.
-
-Abstract. We present a system for dealing with syntactic variation which signiﬁcantly
+Abstract. We present a system for dealing with syntactic variation which significantly
 improves the treatment of textual implication. The system is evaluated on a testsuite of 2 520
 sentence pairs and the results show an improvment in precision over the baseline which varies
 between 29.8 and 78.5 points depending on the complexity of the cases being considered.
-
-M0tS-CléS I Normalisation syntaxique, Détection d’implication textuelle, Réécriture de
+Mots-clés : Normalisation syntaxique, Détection d’implication textuelle, Réécriture de
 graphe.
-
 Keywords: Syntactic normalisation, Recognising Textual Entailment, Graph rewriting.
-
 P. Bedaride, C. Gardent
-
 1 Introduction
-
-La reconnaissance d’implications textuelles consiste a determiner si un texte en implique un
-autre. Pour le traitement semantique des textes, c’est une tache fondamentale qui permet, par
-exemple, d’aider a determiner si une phrase est une reponse a une question (la reponse implique
-la cloture existentielle de la question) ou de detecter les phrases redondantes dans un resume
-(une phrase implique l’autre). Plus generalement, le traitement de l’implication textuelle per-
-met de detecter des relations d’implication, d’equivalence et de contradiction entre fragments
+La reconnaissance d’implications textuelles consiste à déterminer si un texte en implique un
+autre. Pour le traitement sémantique des textes, c’est une tâche fondamentale qui permet, par
+exemple, d’aider à déterminer si une phrase est une réponse à une question (la réponse implique
+la clôture existentielle de la question) ou de détecter les phrases redondantes dans un résumé
+(une phrase implique l’autre). Plus généralement, le traitement de l’implication textuelle per-
+met de détecter des relations d’implication, d’équivalence et de contradiction entre fragments
 textuels et donc de raisonner sur le sens des textes.
-
-Au cours des trois dernieres annees, l’evolution de la campagne RTE (Recognising Textual
-Entailment (Dagan et al., 2005)) a clairement montre que la reconnaissance d’implications
-textuelles passe par un traitement en profondeur des donnees textuelles. En effet, les resultats
-obtenus montrent que les approches basees sur les sacs de mots donnent des resultats decevants
-(precision d’environ 60% avec une « baseline » de 50%), et qu’il est necessaire a la fois de
-pouvoir faire abstraction des differences syntaxiques qui peuvent distinguer des textes seman-
-tiquement equivalents et de pouvoir raisonner sur le sens des textes.
-
-Dans cet article, nous nous concentrons sur la premiere de ces problematiques et presentons
-un systeme pour la reconnaissance d’implications textuelles dedie au traitement de la variabil-
-ite syntaxique de l’anglais entre textes a meme structure predicative. Les exemples suivants
-illustrent le type d’implications textuelles que nous visons a traiter.
-
-(1) « John hates the man that hit Mary. » =>T « Mary was hit by the man that is hated by John. »
-(2) =>T « John hates a man. »
-(3) 357- « John hates Mary. »
-
-L’article est structure de la fagon suivante. Nous commengons (section 2) par presenter une
-methode permettant de coupler le Stanford Parser avec une phase de normalisation des sor-
-ties suivie d’une phase de reconnaissance d’implication textuelle. En bref, l’approche proposee
-consiste a :
-
-— « normaliser » les graphes de dependance semantiquement equivalents par application de
-regles de reecriture ;
-— traduire les representations normalisees en formules de la logique du premier ordre;
-— et tester l’implication par le biais de raisonneurs automatiques.
-
+Au cours des trois dernières années, l’évolution de la campagne RTE (Recognising Textual
+Entailment (Dagan et al., 2005)) a clairement montré que la reconnaissance d’implications
+textuelles passe par un traitement en profondeur des données textuelles. En effet, les résultats
+obtenus montrent que les approches basées sur les sacs de mots donnent des résultats décevants
+(précision d’environ 60% avec une « baseline » de 50%), et qu’il est nécessaire à la fois de
+pouvoir faire abstraction des différences syntaxiques qui peuvent distinguer des textes séman-
+tiquement équivalents et de pouvoir raisonner sur le sens des textes.
+Dans cet article, nous nous concentrons sur la première de ces problématiques et présentons
+un système pour la reconnaissance d’implications textuelles dédié au traitement de la variabil-
+ité syntaxique de l’anglais entre textes à même structure prédicative. Les exemples suivants
+illustrent le type d’implications textuelles que nous visons à traiter.
+(1) « John hates the man that hit Mary. » ⇒T « Mary was hit by the man that is hated by John. »
+(2) ⇒T « John hates a man. »
+(3) 6⇒T « John hates Mary. »
+L’article est structuré de la façon suivante. Nous commençons (section 2) par présenter une
+méthode permettant de coupler le Stanford Parser avec une phase de normalisation des sor-
+ties suivie d’une phase de reconnaissance d’implication textuelle. En bref, l’approche proposée
+consiste à :
+– « normaliser » les graphes de dépendance sémantiquement équivalents par application de
+règles de réécriture ;
+– traduire les représentations normalisées en formules de la logique du premier ordre ;
+– et tester l’implication par le biais de raisonneurs automatiques.
 Nous illustrons ensuite l’impact de la phase de normalisation sur la reconnaissance d’implica-
-tions textuelles par une evaluation basee sur une suite de tests faisant intervenir des variations
-syntaxiques (section 3). Dans cette suite, chaque element est une paire de textes (T1, T2) annotee
-comme etant ou non un cas d’implication textuelle. En outre, lorsque T1 implique textuellement
-T2, T1 et T2 ne different que par la syntaxe (e.g., variation actif/passif). L’ evaluation montre que,
-sur cette suite de tests, la phase de normalisation integree par notre approche permet d’ ameliorer
-la precision du systeme de 29.8 points pour les cas simples (un seul verbe conjugue dans la
-phrase impliquee T2) et de 78.5 points pour les cas plus complexes (deux verbes conjugues
+tions textuelles par une évaluation basée sur une suite de tests faisant intervenir des variations
+syntaxiques (section 3). Dans cette suite, chaque élément est une paire de textes 〈T1, T2〉 annotée
+comme étant ou non un cas d’implication textuelle. En outre, lorsque T1 implique textuellement
+T2, T1 et T2 ne diffèrent que par la syntaxe (e.g., variation actif/passif). L’évaluation montre que,
+sur cette suite de tests, la phase de normalisation intégrée par notre approche permet d’améliorer
+la précision du système de 29.8 points pour les cas simples (un seul verbe conjugué dans la
+phrase impliquée T2) et de 78.5 points pour les cas plus complexes (deux verbes conjugués
 dans T2).
-
-Nous concluons (section 5) en indiquant des pistes a poursuivre d’une part, pour generaliser
-l’approche a l’ensemble des variations syntaxiques, et d’autre part pour l’enrichir avec des con-
-naissances autres que syntaxiques (semantique lexicale, savoir encyclopedique, etc.).
-
-Reecriture et Implications Textuelles
-
-     
-
-FIG' 1 _ « John loves FIG. 2 — « Mary is loved by John » FIG‘  ,_ Représentation
-Mary >> normalisee
-
+Nous concluons (section 5) en indiquant des pistes à poursuivre d’une part, pour généraliser
+l’approche à l’ensemble des variations syntaxiques, et d’autre part pour l’enrichir avec des con-
+naissances autres que syntaxiques (sémantique lexicale, savoir encyclopédique, etc.).
+Réécriture et Implications Textuelles
+love love
+love
+nsubj dobj arg0 arg1
+nsubjpass auxpass agent
+John Mary
+Mary John
+Mary
+be John
+FIG. 1 – « John loves
+F FIG. 3 – ReprésentationIG. 2 – « Mary is loved by John »
+Mary » normalisée
 2 Approche Proposée
-
-Aﬁn de mieux detecter l’implication textuelle, nous cherchons a associer a un ensemble de
-structures syntaxiquement distinctes mais semantiquement equivalentes, une representation se-
-mantique « normalisee » unique. En effet, si elles presentent generalement des differences de
-type fonctionnel ou pragmatique (differentes structures communicatives par exemple), les vari-
-antes telles que la variante actif/passif vehiculent un contenu informationnel identique et doivent
-donc pouvoir étre reconnues comme semantiquement equivalentes par un reconnaisseur d’im-
-plications textuelles. Nous proposons de reconstruire ces equivalences a partir des graphes de
-dependances produits par l’analyseur de Stanford modiﬁes par un systeme de reecriture. Par
-exemple, pour normaliser les structures actif/passif donnees en Figure 1 et 2, nous deﬁnissons
-des regles de reecriture qui peuvent etre representees graphiquement de la facon suivante :
-
- 
-
- 
-
-nsubj dobj
-‘"\_«
-FIG. 4 — Regle de reecriture de l’actif FIG. 5 — Regle de reecriture du passif
-
-Pour detecter les relations d’implication textuelle entre deux textes T1 et T2, les representations
-semantiques creees par les regles de reecriture sont ensuite traduites en formules de la logique
-du premier ordre et l’implication entre deux textes testee par inference logique : un texte T1
-implique un texte T2 si et seulement si l’une des representations semantiques normalisees de T1
-implique l’une des representations semantiques normalisees de T2.
-
-En resume, l’approche proposee comprend les etapes suivantes :
-
-— L’ analyse syntaxique est faite par le Stanford Parser (SP)
-
-— Des regles de reecriture sont deﬁnies a partir de la grammaire XTAG pour traduire les graphes
-de dependances produits par le SP en representations semantiques normalisees
-
-— Pour chaque phrase analysee, ces regles de reecriture sont appliquees aux cinq premieres
+Afin de mieux détecter l’implication textuelle, nous cherchons à associer à un ensemble de
+structures syntaxiquement distinctes mais sémantiquement équivalentes, une représentation sé-
+mantique « normalisée » unique. En effet, si elles présentent généralement des différences de
+type fonctionnel ou pragmatique (différentes structures communicatives par exemple), les vari-
+antes telles que la variante actif/passif véhiculent un contenu informationnel identique et doivent
+donc pouvoir être reconnues comme sémantiquement équivalentes par un reconnaisseur d’im-
+plications textuelles. Nous proposons de reconstruire ces équivalences à partir des graphes de
+dépendances produits par l’analyseur de Stanford modifiés par un système de réécriture. Par
+exemple, pour normaliser les structures actif/passif données en Figure 1 et 2, nous définissons
+des règles de réécriture qui peuvent être représentées graphiquement de la façon suivante :
+x x x x
+nsubj dobj arg0 arg1 nsubjpass auxpass agent arg0 arg1
+y z y z y z t z y
+FIG. 4 – Régle de réécriture de l’actif FIG. 5 – Régle de réécriture du passif
+Pour détecter les relations d’implication textuelle entre deux textes T1 et T2, les représentations
+sémantiques créées par les règles de réécriture sont ensuite traduites en formules de la logique
+du premier ordre et l’implication entre deux textes testée par inférence logique : un texte T1
+implique un texte T2 si et seulement si l’une des représentations sémantiques normalisées de T1
+implique l’une des représentations sémantiques normalisées de T2.
+En résumé, l’approche proposée comprend les étapes suivantes :
+– L’analyse syntaxique est faite par le Stanford Parser (SP)
+– Des règles de réécriture sont définies à partir de la grammaire XTAG pour traduire les graphes
+de dépendances produits par le SP en représentations sémantiques normalisées
+– Pour chaque phrase analysée, ces règles de réécriture sont appliquées aux cinq premières
 sorties du Stanford Parser
-
-— Les representations semantiques produites par la reecriture sont traduites en formules de la
+– Les représentations sémantiques produites par la réécriture sont traduites en formules de la
 logique du premier ordre
-
-— I-/3tant donnes deux textes T1 et T2, T1 implique T2 ssi (la traduction en logique du premier
-ordre de) l’une des representations semantiques normalisees de T1 implique (la traduction en
-logique du premier ordre de) l’une des representations semantiques normalisees de T2.
-
+– Étant donnés deux textes T1 et T2, T1 implique T2 ssi (la traduction en logique du premier
+ordre de) l’une des représentations sémantiques normalisées de T1 implique (la traduction en
+logique du premier ordre de) l’une des représentations sémantiques normalisées de T2.
 Dans le reste de cette section, nous expliciterons les principaux points de notre approche. Nous
-
-presentons ensuite (section 3) les resultats d’une evaluation basee sur une suite d’exemples
-
+présentons ensuite (section 3) les résultats d’une évaluation basée sur une suite d’exemples
 faisant intervenir la variation syntaxique.
-
 P. Bedaride, C. Gardent
-
 2.1 Analyse syntaxique et réécriture
-
 Le Stanford Parser et ses graphes de dépendances Le Stanford Parser (Klein & Manning,
 2003) est un analyseur syntaxique robuste doté d’une précision relativement élevée (score F de
 83,36% sur la section 23 du Penn Treebank). Les arbres syntagmatiques produits par cet analy-
 seur sont traduits dans des structures de dépendances par un module symbolique (de Marneffe
-et al., 2006). La sortie ﬁnale est un graphe de dépendances dont les noeuds sont étiquetés avec
+et al., 2006). La sortie finale est un graphe de dépendances dont les noeuds sont étiquetés avec
 les mots de la phrase analysée et dont les arcs sont orientés et étiquetés avec des relations gram-
-maticales tels que objet, sujet, ou modiﬁeur. Au total, le Stanford Parser utilise 48 relations
+maticales tels que objet, sujet, ou modifieur. Au total, le Stanford Parser utilise 48 relations
 grammaticales distinctes.
-
 La réécriture La réécriture est une technique permettant de modéliser les concepts de réduc-
-tion et de simpliﬁcation. Par exemple, la regle de réécriture r1 : :13 * y + II) >:< z —> 1; >:< (y + z)
-permet de factoriser le calcul 5 * 6 + 5 >:< 7 + 5 >:< 8 en 5 >:< ((6 + 7) + 8).
-
-Un systeme de réécriture est un ensemble de regles de réécriture de la forme l —> r. Une telle
-regle s’applique a un objet t si celui-ci contient une instance du membre gauche l, c’est-a-dire
-un sous-objet que l’on peut identiﬁer a l, cette étape s’appelle le ﬁltrage. L’objet t se réécrit
-alors en un nouvel objet t’, obtenu en remplacant l’instance de l par l’instance du membre droit
+tion et de simplification. Par exemple, la règle de réécriture r1 : x ∗ y + x ∗ z → x ∗ (y + z)
+permet de factoriser le calcul 5 ∗ 6 + 5 ∗ 7 + 5 ∗ 8 en 5 ∗ ((6 + 7) + 8).
+Un système de réécriture est un ensemble de règles de réécriture de la forme l → r. Une telle
+règle s’applique à un objet t si celui-ci contient une instance du membre gauche l, c’est-à-dire
+un sous-objet que l’on peut identifier à l, cette étape s’appelle le filtrage. L’objet t se réécrit
+alors en un nouvel objet t′, obtenu en remplaçant l’instance de l par l’instance du membre droit
 r correspondante.
-
-Typiquement, l’application d’un systeme est régi par une stratégie permettant de déﬁnir l’ordre
-d’application des regles, ainsi que la facon dont une regle est appliquée. Ainsi suivant la facon
-d’appliquer la regle ci-dessus (de gauche a droite ou de droite a gauche), le résultat obtenu
-po11rra étre 5 * ((6 + 7) + 8) ou 5 * (6 + (7 + 
-
-Utilisés dans des domaines tres variés (calcul formel, algebre combinatoire, sémantique opéra-
+Typiquement, l’application d’un système est régi par une stratégie permettant de définir l’ordre
+d’application des règles, ainsi que la façon dont une règle est appliquée. Ainsi suivant la façon
+d’appliquer la règle ci-dessus (de gauche à droite ou de droite à gauche), le résultat obtenu
+pourra être 5 ∗ ((6 + 7) + 8) ou 5 ∗ (6 + (7 + 8)).
+Utilisés dans des domaines très variés (calcul formel, algèbre combinatoire, sémantique opéra-
 tionnelle, etc.), la réécriture a été étudiée pour différents types d’objets syntaxiques (e.g., mots,
 termes, lambda termes) et en particulier, pour les graphes. Pour normaliser les graphes de dépen-
-dances produits par le Stanford Parser, nous utilisons le systeme de réécriture de graphes Gr-
-Gen.Net(Kroll & Geis, 2007). Dans les paragraphes suivants, nous montrons comment nous
-utilisons ce systeme pour déﬁnir des graphes de dépendances, des régles de réécriture et une
+dances produits par le Stanford Parser, nous utilisons le système de réécriture de graphes Gr-
+Gen.Net(Kroll & Geis̈, 2007). Dans les paragraphes suivants, nous montrons comment nous
+utilisons ce système pour définir des graphes de dépendances, des régles de réécriture et une
 stratégie de réécriture.
-
 Graphes GrGen.Net. GrGen.Net permet de travailler sur des graphes dont les arcs sont ori-
-entés et typés et dont les noeuds sont typés et peuvent étre étiquetés avec des attributs typés.
-Les différents types peuvent en outre étre structurés dans une hiérarchie d’héritage. GrGen.Net
+entés et typés et dont les noeuds sont typés et peuvent être étiquetés avec des attributs typés.
+Les différents types peuvent en outre être structurés dans une hiérarchie d’héritage. GrGen.Net
 a donc toute l’expressivité requise pour réécrire les graphes de dépendances produits par le
 Stanford Parser.
-
-Dans GrGen.Net, on peut donc représenter les graphes de dépendances de la facon suivante.
+Dans GrGen.Net, on peut donc représenter les graphes de dépendances de la façon suivante.
 Les mots étiquetant les noeuds des graphes de dépendances seront représentés par des attributs
 sur les noeuds et les arcs étiquetés de relations grammaticales des graphes de dépendances par
 des arcs typés.
-
-Régles de réécriture GrGen.Net. Une regle de réécriture de la forme l —> r déﬁnit un motif
-de ﬁltrage l et une réécriture r de la structure identiﬁée par le motif. Dans GrGen.Net, un
-motif de ﬁltrage est un graphe sous-spéciﬁé ou les contraintes exprimées peuvent contraindre
-
-Reecriture et Implications Textuelles
-
-le type des noeuds et des arcs et les attributs des noeuds. Il est egalement possible d’exprimer
-des contraintes negatives (par exemple, pour exiger qu’un noeud n’ait pas plus de trois arcs
-sortants). Les operations de reecriture permises sont la duplication, la suppression ou l’ajout
-d’information. Elles sont exprimees par la partie droite de la regle qui speciﬁe comment reecrire
-la structure identiﬁee par le motif de ﬁltrage.
-
-GrGen.Net permet un encodage tres intuitif des regles de normalisation. Ainsi, les regles represen-
-tes graphiquement dans les ﬁgures 4 et 5 sont deﬁnies de la maniere suivante dans GrGen.Net :
-
-rule nxlVbynxO {
-
-rule nxOVnxl { pattern{
-
-pattern{ verbzelement;
-verb:element; if{verb.verb I= "None";}
-if{verb.verb I= "None";} npl:element;
-npO:element; be:element;
-npl:element; npO:element;
-
-verb —:nsubj—> npO; verb —:nsubjpass—> npl;
-verb —:dobj—> npl; verb —:auxpass—> be;
-
-} verb —:agent—> npO;
+Règles de réécriture GrGen.Net. Une règle de réécriture de la forme l → r définit un motif
+de filtrage l et une réécriture r de la structure identifiée par le motif. Dans GrGen.Net, un
+motif de filtrage est un graphe sous-spécifié où les contraintes exprimées peuvent contraindre
+Réécriture et Implications Textuelles
+le type des noeuds et des arcs et les attributs des noeuds. Il est également possible d’exprimer
+des contraintes négatives (par exemple, pour exiger qu’un noeud n’ait pas plus de trois arcs
+sortants). Les opérations de réécriture permises sont la duplication, la suppression ou l’ajout
+d’information. Elles sont exprimées par la partie droite de la règle qui spécifie comment réécrire
+la structure identifiée par le motif de filtrage.
+GrGen.Net permet un encodage très intuitif des règles de normalisation. Ainsi, les règles représen-
+tés graphiquement dans les figures 4 et 5 sont définies de la manière suivante dans GrGen.Net :
+rule nx1Vbynx0 {
+rule nx0Vnx1 { pattern{
+pattern{ verb:element;
+verb:element; if{verb.verb != "None";}
+if{verb.verb != "None";} np1:element;
+np0:element; be:element;
+np1:element; np0:element;
+verb -:nsubj-> np0; verb -:nsubjpass-> np1;
+verb -:dobj-> np1; verb -:auxpass-> be;
+} verb -:agent-> np0;
 replace { }
-
-verb —:argO—> npO; replace {
-
-verb —:argl—> npl; verb —:argO—> npO;
-
-}} verb —:argl—> npl;
-
+verb -:arg0-> np0; replace {
+verb -:arg1-> np1; verb -:arg0-> np0;
+}} verb -:arg1-> np1;
 }}
-
-Plus generalement, les regles deﬁnies posent des contraintes sur les dependances entre les mots
-et sur leur reecriture, ainsi que sur la categorie syntaxique de certains mots. Ce deuxieme type
-de contrainte est necessaire pour les arbres incluant un verbe utilise comme adjectif (i.e., «the
-formated disk »), aﬁn d’eviter de reecrire tous les graphes contenant un adjectif (i.e., «the
-beautiful girl»). Pour veriﬁer qu’il s’agit bien d’un emploi adjectival d’un verbe, la contrainte
-speciﬁee demande que le mot etiquetant le noeud considere appartienne a la categorie verbe de
-W0rdNet1.
-
-Strategies de réécriture GrGen.Net. Pour determiner l’ordre d’application des regles, Gr-
-Gen.Net permet de regrouper les regles en sequences puis d’imposer differents types de con-
-traintes sur l’execution de ces sequences. Une sequence de regles peut etre disjonctive, conjonc-
-tive ou iterative. Deux ou plusieurs sequences de regles peuvent etre combinees par concatena-
-tion (la combinaison reussit si au moins l’une des sequences de regles peut etre appliquee avec
-succes), par un AND transactionnel (pour que la combinaison de sequences soit executee, il faut
-que chacune des sequences speciﬁees puisse etre appliquee dans l’ordre speciﬁe) et par un XOR
-ou disjonction exclusive (la combinaison de sequences reussit des que l’une des sequences spe-
-ciﬁees peut etre appliquee). Il est par ailleurs possible d’imposer soit une application « globale »
-(la regle est appliquee a toutes les structures ﬁltrees par son motif dans le graphe reecrit) soit
-une application « unique » (la regle n’est appliquee qu’a une seule structure).
-
-Pour optimiser leur bonne application, les regles sont executees par ordre de speciﬁcite en al-
-lant de la plus speciﬁque a la moins speciﬁque. Par exemple, la regle de reecriture pour le passif
-long est appliquee avant celle pour le passif court, assurant ainsi la reecriture du groupe prepo-
-
+Plus généralement, les règles définies posent des contraintes sur les dépendances entre les mots
+et sur leur réécriture, ainsi que sur la catégorie syntaxique de certains mots. Ce deuxième type
+de contrainte est nécessaire pour les arbres incluant un verbe utilisé comme adjectif (i.e., « the
+formated disk »), afin d’éviter de réécrire tous les graphes contenant un adjectif (i.e., « the
+beautiful girl »). Pour vérifier qu’il s’agit bien d’un emploi adjectival d’un verbe, la contrainte
+spécifiée demande que le mot étiquetant le noeud considéré appartienne à la catégorie verbe de
+WordNet1.
+Stratégies de réécriture GrGen.Net. Pour déterminer l’ordre d’application des règles, Gr-
+Gen.Net permet de regrouper les règles en séquences puis d’imposer différents types de con-
+traintes sur l’exécution de ces séquences. Une séquence de règles peut être disjonctive, conjonc-
+tive ou itérative. Deux ou plusieurs séquences de règles peuvent être combinées par concaténa-
+tion (la combinaison réussit si au moins l’une des séquences de règles peut être appliquée avec
+succès), par un AND transactionnel (pour que la combinaison de séquences soit exécutée, il faut
+que chacune des séquences spécifiées puisse être appliquée dans l’ordre spécifié) et par un XOR
+ou disjonction exclusive (la combinaison de séquences réussit dès que l’une des séquences spé-
+cifiées peut être appliquée). Il est par ailleurs possible d’imposer soit une application « globale »
+(la règle est appliquée à toutes les structures filtrées par son motif dans le graphe réécrit) soit
+une application « unique » (la règle n’est appliquée qu’à une seule structure).
+Pour optimiser leur bonne application, les règles sont exécutées par ordre de spécificité en al-
+lant de la plus spécifique à la moins spécifique. Par exemple, la règle de réécriture pour le passif
+long est appliquée avant celle pour le passif court, assurant ainsi la réécriture du groupe prépo-
 1http://wordnet.princeton.edu
-
 P. Bedaride, C. Gardent
-
-sitionnel en « by ». En outre, lorsqu’une regle s’applique a plusieurs sous-structures du graphe
-réécrit, la réécriture s’applique simultanément a l’ensemble de ces sous-structures (application
-globale plutot qu’unique).
-
-Techniquement, la stratégie de réécriture déployée est la suivante : chaque séquence de regles
-contient une seule regle et l’ensemble des séquences est combiné par concaténation en ordon-
-nant les séquences par ordre de spéciﬁcité (une regle R1 est dite plus spéciﬁque qu’une regle
-R2 si l’ensemble des graphes pouvant étre ﬁltrés par R1 est inclus dans l’ensemble des graphes
-pouvant étre ﬁltrés par R2).
-
-2.2 Déﬁnition et application des régles de réécriture
-
-Les regles de réécriture nécessaires a la normalisation des structures de dépendances produites
-par le Stanford Parser sont déﬁnies manuellement.
-
-Pour déﬁnir ces regles, nous nous appuyons sur la grammaire d’arbres adjoints XTAG de
+sitionnel en « by ». En outre, lorsqu’une règle s’applique à plusieurs sous-structures du graphe
+réécrit, la réécriture s’applique simultanément à l’ensemble de ces sous-structures (application
+globale plutôt qu’unique).
+Techniquement, la stratégie de réécriture déployée est la suivante : chaque séquence de règles
+contient une seule règle et l’ensemble des séquences est combiné par concaténation en ordon-
+nant les séquences par ordre de spécificité (une règle R1 est dite plus spécifique qu’une règle
+R2 si l’ensemble des graphes pouvant être filtrés par R1 est inclus dans l’ensemble des graphes
+pouvant être filtrés par R2).
+2.2 Définition et application des règles de réécriture
+Les règles de réécriture nécessaires à la normalisation des structures de dépendances produites
+par le Stanford Parser sont définies manuellement.
+Pour définir ces règles, nous nous appuyons sur la grammaire d’arbres adjoints XTAG de
 l’anglais (XTAG Research Group, 2001). En effet, XTAG regroupe dans des « familles d’ar-
 bres », la description des variations syntaxiques possibles pour les différents types de verbes
-existants (verbe a un complément nominal ou intransitif, verbe a un complément nominal et un
+existants (verbe à un complément nominal ou intransitif, verbe à un complément nominal et un
 complément phrastique, verbe transitif, etc.). En d’autres termes, les familles XTAG permet-
-tent d’identiﬁer l’ensemble des variations syntaxiques possibles pour chaque type syntaxique
+tent d’identifier l’ensemble des variations syntaxiques possibles pour chaque type syntaxique
 (valence) de verbe.
-
-A partir de la grammaire XTAG, nous commencons donc par établir un ensemble de phrases
-illustrant, pour un cadre de sous-categorisation donné, l’ensemble des variations syntaxiques
-possibles. Par exemple, étant donnée la phrase « John loves Mary », la famille TnXOVnX12 de
-la grammaire XTAG nous permet d’identiﬁer 39 variations syntaxiques possibles dont « John
+À partir de la grammaire XTAG, nous commençons donc par établir un ensemble de phrases
+illustrant, pour un cadre de sous-catégorisation donné, l’ensemble des variations syntaxiques
+possibles. Par exemple, étant donnée la phrase « John loves Mary », la famille Tnx0Vnx12 de
+la grammaire XTAG nous permet d’identifier 39 variations syntaxiques possibles dont « John
 loves Mary », « Mary is loved by John », « John who loves Mary », « Mary whom John loves »,
 « Mary who is loved by John », « the loving of John by Mary », etc.
-
-Nous analysons ensuite ces phrases avec le Stanford Parser et déﬁnissons pour les graphes de
-dépendances produits par l’analyseur3 des regles de réécriture permettant de réécrire chacune
-des structures produites en une forme normalisée. Par exemple, des regles sont déﬁnies pour
+Nous analysons ensuite ces phrases avec le Stanford Parser et définissons pour les graphes de
+dépendances produits par l’analyseur3 des règles de réécriture permettant de réécrire chacune
+des structures produites en une forme normalisée. Par exemple, des règles sont définies pour
 réécrire chacun des arbres de dépendances donnés en Figure 1 et 2 en une structure unique,
-la structure donnée en Figure 3. Plus généralement, a partir des analyses correctes produites
+la structure donnée en Figure 3. Plus généralement, à partir des analyses correctes produites
 par le Stanford Parser pour chacune des variantes syntaxiques d’un type de phrase donné (e.g.,
-phrase avec un verbe transitif), nous déﬁnissons un ensemble de regles de réécriture permettant
+phrase avec un verbe transitif), nous définissons un ensemble de règles de réécriture permettant
 de transformer les arbres de dépendances de chacune de ces variantes en une représentation
 sémantique unique.
-
-Pour évaluer l’impact de notre procédure de normalisation, nous avons déﬁni des regles de
+Pour évaluer l’impact de notre procédure de normalisation, nous avons défini des règles de
 réécriture pour la classe des verbes transitifs et celle des verbes intransitifs. Pour ces deux
-classes, la normalisation des structures requiert la deﬁnition de 32 regles de réécriture.
-
-zclasse des verbes régissant deux arguments nominaux
-3Comme le Stanford Parser retoume plusieurs analyses pour une meme phrase, nous ne considérons bien sﬁr
-que les structures correctes pour la deﬁnition des regles de réécritures.
-
+classes, la normalisation des structures requiert la définition de 32 règles de réécriture.
+2classe des verbes régissant deux arguments nominaux
+3Comme le Stanford Parser retourne plusieurs analyses pour une même phrase, nous ne considérons bien sûr
+que les structures correctes pour la définition des règles de réécritures.
 Réécriture et Implications Textuelles
-
 2.3 Traitement logique de l’implication textuelle
-
-Pour déterminer si un texte T1 implique textuellement un texte T2, nous traduisons les represen-
+Pour déterminer si un texte T1 implique textuellement un texte T2, nous traduisons les représen-
 tations sémantiques normalisées en formules logiques puis nous testons la validité de l’impli-
-cation logique en logique du premiere ordre.
-
+cation logique en logique du première ordre.
 Traitement logique La transformation d’une représentation sémantique normalisée en une
-formule de la logique du premier ordre se fait de la facon suivante. A chaque noeud du graphe
-correspond une variable quantiﬁée a laquelle est appliqué un prédicat unaire ayant pour nom le
+formule de la logique du premier ordre se fait de la façon suivante. À chaque noeud du graphe
+correspond une variable quantifiée à laquelle est appliqué un prédicat unaire ayant pour nom le
 mot associé au noeud. Les arcs introduisent une relation binaire ayant pour nom l’étiquette de
-l’arc et pour arguments les variables associées a ses noeuds source et destination. La formule
-ﬁnale est la conjonction des prédications ainsi obtenues. Ainsi pour le graphe de la Figure 1
+l’arc et pour arguments les variables associées à ses noeuds source et destination. La formule
+finale est la conjonction des prédications ainsi obtenues. Ainsi pour le graphe de la Figure 1
 nous avons la formule :
-
-Elm, y, z : l0’U€(.'13) /\j0hn(y) /\ mary(z) /\ nsubj(J:, y) /\ d0bj(.'13, 2)
-
-Implication textuelle La validité de l’implication logique entre deux formules peut étre veri-
-ﬁée grace a des outils formels comme les prouveurs de théoreme ou les constructeurs de mod-
-eles. Comme le montre (Blackburn et al., 1999) , ces deux outils peuvent étre utilisés de facon
-complémentaire. En effet, un prouveur de théoremes vise a dériver une contradiction tandis
-qu’un constructeur de modeles cherche a créer un modele satisfaisant la formule d’entrée. En
-conséquence, un prouveur est souvent peu efﬁcace pour une formule satisﬁable tandis qu’a l’in-
-verse, un constructeur de modeles est souvent peu performant pour une formule non satisﬁable.
-Pour tester la relation d’implication qﬁl —> q52 entre les représentations loqiques de deux textes
-T1 et T2, nous utilisons donc en parallele le prouveur de théoremes EquinoX4 et le constructeur
-de modeles ParadoX7. Dans les deux cas, la requéte est la négation de l’implication -((;51 —> qS2)
+∃x, y, z : love(x) ∧ john(y) ∧mary(z) ∧ nsubj(x, y) ∧ dobj(x, z)
+Implication textuelle La validité de l’implication logique entre deux formules peut être véri-
+fiée grâce à des outils formels comme les prouveurs de théorème ou les constructeurs de mod-
+èles. Comme le montre (Blackburn et al., 1999) , ces deux outils peuvent être utilisés de façon
+complémentaire. En effet, un prouveur de théorèmes vise à dériver une contradiction tandis
+qu’un constructeur de modèles cherche à créer un modèle satisfaisant la formule d’entrée. En
+conséquence, un prouveur est souvent peu efficace pour une formule satisfiable tandis qu’à l’in-
+verse, un constructeur de modèles est souvent peu performant pour une formule non satisfiable.
+Pour tester la relation d’implication φ1 → φ2 entre les représentations loqiques de deux textes
+T1 et T2, nous utilisons donc en parallèle le prouveur de théorèmes Equinox4 et le constructeur
+de modèles Paradox7. Dans les deux cas, la requête est la négation de l’implication ¬(φ1 → φ2)
 et une réponse positive indique une non-implication textuelle.
-
 En pratique, nous ne testons pas l’implication entre deux représentations mais entre plusieurs.
-Nous considérons en effet les 5 premieres sorties de l’analyseur pour chacune des deux phrases
-considérées et nous cherchons a détecter une relation d’implication entre au moins une paire
+Nous considérons en effet les 5 premières sorties de l’analyseur pour chacune des deux phrases
+considérées et nous cherchons à détecter une relation d’implication entre au moins une paire
 de représentations. Plus précisément, étant donné deux phrases T1, T2 et les formules logiques
-T11, . . . ,Tf et T2, . . . ,T§ associées a ces phrases, T2 est une implication textuelle de T1 si :
-
-(T11 —> T2) V (T11 —> T3) V...
-
+T 11 , . . . , T
+5
+1 et T
+1
+2 , . . . , T
+5
+2 associées à ces phrases, T2 est une implication textuelle de T1 si :
+(T 11 → T 12 ) ∨ (T 11 → T 22 ) ∨ . . .
 ou par équivalence :
-(T11/\.../\Tf) —> (T;v...vT§)
-
-3 Evaluation
-
-Aﬁn d’évaluer notre systeme de normalisation, nous avons développé une suite de tests illustrant
+(T 11 ∧ . . . ∧ T 51 )→ (T 12 ∨ . . . ∨ T 52 )
+3 Évaluation
+Afin d’évaluer notre système de normalisation, nous avons développé une suite de tests illustrant
 la variation syntaxique entre deux paires de phrases.
-
-4http://www.cs.cha1mers.se/ koenlfolkungl
-
+4http://www.cs.chalmers.se/ koen/folkung/
 P. Bedaride, C. Gardent
-
-A partir d’un lexique restreint et d’expressions régulieres décrivant les structures syntaxiques
+À partir d’un lexique restreint et d’expressions régulières décrivant les structures syntaxiques
 possibles pour un verbe et les représentations sémantiques associées, nous avons développé
-un script permettant d’engendrer des paires ( Phrase, Sémantique ) telles que les phrases en-
+un script permettant d’engendrer des paires 〈 Phrase, Sémantique 〉 telles que les phrases en-
 gendrées contiennent soit un (phrase simple) soit deux ou plus (phrase complexe) verbes con-
-jugués. Apres avoir manuellement vériﬁé la correction des éléments générés (paires phrase-
-sémantique), nous avons utilisé ces paires pour créer les éléments de la suite de tests c’est-a-
+jugués. Après avoir manuellement vérifié la correction des éléments générés (paires phrase-
+sémantique), nous avons utilisé ces paires pour créer les éléments de la suite de tests c’est-à-
 dire, des paires de phrases annotées avec la valeur VRAI ou FAUX selon qu’il y a ou non une
 relation d’implication textuelle entre les membres de la paire.
-
 La suite de tests résultante5 comporte 2520 paires de phrases annotées dont 937 correspondent
-a une implication entre une phrase (complexe ou simple) et une phrase simple (i.e.,IV+IT —
-e.g., implication (2) de l’introduction), 437 a une implication entre deux phrases complexes
-(i.e.,2V+I T — e.g., implication (1) de l’introduction) et 1146 a une non-implication (i.e.,V-I T —
+à une implication entre une phrase (complexe ou simple) et une phrase simple (i.e.,1V+IT –
+e.g., implication (2) de l’introduction), 437 à une implication entre deux phrases complexes
+(i.e.,2V+IT – e.g., implication (1) de l’introduction) et 1146 à une non-implication (i.e.,V-IT –
 e.g., non-implication (3) de l’introduction).
-
 Pour chaque élément dans cette suite de tests, nous testons l’implication selon la procédure
 décrite dans la section précédente : pour chacune des deux phrases dans une paire, les 5 pre-
-mieres analyses du Stanford Parser sont transformées en formules de la logique du premier
+mières analyses du Stanford Parser sont transformées en formules de la logique du premier
 ordre et il est testé si ou non, la conjonction des 5 représentations de T1 implique la disjonction
-des 5 représentations de T2. Le test est fait d’une part, a partir des graphes de dépendances
-produits par l’analyseur et d’autre part, a partir des graphes normalisés.
-
+des 5 représentations de T2. Le test est fait d’une part, à partir des graphes de dépendances
+produits par l’analyseur et d’autre part, à partir des graphes normalisés.
 On obtient les résultats suivants :
-
-1 type de graphe | réponse  1V+IT  2V+IT  V-IT |
+type de graphe réponse 1V+IT 2V+IT V-IT
 graphe +IT 632 (67.4%) 26 (5.9%) 122 (10.6%)
 dépendances -IT 290 (30.9%) 406 (92.9%) 1021 (89.1%)
-basique Echec 15 (1.7%) 5 (1.2%) 3 (0.3%)
+basique Échec 15 (1.7%) 5 (1.2%) 3 (0.3%)
 graphe +IT 911 (97.2%) 369 (84.4%) 134 (11.7%)
 dépendances -IT 12 (1.3%) 58 (13.3%) 1011 (88.2%)
-normalisé Echec 14 (1.5%) 10 (2.3%) 1 (0.1%)
-
-La logique du premiere ordre n’étant que semi-décidable, la ligne « Echec » recense les cas o1‘1
-les raisonneurs échouent a donner une réponse. On observe qu’en pratique le nombre de cas
+normalisé Échec 14 (1.5%) 10 (2.3%) 1 (0.1%)
+La logique du première ordre n’étant que semi-décidable, la ligne « Échec » recense les cas où
+les raisonneurs échouent à donner une réponse. On observe qu’en pratique le nombre de cas
 indécidables reste limité.
-
-Pour les implications de phrases simples (premiere colonne, I V+I T), la normalisation des
+Pour les implications de phrases simples (première colonne, 1V+IT), la normalisation des
 graphes de dépendances permet un gain en précision de 29.8 points : sur 937 cas d’implica-
 tions textuelles, 911 sont reconnues comme telles contre seulement 632 sans normalisation. Le
-gain augmente de facon signiﬁcative pour les implications de phrases complexes (2V+I T) avec
+gain augmente de façon significative pour les implications de phrases complexes (2V+IT) avec
 369 cas reconnus avec la normalisation contre 26 sans, soit un gain en précision de 78.5 points
-la derniere colonne (V-I T) montre que la normalisation n’est pas trop permissive puisque avec
+la dernière colonne (V-IT) montre que la normalisation n’est pas trop permissive puisque avec
 ou sans normalisation, le taux de non-implications reconnues est d’environ 90%.
-
-L’ analyse manuelle des résultats de l’approche normalisante montre que les cas d’erreurs sont
-dﬁs d’une part, a des cas o1‘1 les 5 premieres sorties de l’analyseur ne contiennent pas le graphe
-correct pour la phrase analysée et d’autre part, a un petit nombre de regles de réécriture incor-
+L’analyse manuelle des résultats de l’approche normalisante montre que les cas d’erreurs sont
+dûs d’une part, à des cas où les 5 premières sorties de l’analyseur ne contiennent pas le graphe
+correct pour la phrase analysée et d’autre part, à un petit nombre de règles de réécriture incor-
 rectes.
-
-Saccessibles a l’adresse suivante : http://WWW.loria.fr/~bedaride/publications/ta1n08—bedgar/tests.htIn1
-
-Reecriture et Implications Textuelles
-
-4 Comparaison avec l’eXistant
-
-Notre approche presente des similitudes avec l’approche presentee dans (Fabio Massimo Zan-
-zotto & Moschitti, 2007) qui elle aussi utilise des regles de reecriture pour detecter l’implica-
-tion textuelle. Les differences sont de deux ordres. Premierement, les regles de (Fabio Mas-
-simo Zanzotto & Moschitti, 2007) portent sur les arbres syntaxiques plutot que sur des graphes
-de dependances. Deuxiemement, ces regles sont acquises automatiquement a partir des corpus
-d’implications textuelles plutot que manuellement a partir d’une grammaire.
-
-Les graphes de dependances representent une abstraction semantique des arbres syntaxiques,
-ils permettent donc d’avoir des regles de reecritures plus generiques. Par exemple, le passif
-simple est gere avec une seule regle avec les graphes de dependances alors qu’avec les arbres
-syntaxiques dont la structure varie signiﬁcativement avec le temps du verbe, il faut avoir une
-regle pour chaque temps.
-
-La generation de regles de reecriture a partir de paires de textes impliques a l’avantage d’etre
-totalement automatisee, mais les regles obtenues prennent chacune en compte un ensemble de
-variations syntaxiques et semantique, ce qui les rend peu modulaires et tres speciﬁques : un
-regle ne po11rra etre appliquee que si les phrases analysees presentent l’ensemble des caracteris-
-tiques syntaxiques et semantiques decrites par le motif de ﬁltrage de cette regle. Par contraste,
-l’approche que nous presentons permet la reecriture du noyau verbal independamment des con-
-textes speciﬁques dans lequel il apparait. La reecriture semantique (de structures synonymiques
-par exemple) n’est pas traitee pour l’instant mais pourrait l’etre dans une deuxieme systeme de
-reecriture qui seraient combine, de facon modulaire, avec le systeme de normalisation syntax-
-ique presente ici.
-
+5accessibles à l’adresse suivante : http://www.loria.fr/~bedaride/publications/taln08-bedgar/tests.html
+Réécriture et Implications Textuelles
+4 Comparaison avec l’existant
+Notre approche présente des similitudes avec l’approche présentée dans (Fabio Massimo Zan-
+zotto & Moschitti, 2007) qui elle aussi utilise des règles de réécriture pour détecter l’implica-
+tion textuelle. Les différences sont de deux ordres. Premièrement, les règles de (Fabio Mas-
+simo Zanzotto & Moschitti, 2007) portent sur les arbres syntaxiques plutôt que sur des graphes
+de dépendances. Deuxièmement, ces règles sont acquises automatiquement à partir des corpus
+d’implications textuelles plutôt que manuellement à partir d’une grammaire.
+Les graphes de dépendances représentent une abstraction sémantique des arbres syntaxiques,
+ils permettent donc d’avoir des règles de réécritures plus génériques. Par exemple, le passif
+simple est géré avec une seule règle avec les graphes de dépendances alors qu’avec les arbres
+syntaxiques dont la structure varie significativement avec le temps du verbe, il faut avoir une
+règle pour chaque temps.
+La génération de règles de réécriture à partir de paires de textes impliqués à l’avantage d’être
+totalement automatisée, mais les règles obtenues prennent chacune en compte un ensemble de
+variations syntaxiques et sémantique, ce qui les rend peu modulaires et très spécifiques : un
+règle ne pourra être appliquée que si les phrases analysées présentent l’ensemble des caractéris-
+tiques syntaxiques et sémantiques décrites par le motif de filtrage de cette règle. Par contraste,
+l’approche que nous présentons permet la réécriture du noyau verbal indépendamment des con-
+textes spécifiques dans lequel il apparaît. La réécriture sémantique (de structures synonymiques
+par exemple) n’est pas traitée pour l’instant mais pourrait l’être dans une deuxième système de
+réécriture qui seraient combiné, de façon modulaire, avec le système de normalisation syntax-
+ique présenté ici.
 5 Conclusion
-
-Les evaluations presentees dans cet article montrent d’une part, que les analyseurs existants
-produisent des structures distinctes pour des phrases ayant le meme contenu informationnel et
-d’autre part, qu’il est possible d’utiliser les systemes de reecriture pour normaliser ces structures
-et leur associer une representation semantique unique.
-
-Pour les exemples consideres, la normalisation permet un gain en precision consequent (variant
-entre environ 30 et 80 points selon la complexite syntaxique des phrases considerees). La meth-
-ode proposee a donc un potentiel clair pour ameliorer la capacite des systemes de traitement
-d’implications textuelles a traiter de la variation syntaxique.
-
-Pour passer a echelle et obtenir un systeme de detection d’implications textuelles qui, a partir
-de cette methode, traite de l’ensemble des variations syntaxiques, la methode doit etre general-
-isee a l’ensemble des cadres syntaxiques et des alternations. Nous travaillons actuellement au
-developpement d’un systeme de « meta-regles » qui permet de deriver, a partir des regles de
-reecriture deﬁnies pour les verbes transitifs et intransitifs, des regles de reecriture pour les autres
-classes de verbes (par exemple, verbes a objet prepositionnel, verbes a objet phrastiques, verbes
+Les évaluations présentées dans cet article montrent d’une part, que les analyseurs existants
+produisent des structures distinctes pour des phrases ayant le même contenu informationnel et
+d’autre part, qu’il est possible d’utiliser les systèmes de réécriture pour normaliser ces structures
+et leur associer une représentation sémantique unique.
+Pour les exemples considérés, la normalisation permet un gain en précision conséquent (variant
+entre environ 30 et 80 points selon la complexité syntaxique des phrases considérées). La méth-
+ode proposée a donc un potentiel clair pour améliorer la capacité des systèmes de traitement
+d’implications textuelles à traiter de la variation syntaxique.
+Pour passer à échelle et obtenir un système de détection d’implications textuelles qui, à partir
+de cette méthode, traite de l’ensemble des variations syntaxiques, la méthode doit être général-
+isée à l’ensemble des cadres syntaxiques et des alternations. Nous travaillons actuellement au
+développement d’un système de « méta-règles » qui permet de dériver, à partir des règles de
+réécriture définies pour les verbes transitifs et intransitifs, des règles de réécriture pour les autres
+classes de verbes (par exemple, verbes à objet prépositionnel, verbes à objet phrastiques, verbes
 ditransitifs) ainsi que pour les alternances.
-
 Comme nous le mentionnons dans l’introduction, la variation syntaxique, si elle est un im-
 portant facteur de la reconnaissance d’implications textuelles, n’en n’est pas pour autant le
-facteur unique. Il est egalement necessaire de pouvoir prendre en compte de nombreux autres
-
+facteur unique. Il est également nécessaire de pouvoir prendre en compte de nombreux autres
 P. Bedaride, C. Gardent
-
 facteurs de variations dont en particulier, la sémantique lexicale (utilisation de synonymes, hy-
 peronymes, variantes terminologiques, etc.). A moyen terme, nous envisageons d’enrichir le
-systeme de regles de réécriture pour prendre en compte les connaissances lexicales contenues
+système de règles de réécriture pour prendre en compte les connaissances lexicales contenues
 dans WordNet, VerbNet et/ou FrameNet.
-
 Références
-
-BLACKBURN P., Bos J ., KOHLHASE M. & DE NIVELLE H. (1999). Inference and compu-
+BLACKBURN P., BOS J., KOHLHASE M. & DE NIVELLE H. (1999). Inference and compu-
 tational semantics. In H. .BUNT & E.THIJSSE, Eds., Proceedings of the Third International
-Workshop on Computational Semantics (IWCS-3), p. 5-19.
-
+Workshop on Computational Semantics (IWCS-3), p. 5–19.
 DAGAN I., GLICKMAN O. & MAGNINI B. (2005). The PASCAL Recognising Textual En-
-tailment Challenge. In Machine Learning Challenges Workshop, p. 177-190.
-
-DE MARNEFFE M.—C., MACCARTNEY B. & MANNING C. D. (2006). Generating typed
+tailment Challenge. In Machine Learning Challenges Workshop, p. 177–190.
+DE MARNEFFE M.-C., MACCARTNEY B. & MANNING C. D. (2006). Generating typed
 dependency parses from phrase structure parses. In In Proceedings of LREC-06.
-
-FABIo MASSIMO ZANzoTTo M. P. & MOSCHITTI A. (2007). Shallow semantics in fast
-textual entaihnent rule learners. In In Proceedings of the Third Recognising Textual Entailment
-Challenge, p. 72-77.
-
+FABIO MASSIMO ZANZOTTO M. P. & MOSCHITTI A. (2007). Shallow semantics in fast
+textual entailment rule learners. In In Proceedings of the Third Recognising Textual Entailment
+Challenge, p. 72–77.
 KLEIN D. & MANNING C. (2003). Accurate unlexicalized parsing.
-
-KROLL M. & GEIS R. (2007). Developing graph transformations with grgen.net. In Applica-
+KROLL M. & GEIS̈ R. (2007). Developing graph transformations with grgen.net. In Applica-
 tions of Graph Transformation with Industrial releVancE - AGTIVE 2007. preliminary version,
 submitted to AGTIVE 2007.
-
 XTAG RESEARCH GROUP (2001). A Lexicalized Tree Adjoining Grammar for English. Rap-
 port interne IRCS-01-03, IRCS, University of Pennsylvania.
-

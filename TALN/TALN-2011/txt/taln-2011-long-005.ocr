@@ -1,0 +1,572 @@
+TALN 2011, Montpellier, 27juin — 1"'ju1'11et 2011
+
+Utilisation d’un score de qualité de traduction
+pour le résumé multi-document cross—lingue
+
+Stéphane Huetl Florian Boudinl Juan-Manuel Torres-Moreno1=2=3
+(1) LIA, Université d’Avignon, France
+(2) Ecole Polytechnique de Montréal, Canada
+(3) GIL-IINGEN, Universidad Nacional Auténoma de México, Mexique
+{ stephane.huet,ﬂorian.boudin,juan-manuel.torres} @univ-avignon.fr
+
+Résumé. Le résumé automatique cross—lingue consiste a générer un résumé rédigé dans une langue dif-
+férente de celle utilisée dans les documents sources. Dans cet article, nous proposons une approche de résumé
+automatique multi-document, basée sur une representation par graphe, qui prend en compte des scores de qualité
+de traduction lors du processus de selection des phrases. Nous évaluons notre méthode sur un sous—ensemble ma-
+nuellement traduit des données utilisées lors de la campagne d’éva1uation intemationale DUC 2004. Les résultats
+expérimentaux indiquent que notre approche permet d’améliorer la lisibilité des resumes générés, sans pour autant
+dégrader leur informativité.
+
+Abstract. Cross—language summarization is the task of generating a summary in a language different from
+the language of the source documents. In this paper, we propose a graph—based approach to multi-document
+summarization that integrates machine translation quality scores in the sentence selection process. We evaluate
+our method on a manually translated subset of the DUC 2004 evaluation campaign. Results indicate that our
+approach improves the readability of the generated summaries without degrading their informativity.
+
+M0tS-CléS 3 Resume cross—lingue, qualité de traduction, graphe.
+
+Keywords: Cross—lingua1 summary, translation quality, graph.
+
+1 Introduction
+
+La multiplication des documents dans de nombreuses langues, en particulier sur le Web, a rendu nécessaire la mise
+au point de méthodes de recherche et d’ extraction d’ information cross-lingue. Le résumé automatique cross—lingue
+vise a donner a l’utilisateur un acces rapide a des contenus exprimés dans une ou plusieurs langues qu’il maitrise
+mal ou ne connait pas. Plus précisément, cette tache consiste a générer un résumé dans une langue cible diffe-
+rente de celle utilisée dans les documents sources. Dans cette etude, nous nous intéressons au résumé automatique
+multi-document de l’anglais vers le frangais, la motivation premiere étant de permettre aux utilisateurs franco-
+phones d’accéder a la masse toujours croissante d’actua1ités disponibles a travers des sources majoritairement
+anglophones.
+
+Plusieurs études récentes se sont intéressées aux modeles de graphes pour représenter l’information dans des
+applications de Traitement Automatique des Langues Naturelles (TALN) (Banea et al., 2010). Dans ces modeles,
+les entités — qui peuvent etre par exemple les mots, les phrases ou meme les documents — sont représentées
+sous la forme de noeuds et les relations entre elles par des aretes. Ce type d’approche a déja été utilise dans des
+applications TALN diverses tel que l’étiquetage en parties du discours, l’extraction d’information, l’analyse de
+sentiments ou le résumé automatique auquel nous nous intéressons ici.
+
+Une méthodologie simple pour aborder le résumé automatique cross—lingue serait d’appliquer un systeme de
+traduction automatique (TA) directement sur les sorties d’un systeme de résumé automatique classique. Toutefois,
+cette approche n’est pas sans inconvénients puisqu’elle devient dépendante de la qualité du systeme de TA. Dans
+cet article, nous proposons de prendre en compte la qualité de traduction des phrases en frangais lors de la selection
+des phrases retenues pour assembler le résumé, l’idée étant de minimiser l’i1npact des erreurs commises par le
+systeme de TA. Les phrases ainsi sélectionnées pour construire le résumé seront celles jugées a la fois informatives
+
+STEPHANE HUET, FLORIAN BOUDIN ET JUAN—MANUEL TORRES-MORENO
+
+par le systeme de resume automatique et faciles a traduire par le systeme de TA. Pour ce faire, nous recourons a
+une methode d’ apprentissage supervise pour predire les scores de qualité de la traduction et intégrons ces scores
+durant la construction du graphe utilise pour selectionner les phrases informatives.
+
+Dans la suite de cet article, nous commencons par presenter les travaux connexes aux notres. La section 3 est
+consacrée a la description de la methode que nous proposons. Nous decrivons ensuite en section 4 nos resultats
+experimentaux avant de conclure et de montrer quelques perspectives.
+
+2 Travaux connexes
+
+Dans cette section, nous presentons dans un premier temps les travaux existants sur la prediction de la qualité de
+traduction automatique. Nous decrivons ensuite les approches de resume automatique basées sur les modeles de
+graphes ainsi que les etudes sur le resume automatique cross—lingue.
+
+2.1 Prédiction de la qualité de traduction automatique
+
+La traduction automatique est un composant naturel d’un systeme automatique de resume cross-lingue de docu-
+ments. Malheureusement, bien que des progres importants aient ete realises depuis une decennie, les systemes de
+TA restent suj ets a des erreurs qui peuvent dégrader fortement la qualité des resumes produits, en introduisant en
+particulier des informations erronées ou en rendant les phrases genérées difﬁciles a lire. Aﬁn de reduire ces effets,
+il est intéressant de prendre en compte un score jugeant de la qualité de la traduction pour ﬁltrer les traductions
+incorrectes lors du resume.
+
+La prediction de la qualité de la traduction a tout d’abord eté vue comme un probleme de classiﬁcation binaire
+pour distinguer les bonnes traductions des mauvaises (Blatz et al., 2003). Des études plus récentes ont estime une
+valeur continue de score soit au niveau du mot (Raybaud et al., 2009), soit au niveau de la phrase (Raybaud et al.,
+2009; Specia et al., 2009). Dans cet article, nous employons des scores calculés au niveau de la phrase, ceux—ci
+étant plus faciles a integrer dans le processus de selection de phrases pour le resume.
+
+Plusieurs classiﬁcateurs ont ete construits pour estirner la qualité de traduction. Ces modeles statistiques ont
+eté utilises sur des traductions etiquetées manuellement comme correctes ou non (Quirk, 2004; Specia et al.,
+2009), ou étiquetées par des metriques automatiques comme le taux d’erreur de mots (Blatz et al., 2003), le score
+NIST (Blatz et al., 2003; Specia et al., 2009) ou BLEU (Raybaud et al., 2009). Parmi les differentes caracteris—
+tiques utilisées pour le calcul des valeurs de qualité, on retrouve des traits linguistiques — dependant ou non de
+ressources telles que des analyseurs syntaxiques ou Wordnet —, des mesures de similarite entre la phrase source
+et la phrase cible, et des caractéristiques intemes au systeme de traduction utilisees — comme le nombre de tra-
+ductions proposées par mots sources ou les scores de segments (phrases) des meilleures hypotheses de traduction.
+
+2.2 Résumé automatique fondé sur les modéles de graphes
+
+Ces demieres armées, de nombreuses evaluations ont eté conduites sur la tache du resume automatique multi-
+document, en particulier dans le cadre des campagnes intemationales Document Understanding Conferencel
+(DUC) et Text Analysis Conference2 (TAC) organisées par le National Institute of Standards and Technology3
+(NIST). La quasi—totalité des approches proposées recourent a des méthodes d’extraction ou il s’agit d’identiﬁer
+les unites textuelles — le plus souvent des phrases — les plus importantes des documents. Les phrases contenant
+les concepts les plus importants sont selectionnées puis assemblees selon leur degré de pertinence aﬁn de genérer
+les resumes. Ce type d’approche donne de bons resultats et permet de contoumer les problematiques difﬁciles de
+comprehension sémantique du texte ou de generation de texte en langue naturelle.
+
+Les travaux menes jusqu’a present sur la tache du resume automatique multi—document sont bases, entre autres,
+sur l’utilisation du centro'1'de pour la selection de phrases (Radev et al., 2004), sur l’apprentissage supervise des
+criteres d’informativité (Wong et al., 2008) ou sur la fusion d’information (Barzilay et al., 1999). Dans cet article,
+
+1. http://duc.nist.gov
+2. http://www.nist.gov/tac/
+3. http://www.nist.gov
+
+UNE APPROCHE BASEE sUR LES GRAPHES POUR LE RESUME MULTI-DOCUMENT CROSS-LINGUE
+
+nous employons une approche basée sur les modeles de graphes introduite dans (Mihalcea, 2004; Erkan & Radev,
+2004). Les algorithmes de classement bases sur les graphes tels que PAGERANK (Page et al., 1998) ont eté utilises
+avec succes dans les reseaux sociaux, l’analyse du nombre de citations ou l’etude de la structure du Web. Applique
+au résumé automatique, ce type d’approche suggere de représenter les documents par un graphe d’ unites textuelles
+(phrases) inter—connectées par des relations issues de calculs de similarité. Les phrases sont ensuite sélectionnées
+selon des criteres de centralite ou de prestige dans le graphe puis assemblées pour produire des extraits. Cette
+approche a deux principaux avantages. Premierement, contrairement a la plupart des autres methodes, elle ne
+necessite pas de données d’apprentissage. Deuxiemement, du fait qu’elle se base sur des traitements linguistiques
+minimaux (segmentation en phrases et similarité inter—phrases), cette approche est facilement adaptable a d’autres
+langues (Mihalcea & Tarau, 2005).
+
+2.3 Résumé automatique cross-lingue
+
+Quelques études se sont récemment intéressees a la problematique du résumé automatique cross-lingue. Deux
+solutions simples a ce probleme consistent soit a traduire les documents avant la phase d’extraction, soit a traduire
+les resumes generes. Cette seconde approche est généralement préférée a la premiere car la traduction au prealable
+des documents rend le processus de selection de phrases plus risque de part les erreurs potentiellement introduites
+par le systeme de TA. Orasan & Chiorean (2008) ont ainsi propose d’utiliser la méthode Maximal Marginal
+Relevance (MMR) (Carbonell & Goldstein, 1998) pour produire des resumes d’actualites exprimés en roumain et
+ensuite de les traduire automatiquement en anglais.
+
+Plus recemment, Wan et al. (2010) se sont interessés au résumé automatique mono—document, depuis l’anglais
+Vers le chinois, en employant des methodes supervisées pour estimer la qualite de traduction automatique. Leur
+etude a montre que la prise en compte de scores de qualite de traduction permet d’ améliorer a la fois le contenu
+et la lisibilité des resumes genérés. Dans notre article, nous utilisons une approche similaire en nous intéressant
+cette fois au résumé automatique multi—docu1nent. Contrairement aux travaux de Wan et al., notre approche utilise
+un algorithme non supervise et indépendant de la langue pour selectionner des phrases (Mihalcea & Tarau, 2005).
+De plus, nous n’utilisons pas de corpus annotes manuellement selon leur qualite de traduction mais un indicateur
+calculé automatiquement a partir de traductions de references produites par des humains, ce type de corpus étant
+long et parfois délicat a construire.
+
+3 Notre méthode pour le résumé cross-lingue
+
+Notre approche pour résumer un ensemble de documents depuis l’anglais Vers le francais se fait en trois etapes.
+Chaque phrase est tout d’abord traduite automatiquement et la qualité de la traduction est estimee (section 3.1).
+Chaque phrase se trouve ensuite evaluee en fonction de son contenu informatif (section 3.2) et de son score de
+qualité de traduction (section 3.3). Puis, les phrases de plus haut score sont sélectionnées pour les inclure dans le
+résumé (section 3.4). La ﬁgure 1 presente un apergu de l’architecture de notre méthode.
+
+
+des phrases 
+
+   
+   
+    
+
+   
+
+   \ Résumé
+Phrases Prédiction de la Génération en
+en anglais  qualité de TA \ du résumé  frangajs
+
+ Traduction
+ automatique /
+
+FIGURE 1 — Architecture de notre systeme de résumé automatique cross-lingue.
+
+STEPHANE HUET, FLORIAN BOUDIN ET JUAN—MANUEL TORRES-MORENO
+
+3.1 Prétraitement de documents et prédiction de la qualite de traduction
+
+Chaque document de l’ensemble a resumer est segmente en phrases en utilisant la methode PUNKT de detection
+de changement de phrases (Kiss & Strunk, 2006) Inise en oeuvre dans la boite a outils NLTK (Bird & Loper, 2004).
+Toutes les phrases en anglais ont ete automatiquement traduites en frangais en utilisant le systeme de traduction
+de Google 4.
+
+Un score de TA est calcule pour chaque phrase pour estimer la justesse et la ﬂuidite des phrases generees en
+frangais. Pour ce faire, nous calculons pour chaque phrase 8 caracteristiques, qui donnent des informations sur la
+difﬁculte de traduction et sur la lisibilite des traductions generees :
+
+— la longueur de la phrase source en terme de mots ;
+
+— le ratio des longueurs des phrases source et cible;
+
+— le nombre de signes de ponctuation dans la phrase source;
+
+— la proportion des nombres et des signes de ponctuation presentes dans la phrase source qui sont retrouvees dans
+la phrase cible ;
+
+— les perplexites des phrases source et cible calculees a l’aide de modele de langue (ML) 5—gra1nmes en avant;
+
+— les perplexites des phrases source et cible calculees par des ML bigrammes en arriere, i. e. en inversant l’ordre
+des mots des phrases.
+
+Ces quatre premieres caracteristiques sont parmi les traits les plus pertinents mis en exergue dans (Specia et al.,
+2009), parmi 84 caracteristiques etudiees; les quatre demieres ont deja montre leur efﬁcacite dans le calcul de
+mesure de conﬁance au niveau des mots (Raybaud et al., 2009). Des ML sont construits a partir des corpus
+monolingues du domaine des actualites, rendus disponible pour l’atelier WMT 2010 (Callison—Burch et al., 2010)
+et constitues respectivement de 991 et 325 millions de mots en anglais et en frangais. Les scores de perplexite
+Visent a estimer la ﬂuidite. Contrairement a d’autres etudes, nous nous sommes concentres sur des caracteristiques
+simples ne requerant pas de ressources linguistiques comme des analyseurs syntaxiques ou des dictionnaires. En
+outre, nous nous sommes restreints a des scores ne dependant par du systeme de traduction utilise.
+
+Pour predire la qualite de la traduction, nous avons employe la methode e—SVR, qui est une extension des separa-
+teurs a Vaste marge pour faire de la regression et qui a deja ete utilisee dans le meme cadre applicatif (Wan et al.,
+2010; Raybaud et al., 2009). Nous avons employe la librairie LIBSVM (Chang & Lin, 2001), en nous restreignant
+aux noyaux gaussiens comme recommande par les auteurs. Le modele de regression a deux parametres : une erreur
+de coﬁt c et le coefﬁcient *y de la fonction noyau ; leur Valeur a ete optimisee par recherche par quadrillage et par
+Validation croisee.
+
+Le modele e—SVR devrait idealement etre appris sur un corpus etiquete manuellement du point de Vue de la qualite
+de traduction. Malheureusement, nous ne connaissons pas de corpus de ce genre ayant une taille sufﬁsante pour
+la paire anglais—frangais et la production de jugements de la TA reste un processus tres lent. Nous nous sommes
+par consequent toumes Vers un indicateur calcule automatiquement a partir de traductions de reference produites
+par des humains : le score NIST (Doddington, 2002). Cette metrique a en effet deja ete utilisee dans le passe
+dans le meme objectif (Blatz et al., 2003; Specia et al., 2009) et s’est revelee plus correlee avec des jugements
+humains au niveau de la phrase que BLEU (Blatz et al., 2003). Notre corpus d’ apprentissage a ete obtenu a partir
+des traductions de reference foumies dans le domaine des actualites pour les ateliers WMT (Callison—Burch et al.,
+2010) de 2008 a 2010, ce qui represente un ensemble de 7 112 phrases. Pour controler la qualite du modele ainsi
+obtenu, nous avons calcule la metrique MSE (Mean Squared Error) : %  (yj — gjj)2, N etant le nombre de
+phrases, 3) la prediction estimee par le modele et y la Valeur reelle. Sur les 2 007 phrases de WMT 2007 gardees a
+cette ﬁn, le MSE mesure a ete de 0,456.
+
+3.2 Pondération des phrases
+
+Notre systeme de resume multi—document est fonde sur un graphe dirige G = (V, E) construit pour chaque en-
+semble de textes, V etant l’ensemble de noeuds et E les arcs (aretes) diriges. Un noeud est ajoute au graphe pour
+chaque phrase de l’ensemble de documents; les aretes sont deﬁnies entre ces noeuds en fonction de la mesure de
+similarite deﬁnie dans (Mihalcea, 2004). Cette mesure determine le nombre de mots communs entre les represen-
+tations lexicales des deux phrases, les mots outils ayant ete au prealable supprimes et les autres mots ayant ete
+
+4. http: //translate .google . com
+
+UNE APPROCHE BASEE SUR LES GRAPHES POUR LE RESUME MULTI-DOCUMENT CROSS-LINGUE
+
+stemmés avec le stemmeur de Porter. Pour éviter de favoriser les phrases longues, cette Valeur est normalisée par
+les longueurs des phrases. Si freq(w, S’) représente la fréquence du mot w dans la phrase 5', la similarité entre les
+phrases S’, et Sj est déﬁnie par :
+
+Zweshsj freq(w, S’,-) + freq(w, 3])
+
+S' S’,-,5“ =
+”"‘ 3) 1og(|Sz'|)+1og(|Sj|)
+
+(1)
+
+Les algorithmes de classement bases sur les modeles de graphes mettent en oeuvre le concept de recommandation.
+Les phrases sont évaluees selon des scores calculés récursivement sur l’intégralite du graphe. Dans notre etude,
+nous utilisons une adaptation de l’algorithme PAGERANK de Google (Page et al., 1998) qui inclut les poids des
+aretes :
+
+p<v.-)=<1—d>+d><  p<v.-> <2)
+Va-Epred(Vl)ZVkE3“CC(V«') “"( kv Z‘)
+
+ou d est un << facteur d’amortissement » (typiquement dans l’intervalle [0.8, 0.9]), pred(V,-) représente l’ensemble
+des noeuds qui ont une arete en direction de V, et succ(V,-) l’ensemble des noeuds connectés a V, par une arete
+sortante. La methode employee ici, décrite dans (Mihalcea, 2004), est tres similaire au PAGERANK lexical, appelé
+LEXRANK (Erkan & Radev, 2004).
+
+3.3 Inclusion des scores de qualité de traduction
+
+Pour prendre en compte l’aspect cross—lingue, la mesure de similarité inter—phrases, déﬁnie dans l’équation 1 pour
+les phrases d’origine en anglais, est modiﬁée pour inclure les scores de qualité de traduction :
+
+Sim2(S',-, Sj) = Sim(.S',-, 3]) x Prediction(S',-) (3)
+
+ou Prediction(S',-) est le score de qualité de TA de la phrase S’, calculée comme decrit en section 3.1. Cette metrique
+est asymétrique, contrairement a celle déﬁnie par 1’ equation 1. Une phrase traduite correctement et ﬂuide Voit ainsi
+les poids de ses aretes sortantes renforces et jouera par consequent un r6le plus central dans le graphe.
+
+Nous avons modiﬁe l’algorithme de classement aﬁn de tirer proﬁt des spéciﬁcités des documents. Comme la
+position d’une phrase au sein d’un document est un indicateur fort sur l’i1nportance de son contenu — les articles
+de joumaux presentant genéralement au debut une description concise du sujet — le poids des arcs sortant du
+noeud correspondant a la premiere phrase a eté double. En outre, les phrases dupliquées ainsi que les phrases
+contenant moins de 5 mots ont eté Inises de c6té.
+
+3.4 Génération de résumé
+
+Bien souvent, les documents regroupés sous une thematique contiennent des phrases tres similaires, Voire meme
+identiques. 11 est donc possible que deux phrases tres redondantes se retrouvent dans un résumé, degradant a la
+fois sa lisibilité et son contenu informatif. Pour pallier ce probleme, Carbonell & Goldstein (1998) ont propose
+la methode d’assemblage itératif Maximal Marginal Relevance (MMR). Cette technique, probablement la plus
+utilisée, consiste a reordonner les phrases en fonction de deux criteres qui sont l’importance de la phrase et la
+redondance par rapport aux phrases deja selectionnees. Le resume est ensuite construit itérativement par l’aj out
+des phrases maximisant l’informatiVite tout en minimisant la redondance.
+
+Dans cette etude, nous avons utilise une approche differente. Suivant la methode proposee dans (Mihalcea &
+Tarau, 2005) pour la construction de graphes, aucun arc n’est aj outé entre deux noeuds dont la similarité excede un
+seuil maximal. De fagon a réduire la redondance, une etape supplementaire est aj outée lors de la generation des
+resumes (Genest et al., 2009). Nous genérons pour ce faire tous les resumes candidats a partir des combinaisons
+des N phrases ayant les meilleurs scores, en Veillant a ce que le nombre total de caracteres soit optimal (i. e. en
+dessous d’un seuil donné et qu’il soit impossible d’ ajouter une autre phrase sans depasser ce seuil). Le résumé
+
+STEPHANE HUET, FLORIAN BOUDIN ET JUAN—MANUEL TORRES-MORENO
+
+retenu au ﬁnal est celui possedant le score global le plus eleve, ce score etant calcule comme le produit du score de
+la diversite du resume — estime par le nombre de n—gra1nmes djfferents — et de la somme des scores des phrases.
+
+Aﬁn d’ ameliorer la lisibilite du resume produit, les phrases sont triees dans l’ordre chronologique de publication
+des documents ou ils apparaissent, ce qui maximise la coherence temporelle ; si deux phrases sont extraites a partir
+d’ un meme document, l’ordre original du document est conserve.
+
+4 Résultats
+
+Cette section decrit les donnees utilisees, les metriques d’ evaluation et les resultats de notre systeme.
+
+4.1 Cadre expérimental
+
+Nous avons employe dans notre etude les ensembles de documents mis a disposition pour l’evaluation DUC 2004,
+ce qui represente 50 ensembles de documents en anglais. Chaque ensemble traite d’ une meme thematique et com-
+porte en moyenne 10 articles de joumaux produits par Associated Press ou le New York Times. La tache consiste a
+generer des resumes d’au plus 665 caracteres — incluant les caracteres alphanumeriques, les espaces et les ponc-
+tuations — contenant l’essentiel du contenu de l’ensemble de documents correspondants. Nous avons effectue
+sur ces donnees une evaluation automatique du contenu. Une evaluation manuelle de la lisibilite a egalement ete
+menee sur un echantillon constitue de 16 ensembles de documents tires aleatoirement.
+
+4.1.1 Evaluation automatique
+
+La plupart des methodes d’ evaluation automatique operent en comparant les resumes generes avec un ou plusieurs
+resumes de reference. La metrique que nous avons employee ici est ROUGE (Recall—0riented Understudy for Gis-
+ting Evaluation), dont on sait qu’elle est bien correlee avec les jugements humains (Lin, 2004). ROUGE correspond
+en fait a plusieurs mesures, calculees a partir du nombre de n—grammes commun entre le resume candidat et le(s)
+resume(s) de reference. Nous avons calcule trois metriques au cours de nos experiences : ROUGE—l (basee sur les
+unigrammes), ROUGE—2 (bigrammes) et ROUGE—SU4 (bigrammes a trou, i. e. des couples de deux mots contenant
+au plus quatre mots entre eux) 5.
+
+Quatre resumes de reference en anglais etaient foumis pour chacun des ensembles de documents de DUC 2004.
+Pour evaluer notre methode, nous avons demande a trois armotateurs de traduire les resumes disponibles pour le
+sous-ensemble de 16 groupes de documents, en veillant a ce que chaque phrase du resume soit traduite phrase
+par phrase sans introduire d’information supplementaire comme la generation d’anaphores, la desambiguisation
+des noms propres ou la reduction des informations redondantes. 64 resumes de reference ont ete ainsi produits,
+chaque annotateur traduisant en moyenne un resume en 15 minutes.
+
+L’ evaluation par ROUGE etant ici realisee dans un cadre different des taches habituelles — produisant des resumes
+en anglais a partir de documents exprimes dans la meme langue —, nous avons effectue quelques modiﬁcations.
+Aucune contrainte stricte n’a ete imposee sur la taille des resumes traduits produits en frangais. En revanche, nous
+avons fait en sorte que notre algorithme de generation construise des resumes pour lesquelles la longueur totale
+des phrases correspondantes en anglais respecte la contrainte imposee a DUC 2004 sur le nombre de caracteres.
+La longueur des resumes de reference en frangais se trouve ainsi accrue de 25 % en moyenne par rapport aux
+resumes correspondants en anglais. Notons enﬁn que le stemmer de Porter utilise dans l’evaluation ROUGE a ete
+adapte au francais.
+
+4.1.2 Evaluation manuelle
+
+L’ evaluation de la qualite linguistique des resumes a ete effectuee selon un protocole similaire a celui utilise lors
+des campagnes DUC. Nous avons evalue la lisibilite des resumes sur une echelle de l a 5, ou 5 est attribue aux
+resumes << faciles a lire » et 1 aux resumes << difﬁciles a lire ». Cinq annotateurs ont participe a cette experience.
+
+5. Nous avons utilisé la version 1.5.5 dc ROUGE avec les paramétres par défaut indiqués pour DUC 2004.
+
+UNE APPROCHE BASEE SUR LES GRAPHES POUR LE RESUME MULTI-DOCUMENT CROSS-LINGUE
+
+Aﬁn de comparer notre approche, nous avons généré deux resumes pour chaque ensemble de documents, 1'. e. pour
+chacune des thématiques. Le premier resume est produit par la methode que nous proposons tandis que le second
+(baseline) est obtenu en traduisant directement un resume en francais (obtenu par la fonction de pondération
+decrite en section 3.2). La tache qui leur a ete conﬁée etait d’attribuer une note aux deux resumes d’une meme
+thématique, l’ordre d’apparition des resumes etant aleatoire aﬁn d’éviter tout biais.
+
+4.2 Expériences monolingues
+
+Les performances de notre méthode ont tout d’abord eté évaluées sur une tache de resume monolingue. Le ta-
+bleau l indique les scores d’evaluation automatique obtenus sur l’ensemble des données de DUC 2004 pour
+différentes methodes : le plus haut score atteint lors de la campagne en 2004 (ligne 1), le score obtenu avec la
+methode GRAPH-SUM décrite en section 3.2 basée sur les graphes (ligne 2) et un score calculé pour une methode
+naive prenant la premiere phrase des documents les plus recents de chaque ensemble a traduire. L’ approche ba-
+see sur les graphes obtient de bons resultats, la difference avec le meilleur systeme n’etant pas statistiquement
+signiﬁcative 5.
+
+Systéme ROUGE- 1 Rang ROUGE—2 Rang ROUGE-SU4 Rang
+1" systeme 0,38244l 1 0,09218T 1 o,13323T 1
+GRAPH-SUM 0,38052T 2 0,08566l 4 0,13114T 3
+Méthode naive 0,32381 26 0,06406 25 0,1o291 29
+
+TABLE 1 — Scores ROUGE moyens mesures sur les données de DUC 2004 et rangs obtenus par rapport aux
+35 participants de la campagne. Les scores indiques par T sont statistiquement signiﬁcatifs par rapport au modele
+de base (p < 0.001 avec un t—test de Student).
+
+4.3 Expériences cross-lingues
+
+Dans cette seconde serie d’ experiences, nous evaluons notre approche pour le resume automatique multi—document
+cross—lingue. La premiere partie de cette evaluation est realisée automatiquement a l’aide des mesures ROUGE et
+conceme le contenu des resumes. ll s’agit d’ evaluer si les resumes produits contiennent les informations les plus
+importantes des documents sources. Les résultats de reference sont obtenus en traduisant le resume en anglais
+produit par l’approche basée sur les modeles de graphes (méthode GRAPH-SUM). Les scores ROUGE calculés
+avec cette methode sont presentés a la ligne 1 du tableau 2. En utilisant notre methode faisant intervenir la qualité
+des traductions automatiques (ligne 2), nous observons une légere amelioration en terme de ROUGE—2 et ROUGE-
+SU4. Cependant, cette evolution des scores n’est pas statistiquement signiﬁcative. Ceci peut s’expliquer par le
+fait que notre methode favorise les phrases dont la qualité de TA est bonne. Ainsi des phrases ayant un contenu
+informationnel plus faible peuvent etre introduites dans le resume, ce qui lin1ite l’amélioration des résultats.
+
+Systéme ROUGE-l ROUGE—2 ROUGE-SU4
+Methode de reference 0,39704 0,10249 0,13711
+Notre methode 0,39624 0,10687 0,13877
+
+TABLE 2 — Scores ROUGE moyens calculés sur le sous-ensemble de DUC 2004 traduit en frangais.
+
+La seconde partie de cette evaluation conceme la qualité linguistique des resumes genérés. Il s’agit d’evaluer
+manuellement si les resumes produits sont lisibles mais également compréhensibles. Le tableau 3 montre les
+résultats de l’évaluation manuelle obtenus sur le sous-ensemble de 16 groupes de documents. Le score moyen
+donne par chaque annotateur est egalement indiqué. Tous les annotateurs ont jugé que notre méthode conduisait a
+une amelioration de la lisibilité des resumes produits, ce qui montre ainsi l’intéret d’utiliser des scores de qualité
+de TA pour ameliorer la qualite linguistique des resumes.
+
+6. Le t—test de Student est de p = 0.77 pour ROUGE-l, p = 0.17 pour ROUGE—2 et p = 0.57 pour ROUGE-SU4.
+
+STEPHANE HUET, FLORIAN BOUDIN ET JUAN—MANUEL TORRES-MORENO
+
+Neanmoins, il faut noter que les scores moyens sont relativement bas. Ceci indique que les resumes generés par
+notre méthode, bien qu’ étant meilleurs du point de vue de la lisibilité par rapport a 1’ approche de reference, ne sont
+pas encore satisfaisants. Un exemple des sorties de notre systeme de resume automatique est donné en annexe.
+Plusieurs types d’erreurs ont été identiﬁées comme récurrentes. La qualité de la TA est dépendante de la difﬁculté
+de la phrase a traduire. Ainsi, par des traitements simples comme la suppression des references temporelles, la
+resolution des acronymes ou la normalisation des noms propres, nous espérons pouvoir réduire la difﬁculté des
+phrases sources et par consequent réduire le nombre d’ erreurs de traduction.
+
+Lisibilité
+Annotateur
+Méthode de reference Notre méthode
+
+Annotateur 1 2,44 2,50
+Annotateur 2 1,56 1,63
+Annotateur 3 1,75 2,31
+Annotateur 4 3,06 3,31
+Annotateur 5 1,50 1,63
+Moyenne 2,06 2,28
+
+TABLE 3 — Scores moyens de lisibilité de notre méthode compares avec une approche standard basée sur les
+graphes. Les scores Varient selon une échelle de 1 a 5, 5 étant le plus haut score possible.
+
+5 Conclusions et perspectives
+
+Dans cet article, nous avons présenté une approche basée sur les modeles de graphes pour le resume automatique
+multi—document cross—lingue. Nous avons propose d’introduire des scores de qualité de traduction automatique au
+moment de l’étape de construction du graphe représentant les unites textuelles, un algorithrne de classement par
+popularité étant ensuite charge de sélectionner les phrases traduites qui sont a la fois les plus informatives mais
+egalement les plus lisibles. Cette approche a été évaluée sur un corpus de 16 ensembles de documents traduits
+manuellement parmi les documents mis a disposition dans le cadre de la carnpagne d’évaluation intemationale
+DUC 2004. Les résultats expérimentaux montrent que notre méthode ameliore sensiblement la lisibilité (i. e. la
+qualité linguistique) des resumes générés tout en maintenant un contenu informatif au niveau de l’état de l’art.
+
+En perspectives de nos travaux, nous souhaitons dans un premier temps mener une evaluation plus complete en
+produisant des resumes de reference sur l’ensemble des données de la competition DUC 2004 et en étendant
+l’évaluation a d’autres langues. Ceci permettra de renforcer l’importance des résultats que nous avons obtenus
+mais aus si d’ envisager un apprentissage supervise de la repartition entre l’informativité et a la lisibilité des phrases.
+Dans un deuxieme temps, nous souhaitons travailler sur la reécriture des phrases sources et en étudier l’irnpact
+sur la qualité de traduction, l’idée étant de simpliﬁer au maximum les phrases sources a l’aide de traitement
+linguistiques comme la resolution d’anaphores aﬁn de faciliter le travail du systeme de TA. Nous souhaitons
+également suivre la piste de la fusion non supervisée de phrases (Filippova, 2010) aﬁn de générer des phrases
+courtes et linguistiquement simples. Une demiere perspective que nous voulons étudier conceme l’utilisation de
+notre propre modele de traduction automatique, ce qui permettra a la fois d’ adapter ce systeme pour le type de
+documents a résumer et de prendre en compte de nouveaux indices pour prédire la qualité de la traduction.
+
+Références
+
+C. BANEA, A. MOSCHITTI, S. SOMASUNDARAN & F. M. ZANZOTTO, Eds. (2010). TextGraphs-5 Workshop.
+Uppsala, Suede.
+
+BARZILAY R., MCKEOWN K. R. & ELHADAD M. (1999). Information fusion in the context of multi—document
+summarization. In ACL, College Park, MD, USA.
+
+BIRD S. & LOPER E. (2004). NLTK : The natural language toolkit. In ACL, Barcelone, Espagne.
+
+UNE APPROCHE BAsEE SUR LES GRAPHES POUR LE RESUME MULTI-DOCUMENT CROSS-LINGUE
+
+BLATZ J ., FITZGERALD E., FOSTER G., GANDRABUR S., GOUTTE C., KULESZA A., SANCHIS A. & UEF-
+FING N. (2003). Conﬁdence Estimation for Machine Translation. Rapport inteme, Johns Hopkins University,
+Batimore, MD, USA.
+
+CALLISON-BURCH C., KOEHN P., MONZ C., PETERSON K., PRZYBOCKI M. & ZAIDAN 0. (2010). Findings
+of the 2010 joint workshop on statistical machine translation and metrics for machine translation. In Workshop
+on Statistical Machine Translation and Metrics ( WM T), Uppsala, Suede.
+
+CARB ONELL J . & GOLDSTEIN J . (1998). The use of MMR, diversity—based reranking for reordering documents
+and producing summaries. In SIGIR, Melboume, Australie.
+
+CHANG C.—C. & LIN C.—J. (2001). LIBSVM : a library for support vector machines. Software available at
+http://www.csie.ntu.edu.tw/~cjlin/libsvm.
+
+DODDINGTON G. (2002). Automatic evaluation of machine translation quality using n—gram co—occurrence
+statistics. In HLT, San Diego, CA, USA.
+
+ERKAN G. & RADEV D. (2004). LexRank : Graph-based lexical centrality as salience in text summarization.
+JAIR, 22(1), 457-479.
+
+FILIPPOVA K. (2010). Multi—sentence compression : Finding shortest paths in word graphs. In Coling, Pékin,
+Chine.
+
+GENEST P., LAPALME G., NERIMA L. & WEHRLI E. (2009). A symbolic summarizer with 2 steps of sentence
+selection for TAC 2009. In TAC Workshop, Gaithersburg, MD, USA.
+
+KISS T. & STRUNK J . (2006). Unsupervised multilingual sentence boundary detection. Computational Linguis-
+tics, 32(4), 485-525.
+
+LIN C.—Y. (2004). Rouge : A package for automatic evaluation of summaries. In ACL Workshop on Text
+Summarization Branches Out, Barcelone, Espagne.
+
+MIHALCEA R. (2004). Graph-based ranking algorithms for sentence extraction, applied to text summarization.
+In ACL, Barcelone, Espagne.
+
+MIHALCEA R. & TARAU P. (2005). A language independent algorithm for single and multiple document
+summarization. In IJCNLP, Jeju Island, Corée du Sud.
+
+ORASAN C. & CHIOREAN O. A. (2008). Evaluation of a cross—lingual romanian-english multi—docu1nent sum-
+mariser. In LREC.
+
+PAGE L., BRIN S., MOTWANI R. & WINOGRAD T. (1998). The pagerank citation ranking : Bringing order to
+the web. Rapport inteme, Stanford Digital Library Technologies Project.
+
+QUIRK C. B. (2004). Training a sentence-level machine translation conﬁdence measure. In LREC, Lisbonne,
+Portugal.
+
+RADEV D., J ING H., STY M. & TAM D. (2004). Centroid-based summarization of multiple documents. Infor-
+mation Processing & Management, 40(6), 919-938.
+
+RAYBAUD S., LANGLOIS D. & SMAILI K. (2009). Efﬁcient combination of conﬁdence measures for machine
+translation. In Interspeech, Brighton, UK.
+
+SPECIA L., CANCEDDA N., DYMETMAN M., TURCHI M. & CRISTIANINI N. (2009). Estimating the sentence-
+level quality of machine translation systems. In EAMT, Barcelone, Espagne.
+
+WAN X., LI H. & XIAO J . (2010). Cross—language document summarization based on machine translation
+quality prediction. In ACL, Uppsala, Sueede.
+
+WONG K.—F., WU M. & LI W. (2008). Extractive summarization using supervised and semi—supervised lear-
+ning. In Coling, Manchester, UK.
+
+STEPHANE HUET, FLORIAN BOUDIN ET JUAN—MANUEL TORRES-MORENO
+
+Annexe
+
+Méthode de reference (Score de lisibilite moyenne de 2,6)
+
+Leaders de l’opposition du prince Norodom Ranariddh et Sam Rainsy, invoquant des menaces de Hun Sen a
+l’arrestation de l’opposition, apres deux tentatives presumees sur sa Vie, a dit qu’ils ne pouvaient pas negocier
+librement au Cambodge et a appele a des pourparlers a la residence de Sihanouk a Pekin. (Opposition leaders Prince
+Norodom Ranariddh and Sam Rainsy, citing Hun Sen’s threats to arrest opposition ﬁgures after two alleged attempts on his life, said they could not negotiate
+freely in Cambodia and called for talks at S"‘ ' ’s residence in Beijing.) Le  de Hun Sell a recemment  {:1 
+pour retoumer a la table des negociations et a declare qu’il etait dispose a faire une “concession appropriees” pour
+SOI‘tlI' de l’i1npasse de former 1111 gouvemement. (Hun Sen’s party recently called on Ranariddh to return to the negotiation table and said
+it was willing to make an “appropriate concession” to break the deadlock over forming a government.) La semaine demiere, Hun Sen  dll
+peuple cambodgien et le parti Ranariddh FUNCINPEC ont convenu de former une coalition qui laisserait Hun
+Sen comme Premier ministre seul et faire le prince president de l’Assemblee nationale. (Last week, Hun Sen ’s Cambodian
+People ’s Party and Ranariddh’s F UNCINPEC party agreed to form a coalition that would leave Hun Sen as sole prime minister and make the prince president of
+the National Assembly.)
+
+Notre methode (Score de lisibilite moyenne de 3,2)
+
+Le parti au pouvoir a soutenu l’action de la police dans sa declaration, en notant que les biens publics ont ete
+endommages par des manifestants et que des grenades ont ete lancees sur la maison de Hun Sen apres Sam Rainsy
+a suggere dans un discours que le gouvemement americain devrait tirer des missiles de croisiere a Hun Sen. (nie
+mling party supported the police action in its statement, noting that public property was damaged by protesters and that grenades were thrown at Hun Sen ’s
+home after Sam Rainsy suggested in a speech that the US. government should ﬁre cmise missiles at Hun Sen.) Politiciens cambodgiens a exprime
+l’espoir lundi qu’un nouveau partenariat entre les parties de l’homme fort Hun Sen et son rival, le prince Norodom
+Ranariddh, dans un gouvemement de coalition ne mettrait pas ﬁn a plus de Violence. (Cambodian politicians expressed hope
+Monday that a new partnership between the parties of strongman Hun Sen and his rival, Prince Norodom Ranariddh, in a coalition government would not end
+in more violence.) Le roi Norodom Sihanouk a salue mardi les accords sur le Cambodge les deux principaux partis
+politiques precedemment amere rivaux pour former un gouvemement de coalition dirige par l’homme fort Hun
+
+LJ‘)
+
+S611. (King Norodom Sihanouk on Tuesday praised agreements by C s top two political parties previously bitter rivals to form a coalition government
+
+led by strongman Hun Sen.)
+
+TABLE 4 — Example de resumes en frangais genere pour l’ensemble D3000lT de DUC 2004 par la methode de
+reference et notre approche.
+

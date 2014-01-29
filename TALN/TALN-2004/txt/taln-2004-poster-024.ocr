@@ -1,0 +1,317 @@
+Modéle de langage sémantique pour la reconnaissance automatique de
+parole dans un contexte de traduction
+
+Quang Vu—minh, Laurent Besacier, Herve Blanchon, Brigitte Bigi
+
+quang.vu—minh@imag.fr,laurent.besacier@imag.fr,
+herVe.blanchon@imag.fr,brigitte.bigi @imag.fr
+
+CLIPS—IMAG Lab. UJF, BP53, 38041 Grenoble cedex 9, France
+
+Resume-Abstract
+
+Le travail presente dans cet article a ete realise dans le cadre d'un projet global de traduction automatique de la
+parole. L’approche de traduction est fondee sur un langage pivot ou Interchange Format (IF), qui represente le
+sens de la phrase independamment de la langue. Nous proposons une methode qui integre des informations
+semantiques dans le modele statistique de langage du systeme de Reconnaissance Automatique de Parole. Le
+principe consiste a utiliser certaines classes definies dans l'IF comme des classes semantiques dans le modele
+de langage. Ceci permet au systeme de reconnaissance de la parole d'analyser partiellement en IF les tours de
+parole. Les experimentations realisees montrent qu’avec cette approche, le systeme de reconnaissance peut
+analyser directement en IF une partie des donnees de dialogues de notre application, sans faire appel au
+systeme de traduction (35% des mots ; 58% des tours de parole), tout en maintenant le meme niveau de
+performance du systeme global.
+
+This paper relates a methodology to include some semantic information early in the statistical language model
+for Automatic Speech Recognition (ASR). This work is done in the framework of a global speech—to—speech
+translation project. An Interchange Format (IF) based approach, representing the meaning of phrases
+independently of languages, is adopted. The methodology consists in introducing semantic information by
+using a class—based statistical language model for which classes directly correspond to IF entries. With this
+new Language Model, the ASR module can analyze into IF part of dialogue data: 35% dialogue words; 58%
+speaker tums, without degrading the overall system performance.
+
+Mots cles-Key words
+
+Traduction de parole, modeles de langage, representation pivot
+Speech—to—speech translation, language modeling, interchange format
+
+1 Introduction
+
+Dans un systeme de traduction ou comprehension automatique de parole, le role du module de reconnaissance
+automatique de la parole (RAP) est d’obtenir une hypothese textuelle a partir du signal tandis que,
+generalement, cette hypothese est ensuite traitee separement par un autre module de comprehension ou
+d’analyse qui transforme le texte en une representation semantique. Tous ces modules utilisent des ressources
+linguistiques comme des dictionnaires, modeles de langage et/ou grammaires, mais ils sont souvent
+independants l’un de l’autre. Bien qu’il y ait quelques travaux (voir Vermobil [1] ou SLT [2]) qui proposent
+une utilisation intelligente des ressources communes entre module de RAP et module d’analyse, a notre
+connaissance, tres peu de travaux experimentaux proposent d’introduire des informations semantiques
+directement dans un module de RAP pour une meilleure integration du systeme complet.
+
+Quang VU—MINH Laurent BESACIER Herve BLANCHON Brigitte BIGI
+
+Cet article présente une méthode pour intégrer des informations sémantiques dans le modele de langage
+statistique du systeme de reconnaissance. Ce travail a été réalisé dans le cadre d’un projet global de traduction
+de parole intitulé NESPOLE1 [3]. Au sein du projet, une approche de traduction fondée sur un langage pivot
+(appelé IF pour Interchange Format), qui représente le sens de la phrase indépendamment de la langue, est
+utilisée. L’architecture de ce systeme de traduction utilisant l’approche pivot est décrite dans la ﬁgure I .
+
+M\MI\»
+texte langue source
+site quiparle
+étextelpivot (IF)  
+i‘ﬁ°..‘.‘,.“.i.f2‘.§.°.‘.“‘
+
+texte langue cible
+
+Synlhese de la parole
+
+Figure 1: Interaction e11tre les modules de traduction de parole dans l’architecture IF.
+
+L’avantage le plus evident de l’approche par pivot est la reduction du nombre de modules a réaliser. Si n
+langues sont impliquées, deux modules, d’analyse et de génération vers/depuis l’IF, pour chaque langue
+permettent la traduction pour toutes les paires de langues possibles. Si une nouvelle langue vient s’ajouter au
+projet, il suffit alors de développer les modules d’analyse et de generation vers/depuis l’IF pour cette langue
+afin qu'elle puisse étre intégrée avec les n autres. Le défaut de cette approche reside dans la difficulté a définir
+le langage pivot, les concepts qui sont couverts, ainsi que sa syntaxe. Cela est vrai meme lorsque le domaine
+est limité a une tache particuliere comme l’information touristique.
+
+L'IF [4] est fondé sur de actes de dialogue (DA) qui sont consumes d'un acte de parole (SA) éventuellement
+complété par des concepts. L'acte de parole exprime ce que veut ou ce que fait celui qui parle. Les concepts
+sont sub—divisés en attitudes, prédicats principaux et participants du prédicat. Ils expriment le focus
+informationnel de ce qui est dit. Actes de parole et concepts peuvent admettre des arguments qui instancient
+les variables du discours. Les arguments admis par les actes de parole et les concepts sont des arguments
+supérieurs (top—level arguments). Il existe aussi des arguments dominés (embedded arguments) qui raffinent
+les arguments supérieurs.
+
+Pour une phrase signifiant "etje voudrais une chambre simple a 100 euros a Cavalese du 10 au 15 septembre"
+prononcée par un client, l'IF est par exemple (pour plus de details voir [4] :
+
+giveinformation+disposition+price+room(conjunction=discourse,disposition=(desire,
+who=i),room—spec=(identifiability=no,single_room),
+price=(quantity=100,currency=euro), location=name—cavalese,
+time=(start—time=(md=10),end—time=(md=15, month=9)))
+
+Le travail présenté ici se situe a l’interface e11tre le module de reconnaissance et le module d’analyse en IF
+(voir ﬁgure 1). Plus précisément, le module de reconnaissance de la parole a été adapté afin d’étre capable de
+délivrer une cha'1‘ne partiellement ou completement analysée en IF. Cela a été achevé par l’usage d’un modele
+de langage utilisant des classes qui correspondent directement a des concepts de l’IF. La méthodologie utilisée
+pour obtenir ce modele de langage « sémantique » est détaillée dans la section 2. La section 3 présente
+quelques résultats expérimentaux obtenus tandis que la section 4 propose une premiere conclusion a ce travail.
+
+1 http://nespole.itc.it/
+
+Modele de langage sémantique pour le RAP dans un contexte de traduction
+
+2 Construction du modéle de langage
+
+Le modele de langage statistique constitue un element important dans un systeme de Reconnaissance
+Automatique de la Parole. Il a pour but de definir une distribution de probabilite sur des ensembles de
+sequences de mots (suites de trois mots dans le cas du modele trigramme). Pendant l’apprentissage du modele,
+certains mots peuvent etre regroupes en classes. Si on considere que chaque mot, a l’interieur d’une classe, a
+la meme probabilite d’occurence, dans ce cas une classe peut se reduire a une liste de mots. Lorsqu’on a
+definit des classes, on peut alors directement remplacer les mots du corpus d’apprentissage par leur classe
+avant l’apprentissage du modele de langage.
+
+Afin d'in1roduire des connaissances semantiques dans le ML, nous proposons de regrouper certains mots dans
+des classes correspondant a des entites semantiques de l'IF. Par exemple, les mots « bien », « d'accord » et «
+okay » seront des elements de la classe « c:acknowledgment » tel que le specifie l'IF. Plusieurs articles [5,6]
+ont montre l’interet de l’utilisation de classes dans diverses taches de Traitement Automatique de Langue
+Naturelle. La plupart des methodes pour constituer automatiquement des classes utilisent des criteres
+statistiques permettant, par exemple, de diminuer la perplexite d’un modele de langage. Dans notre cas, notre
+critere de choix de classes est guide par la definition du langage pivot et par les concepts les plus utilises dans
+l’IF. Notre approche consiste en deux etapes : (1) la selection des IFs les plus fréquentes a integrer comme
+classes dans le nouveau modele de langage (2) la calcul du modele de langage proprement dit. Ces etapes
+toutes automatiques sont detaillees dans le paragraphe suivant.
+
+2.1 Sélection des classes-IF les plus fréquentes
+
+Utiliser toutes les unites semantiques presentes dans la definition de l’IF comme classes dans notre modele de
+langage conduirait a un modele inutilisable pour la reconnaissance automatique de la parole. En effet, le
+nombre de classes doit etre limite et surtout, le nombre d’occurrences de mots d’une meme classe doit etre
+suffisamment important pour que l’estimation des probabilites soit de bonne qualite. Nous avons donc choisi
+de nous limiter a la selection de classes—IF les plus frequemment rencontrees dans les dialogues du projet
+NESPOLE, correspondant a la téiche que nous voulons traiter. Dans cette etape, nous identifions donc ces IFs
+les plus fréquentes et les regroupons dans des classes. Une classe correspond alors a un ensemble de mots
+conduisant a une meme representation IF (on trouve par exemple dans ces classes des actes de dialogue tels
+que acknowledge, affirm, negate ...). La ﬁgure 2 illustre comment cette selection des IFs les plus fréquentes
+est realisee automatiquement a partir d’un corpus textuel brut non armote manuellement en IF.
+
+ 
+   
+   
+
+    
+
+Diabgues Analyse auto. en IF
+
+_ NESPOLE
+
+{c:aﬂ‘irm} oui, ouais, euh oui, 
+{cxzclmowledge} okay, d ‘accord, 
+{c:thank} merci, merci beaucoup, 
+
+Figure 2: Selection des IFs les plus fréquentes
+
+L’analyseur automatique en IF du CLIPS [7] a ete utilise pour analyser un corpus qui comprend 46
+transcriptions de dialogues collectes lors du projet NESPOLE [8]. Ce corpus represente des dialogues
+possibles entre un client et un agent de voyage concemant l’organisation de vacances, la reservation d’hetels
+et les activites sportives ou culturelles, dans la region de Trente en Italie. L’analyseur transforme
+automatiquement tous ces dialogues en une representation de langage IF. Nous avons par consequent un
+
+Quang VU—MINH Laurent BESACIER Herve BLANCHON Brigitte BIGI
+
+corpus aligne frangais—IF. Bien sﬁr, ce corpus n’est pas parfait car l’analyseur fait eventuellement des erreurs,
+mais nous supposons que, malgre ces erreurs, la distribution des differentes IFs est correctement representee.
+Ensuite, nous regroupons ces donnees alignees par IF et listons toutes les unites semantiques de dialogue
+correspondant a une meme IF, et obtenons enfin nos classes « semantiques » dont certaines sont presentees
+dans la table I . Par exemple, la classe la plus frequente affirm contient les Variantes representant le meme sens
+(aﬂirmer) en frangais.
+
+Le nombre de classes semantiques obtenues de cette fagon etant important, nous avons retenu seulement 41
+classes en tenant compte de la taille (le nombre de mots ou Variantes dans une meme classe) et de la frequence
+d’apparition dans les dialogues des classes.
+
+CLASSES IFS Variantes d’unites semantiques Pourcentage dans ,
+assoclees un total de 3194 umtes
+{c:affirrn} Oui, ouais, mouais... 22%
+{c:acknowledge} d'accord, entendu, ok. .. 19%
+{c:exclamation (exclamation:oh)} Oh, ah, ha. . .. 4%
+
+Table 1: Exemples de classes IF obtenues automatiquement
+
+2.2 Calcul du modéle de langage
+
+Apres avoir obtenu la liste des classes semantiques, comme illustre dans la ﬁgure 2, nous nous en servons en
+combinaison avec les donnees de l’apprentissage du modele de langage afin de construire notre nouveau
+modele « semantique ». Ce processus est illustre dans la ﬁgure 3.
+
+Llismte d’|Fs (étape
+
+ 
+
+ 
+
+Figure 3: Methode d’apprentissage du modele de langage utilisant les classes issues de l’IF
+
+Dans le corpus d’apprentissage du ML qui comprend les transcriptions des 46 dialogues NESPOLE, nous
+remplagons tous les mots (ou sequences de mots) qui sont elements de nos nouvelles classes semantiques, par
+le nom de la classe. Il en resulte alors un corpus “prepare” qui contient a la fois des mots frangais et des IF.
+Enfin, nous utilisons la bo'1‘te a outils SRILM [9] pour apprendre le ML incluant les classes—IF, en utilisant la
+methode Kneser—Ney pour le lissage. Apres avoir obtenu le nouveau ML proprement construit, nous l’avons
+integre et teste dans le systeme de reconnaissance. La section suivante presente quelques resultats
+
+experimentaux.
+
+Modéle de langage sémantique pour le RAP dans un contexte de traduction
+
+3 Résultats experimentaux
+
+3.1 Description du systéme de RAP
+
+Notre systeme RAPHAEL de reconnaissance de parole continue utilise la bo'1‘te a outils Janus—III du CMU
+[10]. Le modele acoustique dependant du contexte a ete appris sur un corpus qui contient 12 heures de parole
+continue prononcee par 72 locuteurs, issues de la base BREF80. Le vocabulaire contient approximativement
+20000 formes lexicales parmi lesquelles quelques—unes sont specifiques au domaine de la reservation
+touristique. Plus de detail sur le systeme RAP du frangais utilise dans NESPOLE se trouvent dans [3].
+
+Un test contradictoire a done ete conduit pour comparer un meme systeme de RAP utilisant d’une part
+l’ancien modele de langage, et d’autre part le nouveau modele de langage « semantique » obtenu par la
+methodologie presentee dans la section 2.
+
+3.2 Corpus de test
+
+Les signaux de test sont 216 tours de parole extraits du corpus de dialogues du projet NESPOLE. La table 2
+illustre quelques exemples de ces tours de parole de test. Dans la deuxieme colonne sont presentees les
+hypotheses textuelles obtenues a la sortie du module de RAP utilisant notre modele de langage semantique.
+Nous remarquons que des tours de parole simples sont deja completement analyses en IF. D’autres tours de
+parole plus complexes sont, eux aussi, analyses partiellement ou completement en IF.
+
+Phrases de reference Sortie de RAP avec nouveau ML
+
+oui je vous entends c:affirm c:dialog—hear(who:i, to—whom:you)
+
+euh je vous entends pas tres fort mais euh c:dialog—hear(who:i, to—whom:you) pas tres forme ce_qu
+c’est correct on est
+
+oh oui c’est bon c:exclamation (exclamationzwow) c:affirm c:acknowledge
+Oui c:affirm
+
+d’accord c:acknowledge
+
+Table 2: Exemple d’hypotheses obtenues a la sortie du systeme de RAP avec notre nouveau ML semantique
+
+3.3 Analyse des résultats
+
+3.3.1 Comparaison de taux d’erreur
+
+Cette comparaison a pour seul but de verifier que ces changements dans le modele de langage, permettant une
+analyse partielle en IF, ne degradent pas la performance intrinseque du systeme de reconnaissance initial. Pour
+cela, nous avons compare le taux d’erreur du systeme initial avec celui de notre nouveau systeme. Le taux
+d’erreur de mots (Word Error Rate —WER) du systeme initial qui utilise des classes construites manuellement
+est de 31.9% alors que le taux d’erreur du systeme utilisant le nouveau modele, apres avoir reconstitue les
+mots frangais a partir de la classe IF, est 32.9%. Ainsi, nous pouvons constater que le nouveau modele
+n’impose pas une degradation tres importante de la performance du systeme initial.
+
+3.3.2 Premieres statistiques sur l’analyse partielle en IF lors de la phase de reconnaissance
+
+Les 216 tours de parole de test comprennent 915 mots. Parmi ces 915 mots, 35% ont ete analyses directement
+en IF des la phase de reconnaissance. Au niveau des tours de parole, 125 tours sur un total de 216 (58%) ont
+ete analyses directement en IF, aussi, des la phase de reconnaissance. Bien sur, ce sont surtout les tours de
+parole courts qui sont totalement analyses en IF, mais ce resultat reste encourageant car, desormais, une partie
+du travail du module d’analyse peut etre realise directement par l’usage d’un module de reconnaissance
+utilisant un modele de langage semantique.
+
+Quang VU—MINH Laurent BESACIER Herve BLANCHON Brigitte BIGI
+
+Par ailleurs, sur les 58% de tours directement analyses, 84% sont proprement analyses sans erreur. Les 16%
+d’erreur restant sur cette partie du corpus de test, correspondent essentiellement aux erreurs de reconnaissance
+faites par le systeme, avec ou sans modele sémantique, et qui ne seront jamais récupérées par le module
+d’analyse.
+
+4 Conclusion
+
+Nous avons présenté une nouvelle méthodologie pour introduire des classes sémantiques dans le modele de
+langage statistique d’un systeme de reconnaissance, dans un contexte de traduction de parole. Ce modele
+« sémantique » a été testé dans le cadre du projet de traduction de parole NESPOLE. Avec notre nouveau
+modele de langage, le module de reconnaissance peut réaliser directement une partie du travail d’analyse vers
+la representation sémantique (IF) : 35% des mots du dialogue test ; 58% des tours de parole du dialogue test.
+Parmi ces 58% tours analyses directement, 84% sont proprement analyses. Evidemment, la principale
+limitation de notre approche est que ce sont majoritairement les tours de parole les plus courts, et donc les plus
+faciles a analyser, qui sont traités des la phase de reconnaissance. Par ailleurs, le module d’analyse devra étre
+légerement adapté afin de pouvoir traiter en entree un mélange de mots frangais et d’IF. Néanmoins, cette
+modification reste relativement facile a implémenter.
+
+5 Références
+
+[1] Wahlster, W. “Verbmobil : Foundations of Speech-to-Speech Translation”, Springer-Verlag. Berlin. 677
+p. (2000).
+
+[2] Rayner, M., Carter, D., Bouillon, P., Digalakis, V., Wirén, M., “Spoken Language Translation”
+Cambridge University Press, (2000).
+
+[3] Besacier, L. & al. "Speech Translation for French in the NESPOLE! European Project", Eurospeech 2001,
+Aalborg, Denmark, September (2001).
+
+[4] Levin L. & al. “An Interlingua Based on Domain Actions for Machine Translation of Task—Oriented
+Dialogues”. Proc. ICSLP'98, 30th November - 4th December 1998, Sydney, Australia, vol.4/7, pp.1155-
+1158. (1998).
+
+[5] Brown, P.F., & al. “Class-based n—gram Models of Natural Language”. Computational Linguistics 18(4):
+467-479. (1992).
+
+[6] Kneser W., Ney, H., “Improved Clustering Techniques for class—based Statistical Language Modelling”.
+In proceeding of the 3rd European Conference on Speech Communication and Technology, 973-976.
+(1993).
+
+[7] Blanchon, H. (2002). “A Pattern—Based Analyzer for French in the Context of Spoken Language
+Translation: First Prototype and Evaluation”. Proc. COLING. Taipei, Taiwan. Vol. 1/2: pp 92-98. 24
+August - 1 September, (2002).
+
+[8] Burger, S. & al "The NESPOLE! VoIP Dialogue Database", Eurospeech 2001, Aalborg, Danemark,
+September (2001).
+
+[9] Stolcke, A., “SRILM -- An Extensible Language Modeling Toolkit”. Proc. Intl. Conf. on Spoken
+Language Processing, vol. 2, pp. 901-904, Denver, USA, (2002).
+
+[10] Zeppenfeld, T., & al. “Recognition of conversational telephone speech using the Janus speech engine”
+IEEE International Conference on Acoustics, Speech and Signal Processing, Munich, (1997).
+

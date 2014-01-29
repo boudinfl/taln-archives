@@ -1,734 +1,1897 @@
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-_ l_)év_elop eme_nt de ressources pour l’entra’1‘nement et
-l’ut1l1sat1on e l’ét1queteur Ilnorqbosyntaxlque TreeTagger sur
-ara e
-
-Dhaou Ghoull
-(1) STIH, 1, rue Victor Cousin 75005 Paris
-Dhaou . Ghoul @gmail . com
-
-RESUME
-
-Dans cet article, nous présentons les étapes du développement de ressources pour
-l'entrainement et l'utilisation d'un nouvel outil de l'étiquetage morphosyntaxique de la
-langue arabe. Nous avons mis en oeuvre un systeme basé sur l'étiqueteur stochastique
-77‘eeTagger, réputé pour son efﬁcacité et la généricité de son architecture. Pour ce faire, nous
-avons commencé par la constitution de notre corpus de travail. Celui-ci nous a d'abord servi
-a réaliser l'étape de segmentation lexicale. Dans un second temps, ce corpus a permis
-d'effectuer l'entrainement de TreeTagger, grace a un premier étiquetage réalisé avec
-l'étiqueteur ASVM 1.0, suivi d'une phase de correction manuelle. Nous détaillons ainsi les
-prétraitements requis, et les différentes étapes de la phase d'apprentissage avec cet outil.
-Nous terminons par une évaluation sommaire des résultats, a la fois qualitative et
-quantitative. Cette évaluation, bien que réalisée sur un corpus de test de taille modeste,
-montre que nos premiers résultats sont encourageants.
-
-ABSTRACT
-
-Development of resources for training and the use of the tagger 'I‘reeTagger an Arabic
-
-In this paper, we present the steps of the development of resources for training and the use
-of a new tool for the part-of-speech tagging of Arabic. We implemented a tagging system
-based on Tree Tagger, a generic stochastic tagging tool, very popular for its efﬁciency. First of
-all, we began by gathering a working corpus, large enough to ensure a general linguistic
-coverage. This corpus has been used to implement the tokenization process, as well as to
-train TreeTagger. We ﬁrst present our method of tokenization, then we describe all the steps
-of the preprocessing and training process, using ASVM 1.0 to yield a raw POS tagging that
-was subsequently manually corrected. Finally, we implemented a straightforward evaluation
-of the outputs, both in a quantitative and qualitative way, on a small test corpus. Though
-restricted, this evaluation showed really encouraging results.
-
-MOTS-CLES: TALN, langue arabe, corpus d'apprentissage, étiquetage morphosyntaxique,
-segmentation de l'arabe, arbre de décision, lexique, jeux d’étiquette, TreeTagger, ASVM 1.0.
-KEYWORDS: NLP, Arabic language, training corpus, POS tagging, tokenization, decision tree,
-lexicon, tagsets, TreeTagger, ASVM1.0.
-
-69 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-1 Introduction
-
-De nos jours, la langue arabe est de plus en plus utilisée sur le Web. On peut y trouver de
-nombreux ouvrages que les auteurs ont décidé de rendre publics. Par ailleurs, il existe de
-nombreux logiciels traitant la langue naturelle qui facilitent la recherche et la consultation
-des documents électroniques. La réalisation de nouvelles applications en traitement
-automatique de la langue (TAL) pour l'arabe nécessite en premier lieu de développer un
-systéme d’étiquetage performant et robuste.
-
-L'étiquetage morphosyntaxique d'une langue est un processus qui consiste a ajouter aux
-mots des informations morphologiques concernant leurs catégories morphosyntaxiques ou
-parties du discours - cette opération étant parfois accompagnée d'une lemmatisation lorsque
-les formes ﬂéchies sont ramenées a leur forme canonique (lemme). Selon (Laporte , 2000) :
-« l'analyse morpliosyntazdque est 1’ensen1b1e des techniques qui concourent a passer d ’un
-teXte brut; exempt d’inf0rn1at7'0ns Iinguistique, a une se’quence des nzots e’tiquete’s par des
-informations Iinguistiques ». Pour la langue arabe, l'étiquetage reste toujours une étape
-complexe a aborder a cause des ambiguités lexicales des unités. L'étiquetage d'une langue
-donnée est principalement basé sur deux types d'approche : étiquetage a base de regles et
-étiquetage statistique basé sur des corpus. L'outil TreeTagger que nous avons utilisé dans
-notre travail concerne cette derniere catégorie de systeme, et a recours a des modeles
-probabilistes (modeles de chaine de Markov cachées HMM et arbres de décision).
-
-7reeTagger a déja été mis en oeuvre sur plusieurs langues (anglais, francais, allemand,
-italien, néerlandais, espagnol, bulgare, russe, grec, portugais, chinois, swahili), mais pas sur
-l'arabe a notre connaissance. L'objectif de ce travail est d’adapter TreeTagger a la langue
-arabe afin de disposer d'un systeme d’étiquetage morphosyntaxique générique et gratuit.
-
-Cet article est organisé comme suit: la section 2 présente quelques étiqueteurs existants en
-arabe, la section 3 décrit le principe de segmentation de notre systeme ainsi que les données
-utilisées, la section 4 présente le processus de l'étiquetage en se basant sur TreeTagger. Les
-résultats obtenus et les perspectives de ce travail feront l'objet de la section 5.
-
-2 Etat de l'art
-
-Reconnaitre la catégorie morphosyntaxique d'un mot dans un contexte est une tache non
-triviale du traitement automatique de la langue écrite. En effet rendre une machine capable
-d'identiﬁer la catégorie d'un mot exige de mettre en oeuvre des méthodes sophistiquées, en
-particulier pour les mots ambigus, c'est-a-dire susceptibles d'appartenir a plusieurs
-catégories différentes. Les systemes automatiques dédiés a cette tache sont appelés des
-étiqueteurs morphosyntaxiques (part-of-speech tagger, en anglais). Au contraire de langues
-comme l'anglais ou le francais, l'analyse morphosyntaxique de l'arabe est une étape
-particulierement difficile a cause d'importantes ambiguités graphiques et de la présence
-d'agglutinations. De nombreux travaux ont été effectués dans ce domaine en se basant sur
-
-des approches différentes. Nous en mentionnons ici quelques uns :
-
-Aramorph est un analyseur distribué par le Linguistic Data Consortium (LDC), qui permet de
-segmenter les mots en trois parties (préﬁxe racine sufﬁxe). Il utilise un lexique et des regles
-orthographiques sont encodées directement dans le lexique, spéciﬁées en termes de regles
-générales qui interagissent pour réaliser la sortie. Ce systeme est réalisé a partir d'une base
-
-70 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-on 11 est le nombre de phrases (n=2 34), et P,-: la précision de la phrase 1'.
-
-Ce mode de calcul a pour effet de minimiser l'impact des erreurs qui apparaissent dans les
-phrases tres longues, car il donne une pondération plus importante aux étiquettes des
-phrases courtes.
-
-Pour obtenir une évaluation comparative précise, nous avons évalué les deux systemes sur le
-méme corpus de test Nous avons obtenu un taux de précision moyen égal a 86.5 % contre 60
-% pour ASVM1.0. Nous avons également évalué la tache de segmentation sur le méme
-corpus de test, et obtenu un taux de précision de 93 %. Le tableau ci-dessous résume bien
-cette évaluation.
-
-Notre ASVM1.0
-systeme
-Etiquetage 86,5 % 60 %
-Segmentation 93 % 85 %
-
-TABLE 4 — Evaluation quantitative de notre systeme et ASVM 1.0.
-
-5.4 Evaluation qualitative
-
-Aﬁn d'avoir une idée plus précise des types d'erreur rencontrés, nous avons procédé a une
-évaluation qualitative. Nous avons examiné seulement les 50 premieres phrases. Ces phrases
-contiennent 869 mots étiquetés parmi lesquels nous avons trouvé 24 étiquettes fausses
-c'est-a-dire 2,75 % d'étiquettes erronées.
-
-Nous avons constaté que les erreurs sont dues, en général, a la mauvaise segmentation des
-mots, a l’absence des mots dans le lexique, ainsi qu'aux cas d’ambigu'ité. Le tableau suivant
-illustre les différents cas de ﬁgure pour ces 24 étiquettes erronées :
-
-Phrases Mots Etiquettes Mots mal Mots Mots
-erronés segmentés absent du ambigus aux
-lexique niveaux
-lexical et
-grammatical
-5 0 8 69 2 4 1 1 9 4
-pourcentage 2,75 % 1,26 % 1,03 % 0,46 %
-
-TABLE 5 — Les différents cas d'étiquettes erronées sur 50 phrases examinées manuellement.
-
-Pour comparer les résultats de notre étiqueteur et ceux d'ASVM1.0, nous avons choisi, a titre
-d'illustration, quelques phrases étiquetées par les deux systémes :
-
-Phrases Notre étiqueteur ASVM1.0
-
-as 015 @1754}! lwdfYj / NNP fAn / NNP bYthwfn / NNP m&lf / 1wdf}7'/NNfAn/ NNP bYthwfn /
-NN mwsYqY / 11 >lmAnY / 1] wld / VBN EAm / NNP m&lf / NN mwsYqY/NN
-NN 1770 / co m / NN fY / IN mdYnp / NN bwn / >1mAnY/MVPwld / VBN EAm /
-
-g5-.|-aw “-3334
-EL:-. 41, g.'.L..Ii
-
-79 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-149.95 5 1770 NNP ./SENT NN 1770 / co m / NN fY / IN
--0}! mdYnp / NN bwn / NNP . /
-PUNC
-J'J_..iL-J,.J__.‘3._... YEtbr/VBNmn/IN>b1z/JJEbAqrp/NNAl/ YEtbr/VBNHH1/IN>b1z/J]
-L,§.,....,..JI$,§l._.:. DTmwsYqy/NNtY/IN jmYE/JJAl/DTEswI/ EbAqrp/NNAlmwsYqy/NNtY
-‘J}"“"-“¢~"‘.3‘g;5 NNS ,/PUNCw/CC >bdE/VBN >EmAlAF/ /INjmYE/JJA1Eswr. /MV w/
-4”‘ 3*‘ 5 NN mwsYqYp/JJ xAldp/JJ. /SENT CC >bdE’ VBN >EmA1AF ’ NN
- 5‘-J3-,|-aw mwsYqYp / JJ xAldp /JJ . /
-PUNC
-
-mu-. 5.4 am 1/IN *1k/WP YnSH/VBD EAdp/NN b/PREP 1*1k/11v YnSH/VBD EAdp/NN
-OMOJ4!  >n/RP Ytmrn/VBN mn/IN YrYd /VBN Al/DT b/IN >11/IN Ytmrn/VBN
-(MM AM tE7m/VBN b/PREP A1/DT tdrYb/NN Ely/RP mn/IN YrYd /1v1v A1tEYmﬂVN
-
-<xrAj /NN Al/DT Swt/NN >wlA /I] w/CC b/IN A1tdrYb/NN Ely/IN <XrAj
-
-U3‘  mn/IN vm/RB EndmA/IN YstTYE/VBD *1k/WP /NN A1.S'wt/NN >wlA /11 w/CC
-«Lu-all 5|}! Ybd>/VBP b/PREP A1/DT tE1m/VBN Ely/RP mn/IN vm/RB EndmA/IN
-ms; ego“ Y}: <xrAj /NN A1/DT drjAt/NNS Al/DT SwtYp/NN YstTYE/VBD *lkﬂ)T Ybd>ﬂVN
-ha em  (/PUNC tmrYn /NN A1/DT >SAbE /NNS b/IN A1tE1m/NN Ely/IN <xrAj
-)/PUNC ./SENT /NN A1d17'.4tyNNS' A1SwtYp/1]
-
-:U'=lu-‘= am-.' (/PUNC tmrYn /NN AI>SAl7E
-
-3-ﬁjml‘ 0‘-n45‘ /NNS )/PUNC ./PUNC
-JAG d,i as qdm/NN >w1 / 1] Em1/ NN mwsYqY / 1] w / qdm / VBD >w1 / 1] Eml / NN
-Sbﬁcjgsyy CC Emr/NN h/PRP 8/CD snwAt/NNS./ mwsYqY/]]w/CC Emr/NNh
-labs” SENT / PRP$ 8 / co snwAt / NNS . /
-PUNC
-
-TABLE 6 — Exemples de phrases étiquetées par notre étiqueteur et ASVM1.0.
-
-Si on observe les résultats obtenus par notre étiqueteur sur ces 4 phrases, on remarque bien
-qu'il analyse les deux premieres phrases correctement, par contre, il génere des erreurs au
-niveau de la troisieme et de la quatrieme phrase. En général, les erreurs d'étiquetage de
-notre systéme viennent soit de la mauvaise segmentation du mot ou de l’absence du mot
-dans le corpus d'apprentissage, soit de l’ambigu'1'té graphique du mot liée a l’absence des
-voyelles (p.ex. qdm (545)/NN).
-
-6 Conclusion et perspectives
-
-Dans ce travail, nous avons essayé d'adapter l'outil TreeTagger sur la langue arabe. Pour ce
-faire, nous avons organisé notre travail en trois étapes principales. D'abord, nous avons
-récolté et préparé toutes les données nécessaires: lexique, jeux d'étiquettes et corpus
-d’apprentissage. Ensuite, nous avons développé une méthode de segmentation des textes
-
-80 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-arabes basée sur corpus pré-segmenté manuellement Enﬁn nous avons terminé par une
-évaluation qualitative et quantitative de notre systeme. L'évaluation sommaire que nous
-avons menée indique que notre étiqueteur arabe donne 86 % de précision. Les résultats de
-l'évaluation quantitative montrent un gain de notre méthode par rapport a l'étiqueteur
-ASVM1.0. Malgré un corpus d'apprentissage tres restreint, ces résultats sont donc
-encourageants.
-
-Pour le moment notre systeme ne permet pas de lemmatiser, car notre lexique, encore
-incomplet, ne contient pas de lemmes : dans nos prochains travaux, nous comptons remédier
-a cette lacune en ajoutant cette information. De plus, pour obtenir un étiqueteur générique a
-large couverture, nous envisageons d'augmenter notre corpus d'apprentissage, sur le plan
-quantitatif, mais aussi de l'enrichir en termes de variété typologique (littéraire,
-journalistique, scientiﬁque, etc.).
-
-7 Références
-
-ABBES, R. (2004). La conception et la réalistion d'un concordancier. Lyon,ENSSIB/INSA:
-These de doctorat en sciences de l’information.
-
-ANIZI, M. et DICHY, ]. (2009). Assessing Word-form based Search for Information in Arabic:
-Towards a New. MEDAR Zand International conference on Arabic Language Ressources &
-Tools, Cairo Egypt, pages 12-19 .
-
-A'I'I‘IA, M. (2006). An Ambihuity controlled Morphological Analyser for Modern Standard
-Arabic Modelling Finite State networks. : Acte de la confe’rence internationale ’tl1e cliallenge
-of arabic for NLP/M7} tl1e BI‘ll'5l1 computer society. London.
-
-BUCKWALTER, T. (2002). Arabic Morphological Analyser version 1.0. Linguistic Data
-Consortium Catalogue numéro LDC L 49.
-
-BAHOU, Y., HADRICH BELGUITH, L., et BEN HAMADOU, A. (2005). SYNTAXE: Analyseur syntaxique
-de l'arabe utilisant XML comme outil de stokage . Souuse,Tunisie: Cinquiémes journe’s
-scientiﬁque desjeunes cl1ercl1eurs en ge’nie e’lectrique etinformatique .
-
-CHAABAEN KAMMOUN, N., HADRICH BELGUITH, et BEN HAMADOU, A. (2010). The MORPH2 new
-version: A Robust morphological analyser for arabic text. MIRACL Laboratory Tunisia .
-
-DIAB, M. (2009). Second Generation AMIRA for Arabic Processing: Fast and Robust
-Tokinisation, Pos Tagging and Base Phrase Chunking. MEDAR 2nd International conference
-on Arabic Language Processing & Tools, Cairo Egypt, pages 285-288.
-
-DIAB, M., HACIOGLU, K.,et IURAFSKY, D. (2004). Automatic Tagging of Arabic Text: From Raw
-Text to Base Phrase Chunks. . HLT-NAACL , pages 149-152.
-
-EL-HA], M ,KRUscHwI'I'z, U. et Fox, C. (2010). Using Mechanical Turk to Create a Corpus of
-Arabic Summaries in the Language Resources (LRs) and Human Language Technologies
-(HLT) for Semitic Languages. worksliop lield in conjunction witlz tl1e 7tl1 International
-Language Resources and Evaluation Conference (LREC2010), Valletta, Malta, pages 36-39.
-
-81 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-FARGHALY, A.et DICHY, ]. (2003). Roots & Patterns VS Stems plus Grammair-Lexis specification
-:On what basis should a multilingual lexical database centred on arabic be built? Acte de la
-9én1e MT conference, Worksliop on Macliine translation for semitic language .'issues and
-approaclies. New Orleans, Louisiana, USA.
-
-LAPORTE, E . (2000). Mot et niveau lexical . jean-n1ariepierre:lngenierie de langues, pages
-25-46.
-
-MARS, M., ZRIGUI, M., BELGACEM, M., ZOUAGHI, A. et ANTONIADIS, G. (2008). A Semantic Analyzer
-for the Comprehension of the Spontaneous Arabic Speech. International Conference on
-Computing CORE08, ]ournal Researcli in Computing Science (journal RC5) , ISSN: 1870-
-4069, Vol 34, pages 129-140.
-
-POPOWICH, F. et VOGEL, C. (1990). Chart parsing head-driver phrase structure grammar.
-Teclinical Report CSS-IS TR 90- 01, CMPT TR 90-01, Simon Fraser University, Burnaby, BC
-
-SCHMID, H. (1994). Probabilistic Part-of-Speech Tagging Using Decision Trees. Proceedings of
-International Conference on New Metliods in Language Processing, Manchester, UK, pages
-88-96.
-
-STEIN, A. (2007). Part of speech tagging and lemmatisation of Old French.
-http : //www. uni—stuttgart . de/lingrom/stein/ fors chung/ resource . html .
-[consulté le 10/02/2011].
-
-ZEMIRLI, Z. et KHABET, S. (2004). Un analyseur morphosyntaxique destiné a la synthese vocale
-de textes arabes voyellés. /EP-TALN, Fes.
-
-82 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-de données qui contient 598 préﬁxes, 906 suffixes et 78 839 racines (Buckwalter, 2002).
-Cette base est complétée par trois tables de comptabilité utilisées pour faire la combinaison
-entre préﬁxe et racine (2 435 entrées), sufﬁxe et racine (1 612 entrées) et préﬁxe et sufﬁxe
-(1 138 entrées). L’algorithme d’analyse est assez simple puisque toutes les décisions
-difﬁciles sont codées directement dans le lexique et les tableaux de compatibilités, c'est-a-
-dire que le lexique contient toutes les segmentations possibles des mots sous la forme
-« préﬁxe racine sufﬁxe » (N.Habash, 2004). Cependant, pour la forme agglutinée d’un mot,
-les segmentations ne sont valables que si les différents composants existent dans le lexique.
-
-Les points faibles de cet analyseur se résument ainsi (M.Attia, 2006) : tous les lemmes sont
-listés manuellement et tous les lexemes des formes ﬂéchies associées sont énumérés, ce qui
-ﬁnit par augmenter le coﬁt de maintenance du lexique ; il y a un probleme au niveau du
-traitement des proclitiques interrogatifs qui se localisent au début des verbes et des noms
-(exemples : « dﬁﬁ », <<A-«ml ») ; seulement 22 verbes sur un total de 9 198, soit 0,002 % ont
-des formes impératives ; seulement 1 404 verbes sur un total de 9 198, soit 15 % sont
-conjugués a la voix passive au présent et 110 verbes au passé.
-
-(Diab, Hacioglu et Iurafsky, 2004) ont développé un analyseur syntaxique baptisé ASVM 1.0.
-Ils ont entrainé leurs modeles d'étiquetage sur le corpus arabe annoté TreeBank en se basant
-sur 24 étiquettes et en utilisant l'outil « Yamcha » qui utilise les machines a vecteurs de
-support Le corpus TreeBank utilisé pour évaluer la premiere version d'ASVM est composé
-de 4 519 phrases. Le corpus est distribué comme suit : 4 000 phrases pour l'apprentissage,
-119 phrases pour le développement et 400 phrases pour le test. Les résultats obtenus sont
-de 95,49 % de mots correctement étiquetés. Nous avons analysé les résultats de cet
-étiqueteur (nous les avons utilisés pour notre application), et nous avons remarqué que la
-majorité des erreurs sont liées a la mauvaise segmentation de l'article « Al » et a la confusion
-des noms avec les adjectifs et inversement. L’évaluation de la segmentation (tokens bien
-segmentées) de cet étiqueteur sur notre corpus a donné un taux tres faible de segmentation
-correcte (46 %).
-
-(Diab, 2009) a réalisé une deuxieme version améliorée de cet étiqueteur. L'amélioration se
-résume dans la phase de segmentation concernant les mots composés (par exemple la
-séparation de l'article «Al (d|)» et la préposition «b (9) »). Les résultats obtenus de la
-nouvelle version sur les mémes données d’ASVM1.0 sont plus performants au niveau de la
-segmentation (99,2 %), et avec une précision de plus de 96 % au niveau de l'étiquetage.
-
-(Bahou, Hadrich Belguith, Ben Hamadou, 2005) ont présenté l'analyseur syntaxique
-SYNTAXE qui modélise des textes arabes non voyellés (non vocalisés) en se basant sur une
-grammaire HPSG (Head-driven P11ra5e Structure Grammar) et un lexique sous forme XML.
-Cet analyseur repose sur trois principales étapes. La premiere étape permet la génération
-des matrices attribut/valeur HPSG nécessaires pour l'identiﬁcation des structures
-syntaxiques des phrases en cours d’analyse. La deuxieme et la troisieme étape représentent
-les étapes de l’algorithme « Chart Parsing HPSG » (Popowich, Vogel, 1990). L’évaluation de
-cet analyseur a été faite sur un corpus de textes tirés d’un manuel de la 8e année de base de
-l’enseignement tunisien. Ce corpus, saisi au sein du laboratoire LARIS, contient 650 phrases
-non voyellées (soit 4050 mots). Parmi ces phrases, 96 contiennent des mots non reconnus
-par l'analyseur et ont été analysé partiellement Sur un total de 554 phrases, SYNTAXE est
-parvenu a analyser correctement 448 phrases (2820 mots) soit 81 %.
-
-MorphArab est un analyseur morphosyntaxique de la langue arabe développé par (Abbes,
-
-71 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-2004). D'abord, cet analyseur découpe le mot en pré-base, racine et post-base. Ensuite, il
-utilise le lexique Dinar (Dictionnaire Informatisé de l'Arabe)1 pour l’attribution de chaque
-composant du mot et l'extraction des traits morphosyntaxique correspondants. Ce lexique
-est composé de 19 457 verbes, 70 702 déverbaux (substantif verbaux « J4-I43», participes
-actifs et passifs « dam‘; «Lu-I’:J| gm) », adjectifs et noms de temps et de lieu), 39 099 noms, 445
-mots outils et 1 384 noms propres (Anizi, Dichy, 2009). Il identiﬁe en outre les traits
-morphosyntaxiques des mots. (Abbes, 2004) a trouvé que le moins ambigu des marqueurs
-est la racine. L'ajout de nouveaux traits augmente la discrimination dans l'analyse et offre
-plus de solutions.
-
-La société XEROX a également développé un étiqueteur. La phase de segmentation pour cet
-analyseur est faite par un transducteur a états ﬁnis (Farghaly, Dichy, 2003) en découpant la
-chaine d'entrée en unités lexicales qui correspondent a une forme ﬂéchie ou une
-ponctuation, et en donnant a chaque segment des étiquettes qui représentent le
-comportement morphologique des unités lexicales et leurs catégories. Cet étiqueteur
-regroupe 4 930 racines et 400 modeles qui permettent de produire 90 000 lexemes. Il utilise
-des regles a large couverture, par contre il génere un taux assez élevé d'ambigu'1'tés lexicales,
-et ne traite pas bien la phase de désambiguisation.
-
-TAGGAR est un analyseur morphosyntaxique spécialement développé pour la synthese
-vocale arabe des textes voyellés. Il prend en considération l'ordre de traitement des mots
-pour minimiser les erreurs d’étiquetage. Le traitement se fait dans l'ordre suivant : analyse
-des mots outils et des mots spéciﬁques, analyse des formes verbales et enfin, analyse des
-formes nominales. Cet analyseur utilise 35 étiquettes grammaticales qui se répartissent en
-trois grandes familles de catégories : 4 étiquettes pour les particules, 16 étiquettes pour les
-verbes, et 15 étiquettes pour les noms.
-
-L’évaluation a été faite sur un corpus de 5 563 mots ; TAGGAR a obtenu un taux d'erreur de 2
-% sur les étiquettes ce qui a entrainé seulement 1 % d'erreurs sur les frontieres de groupes
-syntaxiques. Pres de 98 % des pauses insérées automatiquement sont correctement placées
-(Zemirli, Khabet, 2004).
-
-MORPH2 est un analyseur morphologique basé sur un lexique réduit sous forme XML qui
-contient 5 754 racines trilitteres et quadrilitteres (Chaabaen Kammoun, Hadrich Belguith,
-Ben Hamadou, 2010) qui correspond a des schémas verbaux et nominaux et un ensemble de
-regles linguistiques. L’évaluation de cet analyseur a été faite sur un corpus non voyellé qui
-contient environ 51 404 mots (23 121 différents). Les résultats obtenus en termes de rappel
-et de précision sont respectivement de 89,77 % et 82,51 %. Cet analyseur prend en entrée un
-texte en arabe ou une phrase ou un mot pour fournir en sortie toutes les caractéristiques
-morphosyntaxiques possibles pour chaque mot sans prendre en compte le contexte dans
-lequel il se présente.
-
-3 Segmentation et données utilisées
-Le probleme de la segmentation ne se pose pas de la méme maniere pour toutes les langues.
-
-Pour les langues comme l'anglais ou le frangais, les unités lexicales (tokens) sont dans la
-plupart des cas reconnaissables par une simple analyse graphique en s’appuyant sur les
-
-1 http://diinar.univlyon2.fr
-
-72 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-caracteres séparateurs (espaces, ponctuations, apostrophe, etc.) présents dans les textes.
-
-L'arabe, quant a lui, est en principe monosyllabique, ce qui signifie que chaque syllabe peut
-étre une unité lexicale. Il est possible de former des mots complexes a partir de plusieurs
-syllabes, ce qui rend difﬁcile le probleme de segmentation. La majorité des travaux de
-segmentation se basent sur des regles qui s'appuient sur des listes de clitiques, préﬁxes,
-sufﬁxes et racines (Mars, Zrigui, Belgacem, Zouaghi, Antoniadis, 2008). Ces regles s'appuient
-sur les principes de constitution d’un mot complexe et son contexte dans la phrase. C'est
-pourquoi il est difﬁcile d’identiﬁer la racine (unité lexicale) pour les mots qui contiennent
-des ﬂexions (exemple : les terminaisons des verbes conjugués).
-
-Au cours de notre recherche, nous avons essayé d'élaborer un algorithme de segmentation
-en nous basant sur des regles qui traitent dans la majorité des cas la forme correcte d’un mot
-en arabe. Le succes de notre méthode repose essentiellement sur un grand corpus de mots
-non voyellés segmentés manuellement. Notre algorithme de segmentation est composé de
-trois modules organisés de maniere séquentielle. D'abord, on effectue une segmentation
-grossiere au niveau des espaces et des signes de ponctuations. Ensuite, on examine les
-tokens? ainsi obtenus, et on les compare avec les formes déja segmentées d’un corpus traité
-de facon semi-automatique (cf section suivante pour une description du corpus). La
-segmentation est considérée valide si le token est trouvé dans le corpus. Sinon (c.-al-d. si le
-token est absent du corpus), on recherche, grace a une expression réguliere qui représente la
-forme complete d’un mot arabe (pré-bases racine post-bases), les éventuelles pré-bases et
-post-bases attachées a la racine. Cette expression est construite a partir de listes déﬁnies a
-l'avance. Pour chaque pré-base ou post-base identiﬁée, nous vériﬁons le statut de la partie
-restante du mot découpé. Avec cette méthode, nous avons noté qu'il reste des ambigu'1'tés de
-découpage pour certains mots qui peuvent se découper de plusieurs facons différentes. Le
-Erreur! Source du renvoi introuvable.Tableau 1 représente les trois différentes
-
-segmentations du mot arabe (,4-A-ll) en fonction de son contexte dans la phrase :
-
-Segmentation Traducﬁon en francais
-‘ah +,a.\ + I les a-t-ilramassés ?
-‘:3 +,a.\l leurs douleurs
-
-NJ: +dl l'important
-
-TABLE 1 — Les différents découpages du mot as-All
-
-Ce probleme reste difﬁcile a résoudre puisque le découpage de ces types de mots dépend
-obligatoirement du contexte et de sa position dans la phrase. La résolution des cas
-d'ambigu'1'té au niveau du découpage reste une tache non triviale. La qualité de la
-segmentation dépend de la taille du corpus qui est censé couvrir les mots les plus fréquents
-en arabe avec leur segmentation correcte.
-
-2 Ensembles des unités morphosyntaxiques minimales (mot, une partie de mot, clii1'que...).
-
-73 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-4- Adaptation de 77'eeTaggerpour l'arabe
-
-4.1 Principe de 77'eeTagez:
-
-77‘eeTagger est un outil permettant l'étiquetage morphosyntaxique et la lemmatisation. II a
-été développé par Helmut Schmid3 (1994) dans le cadre du projet TC4. II a été utilisé avec
-succes pour de nombreuses langues (anglais, frangais, allemand, italien, néerlandais,
-espagnol, bulgare, russe, grec, portugais, chinois, swahili). Il est adaptable sur toutes les
-langues en utilisant un lexique et un corpus d’apprentissage manuellement étiquetés. Pour la
-langue frangaise, (Stein, 2007) a entrainé cet analyseur sur un corpus d’apprentissage
-contenant 2 685 146 mots et l'a évalué en utilisant un corpus contenant 500 000 mots. Il
-rapporte un taux de précision de 92,7 % pour l'étiquetage et 97,8 % pour la lemmatisation.
-77‘eeTaggerpeut en effet présenter la lemmatisation des mots en plus des étiquettes.
-
-4.1.1 Apprentissage
-
-En général, la phase d’apprentissage des modeles d'étiquetage pour une langue donnée
-nécessite un corpus d’apprentissage, un lexique de formes ﬂéchies et la liste des étiquettes
-les plus utilisées pour identiﬁer la catégorie des mots absents du corpus d’apprentissage
-(classe ouverte). TreeTagger utilise des arbres de décision pour l'estimation des
-parametres. L’apprentissage effectué par cet outil permet d’évaluer la probabilité d’une
-transition entre un couple « mot/catégorie» et un autre couple aﬁn de produire un arbre de
-décision binaire a partir de ces probabilités.
-
-4.1.2 Lexique
-
-En général, l'analyse morphosyntaxique repose sur un lexique contenant les informations
-sur l’usage grammatical de chaque unité lexicale. Ces informations varient d’un lexique a
-l'autre. Le lexique joue un role important pour l'identiﬁcation des catégories et du lemme de
-chaque mot en entrée. Nous avons construit un lexique assez vaste en utilisant la liste de
-mots proposés par (Buckwalter, 2002) qui était utilisée pour la réalisation de l'étiqueteur
-AraM01p11. Nous avons nettoyé cette liste contenant 82 158 racines représentant 38 600
-lemmes. Ce nettoyage consiste a éliminer la redondance des mots sur des lignes différentes
-pour obtenir une forme adaptée a TreeTagger. Nous avons ajouté les listes de pré-bases et
-post-bases a l’entéte de notre lexique pour le compléter.
-
-Notons bien que le lexique ne contient pas de chiffres. Par ailleurs, il nous a été difﬁcile de
-générer automatiquement les lemmes des entrées de notre lexique. Nous avons gardé, pour
-la plupart des cas, la forme voyellée du mot, et nous avons ignoré les lemmes des pré-bases
-et post-bases ajoutés manuellement.
-
-4.1.3 Ieux d'étiquettes
-
-Pour gagner de temps, nous avons décidé de prendre le jeu des étiquetes proposés par (Diab,
-Hacioglu & ]urafsky, 2004) car nous avons utilisé au début ASVM 1.0 pour la préparation de
-notre corpus de travail, malgré que dont tres réduits au niveau de leur nombre en ajoutant
-une étiquette qui désigne la fin de phrase (étiquette spéciﬁque pour TreeTagger). Ces jeux
-des étiquettes contiennent 23 étiquettes qui permettent d'identiﬁer les principaux tokens en
-
-3 http://www.ims.uni-stuttgart.de/~schmid/
-4 http://www.ims.uni-stuttgart.de/projek‘oe/tc/
-
-74 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-arabes. Le tableau suivant donne une idée précise sur ces étiquettes :
-
-Tag Explication Tag Explication Tag Explication
-I] Adjective NNP Nom propre PRP$ Pronom
-possessive
-RB Adverbe NNPS Nom propre pluriel CD nombre
-
-CC Coordination VBP Verbe a l’imparfait IN Subordination
-
-DT Déterminant VBN Verbe passive UH Interjection
-FW Mot étranger VBD Verbe parfait PREP Préposition
-NN Nom singulier RP Particule WP Pronom relatif
-NNS Nom pluriel PRP Pronom personnel WRB Wh-adverbe
-
-PUNC Ponctuation SENT Le point de ﬁn de
-phrase
-
-TABLE 2 — Listes des étiquettes (Tag).
-
-4.2 Etiquetage
-
-Préalablement le texte a analyser doit étre translittéré avec le codage de Buckwalter et
-tokenizé avec notre script de segmentation. TreeTagger a beaucoup de points communs avec
-les étiqueteurs « n-grammes ». Dans ce type d'approche, on modélise la probabilité d’une
-séquence de mots en fonction des étiquettes des mots précédents/suivants en se basant sur
-l'équation suivante :
-
-P(w1w2 ...wn,t1t2  tn) = P(tn|t _2t _1)P(wn|tn)P(w1w2 ...wn_1,t1t2tn_1) (1)
-Oil w.- représente un mot et ti représente une étiquette.
-
-Ala différence d’un étiqueteur « n-gramme », TreeTagger estime la probabilité de transition
-a partir d’un arbre de décision binaire généré pendant la phase d'apprentissage. Les noeuds
-de l'arbre représentent des indices contextuels, et la probabilité d’un trigramme est
-déterminée par le chemin (de longueur variable) correspondant a travers l'arbre. Par
-exemple, considérons la séquence trigramme des mots qui ont les étiquettes suivantes « DT
-]/ NN » (avec DT: déterminant, ]]: adjectif et NN: nom). Pour estimer P(NN/DT, ]]), la
-probabilité d’un nom précédé par un déterminant et un adjectif, on suit le chemin valide en
-commengant de la racine qui contient l'étiquette //jusqu'a la feuille qui contient l’étiquette
-NN, enpassantpar Tag-2=D7Z et l'on retient la probabilité P=0,8.
-
-75 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-NN : 0.8
-
-JJ : 0.1
-
-FIGURE 1 — Exemple d'arbre de décision binaire.
-
-Par défaut, pour un texte en arabe segmenté, 77‘eeTagger donne une liste de tous les mots
-avec leurs catégories et leur lemme s'il existe. Un paramétrage de TreeTagger permet soit
-d'attribuer le lemme « unknown » a toutes les formes inconnues, soit de donner la forme
-elle-méme sans lemmatisation. Ici, la phase de segmentation est effectuée par notre propre
-script et non par les tokenizers génériques de TreeTagger. En résumé, ce processus
-d'étiquetage nécessite un enchainement de plusieurs phases, comme le montre la figure
-
-suivante :
-
-I
+TALN-RÉC!"ITA#L$2%0&1'3,(1(7-%21 Juin, Les Sables d’OlonneǯÁ)%*%)+!%+!
+ǯǯ±,-%%,.//%-!01-!
+"2.'ǯ1!!546!7,89:!4:!-1%!;<=+'3-!2>''110&<4)!!!!?!@AA@!B.-<0!
+CD7EFD!GGGGGGGGGGGGGGGGGGGGGGGGGGGGG!G"GG#G$GG%GG&G'GG"GG$G%GG(G)GG*G+#,(&-$+.".)0! =%+! .-+<=&%:! )'10! (-#0%)+')0! &% GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG!!&,..OH$!
+-)
+N%-'
+%/%
+L#)
+1,
+L.%0
+%
+&=!
+.<=
+!/
++01'
+.
+%/%*
+-
+-%
+.-
+-!*
+I:!%-
+!&N&#%
+J#
+N%+)
+!
+.(
+K 0! #+.(%0! H1! H#$%&'((%*%)+! H%! -%00'1-=%0! ('1-!ǯÁ  ǯ ǯ    ǯ±   
+)=(
+1
++#
+
+-%!
++
+.!(
+#
+<H.
+!(
+)%-
+'
+%!
+
+!*&
+10.%-
+!%=
+!/0)'*
+'
++)
+)
+!%0
+!+)%<
+
+++L
+
+.L1<
+
+++=
+
+<<.''
+=))<!+!
+àH#&%!%
+%P!+)<!
+
+=&'..
++&!
+-/%%#
+
+J!!)=
+
+"'#
+
+.--
+
+)<(=
+
+01<
+
+!+0
+°#1!!H)H%
+
+!%!
+
+0!+0
+
+%-'.
+
+=)
+
+'$!.
+±
+).<
+
+H-&
+J=!!>2
+
++%%<+
+
+*&%1
+̵=±(<+M
+
+01=
+
+:!<-!=%)
+J%'!B
+
+!1='0
+
+'1!.
+
+--
+
+(!!H=
+
+1%N
+.0!
+L!I.
+
+.'<!--
+
+(%H
+:%!!
+0)-%*'-
+1$<00<
+
+!!!&(N#-#+<+R-1.<%++%%*1-%!)S+70!;-F%R!14J<A0::!!%01+ <$<H! H%N!1,)-%%!%(,2../0/%%! H-:%! !/=-'Q-=-%%!=+O<!'1)!)*! (.)-%1*%&<&%%-J!!K#'+<1R01!%H+#.+/.%<&!&'-)#.0!&<.0<#)!0.<!$&%%0=!!KR1'.1)0+!<++.%+-<*$%<)J!'>)%0++!%(! .#-$!.1)!%&%! 0#!$H.<L&L1#.-+%<'))+%!00!'#*+.*(%.0<!-H%%! !H&.%!0(!2-.#00%1!&H+.N.+0(:(! -O%!)&+.<!00L'./<0%!! .R$1%.=&<!+=.%++<!$'%1! +%<&+J!!*')+-%!R1%!)'0!(-%* &1.+<'):! I<%)! R1%! -#.&<0#%! 01-! 1)! ='-(10! H%! +%0+! H%! +.<&&%! *'H%0+%:!S"T%7$,%C&'S(>,*!G%G)G+G!G'GLG!G-G%G0G'GG1G
+<
+-G
+%
+=G
+-
+%G
+0G!0G
+-
+!LG
+#
+'G
+0G-G
+1
+!+G
+&
+-G
++
+.G
+.G+G0G!G0G'G)GG+G!%GG)G=G'GG1G-G.GG/G%G.G)GG+G0GJG!GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG!!
+8)!+2<0!(.(%-:!U%!(-%0%)+!+2%!0+%<()<)/!.)H!+2%!10%!'L!+2%!+.//%-!,-%%,.//%-!')!S-.I<=!'I.L='&.&
+!
+$0:
+.!%U!%H
+)
+-%.!
+%!'U/I)%%!
+!
+J!,/
++'
+,.-2%
+')<%
+&!!0,I
+L'.W/-! !//+.%2+-%2:!!%.(-!/.<)%-+)/M!%'.-L!<M=U0!(0'%+-'%
+0
+Y==
+!'
+<22
 L
-
-Corpus
-d’apprentissage
-Li
-
-{I
-pp
-
-Lexique
-L;
-
-{I
-pp
-
-Classe ouverte
-
+).!
+!
+/+0
++
+!.
+2+=</
+%
+'=/
+!!H-+<(.)
+%
+1//
+$/0!
+%'&':<!)L&!/
+(
+.S!
+*
+-+/-'.
+%
+%'I
+)
+!&%:<
++!=!)$J
+'!%L'V-
+!-
+1W/%
+%!2(!
+0<'!'*
+1
++('(1
+-=
+! &%&%.
+%
+)*-
+0!L
+0!L1%'
+'
+-)-
+-
+%+!
+!<!%
+++-.H0
+.
+!!!%
+<
+/.
+)L%!L
+<
+)+<
+)=./%</
+!
+-%/
+.
+.)<
+)
+&=)
+H
+!W&/
+!
+<J!
++
+)!X0
+2
+/W<
+%
+1-00
+!
+<+
+1
+0+%
+0
++!*'
+%!
+<=L!!!+'U-'L
+.! +<2)!,-%%,.//!%=-'J!-V(1%0!L!<2-.0+0!!(I-%%%0)%)!1+0!'%1H-! !+*'!%<*+2('&H%!*'L%!+)'+Y!%+2)%<Z!.+'+<Y'%)):!<+Z2.%+)<'!U)!%(!H-'%=0%=0-<0I:!%.!0.!&U&!+%2&%&!!0.+0%!(+'0!!
+-%L.!0+0+2-!0
+%
+<%=1
+!!(+I'
+-
+%01
+%
+H%+
+(
+:(R
+-
+!+11
+'
+2+%
+=
+<00)
+%
+!:%!+
+0I&$W
+0'<.!*+
+)/
+&12.
+!
+.! <)
+.
++)<1
+)
+'!.
+H.)&!
+!
+!&
++
+0RW
+-
+21!
+.=<'.'
+)
+U)-
+<+%-
+)<%/H+.=
+!
+!-++
+(
+%<%$
+-H%'J!!=X.%<)0)H0.:!!&R1&W10:!<.U)&</%+!.!S<+*<7$;(%F&!%U*!4.%JWA):!!++'%')H!!W!..<!!%00&+H*-!...<&!/&-2!.++%UL0'!+-B!U=['.7--!(H+.1!%/0$/J!.<,)&12/.'!++12<'/.)2+!!!
+F^ [,7M>\D7!]! ,S\K:! &.)/1%! .-.I%:! =
+.'&-&(W!1%0)!=H'N1.-(.(/-<%))/+!-<0%00.1/&+%0:!J!#+<R1%+./%! *'-(2'0W)+.P<R1%:!
+& !%_P
+`<=V'[)C:!"+.7]/!0K%\+0B::!!,S-̵-%.%I,<.=/!ǡ&/.%)-/:!1S.7/;%F:!+4±-J.A<J)! <)/ǡ!='-(10:ǡ!B[7!+.ǯ±//<)/:! +'ǡY%)<Z.+<'):!Hǡ%=<0<')ͳ! +ǤͲ-%Ǥ!%:!
+!!!!
+69 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne, ##&&-<<+#44&
+"
+%%.
+#
+--+ /
+$
+((&
+%
+==(
+&
+++%
+'
+1&&.
+(
+(03+;*1
+)
+)2
+$
+%*2+
+*
+-1
+&
+321-.#
+#
++.3
+++
+$+%(>2-(*+$-22+%#12-.4+-2+(-$.-$+('%-.++5&1#($.+ +'-6#)+*5'16(+.'+-(+$%*-1*#.6'-%+-.+(5%(+41-1+*)7.8-+?428+%9+#2*+151--((%$+.:0++*$1%+ -&=(*;.-$-%++''--++'2(-.$&+ <'&2)$*(><(--+#'$-.++ 1261+-12)#$%3&(#-*+>$C+(D12-E+.1B82+F#B+352(&+ -(%+%6#+2211G$*2(.%2%2$-4*1&-1-#++#+>6'()-*-++@.2.#)*&$*1-(*+$;---##11+$-+51.%2+-+%<2-5*)5-A%1-*+)%12*)-$A(*&-++#'-.-$+++1'-26#+);+&-$#1%&.25(*$51-$-2<%$+*-&(###$+++
+B°ǯ±2#$+-$+%&4(.$-8+<5ǯ±1 &
+$.+'-.+ *#@&%<2$*&#.+<&%5A&1&3ǯ*>(-.+)&#)-%#2# $+1-(%.+)2$63&%*-.+<&%5A&.:# $2=*>( 
+N-* +
+2.%+@$&*-%.<+'-(.++'@1*6.))A&*(-%..++.H&+)#-$$+$%-2+<&5-6#%62-$.*&+I#++16-$(2%#+@$&+5%2<%@-&+)*.2+#2)&)#&*><(5-2+C31#-6<-<+'-G(F#8+-J+-1-1&<#<+CB22$*5.&2$%*$&-#+0++1K&L%-L..>L+&(F(+-M++++
+ǯ  ǯ
+)'#@&%<2$*&#.+ 1*#3(*.$*>(-.+ O
+     + ǯ
+ǡ ǯ ǡ ±+ 6$*>(-$6.+52%+'-.+
+Ǥ    ǡ ǯ±   
+6&#5$&
+&
+%*
+<#
+&$>%
+#
+4(
+5
+-2-
+61-+4$
+-$2
+=+-
+*%13
+-
+2*.-
++I
+;$+2-.
++ 2
+*.$1++2
+4
+C)$
+&
+<*&.
+%
+#&$
+'-%+I+ )2(.-+'-.+2<4*3(P$6.+ 1-=*)21-.+ '-.+(#*$6.8+  ±ǯ±+ǯ 
+*)'>-
+
+Q(%
+
+1-#
+
+-+
+
+.-4
+
+++'2)
+
+-.-+6
+
+)$+$
+
+A.-2(
++ '%±+-'%-#.*+Q)%&-%+5)(2$.6ǯǣ±°Ǥ3&ǯ%*-+'-D+%.-:-.D$2Q3<3--0%+ +->$(+ 2-++ #%-&)(&.(+2%;.+&I#+.'+(-.$*+1<*.6&+''Q21#-..++
+D%--D23 *#-+'-+R2%S&;+)2)A6-.+TRR+-$+2%4%-.+'-+'6)*.*&#F8+*2$21*-#0+#
+36--%%+122#+ ''62/*I.+0+6-$.65+2<3#*.&+1-0+#4+(à132%-0++%(.(..%-+ 05+31(%.-*)-0+(5%&.%+ $1(2#323*(.-0+.)+AC*2##&3*.120+*..V0+ 2@%A2*#1*UF20+*<.02+ *2.1+15-<2.2+.#('%0++
+ǯ I+ #&$%-+ )&##2*..2#)-8+ ǯ   
+W%2(-
+2$+42-%+$2*@)*1#-++'--.+$'+&*.%53&2.#-*.%6+'+)G
+  ǯD%--D233-%+ I+ 12+ 12#3(-+
+&<<-+°.(*$+M+1ǯ2±+.-)$*&#+K+5%6.-#$-+>(-1>(-.++36$6*#>6(%-*$>-((-%+.-+$-+3=%*.2$$2(#*$$8.+++-#
+%6%$*.21(4*.1-6$02+-1$.2.0+++.&12-4)+$.$--*&#)#($*+.&X+#-+'$+Y+61+-)5.%%*+5$6+-.1--%+.#55$%--*#+)1$)-**+;55--%&+')--+...-(3<-#$2$*&#+'-+#&$%-+.:.$Q<-+2*#.*+>(-+1-.+'&##6-.
+++
+ǯ±D%--D233-%8+B-.+
+K .+'-+)-+$%2;2*1+@-%&#$+ǯ+Z8+\$%-
  
-
+*;)*&2#
+[
+1-#
+$
++2
+2
+']
+$
+($%
++'
++-$%+
+-
+21
++21*$+
+G2
+-)<2
+%$$-6
++
+#3&$+%2*(-$+&<<&2%5$*A>&(.-:+'#-$2+1=2*+>12(#-3+(-ǯ+6) %*$-8+[#+-@@-$+%-#'%-+(#-   5)6)2
+2$%6$3*)
++<2)A*#-+)25241-+
+ǯ&(%1**--.%+++'5*@&@(6%%-+±#1-$-..+8+<B&-ǯ$..++.:2.<$ 4*3(.0+ )G-.$HIHà±±ǡ  ǯ  
+5&$*<>(<--$-+ (1G%2.#+<31&2*%.5+A&&(.+:1#-$+2@=%*2>#(U-2.*+
+Q.C<05+ 2-%.$+H2&(@H$.&5<-2-$)*A>+($2-3.3+ '-%60'+-*6#.+2+ I#+3)12-*$.$F-8++E$^()+A)-&+#.$&%2#*$%+-2+5'5--+1126#.3+ '(--..++ǯ .:#$2=*>(-+  ǯ  
+'E-
+2.%$+2*)5(51%*Q&%)-A<-.-+#'$*@+ '*@@*)*1-+ I+ )2(.-+ 'G*<5&%$2#$-.+ 2<4*3(P$6.+ 3%25A*>(-.+ -$+ '-+ 12+ 5%6.
+±-#)-+
+ǯǤ@6%+-##&$<-.48+%_-&((=.+ $+-%#2;+<2(-=#+$&*&##$+ 6$6+-@@-)$(6.+'2#.+)-+'&<2*#-+-#+.-+42.2#$+.(%+
+.&-%%3$2A<<&-&3#%%2$5-5A%A++-1*-.>.$(++(<-#.&++.2$&.#+#2-$1#:+-+.$#-%&)(&*%.'+'+56*-.2$.%%+$*'*4-*(.%-+6C)+55$%-26<%@+*1-=-#-+
+#B&$+%+*'2#
+#
+2)3
+.
+*#(
++*
+#.*
+)
+-.
+*
++ +1$
++
+.-*
+>)((+1+@,
+-1
+-@*=2
+>
+=*$
+(
+->2F(+
+-
+8W
+.
++-"&
++(
+01++#
+#
+.(5.
+.
+$&
++
+*61%
+M+
+)*.$**@-(*+6(<-#.+C++1B--#,=+*W$>-F(0%+-<>+(--*$.++5'+'---%.<++%%QQ-33$+11'---..+++
+±±±Ǥ°±±ǯ
+70 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’OlonneB"%""#,,1,!""$##C%09%1'&&"2"*#3'"#"'(#,")#+,*$##1+D9$+0%*%>,&*"",#&%:"?,###0-E9.81/-#,##1"0$%1*,&'12#&*,39""C''@>4"4##''.#)5!26"2*##3+'"$)#D2"2,*03#1,"99'+C#**"%>,*",#&#7:#/F)##,/6*>8F*'.?&#"19'#+0*%$")'1##2:9;*)1"+#<>9=#+9$>,D"1C4#*%?95*5'?$@%A##:!!F**21#2"*+
+#"%,1&"'@#",#01&2*3"#",#')22*3"#
+ͳ#͵*(ͺ>")'"##'>$"%#±>,"#+3$ሻ*(Ǥ!)&""ǯ#'+#!$*%1,"*+",%",D#,"$%),ǯ,#"!'9#%>'# >"# >"3*()"#",# >"'# ,9C>"9)3#!"# +$D09,*C*>*,&'4±# +G"',HIHK>"#0'#1'&"2J*3D""# 1%9,+9*,%*$"%# '')#%22"*#3'"$#%L#,:#PM9A>N99CC>"9''#O(4)#?""#5''5*##>E'"@"'JD"%,9,*$%'# 0$''*C>"'# !"'# D$,'# '$)'# >9# 2$1D"#Ǥǡ   ±ǯ,4#Q"'#0$*%,'#2 #!*22&1"%,'#+$D0$'9%,'#"3*',"%,#!9%'#>"#>"3*()"A##>2,*:*
+'%,*&,#'0#D919#%9))"J9>D*>C">"D"%'",#"%!1,"###">+","##,,+$#$9)W%',9##>>!"R"''##">D")319V#*'%D",#""1'%&#'9!)%"D+'"#"2#$%!1,)D#9# >"*"%'3'#2**>(#&:)+S"O#A*TX"#,'*,>##*99R'4##'9?$#5+)5*%&6"#@'##U'#,$$%),'#&#>%")'#D>"&D1&D'4"#+'#"'#$(%),*##p1$C>VD"# 9
+!1+"$"
+93%'
+*"#,"Z)D2$
+D
+J01)D
+">&"
+%
+'"'
+,
+##'
+#
+IU
+!###>*K
+"
+9D#
+'#
+#P0
+0
+$&
+1
+*1
+$
+39L
++
+#0,4
+>#**9KP
+,*()"'# *%,"11$J9,*2'#()*#'"# >$+9>*'"%,#9)#!&C),#!"'#P"1C"'#"),##%!*"P'"#9%)$#D!)'##
+ϝϮϗ΃˴΃# 'Ϊ"'Ϥ'*Τ# ϣ˴X#΃#'L"@)#X>#"'D")">%",D# F"#%E,5#?E?# P#P""11CC""''# #''))11##))%%##,,$$,,99>>##!!""##..##FF..//4#4'#$'$*,*#,5# 4F5-5#?Y#Y# '#$$%%,,##:'[*9C4#N9+*$J>)#",#\)192
+P"#9)#01&'"%,#",#FF5#P"1C"'#9)#09''&A#
+_'>'#$%,#"%,19*%&#
+'<R4#?55E@#$%,#!&P">$00&#)%#9%9>R'")1#'R%,93*()"#C90,*'&#T]^S#FA5A#
+°ǯ±')1#>"#+$10)'#
+!)F)!"
+10#E#0?#$-E1F#,.&A#,#0*(O)1"9,',""''A##"Q,"#
+919C"#9%%$,&#`1"";9%<#"%#'"#C9'9%,#
+#+$10)'#"',#! *ǯ K# a9D+O9# L# ()*# ),*>*'"# >"'#D9+O*%"'# I# P"+,")1'# !"#±± °ǯ±
+&D!,
+F"*#.(.)#0-"O4,E"1.9)'#1"#Y:'%##0$!$)")'#1#D>#">"$#,!'&# P+"$>1$10"0+,""DD""%
+'%,,,#1"#*C,&#),E*&5(#)5+$"#0D,&OD'1A9#"'M#"'$')#)*0,'#$#U)#9E1P##Ͳ$>"%Ͳ#'Ͳ,#"'9,%A#9Q>"R''#&1#&>'")'>#,91&,ǯ''#)$>C,9,",'%#)!'"#'#$+%",,4###
+'+"$"
+9J1'
+Z
+1D#
+$
+"%
+1"+$
+*%,,D
+&,&#'!"#"'9'@P##""!1+"1##">+")"'1,##'
+'9&#
+#!'9,*$Z
+P
+("%
+$
+)+,
+%,"#*>
+'
+,2*
+#
+"'&
+)
+)#""
+,'*1,##
+>I#*''*)#%>
+&91P
+'
+##%D
+#"01$9
+$',)"
+)
+1"DP
+1
+#9
+#
++"
+%
+$%
+$
+1,
+,
+0A
+1#"#900>*+9,*$%@4#",#%$)'#9P$%'#1"D91()&#()"#>9#)'#9#!$%%&#)%#,9)ǯ3#,1V'#2Ǽ9*C>"ǽ#!"#'"JD<""%%',#9C,**$"%%ǯ±   # :,$ ##
+:[*9C4 "#:E6#Y@A#1&')D#"?#5!59.%@'##9>#91#&09O>*9''&"#)# %!""##!'"")J3D*V"D%,"9#,P*$"1%'#*+$$%%#9+"D1&%>9*$%1,&# >""#'!#"D#+$",,'#&# ,+*$(D)"0,$"')&1'Ǥ#:ǯ091±# "3"D0>"#>9#
+'±"JD"%,9,*$%#:.ǯ.4?#Y@4#Ǽ"#,T>#:˴ϝ΍@L# ",# >9# 01&0$'*,*$%# K#C# :˶Ώ@#L@A# Q"'# 1&')>,9,'# $C,"%)'# !"# >9# ²±ǯͳǤͲ#0>)'#0"12$1D9%,'#9)#%*P"9)#!"#>9#:]J;B1a"9
+9
+,M#D
+O
+9`
+$
+%DT
+)
+9b9
+4#
+>cR*1
+N
+'#"(
+9
+"#))N
+!*1d
+1##D
+*
+1]
++
+"e
+O$0#
+#!$:&
+;N'>
+"
+"*"'
+>
+#9"
+J)
+'!)#!H
+*,#
+1!"
+O9
+# ,1'
+4P
+1*#
+# "P,$""
+;+
+*3
+"#)
+'%#,#
+%%
+0"d'
+# "
+1O*#
+N#0
+%9119
+91
++9
+D&+
+*'0C"9#"
+9*]>'
+!'*
+",#
+$$
+'1%
+)%
+#)$
+4
+&+%
+##!
+,,9#)
+?"P5
+#0
+01$
+5>
+""R'#eA"
+-)
+#>
+@'
+Q1>
+##!9&9D'
+$"
+#0#
+%#.:D1%
+,#6#
+"9$
+0Y
+D1%@
+1
+*#V#P
+&#9"1$
+'),"
+#
+"+##)9
+%%
+&%>
+,*
+,*
+&P
+9#'>
+#"9)#!"#>G&,*()",9J"A#&0"'
+ǯ
+"3@
+9
+#*#(
+%
+0")"%
+9>
+1"#
+R
+D#''
+'"""$#,C)
+)
+#9'
+1
+>9'#
+#2#9$
+'
+J%
+R1&,D
+%
+%#'
+,9
+&")
+3
+1#19b#
+*(
+,)S
+)
+*$%Q
+"
+%"A
+#
+###
+  Ȁ 
+ ±  ǯ  
++%",
+#9%9>R'")1#9#&,&#29*,"#')1#)%#+$10ǯ)'#!%"J#,#"NǤ3d,"]'e##,L*1#:&d'#$°!0G)$%=#D*+O94%#^)$">J#"!>"°4##F>9.#.±5@±±ǯ$1*,OD"#K#BO91,#d91'* Ǥǯ±
+0$91%P#P"%$R)"#I>>#9&%"'9#>:R'$*,#E5-5#D$,'@A#d91D*#+"
+9')##0'O"1*%9'#!")'4##>.96C$#+1$9%,$,**"1%"#%Q"T%f,#_!]"4#'+#/$D"%#,$9*,"%'%%#%,&#$"6%#-!#5"1#"#0C+O9$1'%9"%'#!)""''##ǯD"%,#,)%*'*"%A#B"#+$10)'4#'9*'*# #
+ǯ±±#9%9>R'&#091,*">>"D"%,
+#')"%1
+A# #])1#)%#,$,9>#!"#--E#0O19'"'4#]aM`Tbc#"',#
+S$10OT19C# "', ##9+$%191>"R+',"")D1#"D%$,#1E0EO/$#0'RO%19,9'3"*'(#:)?"/#?!5"##D>9#$>,9'%@J#')$"*,# #9/1F9#CY"#A#!&P">$00&# 091# :TCC"'4#
+71 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne84'1)(2
+*"5
+(4)
+**(
+"&%5
+#2
+5D4,
+'$
+2)%)
+Ǥ%
+'(2
+&'
+*1
+%
+%,,+
+ǯ
+)&1*
+'2%92.=
+5
+2%58
+:=D%
+8
+2'(
+ǡ' % ;5+1-%  ±% &'%()*% '+% ,-./012'3% -145+'% '*% ,)2*/012'6% 7+285*'3% 5&%ሺ ±  ǯሻ<% ǯ% ='% 4>1:8'%
+%%E<%?%#@Aǯ%B'-0'23% A" %A"! %=.B'-0189% C2802*1+*5D%B'-0189%%E% Ǥ  έΪμϣ˴ »3% ,1-*545,'2%ϞϋΎ˴ϔϟ΍ϭϝϮόϔϤ˴ϟ΍%Ϣγ˶·%F, 1=G'4*5D2%'*%+)(2%='%*'(,2%'*%=
+,&8)
+*-22,
+%
+%=>
+))82*L5&+2*%1'9*5%:<8%H'2I%#=%'+2%)(()2*%2,6%-C)J,0-0''22% 3C%!J"+"5K#5$3%%;1%5*4->)L83%B!.%":"8?'$%6&%'M%&(% 5)=5'++'2*%%5&1D55(''8%0$'53%N+H8%?%)=%"8'?*2-?%'(%%+&1)'-(2:%28*3-'%#18#5-*@22%%%
+  Ǥǯ   ǯ 
+O41%2)4
+'5.%2*).&%8P*75)Q+R26%1,+1&L2'8-%'2*%D15
+P*'%1%,%.1N-%18&'+(%*-'1++*2%==.8B4'*'&),,.%8+%.*5:8'*'8-6%O1%,>12'%='%2'N('+*1*5)+%,)8-%4'*%
+4>)1+U4+*'8%1*=5V)'++3*%-.''*%% ''++%% 8=+)5+*+.21%+*&'% 9S54% 14&>'
+821%-:%8:S%'8.%5*%124*'2)N%-D(-5+''52+2,%*C)%T+=1='-'N2+%>*1%.&*LS53:%%;88'5+4*'>*'%L23D%%)!-":(8"5H'%%$%-D''&+.,4%-=>..52'4'%)+8)*,'8+1% +*8%*+%&&''1%%%-''
+)N(-),8),-*''%(#%'?+H*"%%-(14)5-+,'>2)%'&)*%N#5":"8%'(% )=='X2&%'82%+:58*.5%2,%'&-'(95'4*1*&''+2*%%=''*%%,&'-)8=-28%5-4'1%*?."N%)"-"5'"2%&6'% 9WX'(*%'.2*6%5M:&%88'**5&'582'-%%
+°ǡ±°±±ǯÃ± 3%
+Z*J%+['[%*J-1Q5%*''%2,*1% 28%+0%5'1++%1&1&L%,2>'182-'% %(=')%=-,.>21)(2L0+5*N189Y52:18*5')%+26,% .451&'('+*% =.B'&),,.% ,)8-% &1% 2L+*>X2'%
+=D* '
+2%() *2%)8*5&2%'*%='2%( )*2% 2,±.4Ǥ5D5:8'23%1+1&L2'%± ǯ ǯ±Ǥ='2% D)-( '2%B'-01&ǯǣ
+B)-')--(502'%'N22-%1++)=('52+%D11&('256&%&W''2*%=%1'+%411&L*.2N')8--5%'82*%5\&%5#2'%.%H*5@:%8.'**5:*'82'%*,*)'82%-N%&-'12(%,(1-1**554481&&''22
+'3%%2:<%8']*5%%%.2'*'+5:%D-85.+',3*%1*1'-+2*15%2,&L2)'28'+-%*%=%&'''+22%%%3%'*%<@%.*5:8'**'2%,)8-%&'2%+)(26%
+^2 ǯ±C`L%+'2
+
+(*8
+1-59-%5&
+
+&:'
+
+5328
+
+%a%
+'.>2*65
+
+1%:
+_08
+-±''X
+
+**
+±
+32%*
+
+!%'
+=2'%%4?'I%:%^85%%=1%''2+%,*-118U2+'.2%%25'+8ͷ2&.ͷ'-(͸.͵''2+%1*%8<*%)^Ǣ(%=1V*'
+5:-
+-8''8(-2'%+2)8*0%-2*%)'&'++2*8%%D%4-))-+-*'54X*-''(2%ǯ'=+'*%N%,-&)184,.''ʹ22%%%
+b4e-4'X
+)'RN++
+Q
+&*%'5c
+_'21%+
+c
+&(5*
+!
++% @
+%1'N=%8A
+2)*5@
+%
+28*#
+835%%
++
+:!-
+%
+8"1
+1
+'<4
++"
+25"+
+1"&#L$26'%8-%()-,>)&)N5:8'%012.% 28-%8+% &'95:8'% -.=85*% 2)82% D)-('%PbO%:85%
+6%$'%:2%8*5-%54&)5*-*-X'-2',2%)'+*=% :%S8%=1='2-%52&54*>*X.-('21%2C%BW'>-10d10819'%+'%*a%+1)(((5+)188+93%%'c*%18=+-%5'4+>2%'e('&0N&8'5%*=>'3%%ǯ±±±
+*(&''
+)*%+=*'5%',+-*.%4'5+2B5)5-+)%2+)%@+<*%%-#'"2#,%'(4*)5*B2'%C(!'H+%<*%!=<'%%=I5?DD3A.A-'%^+*%2'$*6%%IO!'32@%-<.%^286&%W*1'**2%1%)+01*&'L+28'82%-'%,+-%*''+-=(%''+2%%'=+'*%--1.±,'%:%,88'+&5%%%
+:9)8*-','%>&'%5)+&%2%2L1'+-%,1*10-.9'25%:)88'%82%+,')%2,2>50-1&'22'%%%),8)%88-+%%4(>1):*%8,')%8(-)% D*)% 281-++25-% %,'-+'%+2=)--'*5%''%+*%)48)*('2,% &*''2% &%'4%14-)1+4**.'-95*2'*%5=:18+'22%%H '+*'6%%%O' %,-)f0'&NX((''%+='*1%&*15%)2'+N%('*'%+=*)1+*5+)+.%'+2'%%%28'*%,5&)522.'%',21%2%='%&1%(g('%(1+5X-'%,)8-%*)8*'2%&'2%&1+N8'26%
+%     ǯ   ­ǡ  ±  ሺሻ      <%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%      ǯ  
+http://diinar.univlyon2.fr 
+72 ￿c ATALA
+TA!"L#N"-!R$%É#C&I'T(A')L*2"0#1"3$&, +17#-'2(,1&J'u*in"!, &L'es-(*S.a/bl!e$s+d"’O$0.lo/n'n-(e"*.'$#.*1&-(&$!23(*#)'&/$'(4"/'(5&'($&6$&'2(
+7''=
+$ǯ#
++5:5
+&
+:"
+(
+069
++
+&&
+/
+''
+ǡ&
+(-&(
+(+
+$!
+
+(&
+/
+#"(
+0$
+!>
+)
+0+
+(5
+/0
+&
+&(
+6
+'#
+
+(&
+0!
+,/
+ǡ"
+C4
+5&
+"(
+24(805:(:0&!'0$5(&*( .5&'('*09#5.&9(45%&;(:&.(#4;&&(#'(&4?&;ǡ'(&;/.$"$$'0(.!/.2;(@*"5&(6;&"'A(.<#( 0*$")#($40#&('4( &$#("*B5+"'+06&(+4#&'((
+  #'-(D#0?+0-(E &°5?"!&;-(D.+ǯ"?10-(F/$./0"40'-(GHHI32(J&'(#%?5&'('ǡK"**±+0&/$ǡ(
+4&'(:5&60./'(,&6&; *5&(L(5&'($&#0/"0'ǯ./'(4&'(B&#9&'(!./ A+?+)'32(    Ǥ ǯ  ǯ;   ሺ± ሻ  
+&ǡ±ǯ±/$ /?.
+(/"(#B".9=&&2(5@5)&'((''+&!?!;%'&(/4$&)('/(°.;$#"&/(+;&)55$&1;.4&&/($#2(&M*..$'#&&((&"'5'?&./#$00$&15;5&±&;(4&/&($'('&+?#;(+&//($?"#$"0.//4((&!'.$#(*!.+;'(4*ǯ&.(';)(.$'(
+$#4'.
+#.
+$&&
+O.0?( &
+'''
+;:/
+(
+"0&P'
+;% .4+5&'( .#?"/0')'( 4&( ;"/0%#&( ')>+&/$0&55&2( 4&(ǯǡ    
+/.G
+#(&( "+( /0B&"+( 4&'( &'*"!&'( &$( 4&'( '0?/&'( 4&( *./!$+"$0./'2( N/'+0$&-( ./( &6";0/&( 5&'($/"($0'.&/;(&0Q'"$+(!$../;ǡ'"04$0)>#+)&&((B,"!5:02('&!$0./('+0B"/$&(*.+#( ±+/&(4&'!#0*±$0./(ǯ4+(!.#*+'32( @±"(
+*.#.
+O'&$Q/9(&"''$&("'(9"'$&$"/!$1(4)+&('!(.<#(*5"+('#3"-!(.0//&(#2(&
+4
+J!
+&
+&1
+(
+$&
+'0
+$&#
+(9!5&(&1"
+(
+6'&
+$
+*&-
+.(#'?
+O
+&(#
+&#'S"
+/
+'!!
+(
+0&
+&
+.0(/
+'
+/<&
+$((+
+($
+&(*/
+#.
+'.$&
++
+('(!&$
+B
+.6Q
+)
+/9*
+("'#
+4
+$'&
+"
+#&'
+/
++''
+'
+030$.-
+( 5
+&(/5
+&
+(&<(
+(#'!()
+.
+*()?
+#
+"B+
+*
+#&$5
++00/%
+'
+#$(#
+2+(4&
+R&&(
+0>5/(55+&
+.
+0'0'
+/($(#
+(
+&*&
+,
+'#*
+!
+()4#
+2QQ)<)9'
+Q
+:"&
+4
+0/'/
+2&(0$
+'
+&'&
+0(
+'(((&5
+5
+<"
+&$(((
+(
+°ǯ ሺ±Q
+4ǯǤ±Q9"'&(.+(*.'$Q9"'N&'( &
+)#'?#!
+$&;.
+"++/&#*
+$&
+/(U"
+(
+$(?
+4
+"$&R
++
+0(.
+(
+.*
+;+/.#
+.
+'+!
+$
+(4#&
+((4+(!
+)
+(&
+!
+;4#+
+.
+.$"(
++
+$0
+*
+("/#
+)
+#'&
+2
+"(/
+(;FB9B&..
+&
+(,0$('
+!((!>0/&+$$0$#(&.*(+&;B+)"B$9&15/&.$24V(
+&'&("&-
+0
+9(
+4(/54
+&
+&.)
+/
+"+!
+$
++'.
+0
+((
+:+"0)*B&W.&
+-
+( #/
+(/(#'4
+.
+&(/&
++
+*(.
+'
+#*$
+(
+)5)
+B
+'+(
+)#0:0./'( 5&('$"$+$(4&( 5"(*"#$0&(
+&'/0&$ǯ+&(#'(5&:"'P1(.
+
+#/$"#
+
+''.
+
+&(
+04"('L0((
+;::)94#00&?::/+)$T#$&&)'/'2(($4@&&&'(((
+ϢϬϤ˴ϟ˴΃3(&/(:./!$0./(4&('./(!./$&6$&(4"/'(5"(*
+R&?;&/$"$0./( V#"4+!$0./(&/(:#"/P"0'(
+Ϣϫ˵ +Ϣ˴ϟ  + ΃( 5&'("Q$Q05(#";"'')'(X(
+Ϣϫ˵ +Ϣϟ˴΃( 5&+#'(4.+5&+#'(
+J&(*#.95%;&( #&'$&( 40:VFE@N(
+ϢWϬ( ϣ˵ +ϝ˴΃( $'(4)!.+ǯ*"?&'(4+(;(Ȃ(@&'(40::)#&/ .$(ϢϬϤ˴ϟ˴΃(
+.'950?"$.0#&;&/$( 4+( !
+:.0!/0$5&&6( <$&( #( )&'$.( +44&#(&'("*(+*0'.>'+0$&0.( 5/&(( 44)"!/.'+( *5""(?*&(14#&"('!&&2('(@$"=(*#&)''( 4.5&+( $;0../$('(44&)'*(&!/"4'((
+&&/ǯ?(";#"&9/&$"("Ã$B0±.&/!((54&)+*#&('/&4?(;4&&(/45"$+"($($"04.05)/5&!(!(.4.++#*#(!"&.?!#&$*&( 2+#('&('>$+&(0(&+'/$&(!( &$/S'!)1(&!(./+.B#/0(#($5#&0'B(0;"5.&$2('(5@&"'((*>5++"'5(0:$#))(>4+&&(/$5"'((
+(G(((N((/(('(&((;(((9((5(&(('((((4((&('((((+((/((0($()(('(((;(((.((#((*((1((.(('((=((/(($("((6(0(>((+((&((('(;0/0;"5&'(,;.$-(+/&(*"#$0&(4&(;.$-(!50$0>+&22232(
+73 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne!,74+;&
+-/
+ 0 "#$%&$&'()*#+*,-++,$..+-*ǯ*
+47
++ 
+%2*2
++
+$#D
+,
+.74
+$*
+)8*
+.1
+(+%
+.-
+66F((
++')
+* E%;
+-*2'%+*#+*,-++,$..+-3*
+;%-
+*67
+
+.*#
+
+$%
++-$*
+
++-F)*
+
+*9
+
+-(;:+
+
+46:
+E4+-;
+
+F+*&
+;.*
+<4-++24=
+
+2*F:
+
+* 6%$'(#)
+
+->.
+*&?;
+
+;0
+ǯ+±.@4
+
+$@*
+
+'4!?
+
+F$*A
+
+2*)#
+
+=.$
+
+'6)$)
+
+('44
+
+'*
+F   4$&'()/* 56*$*46*+F*G*4-2I$$)#$H-=$+''6*4'#AF*;/**$5%66*6-++(:4B&+$*&$)*,##C$F*%!/'*&5$6*6'$+*)7F&*7)*;7&+'6-'64$7)*#$8$+'42F**662$-$,$(
+))
+-%)
+..
++%+&
+;;+++4* *G+-)$)*;H&$'6''44+$F)* ?&*<&+')F* JKKLA*
+&$E6+* 4;-* &(;&+4* 6+4*
+ǯ±±Ǥ*1(;-*6$*
+ ±      ǯ$.+*
+,()-$$&.+).*&+;*-)J*%**M&+$N;;O&P**0*+#)!+*M+*%*G:G-+7&(2*&%'44-*'7(+4&)**#ǯ+*±@JFL*Q± *     OKK*KKK*:(&4/* 56*ǯ±ͻ͹ǡͺ*Q*%(;-*6$*6+::$&'4$&'()/*! +)&+-*6$*6+::$&'4$&'()*#+4*:(&4*+)*%6;4*#+4*7&'R;+&S/)6?%+&2
+7)
+0
+462
+*/0
+&+4/*
+$*+%
+. 
+44
+7 "%%-+)&'44$.+*
+46;4
+
++'4*&
+±*+(;*
+
+;;&
+'ǡ8)6
+'+*
+42-7(
+
+&++-
+4A%
+*/;
+
+*%4
+(,*
+;#-+-T
+$*+'%
+ǯ
+,#%
+
+$+-
+
+.)+
+
+.&)
+
++'G&
+
+-''+*4
+-4;*$
+
+&6.$
+
+'6+*
+
+'24F*
+
++$;
+
+*&)
+7#*.
+6++
+(4P-
+
+*''R+
+° ǯ±    ±
+$*;-#+E+*-#4+*+4:**G((#-&+4:** $+#E47*4G2+6'7)42'&(=4*)'+#*4;***+&*6$*6'4&+* #+4*7&'R;+&&+4*%(; ǯ)&'44$.+*
+#-7$$2-)$'44:'&D'(&-)+*+4/)* &-+*;)*2(;%6+*U*:(&V2$&7.(-'+W*+&*;)*$;&-+*2(;%6+*$G')*#+*%-
+-(*#6;T+'4-&+'*:;)$*&$'(-E)* #+4*ǯ ±     ǯ±  ± -ǯ+*#+*
+!/0/J '()*E')$'-+*X*%$-&'-*#+*2+4*%-(E$E'6'&74/* Y+P'R;+*
+6  ±±ǡ ǯ$)$6Z4+*:(-%=(4Z)&$P'R;+* -+%(4+* 4;-* ;)* 6+P'R;+* 2()&+)$)&* 6+4* ')G(-:$&'()4*2 ǯ    ± Ǥ  :T"=
+$$;R&-;++/**Y:(&* +)* +)&-7+/* [(;4* $8()4* 2()4&-;'&* ;)* 6+P'R;+* $44+\* 8$4&+*+) ǯ  Øǯ±*;&'6'4$)&*6$*
+6%%+(
+-:($&_:4*(+%-4-%/(*C=%/+(**[4)7(+4&;*&%4(*$Z$-$8* ?(]);42* ^)I+&$&(6&Z+7-*F*2J+K&&K+J*A6'*4R&;+'**27(&$)'&&+*);$&')6'&4*7N+J* *%0(O;N-**-6$$*2-')7$+64'*4-$+&'%(-74+)&$)&*
+6>'4N&+*M*K#K+* ǯ±*
+[(
+;4&-`*(E&+)'-*;)+*G(.-+:*2+(*$)#4'$4%&+&7*X+**7X6*',:-'+)++,-$*6.$.*-++-#/*[()(#;$4)*$28+(*#)+44*$*:B((;&&47**46;+4-**#6'+4&4+*64'*.#)++*4%*-#7'`GGE7$-4++)4&*++4&***ǯ²
+.6+$&7
+(**)%
+&
+%7
+(6(;-
+)
+4%+
+4
+&`-$
+*
+E*
+E-$'$&;
++*4#&
+)
++(+
+*
+44:
+R*;2$+$&*4'6RF+*;6*$6++*:GP('+-R):;&++*6**+)84(+**Z62++(:6)67:&+'++*#)4;*&#**%
+
+:+$
+
+4(*4
+
++&*#
+
+F)*++
+
+&-&**72
+
+)=
+
++(4'G
+
+;*G
+±
+#-
+
+4++
+
+*$*4
+
+)8/*
+/*
+((1&)$-4-+***'$6.+')6P6('+R-;;7-*+46+/F**4['6**(6)+;(:4;*:$48*+$(4*)*7#4&+7*.4*#$*%'-G-#G7'72`F'E*6%+$(4*#;++4-***
+!/ *$B(;&74*:$);+66+:+)&/*19);#(
+(0$&;
+/>
+2-'-
  
++(*.*.2$6(;.
 
-Apprentissage
-
-  
-  
-
-  
-  
-   
-
-L p
-
-L _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ __
-
-I ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' " \
-
-n . Modele
-
-Et1 ueta e
-E 41?; d'étiquetage
-I
-. T t
-Texte I Segmentation ex 6 ,
-
-I segmente
-
-I
-
-I
-
-L _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ __;
-
-FIGURE 2 — Les différents processus d'étiquetage.
-
-76
-
+-*)
+
+%b+
+
+;*-
+
+c4*
+
+;#
+
+*-#+
+ǯ±
+$+*G&
+
+*4+
+
+&^-:
+
+$Z%
+
+8F*$4
+
+JF
+
+'K*
+
+6)
+
+FK*(
+*
+:!;A$4*62*.$$-8-7(**))R(4;;*#+4*7*#$2(8'#)(7&)**#4&-*+;D*&%4'*-6-'+47)7##*;$-';+&4**#6*+$7*;BE+*;);&'**#8"++<4$d*;7_*&#'*R+0;*/6KD+*&;%+-(4*;*)%-(-*:(6$%*E%(--4+77%4*$%-$$-&*'?(a)'*$#E+F**
+*>**
+)+**4+**77&&''RR;;++&&&&++4**R2;(')*#&'7+4)').)+)+*&6*$J*>G'*)*#+*%=-$4+*?7&'R;+&&+*4%72'G'R;+*%(;-**,-++,$..+
+*+-A)/**$CB+(4;*B&+$;)P&**
+±ǯ
+!**==&&*&&*%%**33*VV**VV**II***II***II**//*''*::***44**//*;;**))**''*``*44**&&*;;**&&*&&*..**$$**--**&&*//*##**++*VV**e%**-*4*(*2*B=*+*:*^**&*'+#VV&*2V*
+74 ￿c ATALA
+TA!L"!N#-$R%ÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne6&! '7$( ()!#*$8!9+2(%*,+3,!-)!,0..)((/0..$(6+!.7$((,/1$(2"138,9%2$*(%,3+!")(,30$.%((1),4+$))6$%!(75((( 892*,3!),0.(
+::( ;/<$3),-$( ==>( =0?(2"02"$( >@>A( 20>%"%0$.%0?(@B( ;/-$"#$ %,-$(
+EDD6(( DE010)$"/"?,.,!.)!,0
+(
+..)((
+=
+FF
+=
+BB
+>
+=>
+C( ( =0?(2"02"$(2*+",$*( DE( .0?#"$(( F$"#$(ǯ2!%%( G=( C+#0"/,.!),0.(JK( L0)(1)"!.7$"( FBE( F$"#$(2!"M,!-,)$(( >H@I8>( ( G>.")$"<$3),0.(==( =0?(%,.7+*,$"( @>( 120%,),0.(==C >!"),3+*$( K>( >"0.0?("$*!),M(>H=D(( >=00.?3()2+*!+)",,0$.*(( C>8@=>6(( >'"$0(.200?(2$"%0..$*( K@B( KNO!/-$"#$(2,.N)"(/!%$$(M(,.(/$( ( (
+S 6;B'8(P(Ȃ(',%)$%(/$%(1>)*%$0
+"&P
+),4+$))$%(Q6!7R&(
+1%W
+1 
+4($
+!
++1.
+*!
+$),,.4Y
+#(8
+31+
+*$)
+$($!
+?,4
+()/-$
+$+
+$$+
+.$
+(3?"(
+))%.(
+!
+0(0
+*($
+7
+)Z)
+($
+%"(
+)(
+(.$
+$
+$O(.%7
+93)("M"
+$!0,
+(?.2
+T
+3)?
+(()/
+!.
+,$0$%.(
+!%(*([$
+U
+/&7(
+%
+$?
+$"
+%($
+(
+1.
+/
+),)
+0
+4!
+,
++)
+),($0
+V
+).
+)
+)$&
+"($%6
+(
+(/"
+)$"$$
+!
+%6
+.
+(?!
+%7*,07
+))
+)%$
+1
+("
+"
+2(!
+1
+"(
+(
+1#
+!
+3$
+-
+1!
+$3( *$( 30/!7$( /$( B+3WX!*)$"( $)(
+/+$3.0)+%\2%(/+$,-(2!0.,).%)(%$(.3(0%?$(?#!+%.!%.()!(-%$+3"(   ǯǡ ±  ± ǯ(
+ǯ±(5(
+ܲ^ሺݓଵݓଶ ǥݓ௡ǡ ݐଵ;/(
+_*!(
+ݐଶ ǥ ݐ௡ሻ ൌ ܲሺݐ௡ȁݐ௡ିଶݐ௡ିଵሻܲሺݓ௡ȁݐ௡ሻܲሺݓଵݓଶ ǥݓ௡ିଵǡ ݐଵݐଶݐ௡ିଵሻ(((((((((((((( Q]R(
+ݓ(/݅(,"M$M12""$1.%3$$.()$(+.(݉݋ݐ(݁ݐ(ݐ݅("$2"1%$.)$(+.$(1),4+$))$&(ǯ±ǼO7"!??$([`(6"$$6!77$"($%),?$(*!(2"0#!#,*,)1(/$()"!.%,),0.(
+/ǯ±$::91
+$
+( $
+(
+=)$?
+*
+="
+a!?2"( *
+#
+[,$(.
+"`Q(1
+$3!$
+(0-(.
+"
+$2
+$%23!,(/"
+"
+E1(
+1
+6"*
+%$0$(5(
+.
+(./3%
+)N$1(*$
+.
+)!$?
+)( (
+
+"%?,
+
+1/.
+
+4$
+
+,(
+
++%.Q
+
+$(!/
+
+.,.$
+.3)(
+/
+`$(*(0
+,3
+:):.
+
+"$
+
+(5,7
+%
+(7!+
+(("/$
+
+!3<+
+±
+?0$"
+.
+3?(
+±)
+)-
+$
+,$M!
+9±
+((/"
+)+
+$,)$!
+$
+(%#
+*%
+=(*
+
+?=$
+`(R0$(5(
+
+))
+(*ǯǤà ± ǯ  
+(%.(40?+,R(0&(.>)0(*+$"%((1$)%,)4,?+ $$)")($>%(Q%=+=,-\ǯ!E.6)$`(%:(Ǥ:ZR(>`E(!*6!"(((
+==`($.(2!%±%!.ǯ)(2!"(6!(72O"P1b31E/61`((2$)!("*a(0+..(("/$1),)$$."?)(*,!.!.)($)(+.(!/<$3),M`(0.(%+,)(*$(3N$?,.(-!*,/$($.(­  ǯ± ::( ǯ   ǯ±((2"0#!#,*,)1(>bc`d&((( (
+75 ￿c ATALA
+TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
+!"#$%&'&((&)&
+!"#$*&'&+!&)&
+!"#$%&'&,,&)&
+!"#$*&'&((&)& ,,&-&./0&
+((&-&./%&
+&&&&&«&
+:01!.3;0<=>!,7<1!<8! =*)"=#*$!%*&8'!!0(1!02*!6*?+*8=3>! @1*.*@*!0.?3?4*5615!7.87!82858*0!<518**9!
+!
+Ȃ!')*+,-*!./0121*! ! -56=*!.*! =7<6! -*6!+7=6!
+*  ±   ǯ Ǥ±@1**@0??*1!,*1+*=! 675=!664
+-ǯ-
+<1
+*
+5G5
+A,+0=
+
+8!
+B
+=*
++
+*=
+
+!H!
+*
+!8
+!67088 !6,!-0*1+! +-* Ǽ06!=5=670D=5*78859E!*#4156ǽ>!!-0?!3,8C30165F*!<.**6!!6.*?*+!@*18*=*0@=507?8?!**169=!*!*'6;>8!;6*!741=53=<!63.<**+!!,.307>!18!488*7*! =1,1!*1-07!,!4;1*7761,6+<1**6!!!
+ǯ± ±  Á   >! 47++*! -*! +78=1*! -0! ;5?<1*!
+L,,1*8=5660?*!
+K71,<6!
+ǯ!
+J*)5F<*! L,,1*8=5660?*!
+K-066*!7<G*1=*!
+@*)=*! '=5F<*=0?*!
+M7.!N-*!
+O*?+*8=0=578! 6*@?+*)*=8*!=3! ǯ±! 3@=5*F)<=**=!3!
+"#$%&'!I!Ȃ!J*6!.5;;31*8=6!,174*66<6!./3=5F<*=0?*9!
+76 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne!4,
  
-
-© ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-5 Evaluation
-
-5.1 Corpus de travail
-
-Malgré les différentes recherches effectuées sur le traitement automatique de la langue
-arabe, il nous a été difﬁcile de trouver des ressources toutes faites. C'est pourquoi, nous
-avons décidé de constituer notre propre corpus de travail. Pour avoir un vocabulaire
-sufﬁsamment étendu, nous avons utilisé le corpus EASC proposé par (El-Haj , Kruschwitz,
-Fox., 2010 ) qui comporte 153 articles répartis sur une dizaine de domaines différents. Notre
-corpus contient 58 233 mots (21 238 mots différents) repartis sur 2 238 phrases. Comme on
-l'a dit précédemment, le principe de notre segmentation dépend essentiellement de la
-comparaison de chaque mot avec les mots pré-segmentés de notre corpus de référence. Pour
-réaliser cette tﬁche de pré-segmentation, nous avons suivi les étapes suivantes:
-
-o D'abord, pour éviter tous les problemes de codage de la langue arabe, et pour
-faciliter le traitement automatique, nous avons translittéré nos textes selon la table
-de Buckwalter5. Cette translittération, souvent appliquée en TAL, présente l'intérét
-de n’utiliser que des caracteres ASCII et d’étre totalement réversible (c'est-?a-dire
-qu'il est aisé de retrouver le texte original en appliquant la translittération inverse).
-
-o Ensuite, nous avons appliqué l'étiqueteur ASVM 1.0 (étiqueteur gratuit et n’est pas
-le cas pour ASVM 2.0) réalisé par (Diab, Hacioglu, Iurafsky, 2004) aﬁn d'obtenir une
-premiere segmentation selon cet étiqueteur. Comme cet étiqueteur fait beaucoup
-d'erreurs (segmentation et étiquetage) :31 ce niveau, il a été nécessaire d'en corriger
-manuellement les sorties. Nous avons corrigé les 400 premieres phrases (soit
-environ 13 000 mots), en définissant, pour chaque correction, des transformations
-sous forme d'eXpressions régulieres, que nous avons appliquées :31 l'ensemble du
-corpus. A l’issue de ces corrections, la présence de mots mal segmentés ou mal
-étiquetés devenait de plus en plus rare (pour donner une estimation; apres la
-correction de 400 phrases, une erreur apparait tous les 200 :31 300 mots). Notons
-bien que, avant la phase de correction et selon la sortie qu'on a obtenue, le taux
-d'erreur est assez élevé (une erreur apparait :31-peu-pres tous les 50 mots).
-
-o Enﬁn pour compléter notre corpus nous avons ajouté la liste de pré-bases et post-
-bases les plus utilisées en arabe, donnée par (Abbes, 2004).
-
-5.2 Corpus d'apprentissage et d'évaluation
-
-Pour créer les corpus d'apprentissage et d'évaluation, nous avons pris le corpus de travail
-déja utilisé pour la segmentation et nous en avons extrait 234 phrases pour constituer le
-corpus de test, le reste étant réservé au corpus d'apprentissage. Le tableau 3 illustre la taille
-des corpus utilisés. Le corpus d'apprentissage contient 52 171 mots non segmentés dont
-19 086 mots différents regroupés dans 2 096 phrases. Notons que l'ensemble des mots du
-corpus est non voyellé. La distribution des 23 étiquettes en question dans le corpus
-d'apprentissage donne une valeur minimale pour l'étiquette « FW (mot étranger)» (192 fois)
-et une valeur maximale pour l'étiquette « DT (déterminant) » (11 264 fois) sur une totalité
-de 78 650 mots étiquetés.
-
-5 http://www.qamus.org/transliberation.htm
-77 © ATALA
-
-TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
-
-Nb. mots Nb. mots Nb mots
-Corpus Nb. phrases différents non- Se ' entés
-segmentés gm
-Apprentissage 2 096 19 086 52 171 78 650
-Test 234 3 407 6 029 9 560
-
-TABLE 3 — Statistiques de distribution du corpus pour l'apprentissage et le test.
-5.3 Evaluaﬁon quantitative
-
-Le corpus de test est constitué d'articles concernant la thématique de l’art. Pour mettre en
-oeuvre l'évaluation, nous avons besoin de réaliser un étiquetage de référence qui contient les
-phrases de test bien segmentées et avec des étiquettes vériﬁées manuellement
-
-Nous nous sommes limités au probléme de l'évaluation de la précision de l'étiquetage réalisé
-par TreeTagger, c'est-a-dire le taux d'étiquetage correct Cependant, il faut étre conscient que
-ce seul taux ne signiﬁe que peu de chose dans la comparaison entre les systémes, car la
-précision de chaque systéme dépend du mode de segmentation et du jeu d’étiquettes utilisés,
-ainsi que des données de test utilisées.
-
-Une démarche d'évaluation simple consiste :31 comparer le résultat de notre étiqueteur avec
-le corpus de référence. Pour faire cette comparaison, nous avons décidé d'utiliser .S‘c11'te5, un
-outil générique pour l'évaluation des étiqueteurs morphosyntaxiques. Ce logiciel nous a
-permis de faire l'alignement entre le texte étiqueté et la référence, les segmentations
-pouvant étre différentes.
-
-Pour l'évaluation d'un systéme d'étiquetage, on peut considérer les éléments suivants :
-
-o Une évaluation des types d’ambigu'1'té pour apprécier la difﬁculté de l'étiquetage : le
-nombre moyen d’étiquettes possibles :31 assigner :31 chaque mot, et les types (ou
-classes) d'ambigui'té, en précisant notamment la fréquence relative dans le corpus
-test de chacune de ces classes.
-
-a Une évaluation des types d'erreurs : les types d'ambigu'1'té conduisant le plus
-fréquemment :31 des erreurs d'étiquetage, ainsi qu'au mauvais découpage des mots.
-
-o Une évaluation quantitative de la précision de l’étiquetage.
-
-Par ailleurs, nous avons comparé les résultats obtenus avec ceux d'ASVM1.0 (également
-appelé AMIRA1.0), pris comme baseline. Les deux mesures communément utilisées pour
-évaluer un systéme d'étiquetage sont le taux de précision P et celui du rappel R. Tous les
-mots étant étiquetés, nous avons limité l'évaluation au calcul de la précision en comparant
-les couples mot/catégorie des phrases étiquetées :31 ceux des phrases de référence. Nous
-avons d'abord calculé la précision au niveau de chaque phrase. Pour calculer la précision
-
-globale, on calcule ensuite la précision moyenne sur l'ensemble des phrases de test:
-
-nombre des couples corrects obtenus
-
-2'-1. Pi
-- — X 100 2 P = i 3
-I nombre total des mots bien segmentés ( ) may n ( )
-
-5 http://www.it1.nist.gov/iad/mig/tools/
-78 © ATALA
-
+$ $
+- "#$%&$'()*+% 5/6.+ %)3/10+ 2&(17+726/33+'*/'$3#1$+ /(%3++893/8931+ 37738'&631+ 1&/+ %3+ '/$('3:3*'+ $&'):$'(;&3+ 23+ %$+ %$*5&3+
+1ǡ    ±±       Ǥ ǯ H8&
+#)7)I7*,(>1+1J$+K:2-6:K8+3(L2*+;6'+&+ 62('+833)+*:82)&0*>)+1*/''()'3&&+13+/$+#*))*'1/+3&+ '0(%/()160+/%33++ 88))//00&&11++"2?3@+ .'/+$0#/$)(0%,)+ 1<6)+&0/$+/$+ A#")%(B/C+ $&D*+ >++E#)/&8$
+1=8ǡ9&F%$(('/G3>++
+8)/0&1+8)*'(3*'+!O+JMM+:)
+-'!1+MA+J$-/'+J(8M%3O1+:+/6)0'1$+/2'((717+61/&3/*+&'1*L3+/+23(0G$$/(*'(31++21&3/+2+J)+:JM$O(*+0391+/2$(173761/,+3.*)':1,+:N3)+')/*3++
+/ǯ6)$: %(01$3//$+8(31±')'*±3++2'P38+8993$+2;3&+0ǡ3+/:%63B+)10'3+/$5(#:*3838(*0+%'33$+1'+2(:)3*)+ >'*+1*)+)0'/&/361+B+$11#33)55*::133+1**&''(6$#1'((++)2%3*31++*+62)'6$'0/0333+*812)+1+/&03(1#&1$13+*2*'33'(+13/Q6%+%736:/33**8'3+ ,2+<3)+&%$/++
+x 72$3ǯ8+(S%(&'38/T+ǡF%3$+'%/'3$/('!3±,+:3*'+$&&')1:+ %3$1'(+;0&/3)>=+*%R):&13+1$+#2)3*+18+')/2$$*513%(+'2'63/+6%$+*+ )%$1*+'53&I3'3+ 1$+/1$3=%)3*>+ +3%$'++'0$)=&%3/++±ǡ±ǡ± ǯ±²
+ ǯ   °   ǯ²  ± ሺ̵BUB2(/3+
+% ǯ±±03/+38$:1(+R0/)3&+/
+ሻǤ+
+x +ǡ1+3?5@:V43*+'J$,K'(L)++*/+61$3%%()16*±++0ǯ$±/+AW($=>+C$8()5%&ͳ>+XǤͲ&/+ሺ$±71TY>+JKKZL+ǯǯ&*3+:31 $*&3%%3:3*'+ %31+ 1)/'(31,+ N)
+8&31'++$6#'();*&13+'83)&///,+(5.6)+:%3:1+3%+Z+$8K+36K''++660+*'/(36;8:&33(1R'13/$3&(1//+3+ 70+$29(['3/+$*=1+383$)1&+/8/A()5&30/+ǯ+A135:3*'$'()*+3'+6'(;&3'$53L+U+83+*(#3$&>+( +
+6)
+*&#1(/+)7)*/+:-M3++K2K[K3I+:0/)'1L>+3*+267(*(11$*'>+0)&/+89$;&3+8)//38'()*>+231+'/$*17)/:$'(1))*(1'++88))'(//;0/&3&381'',6(+)1?*++2
+311()*1+ /65&%(R/31>+ ;&3+ *)&1+ $#)*1+ $00%(;&631+ U+ %[3*13:=%3+ 2&+
++2ǯ33#+3Z*K$K('++0293/+$013%&11>++&3**3++03%/&/13+ǡ&//$+/$30+0A±$01/)3$&*]'/8++3'2+)2)&3*1++*:%33/1)++'J&1+K*:K3++$U3%++1M1'(K3:5K:$+:'3())**''16\+L1,$++0)N/&)R+'1:)+*%$$1%+++
+ ǡ          ǯ+ $+ )='3*&3>+ %3+ '$&I+
+=$ǯ131+%31+0%&+$11+&1'3(G%(+166%33#16+3+A*&+$*/3+3//3&/+$00$/$]'+UB03&B0/R1+')&1+%3+21+3!+K0+/:6B)='$1L1,3++x "*7(*+0)&/+8):0%6'3/+*)'/3+8)/0&1+*)&1+$#)*1+$D)&'6+ %$+ %(1'3 1+3'+0)1'B!<28)6)
+,J $=3>+2)**63+0$/+A?==31>+JKKZL,+
+/D&
+ 
+U0/+&+&8'/
+.
+(6
+)
+%(3
+/
+1/
+0
+6++%
+&
+03
+1
+)1+
++2[$00/3*'(11$53+3'+2[6#$%&$'()*+
+&/+%$+135:ǯ3*'$'()*+3'+*+)&1+ 3ǯ±*+$#)*1+3Iǡ+'*/)$&('1+ +J$M#Z)+*019+0/$/1(13+1%+30+8))&//0+ 8&)1*+213'(+''&/3$/#+$%(3%++231+ 8)1/+203&+1'+31'>+%3+/31'3+6'$*'+/613/#6+$&+8)/0&1+2[$00/3*'(11$53,+^3+'$=%3$&+M+(%%&1'/3+%$+'$(%%3+8)/0&1+ 31'+ &*')(%*(1+ 6#1),+Y^33%%+6, ǯ1+ JM+6'(;&3ͷ'ʹ'31ͳ+͹3ͳ*+;&31+'*())**++ 123$5*:1+3%*3'+681)+ 2/0)&*1'++++++ͳͻͲͺ͸±+ ^$+2(1±'/(=&'()ʹ*+Ͳ2ͻ3͸Ǥǯ&+
+2ǯ3+dO+c!Kǯ±Ǽ+H_+A:)'+6'/$*513&//L+`&+*A3-+a'J)'+7$)%((1'6L++ǯ±Ǽ+Wb+A26'3/:(*$*'L+`+A--+JcZ+7)(1L++ +:)'1+6'(;&3'61,+++!+++9++'+'+0++Q+e++e++F+++F+++F++,+;++$++:+++&++1++,)++/++5++e++'+/+$++*++1++%+(+'+3++/+$++'++(+)++*++,9+++':+
+77 ￿c ATALA
+TA! LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
+"#$%&'! ()*!%+$,'-'! 0(12)2*3!.$-#4//''!! '(-6)4.*!#.-44#5//3''! ! '(-6).*!.#/'!7%%$- -4/3'!@4-/'1/'!',6-! 88!9A:B;! <:!9=;! >8!<?<! ?=!;>9!
+> @7CDE!A!
+! A!B9?! ;!98:! :!>;9!
+Ȃ!ǯ
+D%-
+*A
++!$I,#'$-%'&!0'-!0
+&
+!/-
+,
+-!'/
+/
+/-
+1#
+!)'1/
+4
+-!
+!H&,4/1/,/1F-! *! EF,G
+4!'-6.-4/3-±'!-ǯ/!,F-I!0-'!3/1H&-//-' !F3$1±213-'!.,4&-GG-ǯ.-Ǥ4/*àǯ±ǡ±±±±( !!%I,$!@$--@,66-$±°ǯ±±ǯ±±±ǡǯ5J5ǯ±Ǥǡ²,-14! ''-1!&HG&!-/,!0&-K'!!40-#!4'41634-1'2!10--! !H/&-'-/!!%&-/1&G1!'03--!'I*!+#'-! 0,4'! G,! I#.%,$,1'#4! -4/$-! G-'! '
+L'/M.-'N!I,$!G,!
+±°±ǯ±±ǡ
+G%-
+! ±ǯ± ±/!0-!4#/$-!3/1H&-/-&$!,F-I!±±
+%-#$&.F,1'4!/!0P-/!
+Ǥǡ±±ǯ!OIG1/-;N!&4!
+ ±±$-!0  ǯ±  ± '*! "-! G#61I1-G! 4#&'! ,!1223$ǯ-4/-'*!  G-! /-K/-! 3/1H&-/3! -/! G,! $323$-4I-N! G-'! '-6.-4/,/1#4'!
+ǯ±ǯ°ǯ±ǡ±±±ǣ!
+x !4/-#
+
+'.
+
+/!0)
+±
+-$
+
+!-
+
+I!
+
++.
+
+,I#
+
+&L
+
+4-
+
+-4
+
+!!
+ǯÃ±±±ǯ±ǣ
+0-ǯ!±I-'!IG,''-' *!     ǡ    ሺሻǯÃ±ǡ±  ±
+x ! ±   ǯ ǣ   ǯÃ±   &'!
+±ǯ±ǡQ,&!.,&F,1'!03I#&%,6-!0-'!.#/'*!
+R,$! x !±±ǯ±Ǥ!,.%%-
+,G31G!G-7&S$'TUǡ7<*9VN!%$1'!I #..-!)±, '-G14-±*!D-'!0-&K!.-'& $-'!I#..&4ǯ3.-4/ͳ! Ǥ&Ͳ/1ሺG1±'3-'!%#&$!
+±G  ,6-FG'
+#
+##!
+/
+)4I
+'
+,#'
+!3
+G!&-0
+/
+N%
+,
+!Q#,G
+4-4)
+/'!!#I!
+3$,.
+/01
+H
+GI#
+
+!&I
+&/°W,-
+
+G-IG
+/
+!I,
+3
+-&/
+'
+43
+
+GN'3
+!6ǯ4±    ± R! -/! I-G&1! 0&! $,%%-G! U*! @#&'! G-'!&!#G
+
+1,$
+
+/-!1-%
+
+!G!
+$,03
+
+!-I
+'1'!1%#+4$!,,'&-!'±4!13Fǯ±/-1,H&&!-0/3--!I'+! J,!HI&--&!K%!+0$-,''!-%*!+R$#,&'-$±!'I! ,0G-I!&$G3-!-2$34!$G!,-I!4#%I.$-3%*!I,(1'$#,1#&44'/!!!
+±ǯ0-'!%+$,'-'!0-!/-'/!X!
+σ೙
+!!!!!!!!! ௜ܲ ൌ
+௡௢௠௕௥௘ௗ௘௦௖௢௨௣௟௘௦௖௢௥௥௘௖௧௦௢௕௧௘௡௨௦
+௡௢௠௕௥௘௧௢௧௔௟ௗ௘௦௠௢௧௦௕௜௘௡௦௘௚௠௘௡௧±௦ ൈ ͳͲͲ! Y8V!  ௠ܲ௢௬ ൌ
+X!W!!W!!Z!!!Z!!!Z!!*!1!/!G!*!4!!1!
+೔సభ ௉೔
+௡ ! YAV!
+;!+//% '!!/!*!6!!#!!F!!W!1!,!!0!!W!!.!!!1!6!!W!!/!#!!#!!G!'!!W!!!!!
+78 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne>..//%
+"##,,*
+$#
+00&&)
+%&
+%%-
+'
+&&%
+#(
+##<#
+%
+')-
+#
+,A?%
+$
+&,#
+)*+,%#-%#./,0&%&#1$234567#%'#89#:#(0#.,;<9&9)$#-%#(0#./,0&%#9=#
+#'%()&=$@A%&7#<0, #9(#-)$$%#A$%#.)$ -ǯ;,0'9)$# .(A&# 9*.),'0$'%# 0AB# ;'9CA%''%&#-%&#8*L)<)F#
+A
+,*.
+,#
+.)A%
+)A&#
++<,)'#%,N$.O9AP,&#QA#-$R%%
+#
+=#M#';%=#D&G0'=(#)AGA0)&'A#9)0&$#D0#)D<$))&*$#&;.#)@0+0,(0'%%'*9$DA%%#$#A.'$,#;#;'<0D9A0&B(%A#7-#;$%#)#(.A0,#&;'#0S<D<9&)/9$%)#&$#-#;*%D#0)&(E%A%@;$*#(#%;%&@$#0-'(0%#H'A9#I)B#J$&=#EK&&#AL'?,#*#<()%%#$&*#'&,AF%,*#J#(M%%###<%''%#;D#-0(%A# '0%'&9)'7$#%=#'##)+'%$A#A$#'0AB#-%#.,;<9&9)$#-%#T4#L=#U%#'0+(%0A#<9V-%&&)A&#,;&A*%#+9%$## &EG&)'?',*%#%# NOPQR=M#
+O%W@'*9C%A$%''00'@9%)#$# ITJ47K#L#L# # JM#L#
+K XNYUZ#5# '9D%##-%#$)',%#&E&'?*%
+I#K%'#L#NO#Ȃ#ZD0(A0'9)$#CA0$'9'0 PQ#R=M
+N=[5
+=#
+9$ #ZD0(A0'9)$#CA0(9'0'9D%#;<)D$0('A#9-%0\$'09$D)%)$$9#,C'##AAI0$J(%9T'#0#9-*'9;D)%%'#=&.#G#(A;)'&A9#C.&A#,0%;D'<);9&$&%#&#.#-%0B%,0&*#*'9E#9$.(%;%&#&&C#%-AA\%%((%,&*,#%$%A)$,A#',&#(%#%0$&D#<K))M$$#&'.,#,;'%,&*)7#A$9?D),;A%#&&3##0.5D/#);,$'09&&C#%A.&%,=#)'>'<%%;&&-##.;[0/#HA,#0&A&&$%%%&&###
+GǯV9(()AA&&',#
+H0V%D
+
+# )
+$&#ʹ<ǡ)͹$ͷ&Ψ'0';ǯ#;C'A9C%A#(%%'&'#%%&,#%,,)$;%&=#*)'&7# ,%A,&#&)$'#-A%&7#%$#@;$;,0(7#H#(0#*0AD09&%#&%@*%$'0'9)$#-%&#(%ǯ&#-9[[;,%$'&#<0&#-%#[9@A,% #.)A,#<%&#73#059$&9#CA\0AB#<0&#ǯÃ±ǤA9D0$'## #;'9CA%''%&#%,,)$;%&#:#8/,0&%&# Q)'&# Z%'9,C,A)%$';'&%#&# &Q%@)*'&%#*$'0;(&# # 0+(%Q&B%9)$C''A&#-#%A# # 0*$+9QD9@)A'&&##0AB#
+K @ (%B9<
+%00(A#%B'##
+8X)NAY,U#<Z)#K*#
+%M$#'0@%# IJ
+,0**0'9<0(#
+.)A,< #T# 37]3K5##L# R73RJR##L# R7MT4##L# M755J##L#
+Ȃ.#U0,%%&,#-#(9%[[&;#,,;%&$A'&('#0<0'&&##--%\;#$'9)C'A,%%'#;'%'9&C#%A,%,)$;%&#&A,#KM#./,0&%&#%B0*9$;%&#*0$A%((%*%$'=#-\9((A&',0'9)$7# '%A,#%'#<%AB#-\NOPQR=M7#$)A&#0D)$&#</)9&97#H#'9',%#8/,0&%&C##A%(CA%&#./,0&%&#G;')9C',A%%#;';'9%C&A#.%0'%,#A(%,&# #-%AB#&E&'?*%&#:# NOPQR=M#
+ϦϓϮϬΘϴΑϥΎϓΞϔϳΩϮϟ (G^G-ϲϘϴγϮϣϒϟΆϣ #[*_`^# a&#_GCG_8# a# [#Ncc$#d# a(#*GNG$8_#+# a_#'c/c ^[$#a#GG8#*b([# a#GG#R]]M#a#>e#*#a# #^(-#a# PYG#ZN*#a#
+(G^G-8[_# *`#aGG#[_#a#fG#*-_$.#a#GG#+^$#a# b
+#G(G#[N$#a#GG8#+_'/^[$#a#d(*N$_#a[##GaG# 8G#G^#(-*#a^#P&_YCG_#Z# aN#*G#Ga###
+ϡΎϋΪϟϭϲϧΎϤϟ΃
+79 ￿c ATALA
+TALN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne
+ΔϨϳΪϣϲϓϡ !!"##$#%#&'!(### !!#
+ϥϮΑ .20)3*4*# +%## %!# !,-# 5# .6#3%# # !!# /0# %# 1!#
+# "7!,###
+%# !!"# # $# %#
+ίήΑ΃ϦϣήΒΘόϳ YEtbr / VBN mn / IN >brz / JJ EbAqrp / NN Al / YEtbr / VBN mn / IN
+ϰϘϴγϮϤϟ΍ΓήϗΎΒϋ DT mwsYqy / NN fY / IN  jmYE / JJ Al / DT Eswr / < #>%b#r!z !/ JJ EbAqrp / NN 89.6:0;  fY 
+ˬέϮμόϟ΍ϊϴϤΟϲϓ NNS  / PUNC w / CC  >bdE / VBN  >EmAlAF / / IN  jmYE / JJ 89':6=>## %# !!#  w / 
+ϝΎϤϋ΃ωΪΑ΃ϭ NN  mwsYqYp / JJ   xAldp /JJ . / SENT CC  >bdE / VBN  >EmAlAF / NN  
+ΓΪϟΎΧΔϴϘϴγϮϣ# mwsYqYp / JJ   xAldp /JJ . / 
+# PUNC#ΓΩΎϋ΢μϨϳϚϟάϟ 9
+ϦϤϣϥήϤΘϳϥ΄Α F% 9G'3
+1!
+9.%
+#E#%"
+?
+C#D#
+9#@!0
+%
+#G
+A."# 5=%3
+#
+"%
+#
+EC
+0
+'D
+3
+"!
+&B##.%C3D%-1!# ###0'=80224##%%!C!D#!5##%8"9E%-'("#### 5?9@%1!# # 03&B%CD-# # '824%!!#
+ϢϠόΘϟ΍Ϊϳήϳ H .
+%31!%1#!# #####0# # # #F3%1!# # # 0G.=3%CD!##
+ϰϠϋΐϳέΪΘϟΎΑ .I3=%81!J# #%#L!.!%#E8D9%-(#
+## #&869%G%-!(!# ## G#2F=0659%8!# !%K#K## '# 96<%%E,,"#### 5
+ΕϮμϟ΍Ν΍ήΧ· 052F%CD" ##'32.8%1!##0:G(0'%CD-##?9@%A"## %!
+%1!!##8#89&9G62
+=
+G=
+0
+%0
+2
+!5!%
+# #!%# #!
+!
+F#
+!
+6#'
+# # 89G'9.%!!##
+998<%# %1!KK####H6I%=,8J#
+ΎϣΪϨϋϢΛϦϣϭϻϭ΃ HI=8J#%!!####859%%"-E('##"2#=#J88G9%%-!(!#&##G#'899.%-%(C#D#&!6# #G'094<%%!E!"#### .3%1!# # L.%ED# # '32
+,##
+΃ΪΒϳϚϟΫϊϴτΘδϳ M 0:G(0'%CD-# # ?
+.8%1!##
+N%%""77!!,,###$%# &G'.!=(0#3# %!!# # 89%-(# # F&85'# %!!&## 5%1!# # 89G'9.%!
+9!@%#-# '(9#<#%01!52# F%!!##%!!# # 892=J8G%! HI=8J#
+Ν΍ήΧ·ϰϠϋϢϠόΘϟΎΑ M%%!"!7&!
+!&# # 89&6G04%KK##
+ΔϴΗϮμϟ΍ΕΎΟέΪϟ΍ ##N,%#"# 7G.!=,0##3$%#"%7!!!,### 89F&85'#
+ϊΑΎλϷ΍ϦϳήϤΗ#
+ϞϤϋϝϭ΃ϡΪϗ ;
+ϩήϤϋϭϲϘϴγϮϣ ,2&',
+.
+!##'
+#%
+(.
+#!
+# =#
+!%###!F!6##9O#%#%#K#K"##E'".##9P#%#%#!#,!-###.#:366:08;G#0%##%!#!KK#&##6#$##%%## ;.26.:#0%;#C0D#%-#KK# ###F66#%9#,#%,##K#K'#.#'=.#%9##!%#!!!##%#"E
+Ε΍ϮϨγ!!! ,"#Q##P#%#,-##
+##O#
+"7! :368G#%#!!&##$#%#
+&W#Y3#Y5:(T=8LDTR#'9T#S:##Ȃ=#V':IXT9.GU4G:9T#Y:5#2GTT3#4XO:=#U4:UT=:#3#VYGGW=;TX#TVGGVW;TX:#T4GUT=X#=3#Y:XG==T#[#VTG:W#;\X#4TOGT=XU=:#TT:G>##8Y&3C#=ZT.)$+U=$#;XT#5WT3#
+3LYG
+ǯ=T#:<:G].T#LWT33T3G#:YWG°# 2T#9U#.UXLUW:T#:T^.T3GUǡGWY3#2X#.ǡ±°   °    ° Ǥ  ±±ǡ   ǯ±    ǯ 
+   ǯǡ   ǯÃ±   ±  ǯ
+SY<T99T:#M4$TI$#;2.##M #
+ 
+ϡΪϗ#N%#!!#N$
+ #,Y3[9X:WY3#TG#4T=:4T[GWLT:#
+=V[Y9GV# TG#4=V4ǡU=V#GYXGT:# 9T:#2Y±33ǯVT:#3V[T:ǯ:UW=T:(#=TT(U^^T=#:X=#9U#9U3^XT#U=U5T$#"YX=#[T#ǡ   ±     ± #2T#:T^Ǥ ǯǡ  ǣ ǡ  ǯ.±T3GUGWY3#2T:#GTIGT:#ǯǤ ǡ   ±± X3T# .VGOY2T
+80 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’Olonne'!6"6!!*#1/($%!%0&5#*!/%&'7$(&!%1(50"!& 0)5*6"$+&($%0&&7+("'!,/%0$50-!.05$6/$0&'8&$.& /!*/0("$$1&1%$9.%$0:/.02&$32&/45/& /*(%& !6*/%& 0$".5/'& +!"& (/$&ǯ±   ?$/@)A
+&.$/'$&5/857($&7($&/*0"$&'057($0$("&!"!#$&8*//$&;<&=&8$&+"')5%5*/2&>$%&"'%(10!0%&8$&
+ǯ±*B(C"!2D-2$&!B/ 0!1-"'&(/&)*"+(%&8E!++"$ /05%%!-$&0":%& "$±%0"$5/0F&)$% &"'%(10!0%& ǯ%±*/0& 8*/)&G5K/&*))($*"0.0&$1+$&11&!$.)0(F&*//.
+%
+$$&&$
+2
+)$/
+&
+*/0/&&!0/5L$**/(0"00&$!+&/!%0%9&&)%8$0$0:&0.1$$&.$5/&.4/*$$"&%.+&I!$&80"5!.*//$%20&&/&M+*$!%&+&%+&1"(8*%$)F&&J+1$!*.5(/".%&&*0!"#0!05%6$$!/"(5F"&H&)(F&!//"*&&'(/0%5*7&)0("*$$.&0$1+$(0H"*5&/7-%('&/$"F$'&."$5/7')8*5$"$"&&17L!&*(
+"(!-"/$/0&!5)01*5!%(0056547F$&("0$.(F&"!%$)5%F5&&$//*!0((54%%57%& $5(&/$68F&5$$%0&!)-21O$E2$&*//"%5&)8JE5!"(& -$./$& /00$$"".&/$*%0&"$8&$)&*"6+!("%5'&80'E!&+0+9"+$*/10*5%-%57!-($$F&& %N(1"50&01'$"& +!
+(51$"!&$/KF&&&
+P? Q'4'"$/)$%&RR3@F& Q2& NSDDTO2& >!& )*/)$+05*/& $0& 1!& "'!15%05*/& 8E(/& )*/)*"8!/)5$"2& >9*/F3U@@VRWVU@?I&
+?°ǯ__**U`VXV!F&"B8%2&&$!0&&UM$VY`Z2&[BF& \32&MNS?DQD&]SO!2/&?8%&%V/$0%$%"5/
+
+/-
+
+!&0^
+
+5*/*
+
+!"
+81&,
+Ǥ
+)4
+&
+**/".4$&"#$!/%)$$8& *&@/$&!?"")!J#&54)*&">&!V//4-*("!.-!$0&5Q*$/%&%5/*&(?"!#5)I&
+?*4"&!!_
+*
+#"V
+1?%!5)F
+&
+#&
+F&
+&5B
+Y!
+B)&2*4&
+5"
+*8N
+*
+"S
+&
+$&UD
+3 ")$%&a&?_ 11D
+-
+5>/<
+9
+G-O
++
+W&2
+0
+b&
+F
+B?
+&+
+5/_/
+!
+5F0&&
+-
+0$?
+$
+J&.
+%&C
+@$0&R#
+S
+!0"5J
+,C
+$50&(
+]
+%/5J$0
+&92&&0)`&*).**"/+c0(%"20*&$I1&"1?$&%8)*0&$B&8*$"&+1!J&*)*1*/-45')"!$1/& ?)$/&!5/190%$$"/"&!40*5*"&/B!1*$8&E$0J"/$&&)@J0!!/118$/!-"8$&&RY*d/Ye%*^"?0>5(_.3Q&FY& !_0!2&1*N-S(D$D&/S(O2.& '?""*!&#>5M)&Y&B>&*T"]+J*1*
+)-55$)0!912&&>?*//!81*9/%$2&"& 6$"%5*/& C2D2& >5/-(5%05)& M!0!&
+R%)?5Z$/f0d5F4&5[72(F&$Z&?8M$Q%&VLY$Z(&R/$3>%g&)dJV$_"Z)F&J>$2F(&$"0%&&R$/3U&-&Z
+2
+'/?
+&
+8$& 1E!"!#$& (0515%!/0& iB>& )*..$& *(051& 85B$$&?&M%f0*dcF&!?-2&$N&S2D& D@*h(O2(&@%[$FU__(?/5i%35$I&I?& Y/5!/179%($5:(."&%$9%&/L0*!(H"57/('$%&&YZ?jR?3U&e?BBfdUF& U2F& Z?MQVYZ&R3>gdV_ZF&'$10$&)R03"5U7&(Z$?&B$0?&5M/f4*dF"&.?!2&0N57($&2&6$"%5*/I&?&Q*#(%0&.*"+J*1*-5)!1&!/!19%$"&4*"&!"!#5)&0$H02&BVQ?Y>&>SDCDO2& _J$& BfQGZS& /$`&M_*/*V?&c?R5/"F&!5%B#!52)0&5&*>N/S!/FD&G-D(*]!%O&-2&_$!@&G-$"-)**5/)/$-8%&&!%/5g/8$-&/&Ra$!"&_%!$*0&5G*J/"& !?%B$&YVQJ?(&/4c*5/"&-2?&B"!3#M5)?& QG&"S*/)8$
+!
+&%
+#
+V%/5
+*
+0/
+"
+$-
+!
+"I
+0
+/&
+*
+!b
+"9
+0!5*%
+&_
+/0&
+(/5%5!&2&
+!!1&/)8*/& 4Q$*"$#/()%$0&&
+MV?RF&B2F& Z? *1%F&Y!5"*&3-9+0F&+!-$%&S;h,S;;2&_$H0&0*&R! YVfg>dF& e2F$0& \dQ?b@e[F&M2& NSDDTO2& ?(0*.!05)& _!--5/-& *4& ?"!#5)& _$H0I& b"*.&Q!`&3?N >,Z?\F& B&
+%F$e&QGdJ@"Y!Z%^$&VY_JX(F&/dc2&%$2&02&&Zbf>i_F,&UY2?& N?SYD>C&FD&+!-$%&CT],ChS2&
+>Z"!>#_5O)&& 4@*(".& @.$.!"550$5)%&& 5>/!&/0-J($!& >-$!%/2-& (`!*-"$c&%QJ$*%+*&(J
+O"2$)& 1$d8%%&&55N//>-&Q&)B%*O/$& )!J/!8/& 5Z)!(1.& _!(/"&c>&!0*/&-Y("!$-!$0&$_& !$&)YJ*/"*+1*(-%&5$*%4&&
+& !/-(!-$&Q$%*(")$%&!/8&36!1(!05*/&Y*/4$"$/)$&N>Q3Y&S
+L(D/C)D0O5F*&A/!& 1`1$5000J!&F&0BJ$!&10P!0F&J+&!V-/$0%$&"k/<!,0k5*]/2&!1&
+81 ￿c ATALA
+TA!LN-RÉCITAL 2013, 17-21 Juin, Les Sables d’OlonneHP:I
+"
+@Q<?
+#
+@)
+$
+;J+
+%
+6):K
+"R&F:
+'
+KS,)
+()
++)L
+"
+7F:
+*+
+*6)7V<C
+,7)-+G)+J7;
+.K/%)+I6<;B
+'F(AA+
+)
++M
+0(*:))
+)1
+<:T
+2)7?6
+33
+()&;BU
+4
+6A7B,
+5CK*CA
+)
+7C6
+#<6C@:N
+6
+<)B6
+,
+::<
+7
+()A
+)
+W))
+8AR>+
+)E9:CF:FK,:,CA+<)M;+<:)7,,:;)=:L><:)77>A+,:)+,F?C+6<7<),)@;G+A6BM;7)))67$<+;?)::?C;,:C?FL)C:FAC:);L<D&+N)B+LE:BCN7C+A),7)O@H)C+7"7FFBC,G+C+F7):M) ,:+C<6)AM<:)))
+&"9I#SX()X) *) 123335*)R6,)+,)<CY+:B)A+ECF":*A)2[D ) *) Z+:<D?:;C+)@C+;;+H) .<N+<C+;C+)M+) A:<NB+7) ()@:N+7)RG/\6
+"
+36;?])
+#\
+P,
+>]@K()
+*
+()B+
+R)
+=,)
+*
+6C/<
+()
+A)6N
+^
+4)?
+#.$
+\/@I
+W;#+.(XK)R+3<`*()7(_)C60X6<&B$);"6</G:)XAR,)K(#)+R+) 7>*(+)@^:6;I<FW,K":)$<C%<+.)6()/B"67*)?)+",@);"B:,VLCS<CFIN)V)>>.@"F-+C++.><F()KF$+*)*)).11<206,3+B3;;<`<:5:*,)AC")6#)<>/:+>A?)5/):(6<)<.,>CGF+>);V"+H<<) :cFA+`a)db6+3<;D))
+9SI+F9KI<TC.
+()@:N+7)c2PDc\3*)
+F/:%() !*) +,) =I$X&() /*) 1cPP35*) /K:;,) @:;7C<N) K+:MDM;CY+;) @K;:7+) 7,;BF,B;+) N;:??:;*)>/%R.-()%A*)#+@6;,)/>>D.>)S#)P3D3c()/R9S)S#)P3D3c()>C?6<)!;:7+;)W<CY+;7C,a()_B;<:La()_/*).`<`,+;<:,C6)<1:cAP)/P6\<5*G)+9;;+6<LF:+L)C6AC<7),VCF+)9J:);R,D+6,GKD>6@M+7+) CF<K))&S::<NNNBC<:NN)+W)79C;<6NF)+-7+7FCC<7NC6()<R)S:;<+F+K7+*)79,;+6;(F)+W+eM(C)<@N:7N)+67G))> DP]*)fFS6X<.V7(B) A,"g)*A)+)c1233d5*) 9:;,) 6G) 7@++FK) ,:NNC<N) :<M) A+??:,C7:,C6<) 6G) IAM) !;+<FK*)!""#$%%&&&'()*+,"(""-./"'01%2*)-/34%,"1*)%53/,6!()-%/1,3(/61'!"42')^MX+R),+.#E&,.+()7^):*)
+3h32h23cci*)
+;+:,)Le+%7")Y_6XaS+()A>A*g)172*)03X39\D5S*)"W&<V):()<!:QA7a*)7)+B;)?6;@K67a<,:ECjB+)M+7,C<g)k)A:)7a<,KQ7+)Y6F:A+)
+82 ￿c ATALA

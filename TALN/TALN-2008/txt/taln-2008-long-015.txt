@@ -1,528 +1,395 @@
-TALN 2008, Avignon, 9-13 juin 2008
-
+TALN 2008, Avignon, 9–13 juin 2008
 Factorisation des contraintes syntaxiques dans un analyseur
 de dépendance
-
 Piet Mertens
-Departement de Linguistique, Université de Leuven, Belgique
-piet.mertens @ arts .kuleuven.be
-
-Résumé. Cet article decrit un analyseur syntaxique pour grammaires de dependance lexi-
-calisees. Le formalisme syntaxique se caracterise par une factorisation des contraintes syn-
-taxiques qui se manifeste dans la separation entre dependance et ordre lineaire, la speciﬁcation
-fonctionnelle (plutot que syntagmatique) des dependants, la distinction entre dependants va-
-lenciels (la sous-categorisation) et non valenciels (les circonstants) et la saturation progressive
-des arbres. Ceci resulte en une formulation concise de la grammaire a un niveau tres abstrait et
-l’elimination de la reduplication redondante des informations due aux realisations alternatives
-des dependants ou a leur ordre. Les arbres elementaires (obtenus a partir des formes dans l’en-
-tree) et derives sont combines entre eux par adjonction d’un arbre dependant sature a un arbre
-regissant, moyennant l’uniﬁcation des noeuds et des relations. La derivation est realisee grace a
+Département de Linguistique, Université de Leuven, Belgique
+piet.mertens@arts.kuleuven.be
+Résumé. Cet article décrit un analyseur syntaxique pour grammaires de dépendance lexi-
+calisées. Le formalisme syntaxique se caractérise par une factorisation des contraintes syn-
+taxiques qui se manifeste dans la séparation entre dépendance et ordre linéaire, la spécification
+fonctionnelle (plutôt que syntagmatique) des dépendants, la distinction entre dépendants va-
+lenciels (la sous-catégorisation) et non valenciels (les circonstants) et la saturation progressive
+des arbres. Ceci résulte en une formulation concise de la grammaire à un niveau très abstrait et
+l’élimination de la reduplication redondante des informations due aux réalisations alternatives
+des dépendants ou à leur ordre. Les arbres élémentaires (obtenus à partir des formes dans l’en-
+trée) et dérivés sont combinés entre eux par adjonction d’un arbre dépendant saturé à un arbre
+régissant, moyennant l’unification des noeuds et des relations. La dérivation est réalisée grâce à
 un analyseur chart bi-directionnel.
-
 Abstract. We describe a parser for lexicalized dependency grammar. The formalism is
 characterized by a factorization of the syntactic constraints, based on the separation between
-dependency and word order, the functional (rather than phrasal) speciﬁcation of dependents,
+dependency and word order, the functional (rather than phrasal) specification of dependents,
 the distinction between valency and non valency dependents, and the incremental saturation
 of the trees. These features enable a concise formulation of the grammar at a very abstract
 level and eliminate syntactic information redundancy due to alternative forms of dependents
 and word order. Each word form produces one or more elementary dependency trees. Trees,
 both elementary and derived, are combined by adjoining a saturated dependent to a governing
-tree, after uniﬁcation of shared nodes and relations. This is achieved using a bi-directional chart
+tree, after unification of shared nodes and relations. This is achieved using a bi-directional chart
 parser.
-
-M0tS-CléS I Analyseur syntaxique, dependance.
-
+Mots-clés : Analyseur syntaxique, dépendance.
 Keywords: Syntactic parser, dependency.
-
 Piet Mertens
-
 1 Introduction
-
-Malgre plusieurs decennies de recherches, l’analyse syntaxique ﬁne demeure un deﬁ majeur
-pour le domaine du TAL. Par analyse syntaxique ﬁne on entend le traitement d’un enonce qui
-foumit une representation detaillee et linguistiquement motivee de la structure syntaxique et qui
-explicite le reseau des relations entre les elements de l’enonce, ainsi que la fonction syntaxique
+Malgré plusieurs décennies de recherches, l’analyse syntaxique fine demeure un défi majeur
+pour le domaine du TAL. Par analyse syntaxique fine on entend le traitement d’un énoncé qui
+fournit une représentation détaillée et linguistiquement motivée de la structure syntaxique et qui
+explicite le réseau des relations entre les éléments de l’énoncé, ainsi que la fonction syntaxique
 de chacune de ses parties.
-
-Les approches predominantes actuellement en analyse syntaxique mettent en oeuvre des auto-
-mates a etats ﬁnis ou des techniques stochastiques ou probabilistes. Si les approches basees sur
-des modeles linguistiques sont nettement moins efﬁcaces, cela s’explique surtout par la com-
-plexite de la representation obtenue et par le nombre d’informations prises en compte pour son
-calcul. Cependant il est clair que le modele syntaxique lui-meme est en partie responsable de
-la complexite du traitement et qu’il sufﬁrait de modiﬁer certains aspects du modele linguistique
-pour rendre l’analyse syntaxique plus efﬁcace. Regardons de plus pres certains de ces aspects.
-
-L’0rdre des mots. La quasi-totalite des grammaires utilisees en TAL supposent une structure
-syntaxique line’arise’e, o1‘1 les regles grammaticales impliquent un ordre precis des sous-consti-
-tuants. Toute variation d’ordre necessite alors des regles supplementaires ou, lorsque la gram-
-maire n’utilise pas de regles, des structures alternatives.
-
-La caracterisation d ’un constituant. La plupart des formalismes, parmi lesquels CFG, HPSG et
-CG, designent un argument verbal en premier lieu par sa cate’g0rie syntagmatique. De meme,
-en TAG, l’arbre d’un verbe comporte des noeuds o1‘1 seront ajoutes les complements, par substi-
-tution ou par adjonction de leurs arbres. Le plus souvent un meme argument admet plusieurs
-realisations (pronom clitique ou non clitique, nom propre, groupe nominal, completive. . .), avec
-parfois un impact sur l’ordre des complements. On est alors oblige de prevoir autant d’arbres
-elementaires par verbe qu’il y a de combinaisons possibles des realisations d’arguments. Pour-
-tant, les realisations alternatives d’un argument verbal donne remplissent la meme fonction
-syntaxique et actualisent le meme cadre valenciel. En revanche, si on caracterise l’argument par
-sa fonction syntaxique, la multiplication des arbres est evitee.
-
-La redondance inherente a certains formalismes syntaxiques actuels explique la recherche d’un
-formalisme syntaxique dit de haut niveau (cf. (Candito, 1999), (Crabbe, 2005), (Crabbe, 2007)),
-qui permette une formulation abstraite et economique des informations syntaxiques, a partir de
-laquelle sont compiles les arbres utilises par l’analyseur.
-
-Cet article propose une solution plus radicale. Plutot que de creer une meta-grammaire de haut
-niveau qui sert a generer la grammaire de surface, on modiﬁe le formalisme et l’analyseur de
-sorte qu’ils utilisent directement la meta-grammaire. Cette strategie repose sur la factorisation
-de la grammaire, qui se manifeste par la separation entre les relations de dependance et l’ordre
-lineaire (immediate dominance / linear precedence), et par la separation entre la fonction syn-
-taxique d’un element (constituant) et sa realisation morphologique.
-
+Les approches prédominantes actuellement en analyse syntaxique mettent en œuvre des auto-
+mates à états finis ou des techniques stochastiques ou probabilistes. Si les approches basées sur
+des modèles linguistiques sont nettement moins efficaces, cela s’explique surtout par la com-
+plexité de la représentation obtenue et par le nombre d’informations prises en compte pour son
+calcul. Cependant il est clair que le modèle syntaxique lui-même est en partie responsable de
+la complexité du traitement et qu’il suffirait de modifier certains aspects du modèle linguistique
+pour rendre l’analyse syntaxique plus efficace. Regardons de plus près certains de ces aspects.
+L’ordre des mots. La quasi-totalité des grammaires utilisées en TAL supposent une structure
+syntaxique linéarisée, où les règles grammaticales impliquent un ordre précis des sous-consti-
+tuants. Toute variation d’ordre nécessite alors des règles supplémentaires ou, lorsque la gram-
+maire n’utilise pas de règles, des structures alternatives.
+La caractérisation d’un constituant. La plupart des formalismes, parmi lesquels CFG, HPSG et
+CG, désignent un argument verbal en premier lieu par sa catégorie syntagmatique. De même,
+en TAG, l’arbre d’un verbe comporte des nœuds où seront ajoutés les compléments, par substi-
+tution ou par adjonction de leurs arbres. Le plus souvent un même argument admet plusieurs
+réalisations (pronom clitique ou non clitique, nom propre, groupe nominal, complétive. . .), avec
+parfois un impact sur l’ordre des compléments. On est alors obligé de prévoir autant d’arbres
+élémentaires par verbe qu’il y a de combinaisons possibles des réalisations d’arguments. Pour-
+tant, les réalisations alternatives d’un argument verbal donné remplissent la même fonction
+syntaxique et actualisent le même cadre valenciel. En revanche, si on caractérise l’argument par
+sa fonction syntaxique, la multiplication des arbres est évitée.
+La redondance inhérente à certains formalismes syntaxiques actuels explique la recherche d’un
+formalisme syntaxique dit de haut niveau (cf. (Candito, 1999), (Crabbé, 2005), (Crabbé, 2007)),
+qui permette une formulation abstraite et économique des informations syntaxiques, à partir de
+laquelle sont compilés les arbres utilisés par l’analyseur.
+Cet article propose une solution plus radicale. Plutôt que de créer une méta-grammaire de haut
+niveau qui sert à générer la grammaire de surface, on modifie le formalisme et l’analyseur de
+sorte qu’ils utilisent directement la méta-grammaire. Cette stratégie repose sur la factorisation
+de la grammaire, qui se manifeste par la séparation entre les relations de dépendance et l’ordre
+linéaire (immediate dominance / linear precedence), et par la séparation entre la fonction syn-
+taxique d’un élément (constituant) et sa réalisation morphologique.
 Cette approche permet aussi d’exploiter directement des lexiques syntaxiques (cf. (van den
 Eynde & Mertens, 2003), (van den Eynde & Mertens, 2006), (Danlos & Sagot, 2007), (Bouiller
-& Sagot, 2005)), sans passer par des lexiques derives o1‘1 l’information valencielle est dupliquee
-pour chaque forme ﬂechie.
-
-Factorisation des contraintes syntaxiques dans un analyseur de dependance
-
- 
-
-FIG. 1 — Analyse pour l’enonce H avait suggere a son frere de remplacer 1e canape par des
-chaises illustrant l’arbre de dependance, les fonctions syntaxiques associees aux relations, les
-translatifs pour l’auxiliaire de temps, pour les determinants, pour les prepositions et la proposi-
-tion inﬁnitive. p0, p1, p2 et pprep indiquent respectivement le sujet, l’objet, l’objet indirect et
-un complement prepositionnel.
-
+& Sagot, 2005)), sans passer par des lexiques dérivés où l’information valencielle est dupliquée
+pour chaque forme fléchie.
+Factorisation des contraintes syntaxiques dans un analyseur de dépendance
+pred
+suggéré
+p0 p1
+p2
+time_aux
+frère remplacer
+il avait
+trans det trans p1 p0pprep
+à son canapé chaises
+de
+trans det
+det
+le par des
+FIG. 1 – Analyse pour l’énoncé Il avait suggéré à son frère de remplacer le canapé par des
+chaises illustrant l’arbre de dépendance, les fonctions syntaxiques associées aux relations, les
+translatifs pour l’auxiliaire de temps, pour les déterminants, pour les prépositions et la proposi-
+tion infinitive. p0, p1, p2 et pprep indiquent respectivement le sujet, l’objet, l’objet indirect et
+un complément prépositionnel.
 2 Description du formalisme syntaxique
-
-Le formalisme utilise combine des notions provenant de divers modeles syntaxiques : la depen-
-dance, la valence, l’uniﬁcation, l’adjonction d’arbres, ainsi que plusieurs concepts empruntes a
-l’approche pronominale. Rappelons brievement certains de ces aspects.
-
-La ﬁgure 1 montre la structure syntaxique d’un enonce envisagee comme un arbre de depen-
-dance o1‘1 chaque element lexical est relie a un autre par une relation de dependance (Tesniere,
-1959), (Melcuk, 1988). I1 s’agit d’une relation orientee entre deux elements, o1‘1 l’un est le re’-
-gissant (ou téte, gouvemeur, subordonnant) et l’autre le dépendant (ou subordonne). A l’instar
-de (Tesniere, 1959), on ajoute le translatif (cf. infra), qui modiﬁe certaines proprietes de l’arbre
-avec lequel il se combine. Pour une synthese des notions utilisees en grammaire de dependance
-et des differentes approches, voir (Nivre, 2005).
-
-La nature d’une relation de dependance correspond a la fonction syntaxique que remplit le
-dependant par rapport a sa tete. On distingue plusieurs types de relations et par consequent
-plusieurs types de dépendants. Ainsi, on oppose les dependants valenciels aux non valenciels,
-ce qui correspond a la distinction traditionnelle entre complements essentiels et peripheriques.
-Pour les dependants valenciels du verbe, leur presence, leur nature et leurs proprietes sont dic-
-tees par le verbe en tant qu’element particulier du lexique. Les dependants non valenciels, en
-revanche, s’aj outent facultativement a tout verbe et leur presence n’est donc pas determinee par
-l’identite lexicale du verbe auquel il s’adjoignent. Dans je lui explique la situation, le verbe
+Le formalisme utilisé combine des notions provenant de divers modèles syntaxiques : la dépen-
+dance, la valence, l’unification, l’adjonction d’arbres, ainsi que plusieurs concepts empruntés à
+l’approche pronominale. Rappelons brièvement certains de ces aspects.
+La figure 1 montre la structure syntaxique d’un énoncé envisagée comme un arbre de dépen-
+dance où chaque élément lexical est relié à un autre par une relation de dépendance (Tesnière,
+1959), (Melcuk, 1988). Il s’agit d’une relation orientée entre deux éléments, où l’un est le ré-
+gissant (ou tête, gouverneur, subordonnant) et l’autre le dépendant (ou subordonné). À l’instar
+de (Tesnière, 1959), on ajoute le translatif (cf. infra), qui modifie certaines propriétés de l’arbre
+avec lequel il se combine. Pour une synthèse des notions utilisées en grammaire de dépendance
+et des différentes approches, voir (Nivre, 2005).
+La nature d’une relation de dépendance correspond à la fonction syntaxique que remplit le
+dépendant par rapport à sa tête. On distingue plusieurs types de relations et par conséquent
+plusieurs types de dépendants. Ainsi, on oppose les dépendants valenciels aux non valenciels,
+ce qui correspond à la distinction traditionnelle entre compléments essentiels et périphériques.
+Pour les dépendants valenciels du verbe, leur présence, leur nature et leurs propriétés sont dic-
+tées par le verbe en tant qu’élément particulier du lexique. Les dépendants non valenciels, en
+revanche, s’ajoutent facultativement à tout verbe et leur présence n’est donc pas déterminée par
+l’identité lexicale du verbe auquel il s’adjoignent. Dans je lui explique la situation, le verbe
 expliquer suppose un sujet, un objet obligatoire et un objet indirect facultatif. D’autres verbes,
 comme exploser et faiblir, n’acceptent pas d’objet. Le verbe favoriser attend un objet, mais
-n’accepte pas d’objet indirect. Chaque element du lexique selectionne ses propres complements
+n’accepte pas d’objet indirect. Chaque élément du lexique sélectionne ses propres compléments
 valenciels. Mais ces verbes peuvent tous se combiner avec un circonstant de temps, de lieu ou
-de maniere.
-
-Certaines fonctions syntaxiques fonctionnent tantot comme relation valencielle, tantot comme
-relation non valencielle. C’est le cas des complements locatif, delocatif, de temps et de maniere.
-Par exemple, le locatif est valenciel dans La ruelle debouche sur un place immense.
-
+de manière.
+Certaines fonctions syntaxiques fonctionnent tantôt comme relation valencielle, tantôt comme
+relation non valencielle. C’est le cas des compléments locatif, délocatif, de temps et de manière.
+Par exemple, le locatif est valenciel dans La ruelle débouche sur un place immense.
 Piet Mertens
-
- 
-
-apprend,V
+apprend, V
 subj iobj
-oblig + oblig + oblig -
+obj
+» oblig + – » oblig + – » oblig - –
 CAT N* CAT N*/V* CAT N*
 HUM + HUM - HUM +
-
-FIG. 2 — Cadre de valence représenté comme une arbre de dépendance. Le trait oblig indique
-la nature obligatoire ou facultatif du terme. N* et V* indiquent un noeud structural a téte no-
-minale (nom commun, nom propre, pronom), ou verbale (complétive, proposition inﬁnitive),
+FIG. 2 – Cadre de valence représenté comme une arbre de dépendance. Le trait oblig indique
+la nature obligatoire ou facultatif du terme. N* et V* indiquent un nœud structural à tête no-
+minale (nom commun, nom propre, pronom), ou verbale (complétive, proposition infinitive),
 respectivement.
-
-Le formalisme prévoit la déclaration des relations. Celle-ci indique le type de relation, la catego-
-rie du régissant, sa fonction (éventuellement non spéciﬁée) et les fonctions syntaxiques admises
-pour les dépendants. Une fonction peut apparaitre a la fois comme élément valenciel et comme
+Le formalisme prévoit la déclaration des relations. Celle-ci indique le type de relation, la catégo-
+rie du régissant, sa fonction (éventuellement non spécifiée) et les fonctions syntaxiques admises
+pour les dépendants. Une fonction peut apparaître à la fois comme élément valenciel et comme
 adjoint.
-
-% relation(Type, CatH, FunCH, PossibleFunCtionsOfDependents).
-relation(valenCy, verb, pred, [subj, obj, iobj, pobj, temp, man, loc, deloc] ).
-relation(adjunCt, verb, pred, [man, loc, deloc, temp, neg, trans, time_aux, voiCe_aux] ).
-
+% relation(Type, CatH, FuncH, PossibleFunctionsOfDependents).
+relation(valency, verb, pred, [subj, obj, iobj, pobj, temp, man, loc, deloc] ).
+relation(adjunct, verb, pred, [man, loc, deloc, temp, neg, trans, time_aux, voice_aux] ).
 Ensemble, les dépendants valenciels d’un élément lexical donné constituent son cadre valen-
-ciel (schéme valenciel, cadre de sous-catégorisation), qui peut étre représenté par un arbre de
-dépendance sous-spéciﬁé, comme dans la ﬁgure 2.
-
-Un meme verbe (lemme verbal) peut présenter plusieurs schemes valenciels : Il se sépare de sa
-femme vs. Luc et Eva, 1'ls se séparent, éventuellement avec des sens différents : Elle apprend le
-frangais aux étrangers, J’apprends de sa femme l ’acc1'dent de mon vo1's1'n, J’ai appris son décés
+ciel (schème valenciel, cadre de sous-catégorisation), qui peut être représenté par un arbre de
+dépendance sous-spécifié, comme dans la figure 2.
+Un même verbe (lemme verbal) peut présenter plusieurs schèmes valenciels : Il se sépare de sa
+femme vs. Luc et Eva, ils se séparent, éventuellement avec des sens différents : Elle apprend le
+français aux étrangers, J’apprends de sa femme l’accident de mon voisin, J’ai appris son décès
 par la radio. Les restrictions sélectionnelles portant sur les termes de valence permettent dans
-certains cas de choisir entre des schemes valenciels siIr1ilaires sur le plan syntaxique : Il abaisse
-la vitre, Il veutm’abaisser.
-
-(Tesniere, 1959) retient également une relation de translation, par laquelle un élément trans-
-latif modiﬁe le statut (certaines propriétés) de l’élément auquel il s’ajoute. Dans Cette petite
+certains cas de choisir entre des schèmes valenciels similaires sur le plan syntaxique : Il abaisse
+la vitre, Il veut m’abaisser.
+(Tesnière, 1959) retient également une relation de translation, par laquelle un élément trans-
+latif modifie le statut (certaines propriétés) de l’élément auquel il s’ajoute. Dans Cette petite
 ruelle donne sur le boulevard, la préposition sur change la fonction syntaxique potentielle du
-noeud nominal qui la suit. Dans notre formalisme ce comportement est réalisé par une opération
-associée a l’arbre élémentaire du translatif, qui modiﬁe les traits de l’arbre dérivé. La ﬁgure 1
+nœud nominal qui la suit. Dans notre formalisme ce comportement est réalisé par une opération
+associée à l’arbre élémentaire du translatif, qui modifie les traits de l’arbre dérivé. La figure 1
 comporte plusieurs exemples de translatifs : l’auxiliaire d’aspect avait qui permet au participe
-passé de former un verbe ﬁni, la préposition a, qui transforme son frére en objet indirect, la
+passé de former un verbe fini, la préposition à, qui transforme son frère en objet indirect, la
 préposition par, qui fait de des chaises un objet prépositionnel et la préposition de, qui permet
-a la proposition inﬁnitive de fonctionner comme objet de proposer.
-
+à la proposition infinitive de fonctionner comme objet de proposer.
 3 Arbres élémentaires
-
-Vu que tout arbre de dépendance se décompose en un ensemble de noeuds et de relations, il est
-également possible de constituer l’arbre a partir de ceux-ci, plus précisément a partir d’arbres
-
+Vu que tout arbre de dépendance se décompose en un ensemble de nœuds et de relations, il est
+également possible de constituer l’arbre à partir de ceux-ci, plus précisément à partir d’arbres
 Factorisation des contraintes syntaxiques dans un analyseur de dépendance
-
-ancre lexicale
-
- 
-
-dépendant
-
-FIG. 3 — Parties constitutives de l’arbre élémentaire. Les noeuds et relations au-dessous de
+◦ nœud main
+relation
+◦ ancre lexicale
+relation relation
+◦ ◦ dépendant
+FIG. 3 – Parties constitutives de l’arbre élémentaire. Les nœuds et relations au-dessous de
 l’ancre lexicale ne sont présents que si l’ancre présente des dépendants valenciels.
-
-  
-   
-    
-   
-
-Q1 Q2 Q3 N,pl Q4 V
+α1 ◦ α2 ◦ α3 ◦ N,pl α4 ◦ V
 subj/obj subj/obj det obj
-Pierre glycines I les les
-N,proper; sg Nfem,pl Det,pl Pron, pl
-Q5 Q6 Nfem,pl Q7 Adj
+• Pierre ◦ glycines  les • les
+N,proper,sg N,fem,pl Det,pl Pron,pl
+α5 ◦ α6 ◦ N,fem,pl α7 ◦ Adj
 pred qual degree
-élaguait Vﬁnite touffues trop
-obj Adj, fem, pl Adv
-
-N *, +hum N *, -hum
-
-FIG. 4 — Arbres élémentaires. La ﬂeche indique une relation de dépendance entre deux éléments,
-représentés par des noeuds. Pour l’ancre lexicale le noeud est annoté par un élément lexical.
-Les italiques indiquent des valeurs de traits. Les noeuds noirs et blancs indiquent des éléments
-saturés et non saturés, respectivement. Le noeud carré indique un translatif.
-
-élémentaires qui associent a un élément lexical donné la relation régissante et les relations
+◦ élaguait V,finite • touffues • trop
+subj obj Adj,fem,pl Adv
+◦ N*,+hum ◦ N*,-hum
+FIG. 4 – Arbres élémentaires. La flèche indique une relation de dépendance entre deux éléments,
+représentés par des nœuds. Pour l’ancre lexicale le nœud est annoté par un élément lexical.
+Les italiques indiquent des valeurs de traits. Les nœuds noirs et blancs indiquent des éléments
+saturés et non saturés, respectivement. Le nœud carré indique un translatif.
+élémentaires qui associent à un élément lexical donné la relation régissante et les relations
 dépendantes éventuelles, typiquement celles du cadre valenciel.
-
-Aﬁn d’écarter les structures mal formées, on associera aux noeuds et aux relations des traits qui
-seront uniﬁés au cours d’une combinaison d’arbres.
-
-La ﬁgure 3 montre les parties constitutives d’un arbre élémentaire. L’ ancre lexicale correspond
-au noeud central auquel est associé un élément lexical (une forme ﬂéchie). Le naeud main permet
-de spéciﬁer certaines propriétés du régissant auquel po11rra s’adjoindre l’arbre élémentaire (ou
-les arbres qui en sont dérivés). La relation entre le noeud main et l’ancre indique la fonction de
-celui-ci. A chaque noeud est associée une structure de traits. Dans les ﬁgures suivantes, certains
-traits associés aux noeuds seront représentés par leur valeur seulement, notée en italiques.
-
-La ﬁgure 4 fournit des exemples d’arbres élémentaires. La couleur d’un noeud indique sa sa-
-turation : blanc pour un noeud non sature’, gris pour un noeud suﬁﬁsamment sature’, ou tous les
-dépendants obligatoires sont présents, mais ou il reste un ou plusieurs dépendants facultatifs non
-instanciés, ce qui justiﬁe l’adjonction d’autres dépendants, et enﬁn noir pour un noeud entiére-
-ment sature’, o1‘1 les dépendants obligatoires et facultatifs sont tous instanciés. Le carré indique
-un noeud translatif, les ronds sont des noeuds normaux (non translatifs).
-
+Afin d’écarter les structures mal formées, on associera aux nœuds et aux relations des traits qui
+seront unifiés au cours d’une combinaison d’arbres.
+La figure 3 montre les parties constitutives d’un arbre élémentaire. L’ancre lexicale correspond
+au nœud central auquel est associé un élément lexical (une forme fléchie). Le nœud main permet
+de spécifier certaines propriétés du régissant auquel pourra s’adjoindre l’arbre élémentaire (ou
+les arbres qui en sont dérivés). La relation entre le nœud main et l’ancre indique la fonction de
+celui-ci. À chaque nœud est associée une structure de traits. Dans les figures suivantes, certains
+traits associés aux nœuds seront représentés par leur valeur seulement, notée en italiques.
+La figure 4 fournit des exemples d’arbres élémentaires. La couleur d’un nœud indique sa sa-
+turation : blanc pour un nœud non saturé, gris pour un nœud suffisamment saturé, où tous les
+dépendants obligatoires sont présents, mais où il reste un ou plusieurs dépendants facultatifs non
+instanciés, ce qui justifie l’adjonction d’autres dépendants, et enfin noir pour un nœud entière-
+ment saturé, où les dépendants obligatoires et facultatifs sont tous instanciés. Le carré indique
+un nœud translatif, les ronds sont des nœuds normaux (non translatifs).
 Piet Mertens
-
-058
-
- 
-   
-   
- 
-
- 
-  
-    
-    
-
-pred pred
-
-élaguait Vﬁnite =>
-
-élaguait Vﬁnite
-obj '
-
-subj Ob]
-
-N *, -hum Pierre N *, -hum
-
-Mpropen sg
-
-O47 — — ~ \ O46 Nfem,pl 0413 Nfem,pl
-
-degree \ qual qual
-
-trop \ touffues :> touffues
-Adv Adjfem,pl Adjfem,pl
+α1 ◦ α5 ◦ α8 ◦
+subj/obj pred pred
+Pierre
+• N,proper,sg ◦
+élaguait V,finite ⇒ ◦ élaguait V,finite
+subj obj subj obj
+◦ N*,+hum ◦ N*,-hum • Pierre ◦ N*,-hum
+N,proper,sg
+Adj
+α7 ◦ α6 ◦ N,fem,pl α13 ◦ N,fem,pl
+degree qual qual
+trop touffues touffues
+• Ad •v Adj,fem,pl ⇒ • Adj,fem,pl
 degree
-
 trop
-Adv
-
-FIG. 5 — Mécanisme d’adjonction pour un dépendant valenciel (en haut) et pour un dépendant
+• Adv
+FIG. 5 – Mécanisme d’adjonction pour un dépendant valenciel (en haut) et pour un dépendant
 non valenciel (en bas).
-
-4 Dérivation par adjonction et uniﬁcation
-
+4 Dérivation par adjonction et unification
 La combinaison de deux arbres suppose que l’un fonctionne comme dépendant de l’autre.
-L’ arbre dépendant s’adjoint a l’arbre régissant : il est attaché a un noeud de l’arbre régissant
-par la relation entre le noeud main et l’ancre du dépendant. L’ adjonction résulte en un arbre dé-
-rivé dans lequel la relation de dépendance entre les deux arbres combinés est uniﬁée (cf. ﬁgure
+L’arbre dépendant s’adjoint à l’arbre régissant : il est attaché à un nœud de l’arbre régissant
+par la relation entre le nœud main et l’ancre du dépendant. L’adjonction résulte en un arbre dé-
+rivé dans lequel la relation de dépendance entre les deux arbres combinés est unifiée (cf. figure
 5). Cette relation était explicitée soit dans l’arbre dépendant, soit dans l’arbre régissant, soit
-dans les deux. L’ uniﬁcation de la relation de dépendance implique celle des noeuds concernés.
-
-La ﬁgure 6 montre des arbres dérivés obtenus par l’adjonction de deux arbres élémentaires ou
-dérivés des ﬁgures 4 et 6. Ainsi l’arbre 048 résulte de l’adjonction de 041 au noeud sujet de 045.
-L’ arbre dérivé n’est pas saturé (son noeud ancre est blanc), puisqu’il manque le dépendant objet.
-049 est obtenu par l’adjonction de l’adjectif 046 au nom 042 ; 0410 par l’adjonction de l’article 043
-au méme nom 042. L’arbre 0411 peut étre obtenu de deux fagons : soit par l’adjonction de 043 a
-049, soit par l’adjonction de 046 a 0410.
-
-A son tour un arbre dérivé peut se combiner avec un arbre élémentaire ou dérivé, de maniére
-récursive. Ainsi, l’arbre 0412 est obtenu par l’adjonction de 0411 a 048.
-
+dans les deux. L’unification de la relation de dépendance implique celle des nœuds concernés.
+La figure 6 montre des arbres dérivés obtenus par l’adjonction de deux arbres élémentaires ou
+dérivés des figures 4 et 6. Ainsi l’arbre α8 résulte de l’adjonction de α1 au nœud sujet de α5.
+L’arbre dérivé n’est pas saturé (son nœud ancre est blanc), puisqu’il manque le dépendant objet.
+α9 est obtenu par l’adjonction de l’adjectif α6 au nom α2 ; α10 par l’adjonction de l’article α3
+au même nom α2. L’arbre α11 peut être obtenu de deux façons : soit par l’adjonction de α3 à
+α9, soit par l’adjonction de α6 à α10.
+À son tour un arbre dérivé peut se combiner avec un arbre élémentaire ou dérivé, de manière
+récursive. Ainsi, l’arbre α12 est obtenu par l’adjonction de α11 à α8.
 Tout arbre (élémentaire ou dérivé) sera combiné avec l’ensemble des arbres (élémentaires ou
-dérivés) adjacents. On obtient ainsi l’ensemble des analyses possibiles (ambiguité lexicale ou
-structurale), tant les analyses completes que les analyses partielles.
-
-L’ adjonction d’arbres de dépendance apparait déja dans (Nasr, 1995), (Kahane, 2001), (Mertens,
+dérivés) adjacents. On obtient ainsi l’ensemble des analyses possibiles (ambiguïté lexicale ou
+structurale), tant les analyses complètes que les analyses partielles.
+L’adjonction d’arbres de dépendance apparaît déjà dans (Nasr, 1995), (Kahane, 2001), (Mertens,
 2002), (Nivre, 2005). Ici, on la combine avec un traitement séparé de l’ordre linéaire (cf. section
 6), la caractérisation fonctionnelle des dépendants, et un traitement des translatifs.
-
 Factorisation des contraintes syntaxiques dans un analyseur de dépendance
-
- 
-  
-    
-    
-
-048 059 0610
-pred subj / obj subj / obj
-élaguait Vﬁnite glycines glycines
-subj obj Nzfemapl Nafemylﬂ
+α8 ◦ α9 ◦ α10 ◦
+pred subj/obj subj/obj
+◦ élaguait V,finite ◦ glycines • glycines
+subj obj N,fem,pl N,fem,pl
 qual det
-Pierre N *, -hum touffues I les
-Mpropen sg AdJ'.fem.pl Deapl
-0611 0412
-
- 
-  
-     
-  
-
-pred
-
-élaguait Vﬁnite
-
-subj Ob]
-
- 
-
-touffues glycines
-Det, pl Adj, fem, pl
-
-touffues
-Det, pl Adjfem,pl
-
-FIG. 6 — Arbres dérivés
-
+• Pierre ◦ N*,-hum • touffues  les
+N,proper,sg Adj,fem,pl Det,pl
+α11 ◦ α12 ◦
+subj/obj pred
+• glycines • élaguait V,finite
+det qual subj obj
+ les • touffues • Pierre • glycines
+Det,pl Adj,fem,pl det qual
+ les • touffues
+Det,pl Adj,fem,pl
+FIG. 6 – Arbres dérivés
 5 Implémentation de l’adjonction
-
-L’adjonction est réalisée a 1’aide d’un analyseur chart ascendant bidirectionnel, qui contient
-des arcs étiquetés par un arbre saturé ou non saturé. Chaque arbre dérivé est d’abord ajouté a
-1’agenda (liste d’objets a traiter), avant d’étre placé dans le chart.
-
+L’adjonction est réalisée à l’aide d’un analyseur chart ascendant bidirectionnel, qui contient
+des arcs étiquetés par un arbre saturé ou non saturé. Chaque arbre dérivé est d’abord ajouté à
+l’agenda (liste d’objets à traiter), avant d’être placé dans le chart.
 La saturation d’un arbre élémentaire dépend de son comportement syntaxique. Par exemple,
-les pronoms personnels et les noms propres seront saturés a eux seuls. En revanche, les verbes
-transitifs seront non saturés, puisqu’i1 leur faut leurs compléments pour constituer une construc-
-tion grammaticale. La saturation d’un arbre dérivé correspond a celle du cadre valenciel de sa
+les pronoms personnels et les noms propres seront saturés à eux seuls. En revanche, les verbes
+transitifs seront non saturés, puisqu’il leur faut leurs compléments pour constituer une construc-
+tion grammaticale. La saturation d’un arbre dérivé correspond à celle du cadre valenciel de sa
 racine.
-
-L’a1gorithme cherche a combiner un régissant non saturé avec un dépendant adjacent, entié-
-rement ou sufﬁsamment saturé, avec les propriétés recherchées, aﬁn de créer un arbre dérivé
-qui intégre les deux parties. Pour chaque arbre de 1’agenda on envisage deux cas, selon qu’i1
+L’algorithme cherche à combiner un régissant non saturé avec un dépendant adjacent, entiè-
+rement ou suffisamment saturé, avec les propriétés recherchées, afin de créer un arbre dérivé
+qui intègre les deux parties. Pour chaque arbre de l’agenda on envisage deux cas, selon qu’il
 fonctionne comme dépendant ou comme régissant.
-
-Dans le cas des translatifs, la contrainte associée a 1’arbre translatif est appliquée a 1’arbre
-obtenu par adj onction pour en changer la structure de traits.
-
-L’adjonction d’arbres, partie centrale de 1’ana1yseur, est précédée d’une étape qui associe a
-chaque élément lexical de 1’entrée un arbre élémentaire ou plusieurs, si 1’é1ément est ambigu.
-L’ adjonction est suivie d’une étape de sélection de 1’ana1yse optimale parmi les résultats dispo-
+Dans le cas des translatifs, la contrainte associée à l’arbre translatif est appliquée à l’arbre
+obtenu par adjonction pour en changer la structure de traits.
+L’adjonction d’arbres, partie centrale de l’analyseur, est précédée d’une étape qui associe à
+chaque élément lexical de l’entrée un arbre élémentaire ou plusieurs, si l’élément est ambigu.
+L’adjonction est suivie d’une étape de sélection de l’analyse optimale parmi les résultats dispo-
 nibles.
-
 Piet Mertens
-
 6 Ordre linéaire
-
-L’ ordre des mots fait intervenir de nombreux facteurs : la fonction syntaxique des éléments, leur
-catégorie grammaticale, leur caractere clitique ou non clitique, certains traits morphologiques
-comme la personne (e11e me 1e donne vs. e11e1e1u1' donne), la présence d’un mot interrogatif,
-et ainsi de suite. Comme ces variations d’ordre nombreuses sont en partie prévisibles a partir
+L’ordre des mots fait intervenir de nombreux facteurs : la fonction syntaxique des éléments, leur
+catégorie grammaticale, leur caractère clitique ou non clitique, certains traits morphologiques
+comme la personne (elle me le donne vs. elle le lui donne), la présence d’un mot interrogatif,
+et ainsi de suite. Comme ces variations d’ordre nombreuses sont en partie prévisibles à partir
 des facteurs mentionnés, on les a écartés du lexique. Ceci permet une représentation du lexique
 syntaxique économique et abstraite, au niveau de la valence, comme dans une méta-grammaire.
-
-I1 s’agit alors de trouver la formulation adéquate des regles d’ordre, qui tienne compte de la
+Il s’agit alors de trouver la formulation adéquate des règles d’ordre, qui tienne compte de la
 projectivité du réseau de dépendance et du fonctionnement de l’analyseur, de sorte que ces
-regles puissent étre appliquées a chaque adjonction portant sur un couple téte-dependant.
-
-Plutot qu’énumérer les séquences possibles, comme dans une grammaire hors-contexte, ou plu-
-tot qu’énumérer les suites possibles de deux elements, on spéciﬁe l’ordre linéaire comme la
-distance relative d’un dépendant par rapport a sa téte, ce qui revient a combiner les séquences
-attestées en une seule sequence maximale. L’ordre relatif d’un dépendant n’est autre que sa
-position dans cette séquence maximale. Des éléments qui permutent librement auront la meme
-distance. Etant donné la nature binaire de l’adj onction, qui fait intervenir exactement une téte et
-un dépendant, les regles sont toujours locales a un meme noeud structural et se regroupent natu-
-rellement en fonction de la nature de la téte. Le tableau 1 illustre le cas de certains compléments
+règles puissent être appliquées à chaque adjonction portant sur un couple tête-dépendant.
+Plutôt qu’énumérer les séquences possibles, comme dans une grammaire hors-contexte, ou plu-
+tôt qu’énumérer les suites possibles de deux éléments, on spécifie l’ordre linéaire comme la
+distance relative d’un dépendant par rapport à sa tête, ce qui revient à combiner les séquences
+attestées en une seule séquence maximale. L’ordre relatif d’un dépendant n’est autre que sa
+position dans cette séquence maximale. Des éléments qui permutent librement auront la même
+distance. Etant donné la nature binaire de l’adjonction, qui fait intervenir exactement une tête et
+un dépendant, les règles sont toujours locales à un même nœud structural et se regroupent natu-
+rellement en fonction de la nature de la tête. Le tableau 1 illustre le cas de certains compléments
 du verbe.
-
-elle 1e leur donnera
-
+elle le leur donnera
 elle me le donnera
-
-eﬂe nous y envde
-
+elle nous y envoie
 elle ne le lui donnera pas
-
 elle ne lui donnera pas son alliance
-
-elle donnera son alliance 51 Max
+elle donnera son alliance à Max
 fonction subj neg iobj obj iobj loc verb neg obj iobj
 clitique + + + + + - -
 personne 1/2 3
 distance 6 5 4 3 2 1 0 5 20 20
-
-TAB. 1 — Ordre relatif pour quelques dépendants du verbe.
-
-Dans une regle d’ordre relatif, portant donc sur un couple téte-dependant, chaque élément est
-caractérisé par une structure de traits, le plus souvent sous-spéciﬁée, qui identiﬁe les facteurs
-pertinents cités plus haut. La regle précise en outre le coté gauche ou droit de l’adjonction, la
-distance relative et les traits induits éventuels. L’ ordre observé permet parfois d’induire certaines
-informations. Ainsi, la présence d’un pronom sujet apres le verbe qui le régit induit le trait
+TAB. 1 – Ordre relatif pour quelques dépendants du verbe.
+Dans une règle d’ordre relatif, portant donc sur un couple tête-dépendant, chaque élément est
+caractérisé par une structure de traits, le plus souvent sous-spécifiée, qui identifie les facteurs
+pertinents cités plus haut. La règle précise en outre le côté gauche ou droit de l’adjonction, la
+distance relative et les traits induits éventuels. L’ordre observé permet parfois d’induire certaines
+informations. Ainsi, la présence d’un pronom sujet après le verbe qui le régit induit le trait
 d’inversion.
-
 prec(Side, Distance, Dependent_FS, Head_FS, Induced_FS).
-
-Pendant l’adjonction, lors de la vériﬁcation de l’ordre linéaire, on parcourt une a une les regles
-ordonnées de précédence linéaire, jusqu’a ce que les traits des arbres combinés s’uniﬁent avec
-ceux de la regle. On vériﬁe que la distance relative indiquée dans la regle en question soit supe-
-rieure ou égale a celle de l’arbre téte. Sinon l’ordre linéaire est jugé non conforme et l’adjonction
+Pendant l’adjonction, lors de la vérification de l’ordre linéaire, on parcourt une à une les règles
+ordonnées de précédence linéaire, jusqu’à ce que les traits des arbres combinés s’unifient avec
+ceux de la règle. On vérifie que la distance relative indiquée dans la règle en question soit supé-
+rieure ou égale à celle de l’arbre tête. Sinon l’ordre linéaire est jugé non conforme et l’adjonction
 sera rejetée.
-
 Factorisation des contraintes syntaxiques dans un analyseur de dépendance
-
 7 Evaluation et discussion
-
-Le systeme d’analyse incorpore un analyseur lexical (Morlex, 33000 lemmes) et un lexique
+Le système d’analyse incorpore un analyseur lexical (Morlex, 33000 lemmes) et un lexique
 syntaxique comportant les 8100 cadres valenciels de 3700 verbes pleins, ainsi que ceux de 900
 locutions verbales. Ce lexique est dérivé de Dicovalence ((van den Eynde & Mertens, 2003),
-(van den Eynde & Mertens, 2006)), apres (a) le calcul du trait sémantique [humain] a partir du
+(van den Eynde & Mertens, 2006)), après (a) le calcul du trait sémantique [humain] à partir du
 paradigme de pronoms, (b) des réalisations syntagmatiques acceptées (pronominal, nominal,
-complétive, inﬁnitive) et (c) du mode de la complétive. Ensemble, l’analyseur morphologique
+complétive, infinitive) et (c) du mode de la complétive. Ensemble, l’analyseur morphologique
 et les lexiques syntaxiques permettent d’obtenir les arbres élémentaires pour les formes dans
 l’entrée et de supprimer ainsi le lexique d’arbres précompilé, utilisé habituellement. Le calcul
-des arbres élémentaires a partir des données de l’analyse lexicale fait intervenir 42 regles pour
+des arbres élémentaires à partir des données de l’analyse lexicale fait intervenir 42 règles pour
 l’ensemble des catégories grammaticales et prend environ 600 lignes de code en Prolog. La
-grammaire utilisée prévoit 30 déclarations de relations et déﬁnit 70 regles d’ordre, dont 46 pour
+grammaire utilisée prévoit 30 déclarations de relations et définit 70 règles d’ordre, dont 46 pour
 le verbe, 12 pour le nom et 4 pour l’adjectif.
-
-Aﬁn d’obtenir une premiere évaluation de l’analyseur, nous avons utilisé TSNLP ((Lehmann,
-1996)), une des rares suites de phrases test disponibles pour le francais. Certains phénomenes
+Afin d’obtenir une première évaluation de l’analyseur, nous avons utilisé TSNLP ((Lehmann,
+1996)), une des rares suites de phrases test disponibles pour le français. Certains phénomènes
 syntaxiques (subordonnées, phrases complexes, relatives, constructions passives, clivées, dislo-
-cations) n’y sont (presque) pas représentés; en meme temps, le corpus comporte des phrases
-peu représentatives : Luc a montré, 1e soir, 1e plan au conseil.
-
+cations) n’y sont (prèsque) pas représentés ; en même temps, le corpus comporte des phrases
+peu représentatives : Luc a montré, le soir, le plan au conseil.
 Le corpus contient 1690 phrases grammaticales, dont 1306 sans coordination. Pour 83.4 %
-de ces 1306 phrases, l’analyseur foumit au moins une analyse complete. Les analyses mul-
-tiples s’expliquent par les ambigu'1'tés morphologiques et lexicales. Ainsi les verbes a plusieurs
-schemes valenciels donneront lieu a des analyses multiples, par exemple lorsque ces schemes
+de ces 1306 phrases, l’analyseur fournit au moins une analyse complète. Les analyses mul-
+tiples s’expliquent par les ambiguïtés morphologiques et lexicales. Ainsi les verbes à plusieurs
+schèmes valenciels donneront lieu à des analyses multiples, par exemple lorsque ces schèmes
 se différencient par un complément facultatif non réalisé dans l’entrée, ou par des restrictions
 sélectionnelles (comme le trait [humain]) pas encore explicitées dans le lexique nominal.
-
-Le systeme évalué ici ne traite ni les dépendances de longue distance, ni les coordinations
-(sauf les cas relativement simples du type N et/ou N, Adj et/ou Adj. . .). Parmi les difﬁcultés
-rencontrées, citons les structures non projectives et les éléments discontinus. Si, dans ne 1e lui
-avait-i1 pas donné, on considere que les clitiques et la négation sont régis par le verbe auxiliaire,
+Le système évalué ici ne traite ni les dépendances de longue distance, ni les coordinations
+(sauf les cas relativement simples du type N et/ou N, Adj et/ou Adj. . .). Parmi les difficultés
+rencontrées, citons les structures non projectives et les éléments discontinus. Si, dans ne le lui
+avait-il pas donné, on considère que les clitiques et la négation sont régis par le verbe auxiliaire,
 alors on obtient une structure non projective, puisque les clitiques réalisent le cadre valenciel
-du verbe principal donné mais se placent par rapport a la forme verbale ﬂéchie, qui est ici
-l’auxiliaire. La situation est analogue pour en est-i1 capable, o1‘1 les clitiques dans la valence de
-l’adjectif prédicatif sont placés pres du verbe copule. Aﬁn de traiter ces cas, le systeme actuel
+du verbe principal donné mais se placent par rapport à la forme verbale fléchie, qui est ici
+l’auxiliaire. La situation est analogue pour en est-il capable, où les clitiques dans la valence de
+l’adjectif prédicatif sont placés près du verbe copule. Afin de traiter ces cas, le système actuel
 associe aux auxiliaires et aux copules un cadre valenciel avec des places facultatives réservées
-a des clitiques. Lorsque le verbe auxiliaire ou copule est adjoint a un autre verbe, leurs cadres
-valenciels sont combinés de sorte que les clitiques régis par le verbe ﬁni occuperont des places
+à des clitiques. Lorsque le verbe auxiliaire ou copule est adjoint à un autre verbe, leurs cadres
+valenciels sont combinés de sorte que les clitiques régis par le verbe fini occuperont des places
 dans le cadre valenciel du verbe prédicatif. Evidemment cette solution ne couvre qu’une partie
 des structures non projectives.
-
 8 Conclusion
-
-Aﬁn d’éviter la redondance des arbres élémentaires dans certains formalismes, nous proposons
-une approche qui vise a factoriser plusieurs aspects de la syntaxe au niveau du formalisme syn-
-taxique lui-méme. Nous décrivons le fonctionnement général d’un analyseur qui met en oeuvre
-cette approche. La factorisation vise a séparer la dominance de l’ordre linéaire, et a distinguer la
-
+Afin d’éviter la redondance des arbres élémentaires dans certains formalismes, nous proposons
+une approche qui vise à factoriser plusieurs aspects de la syntaxe au niveau du formalisme syn-
+taxique lui-même. Nous décrivons le fonctionnement général d’un analyseur qui met en œuvre
+cette approche. La factorisation vise à séparer la dominance de l’ordre linéaire, et à distinguer la
 Piet Mertens
-
-fonction syntaxique de la réalisation syntagmatique. Aﬁn de réduire les combinaisons d’arbres,
-l’adjonction est réservée aux dépendants sufﬁsamment saturés, sauf dans les cas o1‘1 cette restric-
-tion empécherait a l’analyse d’aboutir, comme pour l’adjectif attribut employé avec un verbe
-copule. Le systeme illustre la Inise en oeuvre d’un lexique syntaxique a large couverture et
-de haut niveau, sans duplication des informations. En cas d’ambigu'1'té lexicale ou structurale,
+fonction syntaxique de la réalisation syntagmatique. Afin de réduire les combinaisons d’arbres,
+l’adjonction est réservée aux dépendants suffisamment saturés, sauf dans les cas où cette restric-
+tion empêcherait à l’analyse d’aboutir, comme pour l’adjectif attribut employé avec un verbe
+copule. Le système illustre la mise en œuvre d’un lexique syntaxique à large couverture et
+de haut niveau, sans duplication des informations. En cas d’ambiguïté lexicale ou structurale,
 l’analyseur produit l’ensembles des analyses possibles.
-
-Une premiere évaluation du systeme met en lumiere ses capacités et ses limites. Le traitement
-de certains phénomenes syntaxiques, comme les dépendances non bomées et les coordinations,
-demandera des modiﬁcations importantes.
-
+Une première évaluation du système met en lumière ses capacités et ses limites. Le traitement
+de certains phénomènes syntaxiques, comme les dépendances non bornées et les coordinations,
+demandera des modifications importantes.
 Références
-
-BOUILLER P. & SAGOT B. (2005). Analyse syntaxique profonde a grande échelle : SXLFG.
-Traitement Automatique des Langues, 46(2), 65-89.
-
+BOUILLER P. & SAGOT B. (2005). Analyse syntaxique profonde á grande échelle : SXLFG.
+Traitement Automatique des Langues, 46(2), 65–89.
 CANDITO M.-H. (1999). Un outil multilingue de construction semi-automatique de gram-
-maire d’arbres adjoints. application au francais et a l’italien. Traitement Automatique des
-Langues, 40(1), 87-123.
-
-CRABBE B. (2005). Representation informatique de grammairesfortement lexicalise’es. Ap-
-plication a la grammaire d ’arbres adjoints. PhD thesis, Doctorat de l’université Nancy 2.
-
-CRABBE B. (2007). Problématique de la conception d’un langage de haut niveau. In Actes
-TALN2007, tome 2, p. 433-442.
-
+maire d’arbres adjoints. application au français et á l’italien. Traitement Automatique des
+Langues, 40(1), 87–123.
+CRABBÉ B. (2005). Représentation informatique de grammaires fortement lexicalisées. Ap-
+plication à la grammaire d’arbres adjoints. PhD thesis, Doctorat de l’université Nancy 2.
+CRABBÉ B. (2007). Problématique de la conception d’un langage de haut niveau. In Actes
+TALN2007, tome 2, p. 433–442.
 DANLOS L. & SAGOT B. (2007). Comparaison du lexique grammaire des verbes pleins et de
-dicovalence : vers une intégration dans le lefff. In Actes TALN2007, tome 1, p. 229-238.
-
+dicovalence : vers une intégration dans le lefff. In Actes TALN2007, tome 1, p. 229–238.
 KAHANE S. (2001). Grammaires de dépendance formelles et théorie sens-texte. In Actes
-TALN200I, tome2, p. 7-76.
-
-LEHMANN S. (1996). Tsnlp - test suites for natural language processing. In Proc. COLING
+TALN2001, tome2, p. 7–76.
+LEHMANN S. (1996). Tsnlp – test suites for natural language processing. In Proc. COLING
 1996, Copenhagen.
-
-MELCUK I. A. (1988). Dependency Syntax: Theory and Practice. Albany : State University
+MELCUK I. A. (1988). Dependency Syntax : Theory and Practice. Albany : State University
 of New York Press.
-
 MERTENS P. (2002). Parsing dependency grammar using ALE. In Proceedings COLING 2002
-(19th Int. Conf on Comp. Ling., August 26-30, 2002, Taipei, Taiwan), volume 2, p. 653-659.
-
+(19th Int. Conf. on Comp. Ling., August 26-30, 2002, Taipei, Taiwan), volume 2, p. 653–659.
 NASR A. (1995). A formalism and a parser for lexicalised dependency grammars. In 4th
-International Workshop on Parsing Technologies, p. 186-195, Prague.
-
+International Workshop on Parsing Technologies, p. 186–195, Prague.
 NIVRE J. (2005). Dependency grammar and dependency parsing. MSI Re-
 port 05133. Vaxjo University : School of Mathematics and Systems Engineering.
-http ://w3.msi.vXu.se/~nivre/papers/05133.pdf.
-
-TESNIERE L. (1959). Elements de syntaxe structurale. Paris : Klincksieck.
-
-VAN DEN EYNDE K. & MERTENS P. (2003). La valence : l’approche pronoIr1inale et son
-application au lexique verbal. French Language Studies, 13(1), 63-104.
-
+http ://w3.msi.vxu.se/∼nivre/papers/05133.pdf.
+TESNIÈRE L. (1959). Eléments de syntaxe structurale. Paris : Klincksieck.
+VAN DEN EYNDE K. & MERTENS P. (2003). La valence : l’approche pronominale et son
+application au lexique verbal. French Language Studies, 13(1), 63–104.
 VAN DEN EYNDE K. & MERTENS P. (2006). Le dictionnaire de valence dicovalence : manuel
-d’utilisation. bach.arts.kuleuven.be/dicovalence/manuel_061 1 17.pdf.
-
+d’utilisation. bach.arts.kuleuven.be/dicovalence/manuel_061117.pdf.

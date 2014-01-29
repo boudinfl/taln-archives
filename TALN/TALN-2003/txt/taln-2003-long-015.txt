@@ -1,0 +1,520 @@
+TALN 2003, Batz-sur-Mer, 11–14 juin 2003
+Vers la compréhension automatique de la parole : extraction
+de concepts par réseaux bayésiens
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+LORIA/INRIA-Lorraine
+615 rue du Jardin Botanique, BP 101, F-54600 Villers-lès-Nancy, France
+{jamoussi, smaili, jph}@loria.fr
+Mots-clefs – Keywords
+Compréhension de la parole, concepts sémantiques, réseaux bayésiens, étiquetage sémantique,
+catégorisation automatique.
+Speech understanding, semantic concepts, Bayesian networks, semantic labelling, automatic
+categorization.
+Résumé - Abstract
+La compréhension automatique de la parole peut être considérée comme un problème d’as-
+sociation entre deux langages différents. En entrée, la requête exprimée en langage naturel et en
+sortie, juste avant l’étape d’interprétation, la même requête exprimée en terme de concepts. Un
+concept représente un sens bien déterminé. Il est défini par un ensemble de mots partageant les
+mêmes propriétés sémantiques. Dans cet article, nous proposons une méthode à base de réseau
+bayésien pour l’extraction automatique des concepts ainsi que trois approches différentes pour
+la représentation vectorielle des mots. Ces représentations aident un réseau bayésien à regrouper
+les mots, construisant ainsi la liste adéquate des concepts à partir d’un corpus d’apprentissage.
+Nous conclurons cet article par la description d’une étape de post-traitement au cours de laque-
+lle, nous étiquetons nos requêtes et nous générons les commandes SQL appropriées validant
+ainsi, notre approche de compréhension.
+The automatic speech understanding can be considered as association problem between two
+different languages. At the entry, the request expressed in natural language and at the end,
+just before the stage of interpretation, the same request is expressed in term of concepts. One
+concept represents given meaning, it is defined by the set of words sharing the same semantic
+properties. In this paper, we propose a new Bayesian network based method to automatically
+extract the underlined concepts. We also propose three different approaches for the vector
+representation of words. These representations help Bayesian network to build the adequate
+list of concepts for the considered application. We finish this paper by description of the post-
+processing step during which, we label our sentences and we generate the corresponding SQL
+queries. This step allows us to validate our speech understanding approach.
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+1 Introduction
+Dans la littérature, plusieurs méthodes de compréhension de la parole ont été proposées. La
+plupart de ces méthodes se fondent sur des approches stochastiques de décodage conceptuel qui
+permettent d’approcher la compréhension automatique, réduisant ainsi le recours à l’expertise
+humaine. Cependant, ces méthodes nécessitent une étape d’apprentissage supervisé, ce qui sig-
+nifie qu’il y a une étape antérieure d’annotation manuelle du corpus d’apprentissage (Maynard
+& Lefèvre, 2002; Bousquet-Vernhettes & Vigouroux, 2001; Pieraccini et al., 1993).
+Dans de telles approches fondées sur le décodage conceptuel, l’étape d’annotation consiste à
+segmenter les données d’apprentissage en des segments conceptuels représentant chacun un
+sens bien déterminé (Bousquet-Vernhettes & Vigouroux, 2001). Il s’agit donc de trouver tout
+d’abord les différents concepts relatifs au corpus, de segmenter ensuite les phrases de ce cor-
+pus, de les étiqueter en utilisant les concepts trouvés et de procéder enfin à l’apprentissage
+automatique. Faire tout ce travail d’une façon manuelle constitue sans doute une phase fasti-
+dieuse et coûteuse. De plus, l’extraction manuelle est sujette à la subjectivité et aux erreurs
+humaines. Automatiser cette tâche permettra donc de réduire ou d’annuler l’intervention hu-
+maine et surtout de pouvoir réutiliser ce même procédé lorsqu’on change de contexte (Siu &
+Meng, 1999).
+Dans cet article, nous commençons par décrire l’architecture générale de notre système de com-
+préhension de la parole, basée sur l’approche proposée dans (Pieraccini et al., 1993). Ensuite,
+nous présentons une nouvelle approche pour extraire automatiquement les concepts séman-
+tiques. Pour ce faire, nous utilisons un réseau bayésien pour la classification non supervisée,
+appelé AutoClass. Puis, nous exposons trois méthodes différentes pour la représentation vecto-
+rielle des mots afin de les regrouper pour former des concepts. Enfin, nous abordons la dernière
+étape du processus de compréhension, au cours de laquelle nous étiquetons les requêtes et nous
+générons les commandes SQL associées.
+2 La compréhension automatique de la parole
+Le problème de compréhension de la parole peut être vu comme un problème de mise en corre-
+spondance entre une chaîne de mots en entrée et une suite de mots dans un langage plus restreint
+véhiculant les idées principales d’une phrase. Il s’agit, dans un premier temps, d’associer les
+mots de la phrase en entrée du système à des messages dans un langage sémantique intermédi-
+aire (souvent appelés concepts). Dans un second temps, afin de satisfaire la requête émise en
+entrée, on traduit les concepts obtenus en actions ou réponses et on parle dans ce cas de l’étape
+d’interprétation de la phrase.
+L’entrée du système peut être donnée sous forme textuelle ou sous forme d’un signal de parole,
+sa sortie exprimée en tant qu’actions ou commandes n’est qu’une conversion d’une liste de
+concepts donnée par un module intermédiaire de traduction sémantique et fournissant le sens
+littéral de la phrase. Un concept est une classe de mots traitant d’un même sujet et partageant
+des propriétés communes. Par exemple, les mots hôtel, chambre, auberge et studio peuvent
+tous correspondre au concept “hébergement” dans une application touristique. Dans (Pieraccini
+et al., 1993), les auteurs définissent un modèle général pour la compréhension automatique de
+la parole qui, en raison de sa simplicité et de son efficacité, a été repris dans plusieurs autres
+travaux (Maynard & Lefèvre, 2002; Bousquet-Vernhettes & Vigouroux, 2001). Nous avons
+Vers la compréhension automatique de la parole
+adopté la même architecture générale mais nous proposons des techniques différentes au sein
+de chacune de ses composantes. La figure 1 illustre l’architecture générale d’un tel système de
+compréhension de la parole.
+sens
+représenté
+Parole ou texte Traducteur par les Convertisseur de ACTION
+Sémantique Représentation
+TS concepts CR
+appropriés
+Figure 1: Architecture générale d’un système de compréhension automatique de la parole.
+Dans notre travail, nous nous intéressons à une application de consultation de pages “Favoris”
+(Bookmarks en anglais). Pour ce faire, nous utilisons un corpus du projet européen MIAMM
+dont l’objectif est de construire une plate-forme de dialogue oral multimodale. Le corpus con-
+tient 71287 requêtes différentes exprimées en langue française. Chaque requête exprime une
+manière particulière d’interroger la base. Des exemples de ces requêtes sont donnés dans la ta-
+ble 1. Ces requêtes sont fournies au système de compréhension sous leur forme textuelle. Notre
+but est de fournir à la fin les requêtes SQL correspondantes qui, en les exécutant, répondront
+aux demandes des utilisateurs.
+Montre-moi le contenu de mes favoris.
+Je voudrais savoir si tu peux me prendre le contenu que j’aime.
+Est-ce que tu veux me sélectionner les titres que je préfère.
+Est-il possible que tu me passes le premier de mes favoris.
+Te serait-il possible de m’indiquer quelque chose de pareil.
+Tu peux faire voir uniquement décembre 2001.
+Il faut que tu me présentes la liste que j’ai utilisée tôt ce matin.
+Je te demande de me passer les chansons que j’ai écoutées ce matin.
+Je souhaiterais que tu me montres les disques que j’ai regardés dans la matinée.
+Je veux voir le deuxième que j’ai regardé dans la matinée.
+Table 1: Quelques exemples de requêtes du corpus MIAMM.
+3 Extraction des concepts : méthodes et résultats
+Au cours de cette étape, nous cherchons à identifier les concepts sémantiques liés à notre appli-
+cation. La détermination manuelle de ces concepts est une tâche très lourde. Il nous faut donc
+trouver une méthode automatique qui, pourrait ne pas donner des résultats aussi performants que
+ceux obtenus par la méthode manuelle, mais qui, en contre partie, permet une automatisation
+complète du processus de compréhension.
+Partant du principe d’automatisation de cette tâche de catégorisation, nous avons opté pour des
+méthodes de classification non supervisée. Notre but final étant de trouver des concepts co-
+hérents de l’application, le meilleur moyen d’y parvenir est de regrouper les mots en fonction
+de leurs propriétés sémantiques. La méthode à utiliser va donc regrouper les mots du corpus en
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+différentes classes, construisant ainsi les concepts de l’application. Dans ce cas, il nous reste
+qu’à affecter un nom de concept approprié à chaque groupe de mots. Parmi les méthodes de
+classification non supervisée, nous avons implanté les cartes de Kohonen, les réseaux de neu-
+rones de Oja et Sanger, la méthode des K-means et quelques méthodes fondées sur la mesure
+d’information mutuelle moyenne entre les mots (Jamoussi et al., 2002). Les concepts obtenus
+par ces méthodes étaient bien significatifs, mais contenaient du “bruit”. Autrement dit, certains
+mots n’avaient pas leurs places dans le sens exprimé par ces concepts. Pour remédier à ce prob-
+lème, nous avons exploré d’autres méthodes et avons adopté les réseaux bayésiens en raison de
+leur fondement mathématique fort et le mécanisme d’inférence puissant sous-jacent (Cheese-
+man & Stutz, 1996).
+Dans la suite, nous présentons le principe de la théorie bayésienne sur laquelle se base l’outil
+que nous avons utilisé (AutoClass) et nous détaillons quelques étapes de calcul permettant de
+trouver les concepts correspondants au corpus d’apprentissage utilisé. Nous exposons aussi
+trois approches différentes pour la représentation vectorielle des mots. Cette représentation,
+qui doit être sémantiquement significative, constitue une étape clé au sein du système de com-
+préhension puisqu’elle constitue l’entrée du réseau bayésien qui va décider des groupements
+des mots formant les concepts.
+3.1 Principe du réseau bayésien “AutoClass”
+AutoClass est un réseau bayésien pour la classification non supervisée qui accepte en entrée des
+valeurs réelles, mais aussi des valeurs non numériques comme des mots, des caractères etc. En
+résultat, il fournit des probabilités d’appartenance des éléments en entrée, aux classes trouvées.
+Il suppose l’existence d’une variable multinomiale cachée qui peut représenter les différentes
+classes auxquelles appartiennent les éléments en entrée. AutoClass est basé sur le théorème de
+Bayes exprimé par :
+ 	 	
+ 
+	 (1)
+ 	
+Dans notre cas,  représente les données et donc les mots à classer et  une hypothèse con-
+cernant le nombre de classes et leurs descriptions en terme de probabilités. Avec AutoClass, on
+cherche à maximiser la probabilité  
+	 , c’est à dire que sachant  , les mots du corpus, on
+doit sélectionner  , l’ensemble des concepts, qui maximise cette probabilité.
+Dans notre réseau bayésien représenté par la figure 2, un mot  est donné sous la forme
+d’un vecteur à  valeurs d’attributs, 
+fiffffifl "!#!$!%'& . Un concept (*) est décrit, lui aussi,
+,-
+par  attributs, chacun est modélisé par une distribution gaussienne normale. + ). est un
+vecteur paramètre décrivant le  ème attribut du / ème concept (0) et il contient deux éléments,
+la moyenne 12)3 de la distribution considérée et son écart-type 45)3 . Pour l’ensemble du concept,
+,
+- -
+,
+ce vecteur est noté
++
+) et il contient les
++
+). de tous ses attributs. La probabilité qu’un mot 
+appartienne au concept (6) , appelée la probabilité de classe et est notée 75) constitue aussi un
+paramètre descriptif du concept (6) .
+Ainsi nous avons défini nos paramètres de travail, les données  sont bien les mots, représentés
+,
+par le vecteur  à 8 éléments englobant tous les  . L’hypothèse  correspondant à la de-
++
+scription des concepts est représentée par trois éléments, le nombre de concepts 9 et les deux
+,
+-
+,
+-
+,
+vecteurs 7 et + qui contiennent respectivement les 75) et les + ) de tous les concepts. Au-
++
+toClass divise le problème d’identification des concepts en deux parties : la détermination des
+Vers la compréhension automatique de la parole
+Cj J
+xi1 xi2 xi xr iK
+I
+Figure 2: La structure générale du réseau bayésien AutoClass.
+, -
+,
+paramètres de classification ( 7 et + ) pour un nombre donné de concepts et la détermination du
++
+nombre de concepts 9 . Ce dernier problème nécessite plusieurs approximations (pour les dé-
+tails, voir (Cheeseman & Stutz, 1996)). Dans ce qui suit,  représente seulement les vecteurs
+,:-
+,
+7 et + . En remplaçant, dans l’équation 1,  et  par leurs valeurs, on obtient :
++
+,- ,-
+, , ,
+,-  ; 	<   	
+, ,
++  7  +  7
+   	*
++ + +
+,
++  7  (2)
+  	
++ +
+
++
+,=-
+,
+où   	+  7 est la probabilité a priori des paramètres de classification, son calcul est bien décrit
++
+,
+dans (Cheeseman & Stutz, 1996). La probabilité a priori des mots,  ; 	 peut être calculée
++
+directement. Elle est considérée simplement comme une constante de normalisation. Dans ce
+,=-
+, ,
+qui suit, on s’intéresse au calcul de la probabilité    	 +  7 qui représente la fonction de
++ +
+vraisemblance des données.
+,
+On sait que  est un vecteur représentant tous les mots du corpus d’apprentissage, la vraisem-
++
+blance de ce vecteur est donc calculée comme étant le produit des probabilités de tous les mots
+séparément comme le montre l’équation suivante :
+,
+- , -
+, , ,
+?
+   	* >    	
+ +  7 B +  7 (3)
++ + +
+:@A
+,=-
+,
+   	
+B +  7 est la probabilité d’observer le mot 2 indépendamment du concept auquel il appar-
++
+tient. Elle est donnée par la somme des probabilités que ce mot appartienne à chaque concept
+séparément, pondérée par les probabilités des classes comme indiqué par l’équation suivante :
+,=- ,-
+,
+F
+   	 E    	
+B +  7CD9 7H) B Bff()IJ+ ) (4)
++
+)G@A
+Puisque le mot 2 est décrit par un ensemble de  attributs, avec la supposition, un peu forte,
+,-
+que ces attributs sont indépendants, la probabilité    	 Bff()IJ+ ) peut s’écrire donc, sous la
+forme suivante :
+,- ,:-
+?
+   	 L    	
+B Bff()KJ+ ) B BNffO()KD+ ). (5)
+M@A
+AutoClass modélise les attributs à valeurs réelles par une distribution gaussienne normale représen-
+,=-
+tée par le vecteur + )3 qui contient les deux paramètres 12). et 4 ). . Dans ce cas,   2 BPff
+,=-
+	
+()IJ+ ). qui correspond à la distribution de classe peut s’écrire sous la forme suivante :
+Z
+  B= 1B).
+   	6
+SV[
+R S
++
+B Bff()IQ1B)3G4 ). (6)
++
+4 ). \"]G^
+7T4 ).VUXW5Y
+Une fois, cette distribution de classe déterminée, il nous reste à chercher l’ensemble des paramètres
+,
+-
+, ,
+de concepts qui maximisent la probabilité de départ  ;  	+  7  et trouver ainsi l’ensemble des
++ +
+concepts optimaux relatifs à nos données.
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+3.2 Représentation vectorielle des mots
+3.2.1 Contexte des mots
+Un mot peut avoir plusieurs caractéristiques possibles, mais rares sont celles qui peuvent lui
+donner une représentation sémantique complète. Dans une première étape, nous avons décidé
+d’associer à chaque mot ses différents contextes d’utilisation en émettant l’hypothèse que si
+deux mots ont les mêmes contextes alors ils sont sémantiquement proches. Dans cette approche,
+S`_a a
+un mot sera donc représenté par un vecteur à éléments contenant les mots de son
+a
+contexte gauche et les mots de son contexte droit.
+La figure 3 présente un exemple de la représentation contextuelle des mots. Nous disposons
+a S
+d’une phrase contenant b mots ; en fixant  , nous représentons chaque mot c' par les
+deux mots de ses contextes gauche et droit.
+ 
+<DEB><DEB>  W1    W2    W3    W4    <FIN><FIN> 
+W 1 <DEB> <DEB>         W2          W3
+W 2 <DEB>       W 1           W 3         W 4
+ 
+W 3     W 1           W 2           W 4     <FIN>
+ 
+W 4     W 2           W 3      <FIN>   <FIN>
+ 
+a S
+Figure 3: Un exemple de représentation de mots par leurs contextes (  ).
+a S
+La valeur de a été fixée à car les requêtes sont généralement courtes et concises. Par
+conséquent, les contextes sémantiquement significatifs sont constitués de peu de mots. Il faut
+rappeler aussi que les mots outils de la langue comme : je, alors, le, mais, etc., ne sont pas
+considérés.
+Les classes que nous avons obtenues par cette méthode représentent bien des concepts séman-
+tiques, mais ont l’inconvénient de se chevaucher. De plus, nous avons eu des difficultés à con-
+trôler le nombre de concepts. Quelques exemples de ces concepts sont donnés dans la table 2.
+3.2.2 Similarité entre mots
+Pour trouver des concepts plus homogènes, nous avons changé complètement la structure vec-
+torielle de chaque mot. Nous avons utilisé la mesure de l’information mutuelle moyenne qui
+permet de trouver des similarités contextuelles entre mots.
+Dans cette approche, nous associons à chaque mot un vecteur à d éléments, où d est la taille
+du lexique. L’élément numéro / de ce vecteur représente la valeur de l’information mutuelle
+moyenne entre le mot numéro / du lexique et le mot à représenter comme indiqué dans la suite:
+fe g g 	 g g 	 g g 	 lgnm g 	po
+c 8 Aih  Q8 h  J!J!J!jQ8 )kh  D!J!J!DG8 h  (7)
+Ce vecteur exprime le degré de similarité du mot en question avec tous les autres mots du
+]
+corpus. La formule de l’information mutuelle moyenne (Rosenfeld, 1994) entre deux mots grq
+Vers la compréhension automatique de la parole
+Concept Groupe de mots
+Favoris_1 Préféré, favoris, préférés, choisi, apprécié, aimé, adoré
+Favoris_2 Favoris, préférés, écouté, vu, utilisé, regardé
+Favoris_3 Favoris, préférés, choisi, apprécié, aimé, adoré, préféré, similaire, semblable,
+pareil, équivalent, ressemblant, synonyme, proche, identique, rapproché
+Demande_1 Possible, demande, veut, voudrais, aimerais, souhaite, souhaiterais,
+faut, désire, désirerais
+Demande_2 Peux, pourrais, veux, voudrais, possible, cherche, demande, aimerais,
+souhaite, souhaiterais, faut, désire, désirerais, fais
+Ordre Montrer, indiquer, sélectionner, trouver, donner, afficher, voir, presser,
+prendre, passer, chercher
+Table 2: Exemples de concepts obtenus avec la représentation basée sur le contexte des mots.
+et gts est donnée par :
+gtq gtsu	* vwlgtq gtsu	5x$y"z|{<}~ D ~l vwlgtq gsp	5xy"z|{<}%~ D ~
+8 h  
+{<}~ #{<}%~H; {<}%~ :{<} ~5.
+ 
+(8)
+{<} ~  ~  {<} ~  ~ 
+   
+vw gq gtsp	5xy"z v gkq gksu	5x$y"z
+ 
+{<} ~ #{<}%~  {<} ~ :{<} ~ 
+   
+
+où vgtq gtsu	 est la probabilité de trouver les deux mots gkq et gts dans la même phrase, vwlgkqŁ
+gtsu	 est la probabilité de trouver le mot gnq sachant qu’on a déjà rencontré le mot gks vgtqj	, est
+la probabilité de trouver le mot gnq et v gkqj	 est la probabilité de ne pas avoir rencontré le mot
+gtq etc.
+En représentant ainsi chaque mot du corpus, et en utilisant le réseau bayésien, nous avons obtenu
+des classes sémantiques homogènes, une classe étant constituée de mots partageant les mêmes
+propriétés sémantiques. Le nombre de ces classes est très cohérent avec notre application. Cette
+représentation nous a permis aussi de résoudre le problème des chevauchements entre concepts.
+Dans la table 3, nous donnons quelques exemples des concepts ainsi construits, où l’on remar-
+que bien qu’il n’y a plus de chevauchement, mais qu’il existe encore quelques imperfections
+comme dans le cas des concepts Demande_1, Demande_2 et Demande_3 qui auraient dûs être
+regroupés ensemble.
+Concept Groupe de mots
+Favoris Favoris, préférés, choisi, apprécié, adoré, préféré
+Mode Écouté, vu, regardé, utilisé
+Similarité Dernier, similaire, semblable, pareil, équivalent, ressemblant, synonyme,
+proche, identique, rapproché
+Demande_1 Pourrais, veux, voudrais
+Demande_2 Possible, aimerais, souhaiterais
+Demande_3 Souhaite, faut, désire, désirerais
+Ordre Montrer, indiquer, sélectionner, trouver, donner, afficher, présenter, prendre,
+passer, chercher
+Table 3: Quelques exemples de concepts obtenus en utilisant la représentation basée sur
+l’information mutuelle moyenne entre les mots.
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+3.2.3 Combinaison : contexte et similarité
+Nous avons combiné les deux approches précédentes en vue d’améliorer les résultats. En ef-
+fet, la première approche travaillant au niveau occurrence, exploite directement les informa-
+tions liées au contexte d’utilisation des mots, tandis que la deuxième, utilise une mesure pour
+chercher des similarités entre deux mots. On peut aisément comprendre que les informations
+utilisées au niveau de ces deux méthodes sont différentes et complémentaires.
+Combiner ces deux méthodes, consiste donc à représenter chaque mot par une matrice d’infor-
+_
+mation mutuelle moyenne à dimension d . La première colonne correspond au vecteur
+d’information mutuelle moyenne précédent (voir section 3.2.2), la deuxième colonne représente
+l’information mutuelle moyenne entre un mot quelconque du vocabulaire et le contexte gauche
+du mot à représenter. Idem pour la troisième colonne mais concernant le contexte droit.
+La / ème valeur de la deuxième colonne est la moyenne pondérée des informations mutuelles
+moyennes entre le / ème mot du vocabulaire et le vecteur constituant le contexte gauche du mot
+c en question. Elle est calculée comme suit :
+_
+lg g 	
+qu
+ 
+
+8 )h 
+~
+
+~ XlD:M: XHu5*
+ 	*
+a` 
+
+8dd`) ( (9)
+_ ¡¢£¢
+Où  	85d¤d`) ( représente l’information mutuelle moyenne entre le mot g ) du lexique et le
+contexte gauche du mot lg g 	c¥ . 8 )¦h représente l’information mutuelle moyenne entre le
+mot numéro / du lexique et le mot g  qui appartient au contexte gauche du mot c .  est
+~
+a§ 
+le nombre de fois où le mot g  est trouvé comme contexte gauche du mot c et _ ¡¢£¢ est le
+nombre total d’occurrence du mot c dans le corpus. Le mot c sera donc représenté par une
+matrice comme le montre la figure 4.
+I(w 1 : w i )
+i
+IMM 1 (Cg) IMM 1 (C
+id)
+i
+I(w 2 : w i ) IMM  (C
+i
+2 g) IMM 2 (Cd)
+W i = i iI(w j : w i ) IMM j (Cg) IMM j (Cd)
+i
+I(w M  : w i ) IMM M (Cg) IMM M (C
+id)
+Figure 4: Représentation du mot c¥ par la méthode combinée.
+La matrice utilisée pour représenter un mot du corpus exploite un maximum d’informations sur
+ce mot. Elle considère son contexte ainsi que sa similarité avec tous les autres mots du lexique.
+Une telle représentation des mots a pu aidé le réseau bayésien dans sa tâche de classification
+et nous a permis d’améliorer considérablement nos résultats. Nous obtenons alors une liste de
+concepts bien cohérente qu’on va utiliser dans la suite de nos traitements. Des exemples de ces
+résultats sont donnés au niveau de la table 4.
+4 Étiquetage et post-traitement
+La dernière étape consiste à fournir les commandes SQL associées aux requêtes textuelles
+émises en entrée. C’est au cours de cette phase que nous entamons l’étape d’interprétation
+Vers la compréhension automatique de la parole
+Concept Groupe de mots
+Favoris Favoris, préférés, choisi, apprécié, adoré, aimé
+Mode Écouté, vu, regardé, utilisé
+Similarité Similaire, semblable, pareil, équivalent, ressemblant, synonyme,
+proche, identique, rapproché
+Demande Souhaite, faut, désire, désirerais, peux, pourrais, veux, voudrais,
+possible, aimerais, souhaiterais
+Ordre Montrer, indiquer, sélectionner, trouver, donner, afficher, présenter,
+prendre, passer, chercher
+Table 4: Quelques exemples de concepts obtenus en utilisant l’approche combinée.
+des requêtes. En effet, disposant de l’ensemble des concepts qui régissent notre application,
+nous pouvons attribuer à chaque requête les concepts appropriés. Il s’agit de l’étape de “Tra-
+duction sémantique”, la première composante de l’architecture générale de notre système de
+compréhension (voir la figure 1). Pour ce faire, il nous suffit d’étiqueter nos phrases en asso-
+ciant à chaque mot dans la phrase sa classe sémantique correspondante. Puisque nos concepts ne
+se chevauchent pas entre eux, étiqueter ainsi les requêtes ne présente aucun risque d’ambiguïté.
+Ensuite, nous pouvons passer à la deuxième composante de notre modèle, le “Convertisseur de
+représentation”, où il s’agit de convertir les concepts trouvés en commandes SQL permettant
+d’extraire l’information requise de notre base de données. Pour ce faire, nous avons réalisé
+un moteur d’inférence qui à chaque concept, fait correspondre une ou plusieurs sous-requêtes
+génériques. Dans une requête SQL générique, les concepts interviennent au niveau des condi-
+tions. Ainsi, par exemple, si nous trouvons le concept “Date”, nous ne connaissons pas la valeur
+de cette date mais, nous pouvons indiquer dans la requête générée qu’il y a une condition sur la
+date. Ce moteur d’inférence prend en compte bien sûr les répétitions, les oublis, les demandes
+multiples et implicites ainsi d’autres phénomènes de la parole spontanée. Dans la phase suiv-
+ante, nous instancions chaque concept, dans la requête générique obtenue, par sa valeur qui est
+déduite en revenant à la phrase initiale. Ainsi, nous obtenons une vraie commande SQL que
+nous pouvons exécuter pour extraire les pages recherchées. Dans la figure 5, nous donnons un
+exemple illustrant les différentes étapes suivies afin d’aboutir à une commande SQL finalisée.
+Les résultats obtenus sont encourageants, en effet, en terme de requêtes SQL correctes, nous
+S
+obtenons un taux de I¨"¨ª© avec le corpus d’apprentissage et un taux de « !¬"© avec un corpus
+de test contenant bª¨"¨ phrases différentes.
+5 Conclusion
+Dans cet article, nous sommes partis du principe que le problème de la compréhension automa-
+tique est un problème d’association entre deux langages différents, le langage naturel et le lan-
+gage des concepts. Les concepts sont des entités sémantiques regroupant un ensemble de mots
+qui partagent les mêmes propriétés sémantiques et qui expriment une certaine idée. Nous avons
+proposé trois méthodes différentes pour l’extraction automatique des concepts, ainsi qu’une
+approche d’étiquetage et de génération automatique des requêtes SQL correspondantes aux de-
+mandes des utilisateurs.
+Salma Jamoussi, Kamel Smaïli et Jean-Paul Haton
+Montre moi la liste de mes préférés que j’ai consultée avant décembre 2001
+Identification des 
+concepts
+Ordre, Objet, Favoris, Date
+Génération d’une 
+reque^te générique
+select Objet from table_favoris where condition_date ;
+Génération d’une
+reque^t e SQL
+select * from favoris where date < #01/12/2001# ;
+Figure 5: Chaîne de traitement appliquée à une requête en langage naturel.
+Les tâches d’extraction de concepts et d’étiquetage sont d’habitude réalisées manuellement.
+Elles constituent la phase la plus délicate et la plus coûteuse dans le processus de compréhen-
+sion. Les méthodes proposées dans cet article ont permis d’éviter ce recours à l’expertise hu-
+maine et peuvent servir à plusieurs autres domaines qui touchent à la classification sémantique,
+comme les domaines de catégorisation de texte, d’extraction d’information et de fouille de don-
+nées. La méthode combinée a donné les meilleurs résultats grâce aux informations qu’elle a
+su exploitées pour représenter au mieux un mot du corpus. Pour notre application de consulta-
+tion de pages favorites, les concepts qu’elle a trouvés sont très satisfaisants. Il nous ont permis
+ensuite, de mener à bien l’étape d’étiquetage sans rencontrer des difficultés notables.
+Nous envisageons d’étendre le module de post-traitement de façon à ce qu’il puisse réagir face
+à de nouveaux mots clés non pris en compte par les concepts. Pour ce faire, il faut adapter notre
+modèle à la phase d’exploitation pour que nous puissions ajouter des mots aux concepts. Nous
+souhaitons aussi intégrer notre module de compréhension dans un système de reconnaissance
+automatique de la parole afin de réaliser une application interactive exploitable.
+Références
+BOUSQUET-VERNHETTES C. & VIGOUROUX N. (2001). Context use to improve the speech under-
+standing processing. In International Workshop on Speech and Computer, SPECOM’01, Moscow.
+CHEESEMAN P. & STUTZ J. (1996). Bayesian classification (autoclass): Theory and results. In Ad-
+vances in Knowledge Discovery and Data Mining. U. Fayyad, G. Shapiro, P. Smyth, R. Uthurusamy.
+JAMOUSSI S., SMAÏLI K. & HATON J. (2002). Neural network and information theory in speech
+understanding. In International Workshop on Speech and Computer, SPECOM’02, St. Petersbourg.
+MAYNARD H. & LEFÈVRE F. (2002). Apprentissage d’un module stochastique de compréhension de la
+parole. In 24èmes Journées d’Étude sur la parole, Nancy.
+PIERACCINI R., LEVIN E. & VIDAL E. (1993). Learning how to understand language. In Proceedings
+of the 4rd European Conference on Speech Communication and Technology, Berlin.
+ROSENFELD R. (1994). Adaptive Statistical Language Modeling: A Maximum Entropy Approach. PhD
+thesis, School of Computer Science Carnegie Mellon University, Pittsburgh, PA 15213.
+SIU K.-C. & MENG H. M. (1999). Semi-automatic acquisition of domain-specific semantic structures.
+In Proceedings of the 6th European Conference on Speech Communication and Technology, Budapest.

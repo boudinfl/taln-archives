@@ -1,0 +1,525 @@
+TALN 2008, Avignon, 9-13 juin 2008
+
+Apprentissage artiﬁciel de régles d’indexation pour MEDLINE
+
+Aurelie Névéol
+National Library of Medicine
+8600 Rockville Pike
+
+Bethesda, MD 20894, USA
+neveola@nlm.nih. gov
+
+Vincent Claveau
+IRISA - CNRS
+Campus de Beaulieu
+35042 Rennes cedex, France
+Vincent.Claveau@irisa.fr
+
+Résumé. L’indexation est une composante importante de tout systeme de recherche d’in-
+formation. Dans MEDLINE, la base documentaire de référence pour la littérature du domaine
+biomédical, le contenu des articles référencés est indexé a l’aide de descripteurs issus du thé-
+saurus MeSH. Avec l’augmentation constante de publications a indexer pour maintenir la base
+a jour, le besoin d’outils automatiques se fait pressant pour les indexeurs. Dans cet article, nous
+décrivons l’utilisation et l’adaptation de la Programmation Logique Inductive (PLI) pour dé-
+couvrir des regles d’indexation permettant de générer automatiquement des recommandations
+d’indexation pour MEDLINE. Les résultats obtenus par cette approche originale sont tres satis-
+faisants compares a ceux obtenus a l’aide de regles manuelles lorsque celles-ci existent. Ainsi,
+les jeux de regles obtenus par PLI devraient étre prochainement intégrés au systeme produisant
+les recommandations d’indexation automatique pour MEDLINE.
+
+Abstract. Indexing is a crucial step in any information retrieval system. In MEDLINE, a
+widely used database of the biomedical literature, the indexing process involves the selection
+of Medical Subject Headings in order to describe the subject matter of articles. The need for
+automatic tools to assist human indexers in this task is growing with the increasing amount of
+publications to be referenced in MEDLINE. In this paper, we describe the use and the customiza-
+tion of Inductive Logic Programming (ILP) to infer indexing rules that may be used to produce
+automatic indexing recommendations for MEDLINE indexers. Our results show that this origi-
+nal ILP-based approach overperforms manual rules when they exist. We expect the sets of ILP
+rules obtained in this experiment to be integrated in the system producing automatic indexing
+recommendations for MEDLINE.
+
+M0tS-CléS I Analyse et Indexation/méthodes ; Medical Subject Headings ; Apprentissage
+Artiﬁciel; Programmation Logique Inductive.
+
+Keywords: Abstracting and Indexing/methods; Medical Subject Headings; Ma-
+chine Learning; Inductive Logic Programming.
+
+A. Neveol et V. Claveau
+
+1 Introduction
+
+La recherche d’information dans une collection de documents qu’elle soit specialisee (e.g. Le-
+gifrancel, MEDLINE®2) ou non (e.g. Internet) necessite une indexation des documents. L’index
+ainsi cree est ensuite utilise pour evaluer la pertinence de chacun des documents de la collection
+pour les requetes des utilisateurs. Dans le cadre de documents textuels, on distingue usuellement
+deux types d’indexation : l’indexation libre, qui permet d’utiliser sans limitation des sequences
+de mots quelconques, et l’indexation controlée qui utilise de maniere contrainte les concepts
+repertories dans une liste predeﬁnie. On parle alors de vocabulaire controle ; c’est dans ce cadre
+que se situe notre travail.
+
+Dans le domaine biomedical, le thesaurus MeSH® (Medical Subject Headings) developpe par la
+U.S. National Library of Medicine (NLM) est l’outil de predilection pour indexer la litterature.
+Ainsi, la base MEDLINE recense plus de 17 millions d’articles scientiﬁques du domaine et regoit
+3 millions de requétes par jour. Ces articles sont references a l’aide de notices descriptives, ou
+« citations », contenant notamment une quinzaine de mots-cles representant les concepts abor-
+des par les auteurs parmi les quelque 24 000 du thesaurus (e.g. aphasia, patient care, hand. . .),
+organises hierarchiquement (e.g. thumb est un descendant de hand dans l’arborescence Ana-
+tomy). Le cas echeant, ces mots-cles doivent ensuite etre precises a l’aide des 83 qualiﬁcatifs
+(e.g. surgery, pharmacology). Pour chaque mot-cle, le MeSH deﬁnit un sous-ensemble de qua-
+liﬁcatifs « afﬁliables », de sorte que seules certaines paires peuvent etre formees. Par exemple,
+les paires aphasia/metabolism ou hand/surgery sont autorisees, mais pas hand/metabolism.
+
+L’ augmentation constante du nombre de publications a indexer dans MEDLINE (environ 3 000
+par jour) a conduit au developpement d’outils automatiques tels que MTI (Aronson et al., 2004)
+destines a aider les indexeurs en leur proposant des mots-cles juges pertinents pour chacun des
+documents traites. La complexite de la tache d’indexation et le volume croissant de donnees
+a traiter fait du perfectionnement des outils existant une necessite. En particulier, en ce qui
+conceme l’indexation MeSH, un progres notable repose sur l’extraction par des outils automa-
+tiques de paires mot-cle / qualiﬁcatif et non seulement des mots-cles isoles. Des travaux recents
+(Neveol et al., 2007) menes dans le cadre du projet «Indexing 2015 » de la NLM ont montre
+que l’utilisation de regles d’indexation appliquees a partir des mots-cles isoles est une bonne
+methode pour l’extraction de paires. Pour quelques qualiﬁcatifs, des regles regissant leur emploi
+ont ete trouvees manuellement. Les performances obtenues a l’aide de ces regles manuelles sont
+satisfaisantes au niveau de la precision, mais le rappel reste faible et le developpement manuel
+de nouvelles regles est a la fois complexe et coﬁteux.
+
+L’objectif du travail presente dans cet article est de depasser ce cadre manuel en
+inferant automatiquement de nouvelles regles d’indexation impliquant des qualiﬁcatifs
+pour completer les resultats de MTI. Pour ce faire, nous adoptons une approche ori-
+ginale en utilisant une methode d’apprentissage symbolique particuliere, la programma-
+tion logique inductive (PLI), que nous adaptons aux speciﬁcites des donnees MED-
+LINE aﬁn d’obtenir des regles pertinentes permettant de traiter efﬁcacement une grande
+quantite de donnees. Ces regles, que nous cherchons a inferer, sont du type
+Si un terme de l’arborescence « Anatomy » ainsi qu’un « Carboxylic
+
+Acids » sont recommandés pour l’indexation, alors la paire
+« [Carboxylic Acids]/pharmacology » doit également étre recommandée.
+
+lhttpz//www.legifrance.gouv.fr/
+2Acm$ﬁbb\daPubNkdalTHU;http://www.ncbi.nlm.nih.gov/sites/entrez?db=pubmed
+
+Apprentissage de regles d’indexation
+
+2 Travaux connexes
+
+L’ indexation de textes du domaine biomédical a l’aide de descripteurs MeSH a donné lieu a de
+nombreux travaux aussi bien en anglais que dans d’autres langues européennes. Les méthodes
+utilisées pour l’indexation relevent aussi bien du TAL (Névéol et al., 2006) que de l’appren-
+tissage (Lin & Wilbur, 2007; Rak et al., 2007) ou d’une combinaison des deux (Marko et al.,
+2003; Aronson et al., 2004). Cependant, du fait de la complexité du probleme de l’indexation
+MeSH (nombre de descripteurs, multiples combinaisons possibles...), la plupart de ces travaux,
+méme récents, se focalisent sur l’indexation a l’aide de mots-clés MeSH isolés et ne prennent
+pas en compte le role des qualiﬁcatifs. Ainsi, nos travaux prennent appui sur ceux de Névéol et
+al. (2006; 2007) pour proposer une avancée innovante dans ce domaine.
+
+Bien que la formalisation de regles d’indexation MeSH n’ait pas fait l’objet de travaux en in-
+dexation automatique, cette question a été abordée dans le cadre de la recherche d’information
+par Soualmia (2004) qui proposait l’application de regles d’association pour l’eXpansion de re-
+quétes. Cependant, peu de regles avaient été obtenues du fait de la complexité de la description
+du probleme d’apprentissage par des techniques standard (cf section suivante). La technique
+d’apprentissage artiﬁciel que nous utilisons pour aborder ce probleme, la PLI, doit nous per-
+mettre de contourner ces difﬁcultés. La PLI a déja été employée pour certains travaux en TAL;
+par exemple pour inférer des patrons d’extraction (Claveau et al. , 2003), des regles d’alignement
+(Ozdowska & Claveau, 2006), faire de l’étiquetage et d’autres taches (Cussens & Dieroski,
+2000). Dans tous ces travaux, c’est principalement l’expressivité de la PLI qui est exploitée,
+notamment sa capacité a représenter simplement des problemes relationnels, et a produire des
+regles interprétables. Cette capacité a traiter des problemes impliquant des représentations com-
+plexes se traduisent en revanche souvent par des complexités calculatoires prohibitives pour tra-
+vailler sur de grandes quantités de données. Il est donc important de bien controler ces aspects,
+comme nous le décrivons en section 3.3.
+
+3 Utilisation de la programmation logique inductive
+
+Dans cette section, nous présentons brievement les principes de la PLI ; nous invitons le lecteur
+intéressé a consulter (Muggleton & Raedt, 1994) pour une description étendue. Nous détaillons
+ensuite l’intérét de cette méthode pour l’indexation MeSH et décrivons comment nous l’avons
+adaptée pour prendre en compte les spéciﬁcités de notre probleme.
+
+3.1 Principes de la PLI
+
+La PLI est une technique d’apprentissage symbolique supervisée permettant d’inférer des
+regles, exprimées sous forme de clauses logiques (clauses Prolog), a partir d’exemples, eux
+aussi décrits en Prolog. Formellement, étant donnés les ensembles d’exemples E+ et de contre-
+exemples E‘, un ensemble d’informations sur le monde B (background knowledge), le but
+d’un programme de PLI est de trouver un ensemble de regles H tel que (El représente faux) :
+BAH/\E— bE|:|etB/\H )=E+.
+
+En pratique, ces deux conditions sont assouplies : on cherche un ensemble de regles couvrant
+(expliquant) la plupart des exemples positifs et rejetant la plupart des exemples négatifs. Cela
+permet de travailler avec des données imparfaites ou bruitées — ce qui est souvent le cas avec des
+
+A. Névéol et V. Claveau
+
+problemes réels — et d’obtenir des regles plus génériques quitte a accepter quelques exceptions.
+
+La plupart des algorithmes de PLI abordent l’inférence de regles comme un probleme de re-
+cherche dans un espace d’hypotheses (note (53). L’algorithme 1 illustre ce type de fonctionne-
+ment; c’est ce meme algorithme qui est au coeur d’ALEPH (Srinivasan, 2001), l’outil de PLI que
+nous utilisons pour nos expériences. L’ organisation et le parcours de l’espace 61; est un point
+crucial pour l’efﬁcacité de la phase d’inférence (cf section 3.3). La fonction de score Sc prend
+généralement en compte le nombre d’exemples positifs et négatifs couverts (respectivement P
+
+et N) pour juger de la qualité d’une hypothese; dans notre cas, Sc = HLN.
+
+Algorithme 1 Algorithme d’ALEPH
+
+Ite’rati0njusqu’c‘z E+ = (Z)
+1. choisir aléatoirement un exemple positif e+ dans E+ ;
+2. construire la clause la plus spéciﬁque J. couvrant e+ ;
+
+3. générer et parcourir l’espace de recherche 61; base sur J. a la recherche de la clause h
+maximisant une fonction de score Sc;
+
+4. ajouter h a l’ensemble H et oter de E+ les exemples couverts par h.
+
+Fin itération
+
+3.2 Description des exemples
+
+Dans notre cadre, la PLI doit permettre d’inférer des regles d’adjonction de qualiﬁcatifs a partir
+d’exemples d’articles recensés dans MEDLINE et préalablement annotés a l’aide de descripteurs
+MeSH. Pour un qualiﬁcatif donné, on cherche a obtenir les regles indiquant a quel mot-clé il
+doit étre associé selon le contexte de ce mot-clé.
+
+Ce probleme peut étre vu comme un simple probleme de recherche de regles d’association
+pour lequel il existe des algorithmes qui peuvent sembler moins lourds que la PLI (Agrawal
+et al., 1993). Cependant, le choix de la PLI pour ce probleme n’est pas un hasard. En effet, une
+technique de recherche de regle d’association (e. g. APRIORI) nécessiterait de décrire chaque
+exemple par un tuple indiquant quel mot-clé est examiné (celui pour lequel on peut vouloir
+ajouter le qualiﬁcatif étudié) et quels autres mots-clés apparaissent dans le reste de la des-
+cription. Sans autre subtilité de représentation, cela produirait un tuple de dimension 24 000 x
+24 000. La recherche de représentations plus légeres se heurte tout de meme a deux problemes
+(Soualmia, 2004) : le nombre variable de mots-clés par article et la prise en compte des relations
+hiérarchiques entre mots-clés. Ces deux problemes propres aux méthodes propositionnelles (i. e.
+décrivant les problemes sous forme de tuples attributs-valeurs) sont naturellement résolus par
+l’emploi de la PLI.
+
+En effet, grace a l’expressivté de Prolog, la PLI permet de décrire de tels problemes relation-
+nels simplement. Le tableau 1 présente par exemple la notice d’un article et son encodage en
+Prolog. Un exemple positif est une occurrence d’un mot-clé associé au qualiﬁcatif dont nous
+cherchons a modéliser l’utilisation. Supposons que l’on s’intéresse aux regles d’indexation im-
+pliquant le qualiﬁcatif pharmacology ; d’apres la notice du tableau 1, on ajoute a E+ l’exemple :
+qua|if(mh16179550_1,"pharmaco|ogy"). Les exemples négatifs sont des occurrences de mots-clés
+auxquels le qualiﬁcatif recherché n’est pas associé bien qu’il soit autorisé pour ces mots-clés.
+
+Apprentissage de regles d’indexation
+
+Extrait de la notice d’un article Extrait de l’encodage de l’article dans B
+PMID — 16179550 in_artic|e(pmid16179550,mh16179550_1).
+MH — Acrylamide/*pharmacology hierarchy(mh16179550_1 ,"Acry|amide").
+MH - Animals in_artic|e(pmid16179550,mh16179550_2).
+MH — Astrocytes/drug effects hierarchy(mh16179550_2,"Anima|s").
+MH - Histidjne/physiology in_artic|e(pmid161 79550,mh161 79550_3).
+MH — Amino Acid Transport hierarchy(mh16179550_3,"Astrocytes").
+
+Systems/*biosynthesis in_artic|e(pmid161 79550,mh161 79550_4).
+MH — Cells, Cultured hierarchy(mh16179550_4,"Histidine").
+
+TAB. 1 — Description des exemples en PLI
+
+Dans le background knowledge, les informations sur le contexte de cette occurrence, c’est-
+a-dire les autres mots-clés associés au meme article sont données comme illustré dans le ta-
+bleau 1: la premiere ligne indique qu’un mot-clé identiﬁé par mh16179550_1 est assigné a l’ar-
+ticle pmid16179550 a l’aide du prédicat in_artic|e/2; la deuxieme ligne indique que ce mot-clé
+correspond au terme MeSH "Acry|amide" avec le prédicat hierarchy/2. Enﬁn, la hiérarchie MeSH
+est également transcrite dans le background knowledge sous la forme :
+
+hierarchy(W,"Neurog|ia") :— hierarchy(W,"Astrocytes").
+
+hierarchy(W,"Nervous System") :- hierarchy(W,"Neurog|ia").
+
+hierarchy(W,"Anatomy") :— hierarchy(W,"Nervous System").
+
+Cela permet d’indiquer que le mot-clé Astrocytes est un descendant (concept plus spéciﬁque) du
+mot-clé Neuroglia dans la hiérarchie MeSH, lui-meme descendant de Nervous System... Toutes
+les informations de hiérarchie du MeSH sont ainsi exploitables par le processus d’inférence.
+
+La phase de construction des exemples, nécessaire pour notre technique supervisée, est donc
+entierement automatique. Les regles qui en sont inférées manipulent les différents prédicats que
+nous venons de décrire. Voici un exemple de regle qui pourrait étre inférée a partir de l’exemple
+qua|if(mh16179550_1,"pharmaco|ogy"). et qui correspond a la regle donnée en introduction :
+qua|if(W,"pharmaco|ogy") :— hierarchy(W," Carboxylic Acids"), in_artic|e(A,W), in_artic|e(A,W), hierar-
+chy(W,"Anatomy").
+
+3.3 Efﬁcacité de l’inférence
+
+La contrepartie a l’expressivité de la PLI est la grande complexité de l’inférence des regles. L’es-
+pace de recherche 61; est généralement tres grand, voire inﬁni dans certains cas. Par ailleurs, le
+calcul du score S c repose sur le nombre d’exemples positifs et négatifs couverts par l’hypothese
+examinée, ce qui implique de confronter tous les exemples a la clause. C’est cette partie qui est
+la plus coﬁteuse en PLI. Il est donc essentiel de bien contr6ler cette phase de recherche pour
+s’assurer a la fois d’un temps de calcul praticable et de la production de regles pertinentes pour
+notre probleme. Heureusement, £1; peut étre organise et parcouru hiérarchiquement; la relation
+d’ordre usuellement utilisée est la 6-subsomption.
+
+Déﬁnition 1 (6-subsomption) Une clause C1 6-subsume une clause C2 (C1 :9 C2) si et seule-
+ment si (ssi) il existe une substitution 6 telle que C16 Q 02 (en considérant les clauses comme
+des ensembles de littéraux).
+
+A. Névéol et V. Claveau
+
+Par exemple, la clause p(a, b) <— r(b, a) est subsumée par la clause p(Y1, Y5) <— r(Y}, Y1). En
+effet, on a bien {p(Y1, Y5), -ur(Y§, Y1)}61 Q {p(a, b), -ur(b, a)} avec 61 = {Y1/a,  Grace
+a cette relation hiérarchique, l’espace peut étre généré et exploré efﬁcacement, par exemple de
+la clause la plus générale a la plus spéciﬁque selon la 6-subsomption. A partir d’une clause 01,
+on peut générer des clauses plus spéciﬁques qui ont notamment pour propriété de ne couvrir
+que des sous-ensembles des exemples couverts par C1. Le calcul du score des clauses plus
+spéciﬁques que C1 s’en trouve grandement accéléré. De meme, on peut éviter de générer une
+clause que l’on considere comme ne couvrant pas assez d’exemples des lors que son ancétre ne
+couvre lui-meme pas assez d’exemples.
+
+Cependant, la 6-subsomption n’est pas parfaitement adaptée a notre probleme car la hierar-
+chie entre termes MeSH n’est pas prise en compte. Ainsi, la clause qua|if(W1,"genetics") :-
+in_artic|e(A,W1), in_artic|e(A,W2), hierarchy(W2,"Frameshift Mutation") n’est pas subsumée par qua-
+|if(W1,"genetics") :— in_artic|e(A,W1), in_artic|e(A,W2), hierarchy(W2,"Mutation") bien que Mutation
+soit un ancétre de Frameshiﬁ‘ Mutation dans la hiérarchie MeSH. Nous proposons donc une
+autre notion de subsomption en nous inspirant des travaux de Buntine (1988) :
+
+Déﬁniti0n2 Une clause C1 6;”-6,-subsume une clause C2 (C1 5;”-er C2) relativement au
+background knowledge B ssi il existe une substitution 0 et une fonction fp telles que
+fD(C)0 Q D, ou fp est telle que Vl E C, B,fD(l) )2 l, avec fD({l1,l2, ...,lm}) signiﬁant
+{fD(l1)afD(l2)7"'7fD(lm)}'
+
+La fonction f permet donc de prendre en compte les informations du background knowledge,
+c’est-a-dire l’organisation hiérarchique des mots-clés du MeSH. Cette subsomption, que nous
+avons mise en oeuvre en modiﬁant ALEPH, est cohérente avec la notion de couverture. Il est
+aisé de montrer qu’elle induit un ordre partiel entre les clauses et structure donc l’espace 61; en
+treillis, ce qui facilitera son parcours. Parfaitement adaptée a notre probleme, elle Va nous per-
+mettre d’inférer efﬁcacement des regles d’indexation a partir de grandes quantités d’exemples
+et contre-exemples (cf section 5) en évitant l’impasse calculatoire qui aurait consisté a consi-
+dérer indépendamment les 24000 mots-clés du MeSH. Il est intéressant de noter que cette
+subsomption est en fait adaptée a tous les problemes de recherche de régularités impliquant des
+connaissances structurées (e. g. ontologies).
+
+4 Contexte expérimental
+4.1 Base de comparaison
+
+Comme nous l’avons expliqué, les méthodes simples de recherche de regles d’association ne
+peuvent pas traiter directement nos données. Pour néanmoins donner une base de comparaison
+aux performances de notre approche, nous implémentons une simple baseline. Celle-ci consiste
+a former aléatoirement des paires mot-clé/qualiﬁcatif en respectant la distribution statistique
+de l’ensemble des paires dans la base MEDLINE. Ainsi, nous avons estimé que la probabilité
+d’apparition P d’une paire mot-clé/qualiﬁcatif était égale au nombre d’occurrences de cette
+paire dans MEDLINE divisé par le nombre total d’occurrences du mot-clé dans MEDLINE, qu’il
+soit afﬁlié a un qualiﬁcatif ou non. Le tableau 2 présente par exemple la distribution complete
+du mot-clé Irritable Mood et un extrait de la distribution du mot-clé Lung.
+
+Apprentissage de regles d’indexation
+
+Irritable Mood Lung (extrait)
+
+5 qualiﬁcatifs afﬁliables 26 qualiﬁcatifs afﬁliables
+Qualiﬁcatif P Qualiﬁcatif P
+sans qualiﬁcatif 0.758 sans qualiﬁcatif 0.047
+classiﬁcation 0.008 classiﬁcation 0
+drug effect 0.129 drug effect 0.082
+ethics 0 metabolism 0.1 17
+physiology 0.101 pathology 0.171
+radiation effect 0.004 radiation effect 0.011
+
+TAB. 2 — Extrait de la distribution des descripteurs MeSH dans MEDLINE
+
+4.2 Corpus de travail
+
+Pour l’apprentissage des regles par PLI, nous avons utilisé un corpus composé de 100 000 cita-
+tions choisies aléatoirement parmi celles ajoutées a la base MEDLINE en 2006. Pour la méthode
+baseline, nous avons utilisé les 15 433 668 citations contenues dans la base MEDLINE ﬁn 20053
+aﬁn de calculer la distribution statistique des paires de descripteurs MeSH. Finalement, nous
+avons également utilisé un corpus de test composé de 100 000 citations choisies aléatoirement
+parmi celles ajoutées a la base MEDLINE en 2006. Ce corpus est entierement disjoint des deux
+corpus d’apprentissage mentionnés ci-dessus.
+
+4.3 Evaluation des régles obtenues dans un contexte réel
+
+En pratique, on voit d’apres l’exemple de regle d’indexation donné en introduction que des
+mots-clés isolés servent de point de départ a la recommandation de paires. Pour l’anglais, le
+logiciel MTI (Aronson et al., 2004) développé a la NLM permet de générer automatiquement
+des recommandations d’indexation pour des mots-clés isolés. I1 faut remarquer que les mots-
+clés recommandés par MTI ont, sur le corpus detest, un rappel de 45 % par rapport aux termes
+sélectionnés par les indexeurs MEDLINE. Ainsi, un écart est attendu entre les performances
+théoriques des regles d’indexation obtenues par PLI et les performances obtenues a partir de
+l’app1ication de ces memes regles sur les mots-clés isolés recommandés par MTI, c’est-a-dire
+dans un environnement pratique d’indexation automatique. Les regles d’indexation obtenues
+par PLI sont évaluées sur le corpus de test, l’indexation MEDLINE servant de référence. Ces
+performances sont comparées a celles de regles d’indexation similaires obtenues manuellement
+par un expert du domaine eta celles de la baseline décrite en 4.1.
+
+Pour chacune des méthodes (PLI, manuelle, baseline) seules les paires constituées a partir
+de mots-clés extraits par MTI et ﬁgurant dans MEDLINE sont prises en compte. Les mesures
+de performances utilisées sont la précision, le rappel et la F-mesure. La précision correspond
+au nombre de paires mot-clé/qualiﬁcatif recommandées utilisées dans MEDLINE divisé par le
+nombre total de paires recommandées. Le rappel correspond au nombre de paires recomman-
+dées utilisées dans MEDLINE divisé par le nombre total de paires ﬁgurant dans l’indexation
+MEDLINE. La F-mesure correspond a la moyenne harmonique de la précision et du rappel.
+
+3Voir http : //mbr . nlm . nih . gov/Reference/medline_Baseline_Repository_Detail .
+pdf pour plus de détails
+
+A. Névéol et V. Claveau
+
+5 Résultats
+
+Nous ne présentons ici que les résultats obtenus sur quelques qualiﬁcatifs, notamment ceux
+pour lesquels il existe des regles manuelles qui nous permettent d’effectuer une comparaison.
+Ces résultats sont discutés dans la section suivante.
+
+Le tableau 3 présente les performances théoriques obtenues en appliquant les regles PLI sur les
+mots clés contenus dans les notices MEDLINE. Nous indiquons également les temps de calcul
+obtenus sur une machine de bureau (linux Intel Xeon 3 GHz) au regard du nombre d’exemples
+utilisés.
+
+Qualiﬁcatif |E+| |E‘| Temps de Précision Rappel F-mesure
+calcul (%) (%) (%)
+Administration & dosage 5 300 40 000 75 mn 41.4 53 46.5
+Metabolism 4 500 21 000 37 mn 42.4 60.2 49.7
+Pharmacology 5 000 22 000 45 mn 48.8 53.9 51.2
+Physiology 5 200 34 000 46 mn 41.4 41.5 41.5
+
+TAB. 3 — Performance de l’inférence de regles par PLI sur les notices completes
+
+Le tableau 4 présente les performances sur le corpus de test des regles obtenues par apprentis-
+sage, comparées aux regles manuelles et a la baseline dans le cas ou les mots-clés sont extraits
+automatiquement par MTI.
+
+| Qualiﬁcatif l Méthode | Nb. regles | Précision (%) | Rappel(%) | F-mesure(%) l
+
+Administration PLI 166 38 29 33
+& dosage Manuelle 1 54 1 1
+
+Baseline - 26 9 13
+
+Metabolism PLI 134 49 38 43
+
+Manuelle 61 58 20 30
+
+Baseline - 37 12 18
+
+Pharmacology PLI 217 47 28 35
+Manuelle 7 67 3 5
+
+Baseline - 28 12 17
+
+Physiology PLI 70 46 24 32
+Manuelle 0 - - -
+
+Baseline - 28 10 15
+
+TAB. 4 — Performance des méthodes sur le corpus de test en conjonction avec MTI
+
+6 Discussion
+
+Performances. Comme attendu, l’utilisation de l’outil MTI pour produire dans un premier
+temps des recommandations de mots-clés fait que le rappel en situation réelle des regles infé-
+rées par PLI est inférieur a celui mesuré sur les notices. Malgré cela, les performances des regles
+PLI sont bien supérieures a celles de la baseline et produisent toujours la meilleure F-mesure
+
+Apprentissage de regles d’indexation
+
+avec une différence de précision modérée par rapport aux regles manuelles. Ces dernieres sont
+beaucoup plus ciblées, ce qui produit de tres bons taux de précision mais des rappels genera-
+lement faibles, inférieurs non seulement a la PLI mais aussi a la baseline (sauf dans le cas de
+metabolism). Dans le cadre d’une utilisation combinée avec d’autres méthodes d’indexation, il
+est probable que le gain signiﬁcatif en rappel apporté par les regles PLI contribue a une amelio-
+ration globale du rappel des recommandations sans perte de précision. Par ailleurs, grace a notre
+notion de subsomption adaptée au probleme, les temps de calcul de la phase d’inférence sont
+tout a fait raisonnables, notamment au regard des temps de développement de regles manuelles.
+Sans la modiﬁcation de subsomption, des expériences préliminaires ont montré que la PLI ne
+pouvait guere manipuler ces quantités d’information (temps de calcul dépassant plusieurs jours,
+dépassement mémoire).
+
+Régles PLI vs. manuelles. Avec les modiﬁcations apportées, la PLI permet donc d’obtenir rapi-
+dement un grand nombre de regles. En examinant ces regles, il apparait parfois que des regles un
+peu différentes obtenant des performances proches semblent sémantiquement meilleures pour
+un expert du domaine. De meme, certaines regles PLI peuvent permettre a un expert de créer ma-
+nuellement une nouvelle regle qui n’aurait pas pu étre inférée a partir du corpus d’entrainement.
+Ainsi, il pourrait étre possible d’optimiser la production de regles d’indexation en envisageant
+une relecture des regles PLI par un expert aﬁn d’améliorer la lisibilité et les performances des
+regles tout en Ininimisant le temps passé a la production des regles.
+
+MTI. Outre la baisse globale de rappel observée avec l’app1ication des regles PLI sur les mots-
+clés extraits par MTI, on constate en observant les performances individuelles de chaque regle
+que les variations sont hétérogenes en fonction des mots-clés mis en jeu; ce qui reﬂete les
+performances de MTI pour l’extraction des mots-clés. Ainsi, il est envisageable de ﬁltrer auto-
+matiquement les regles les moins performantes dans notre cadre applicatif précis.
+
+7 Conclusion et perspectives
+
+Nous avons montré qu’il était possible d’exploiter des régularités dans les descriptions des
+articles biomédicaux indexés dans MEDLINE pour proposer automatiquement des qualiﬁcatifs
+a afﬁlier aux mots-clés lors du traitement d’un nouvel article. L’ automatisation de cette tache
+jusqu’alors manuelle — probleme peu abordé auparavant — a été possible par l’utilisation
+de la PLI et sa capacité a gérer des problemes impliquant des représentations complexes. 11 a
+néanmoins été nécessaire d’implémenter une notion de subsomption entre clauses permettant de
+prendre en compte les spéciﬁcités de la tache ; cela nous a permis d’obtenir des temps de calcul
+praticables tout en traitant un nombre de données sufﬁsamment important pour obtenir des
+résultats ﬁables. Cette approche est d’ailleurs transposable a d’autres problemes impliquant des
+recherche de régularités dans des connaissances organisées (thésaurus, ontologies...). Enﬁn, ces
+résultats sont d’autant plus remarquables qu’ils n’exploitent que des régularités implicites des
+descriptions et non le contenu de l’article et permettent ainsi d’envisager l’utilisation d’autres
+stratégies de recommandations de qualiﬁcatifs basées cette fois sur le corps de l’article a indexer.
+
+Plusieurs perspectives sont envisagées a la suite de ce travail. Tout d’abord, il sera nécessaire de
+l’étendre a l’ensemble des 83 qualiﬁcatifs aﬁn d’obtenir un jeu complet de regles d’indexation.
+Par ailleurs, nous envisageons une amélioration des performances et de la lisibilité grace a un
+ﬁltrage automatique ou a une relecture manuelle comme indiqué en 6. Enﬁn, nous anticipons
+l’intégration du jeu de regles obtenues au module d’afﬁliation de qualiﬁcatifs de MTI.
+
+A. Névéol et V. Claveau
+
+Remerciements
+
+Ce travail a été effectué dans le cadre de la participation d’A. Névéol au programme de re-
+cherche postdoctorale de la National Library of Medicine administré par ORISE. Les auteurs
+remercient A. Aronson, J. Mork et S. Shooshan pour de nombreuses discussions sur les aspects
+théoriques et techniques de cette étude.
+
+Références
+
+AGRAWAL R., IMIELINSKI T. & SWAMI A. (1993). Mining association rules between sets of
+items in large databases. In Proceedings of the SIGMOD Conference, Washington, Etats-Unis.
+
+ARONSON A. R., MORK J. G., GAY C. W., HUMPHREY S. M. & ROGERS W. J. (2004).
+The nlm indexing initiative’s medical text indexer. In Proc. Medinfo 2004, p. 268-272.
+
+BUNTINE W. L. (1988). Generalized Subsumption and its Application to Induction and Re-
+dundancy. Artiﬁcial Intelligence, 36, 375-399.
+
+CLAVEAU V., SEBILLOT P., FABRE C. & BOUILLON P. (2003). Learning semantic lexicons
+from a part-of-speech and semantically tagged corpus using inductive logic programming.
+Journal of Machine Learning Research (JMLR), special issue on ILP, 4, 493-525.
+
+J. CUSSENS & S. DZEROSKI, Eds. (2000). Learning Language in Logic. Lecture Notes in
+Artiﬁcial Intelligence. Sringer Verlag.
+
+LIN J. & WILBUR W. J. (2007). PubMed related articles: a probabilistic topic-based model
+for content similarity. BMC Bioinformatics, 8(1), 423.
+
+MARKO K., DAUMKE P., SCHULZ S. & HAHN U. (2003). Cross-language MeSH indexing
+using morpho-semantic normalization. In Actes de AMIA Symp. 2003, p. 425-429.
+
+MUGGLETON S. & RAEDT L. D. (1994). Inductive logic programming: Theory and methods.
+Journal of Logic Programming, 19/20, 629-679.
+
+NEvEoL A., ROGOZAN A. & DARMONI S. J. (2006). Automatic indexing of online health
+resources for a french quality controlled gateway. Information Processing and Management,
+
+p.695-709.
+
+NEvEoL A., SHOOSHAN S. E., RINDFLESH T. C. & ARONSON A. R. (2007). Multiple
+approaches to ﬁne-grained indexing of the biomedical literature. In Actes de PSB 2007, p.
+292-303.
+
+OZDOWSKA S. & CLAVEAU V. (2006). Inférence de regles de propagation syntaxique pour
+l’alignement de mots. TAL (Traitement Automatique des Langues), 47(1), 167-186.
+
+RAK R., KURGAN L. A. & REFORMAT M. (2007). Multilabel associative classiﬁcation
+categorization of MEDLINE articles into MeSH keywords. IEEE Eng Med Biol Mag, 2(26),
+47-55.
+
+SOUALMIA L. F. (2004). Etude et évaluation d ’approches multiples de projection de requétes
+pour une recherche d ’information intelligente. Application au domaine de la Sante’ sur l ’Inter-
+net. These de doctorat, INSA de Rouen.
+
+SRINIVASAN A. (2001). The ALEPH manual. Machine Learning at the Computing Laboratory,
+Oxford University.
+

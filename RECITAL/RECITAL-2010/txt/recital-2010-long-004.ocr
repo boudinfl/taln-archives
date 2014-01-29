@@ -1,0 +1,533 @@
+TALN 2010, Montréal, 19-23 juillet 2010
+
+Acquisition de grammaires locales pour l’eXtraction de relations
+entre entités nommées
+
+Mani EZZAT1’ 2
+(1) Er-Tim, Inalco, 75343 Paris
+(2) Arisem, Thales, 91300 Massy
+mani.ezzat@ arisem.com
+
+Résumé. La constitution de ressources linguistiques est une tache cruciale pour les systemes d’ex-
+traction d’information fondés sur une approche symbolique. Ces systemes reposent en effet sur des gram-
+maires utilisant des informations issues de dictionnaires électroniques ou de réseaux sémantiques aﬁn
+de décrire un phénomene linguistique précis a rechercher dans les textes. La création et la révision ma-
+nuelle de telles ressources sont des taches longues et coﬁteuses en milieu industriel. Nous présentons ici
+un nouvel algorithme produisant une graInInaire d’extraction de relations entre entités nommées, de ma-
+niere semi-automatique a partir d’un petit ensemble de phrases representatives. Dans un premier temps, le
+linguiste repere un jeu de phrases pertinentes a partir d’une analyse des cooccurrences d’entités repérées
+automatiquement. Cet échantillon n’a pas forcément une taille importante. Puis, un algorithme permet de
+produire une grammaire en généralisant progressivement les éléments lexicaux exprimant la relation entre
+entités. L’ originalité de l’approche repose sur trois aspects : une representation riche du document initial
+permettant des généralisations pertinentes, la collaboration étroite entre les aspects automatiques et l’ap-
+port du linguiste et sur la volonté de controler le processus en ayant toujours affaire a des données lisibles
+par un humain.
+
+Abstract. Building linguistics resources is a vital task for information extraction systems based on
+a symbolic approach : cascaded patterns use information from digital dictionaries or semantic networks to
+describe a precise linguistic phenomenon in texts. The manual elaboration and revision of such patterns
+is a long and costly process in an industrial environment. This work presents a semi-automatic method
+for creating patterns that detect relations between named entities in corpora. The process is made of two
+different phases. The result of the ﬁrst phase is a collection of sentences containing the relevant relation.
+This collection isn’t necessairly big. During the second phase, an algorithm automatically produces the
+recognition grammar by generalizing the actual content of the different relevant sentences. This method
+is original from three different points of view : it uses a rich description of the linguistic content to allow
+accurate generalizations, it is based on a close collaboration between an automatic process and a linguist
+and, lastly, the output of the acquisition process is always readable and modiﬁable by the end user.
+
+M0tS-CléS I relation, entité nommée, grammaire.
+
+Keywords: relation, named entity, pattern.
+
+Mani EZZAT
+
+1 Introduction
+
+Les grammaires locales (Silberztein, 1993) sont des ressources indispensables aux systemes de recherche
+d’information fondes sur une approche symbolique. Elles permettent de formaliser un phenomene linguis-
+tique et de le detecter dans les textes. Leur principal avantage est la possibilite de revision : elles sont
+lisibles et manipulables par un linguiste, ce qui n’est pas le cas pour les systemes a base d’apprentissage
+statistique. L’ amelioration incrementale des resultats est une contrainte importante dans un contexte indus-
+triel. La plupart des travaux similaires (section 3) produisent une liste importante de patrons, generalement
+lexico-syntaxiques, dans laquelle il est difﬁcile de naviguer.
+
+Aﬁn de repondre a ces contraintes, nous proposons une methode semi-automatique d’acquisition de gram-
+maires pour l’eXtraction de relations en deux phases. La premiere consiste en la recolte de quelques seg-
+ments de textes attestant la relation recherchee. Puis a partir de cette collection de segments, un algorithme
+genere une grammaire presentee sous la forme d’un unique transducteur a nombre ﬁni d’etats, facilitant
+alors sa maintenance par le linguiste. Enﬁn, nous presentons les resultats de l’eXperience sur un corpus
+a travers un cas concret : la relation de contact. L’ originalite de l’approche repose sur trois aspects : une
+representation riche du document initial permettant des generalisations pertinentes, la collaboration etroite
+entre les aspects automatiques et l’apport du linguiste et sur la volonte de controler le processus en ayant
+toujours affaire a des donnees lisibles par un humain.
+
+Dans la suite de cet article nous presentons en premier lieu ce que nous entendons par le terme relation
+(section 2), puis nous presenterons les travaux similaires, notamment ceux qui alimentent les systemes
+fondes sur une approche symbolique (section 3). Apres une description de notre methodologie (section 4),
+nous presentons nos resultats d’eXperience (section 5). Enﬁn, nous concluons par une discussion sur les
+resultats et les perspectives de recherche (section 6).
+
+2 Déﬁnition
+
+L’ extraction de relations entre entites nommees n’est pas un probleme nouveau eta ete formalisee ofﬁciel-
+lement pour la premiere fois en tant que tache independante et reutilisable lors de la conference Message
+Understandig Conference de 1998 (MUC, 1998). Le but est de detecter des relations entre entites nom-
+mees et de structurer les resultats aﬁn d’alimenter une base de donnees. Plus tard, les travaux motives par
+la campagne Automatic Content Extraction (ACE, 2004) ont fait emerger une deﬁnition dont nous nous
+inspirons ici. Nous appelons relation, un lien signiﬁcatif entre entites nommees explicite dans un texte.
+Nous distinguons deux types de relations :
+
+1. Les relations statiques ou faits representent essentiellement des etats. Ce qu’on appelle etat se ca-
+racterise par l’absence de changement. Un etat qui est vrai pour un intervalle donne est vrai pour
+tout point de cet intervalle. C’est donc un lien stable et avere entre deux entites nommees.
+
+exemple :Arisem est une ﬁliale du Groupe Thales. (1)
+2. Les e’venements peuvent étre assimiles a une phrase d’action et mettent en cause plusieurs enti-
+tes (l’acteur, la cible et l’evenement particulier qui est deﬁni par le predicat et ses arguments par
+
+exemple), qui apportent une information nouvelle sur les participants et qui peuvent avoir une loca-
+lisation spatio-temporelle implicite ou non.
+
+exemple : Le groupe Thales a rachete Arisem en Mars 2004. (2)
+
+Acquision de grammaire locale pour l ’extraction de relations entre entités nommees
+
+Les relations entre entités nommées sont généralement n-aires et nous distinguons deux types de consti-
+tuants : les arguments et les circonstants. Les arguments sont les entités nommées nécessaires a l’existence
+de chaque instance. Les circonstants, quanta eux, sont des éléments optionnels qui ne sont pas indispen-
+sables a la comprehension et a la complétude de l’énoncé et représentent généralement une localisation,
+une date ou encore une expression numérique. Par exemple dans (2), les entités nommées groupe Thales
+et Arisem sont ici les arguments de l’évenement sans lesquels la relation n’eXisterait pas, tandis que Mars
+2004 est un circonstant, qui n’est pas obligatoire pour l’instanciation de la relation.
+
+3 Travaux similaires
+
+Depuis MUC 1998, la plupart des travaux se sont concentrés autour des approches statistiques, car elles ne
+nécessitent pas de développement manuel de ressources et obtiennent de bons résultats. Différents modeles
+sont utilises, des SVM (Support Vector Machine) (Zelenko et al., 2003) (Zhao & Grishman, 2005) aux
+CRF (Conditional Random Field) (Zhang et al., 2008). Cependant, toutes ces approches reposent sur la
+disponibilité de corpus annotés et elles apparaissent comme de véritables “boites noires” : l’intervention
+du linguiste dans l’analyse reste difﬁcile et ce sont essentiellement certains parametres qui peuvent etre
+manipulés aﬁn d’améliorer les résultats du systeme.
+
+Parallelement, du milieu des années 90 a aujourd’hui, des études traitent de la generation de grammaires
+pour l’eXtraction de relations. Certains travaux utilisent un algorithme de generalisation ascendante (So-
+derland et al., 1995), (Califf & Mooney, 2003). Il s’agit de relacher les contraintes des grammaires qui
+décrivent principalement des éléments lexicaux dans un premier temps. On généralise ensuite cette des-
+cription a différents niveaux (morpho-syntaxiques, sémantiques) en uniﬁant les patrons. Une nouvelle
+regle est créée en fusionnant deux regles existantes.
+
+A l’inverse, d’autres travaux utilisent des algorithmes descendants pour speciﬁer les patrons. Le systeme
+AutoSlog (Riloff, 1996) précise des schémas syntaxiques simples comme “sujet - verbe a la voix passive”
+et les instancie avec des éléments du domaine apres analyse. Par exemple, ce schema, dans un corpus sur
+le terrorisme, po11rra devenir “<victim> was murdered”. Les patrons fournis ne décrivent généralement
+pas de longues dépendances, comme c’est souvent le cas pour les relations entre entités nommées. D’une
+maniere similaire, le composant LIEP (Huffman, 1996) extrait des patrons lexicaux a partir de schémas
+simples dont le coeur est une liste de mots clés, puis analyse le contexte aﬁn de trouver les éléments en
+relation syntaxique.
+
+Enﬁn, le systeme Sem+1 (Goujon, 2008) utilise un algorithme issu de la terminologie (Hearst, 1992). Il
+s’agit d’un processus itératif auquel on donne des couples d’entités nommées que l’ont sait en relation,
+aﬁn d’extraire des phrases o1‘1 cette relation apparait. Apres avoir inféré des patrons lexicaux a partir de ces
+phrases, le systeme les applique au corpus aﬁn de trouver de nouveaux candidats qui servent de données
+d’entrée a une nouvelle iteration. Le systeme produit un patron par phrase, contraint sur le lexique qui la
+compose. Il en résulte un nombre important de patrons difﬁciles a maintenir et dont le rappel peut chuter
+sur un autre corpus.
+
+La plupart de ces travaux nécessitent que l’utilisateur fournisse en amont une liste de patrons. De plus, ces
+systemes produisent des grammaires présentées sous la forme de liste importante de patrons qui restent
+tres difﬁciles a maintenir.
+
+1Sem+ est un outil de Thales Research and Technology avec qui Arisem collabore
+
+Mani EZZAT
+
+4 Méthodologie
+
+Notre méthode génere une grammaire a partir de segments de textes extraits d’un corpus et attestant la
+relation recherchée. Elle se divise en deux phases distinctes. La premiere consiste en la sélection de seg-
+ments représentatifs de la relation recherchée. Cette étape n’est pas entierement automatique et requiert
+l’assistance du linguiste. I1 s’agit de compter les cooccurrences entre entités nommées puis de présenter
+les résultats de maniere lisible, aﬁn que le linguiste puisse rapidement sélectionner une relation qui l’in-
+téresse et les segments de texte qui en attestent. Cette collection de segments vient ensuite alimenter un
+algorithme, basé sur un principe de curseur. Cette technique consiste a lire les phrases de gauche a droite et
+a généraliser au ﬁl de l’eau l’information contenue dans les phrases. Le processus produit un unique trans-
+ducteur a nombre ﬁni d’états, au fur et a mesure des résultats renvoyés par l’analyse de chaque segment.
+
+Linguisle
+
+Sélection
+ma ri uel Ie de
+segments de
+textes
+
+     
+   
+   
+ 
+
+    
+   
+ 
+
+Detection des
+
+entités
+nommées et
+calcul des
+
+CDO CCU rre H CBS
+
+Aigorilhme de
+généraiion du
+transducteur 2'1
+nombre finis
+d'états
+
+FIG. 1 — Schéma général de la méthode
+
+Collection
+de
+segments
+de texte
+
+  
+ 
+
+Eritité
+cooccu rrentes
+triées
+
+4.1 Sélection des segments de textes
+
+La premiere étape a pour but la sélection de segments de texte qui relevent d’un évenement particulier.
+Apres avoir détecté les entités nommées avec l’analyseur d’Arisem, nous comptons le nombre de phrases
+dans lesquelles le meme groupe d’entités nommées apparait. Ce processus ne se restreint pas a 2, mais a n
+entités présentes dans la meme phrase.
+
+Personne Personne Lieu Date Nb Liens
+
+Gnassingbé Eyadéma Gbagbo Lomé J eudi 11 Lienl, Lien2...
+Olusegun Obasanjo Guillaume Soro Paris 30 Avril 11 Lienl, Lien2...
+Carlo Azeglio Ciampi Laurent Gbagbo Vatican mercredi 11 Lienl, Lien2...
+Chirac Koﬁ Annan 10 Lienl, Lien2...
+
+TAB. 1 — Echantillon de la sortie aprés calcul des cooccurrences
+
+Le résultat (tableau 1) est présenté sous la forme d’un tableau listant les ensembles d’entités nommées
+cooccurrentes, classés par leur nombre, avec des liens pointant sur les phrases ou elles apparaissent. Le
+
+Acquision de grammaire locale pour l ’extracti0n de relations entre entités nommées
+
+linguiste peut alors explorer ce résultat aﬁn de choisir rapidement une relation intéressante par rapport au
+corpus et sélectionner les segments de textes qui en attestent. Pour cette expérience, nous avons retenu la
+relation de contact, déﬁnie comme la rencontre explicite entre deux personnes dans un texte.
+
+Parmi les segments sélectionnés, nous avons gardé uniquement ceux basés sur un prédicat verbal. L’ algo-
+rithme qui génere le transducteur obéit a des regles établies en fonction du type de construction syntaxique.
+Dans le cadre de cet article, nous nous sommes restreint aux prédicats verbaux car ils composent la majo-
+rité des segments de textes représentant une relation. Le nombre de segments sélectionnés ne doit pas étre
+nécessairement important.
+
+4.2 Description de l’algorithme de génération de la grammaire
+
+L’ algorithme de génération de la grammaire a partir des exemples procede en deux étapes. Les phrases sont
+tout d’abord “décorées” avec différentes annotations linguistiques (lies a la morphosyntaxe, a la syntaxe
+de surface et a la sémantique) grace a un analyseur développé chez Arisem. Une généralisation est ensuite
+opérée a partir des annotations pour produire une grammaire a partir d’un algorithme de type shift-reduce
+(Aho & Ullman, 1972).
+
+4.2.1 Description des annotation foumies par l’analyseur Arisem
+
+Nous utilisons l’analyseur d’Arisem, fondé sur une approche symbolique, aﬁn de généraliser le niveau de la
+description de la grammaire générée a partir des segments de texte issus de la premiere étape. L’ analyseur
+décore le texte avec différents niveaux d’étiquettes, morphologiques, syntaxiques et sémantiques sur les
+mots et les syntagmes pertinents.
+
+En complément des étiquettes morpho-syntaxiques apportées par les dictionnaires, nous avons utilisé des
+grammaires pour la détection des entités nommées. Nous avons également aj outé une grammaire de detec-
+tions de groupes nominaux (déterminants exclus) ainsi qu’une grammaire de reconnaissance de locutions
+verbales (“aller voir” par exemple) et de verbes munis d’un auxiliaire. Cette analyse syntaxique de surface
+nous permet de reconnaitre de longues séquences de mots, avec des contraintes sufﬁsantes pour ne pas
+générer de bruit.
+
+4.2.2 Description de l’algorithme de production de la grammaire
+
+On peut assiIr1ilerl’algorithme de production de la grammaire a un algorithme de type shift reduce (Aho
+& Ullman, 1972; Soricut & Marcu, 2003) : les phrases sont examinées une a une, de gauche a droite.
+Les mots sont lus les uns apres les autres (shift) et réduits a une étiquette donnée quand une regle de
+généralisation peut étre appliquée (reduce). Un graphe (la grammaire résultat) est généré en parallele a
+partir des généralisations; cette génération repose sur deux opérations essentielles : uniﬁcation du noeud
+en cours d’examen avec un noeud compatible déja existant dans la graInInaire générée, ou création d’un
+nouveau noeud si aucune uniﬁcation n’est possible.
+
+Exemples :
+
+1. Soit la phrase “Sarkozy a rencontre’ Chirac”
+
+Mani EZZAT
+
+L’ analyseur fournit (parmi d’autres) les étiquettes suivantes :
+
+— Sarkozy —> Personne
+
+— Chirac —> Personne
+
+— a rencontré —> Groupe Verbal
+
+S’il s’agit de la premiere phrase analysée, la grammaire générée est vide. A partir de cette phrase,
+l’algorithme Va produire la grammaire suivante sous la forme d’un graphe :
+
+<Personne> »Gr°”pe Verbal » <Personne>
+(sous-graphe)
+
+2. Si l’analyseur recoit a present la phrase “Sarkozy a rencontré hier Chirac”
+
+La méme analyse se met en place; Sarkozy peut s’uniﬁer avec le premier noeud de la grammaire
+<P e r s onne > ; idem pour le verbe. En revanche, hier ne peut s’uniﬁer avec <P e r s onne >. L’ algo-
+rithme crée donc une nouvelle ramiﬁcation avec un nouveau noeud portant l’étiquette <ADV> entre
+<Groupe Verbal> et <Personne>.
+
+    
+    
+
+II
+
+(P Groupe Verbal
+ersonne> A» a
+(sous-graphe)
+
+Régles de généralisation
+
+<Per5onne>
+
+Voici, de facon plus systématique, l’ensemble des généralisations opérées a partir des informations four-
+nies par l’analyseur d’Arisem.
+
+— Les entités nommées sont typées avec leur étiquette correspondante :“Chirac" —> <Personne>,
+‘‘Microsoft'' —> <Organisation> etc...
+
+— Les groupes nominaux qui ne sont pas des entités nommées sont généralisés en tant que <GN> :
+
+“les rebelles ivoiriens" —> <GN>.
+
+— Les groupes verbaux ont un statut particulier. La sémantique de la relation étant portée par celui-ci, nous
+les généralisons en construisant un nouveau graphe en cascade, avec des noeuds représentant un retour
+au lemme de tous les éléments qui composent le segment original (ﬁgure 2). Ainsi le segment ira voir
+détecté en tant que groupe verbal, produira le sous-graphe [<aller>] —> [<voir>] .
+
+— Enﬁn, tous les mots restants ne rentrant pas dans ces catégories sont généralisés par leur étiquette
+morpho-syntaxique : "et" —> <CON J C> (conjonction de coordination),“p0ur" —> <PREP > (preposi-
+tion),‘le"—>> <DET> (déterminant) etc...
+
+4.3 Résultat et formalisation
+
+Le résultat est assimilable a un graphe conceptuel (Sowa, 1984), ou le prédicat est le centre et les princi-
+paux arguments sont liés par des relations typées. Les regles de généralisation operent sur des éléments
+de natures diverses sur la base de la compatibilité de type (on peut généraliser “Chirac” en <Personne>
+puis en <Ent ité> parce que ces différents éléments sont des généralisations compatibles, autrement dit
+
+Acquision de grammaire locale pour l ’extracti0n de relations entre entités nommées
+
+K
+
+/‘5 <recevo<r>
+
+<étre>
+
+<rencontrer>
+
+Em <avo4r> \‘ E13:
+initial ﬁnal
+
+<entretenir>
+
+<a||er> _
+
+L» <voIr>
+
+FIG. 2 — Exemple de transducteur en cascade pour les groupes verbaux
+
+parce qu’on a affaire a une relation d’hyponymie/hyperonymie entre ces differents elements, modulo le
+fait que Chirac est une instance et non un type).
+
+De meme, la generation de la grammaire est comparable a la jointure dans les graphes conceptuels (Sowa,
+1984), o1‘1les noeuds compatibles sont fusionnes, et o1‘1 les autres creent de nouvelles ramiﬁcations dans le
+graphe resultat. La difference essentielle reside dans l’analyse sous-jacente au moyen d’un algorithme de
+type shift reduce qui se fonde sur l’ordre lineaire de la phrase. Mais meme dans les premieres implementa-
+tions des graphes conceptuels (Fargues et al., 1986), de tels mecanismes avaient dﬁ etre mis en place pour
+limiter le pouvoir expressif de la jointure souvent trop puissante pour des applications en langue naturelles
+(intuitivement, on souhaite tenir compte de l’ordre des elements tout simplement parce que la syntaxe est
+determinante pour la comprehension). Certaines jointures sont guidees ici de facon a ce que le graphe res-
+pecte la construction des phrases analysees, representee ici par un verbe present entre les deux arguments
+de la relation.
+
+Nous autorisons les retours-arriére dans le graphe. Ils operent seulement dans une fenétre precise, deliIni-
+tee par les deux arguments et le verbe. 11 y a donc 4 fenétres deﬁnies (avant, apres et entre les arguments
+et le verbe). Nous uniﬁons les noeuds compatibles par un retour-arriére, si et seulement s’ils apparaissent
+dans la meme fenétre. Autrement dit, si deux determinants sont presents dans la meme fenetre, ils seront
+uniﬁes par le meme noeud.
+
+Ces retours-arriére guides rendent le graphe plus lisible car ils limitent le nombre de creation de noeuds.
+Cependant, ils augmentent la combinatoire des chemins possibles dans le graphe et peuvent engendrer du
+bruit.
+
+Nous partons donc d’une base d’analyse assez traditionnelle. Notre objectif principal est de l’operation-
+naliser dans un cadre industriel avec les contraintes que nous avons mentionnees dans l’introduction :
+necessite de garder un processus lisible, modiﬁable par un linguiste et facilement adaptable a un nouveau
+domaine.
+
+5 Protocole d’expérimentation et résultats
+
+Nous avons utilise deux corpus pour l’eXperimentation, un corpus d’acquisition et un corpus de test. Le
+corpus d’acquisition nous a servi pour inferer la grammaire, le second pour l’evaluation presentee dans
+cette section.
+
+Mani EZZAT
+
+5.1 Elaboration de la grammaire £1 partir du corpus d’entra’1‘nement
+
+Le corpus d’acquisition est composé d’environ 7 millions de mots répartis sur 13 500 dépéches AFP
+portant sur la crise en Cote d’Ivoire. Une dépéche ne dépasse généralement pas les 8 phrases et le genre
+textuel est journalistique. Comme expliqué supra, il faut d’abord sélectionner un ensemble de phrases
+pertinentes par rapport a la relation pour pouvoir ensuite lancer le processus de génération de la grammaire
+de reconnaissance.
+
+Lors de la sélection de segments de textes, nous remarquons que les nombres de cooccurrences les plus
+importantes (jusqu’a 200 phrases contenant le meme ensemble d’entités nommées) relevent de relations
+statiques. Les cooccurrences avec un nombre moyen, situé entre 5 et 15, sont composées généralement
+d’évenements. Au dessous de 5, le nombre d’ensembles d’entités cooccurrentes tres important rend dif-
+ﬁcile l’exploration. Nous avons observé que la relation de contact était la plus présente dans les scores
+moyens et nous avons sélectionné un ensemble de 98 segments qui en attestent. Parmi ces 98 segments,
+nous n’avons gardé que les 54 qui sont présentés sous la forme d’une construction autour d’un prédicat
+verbal.
+
+L’algorithme de génération est produit automatiquement a partir de ces 54 phrases pertinentes. On re-
+marquera la tres faible taille de l’échantillon d’apprentissage, caractéristique de ce type d’applications en
+milieu industriel. De fait, les techniques d’apprentissage demandant de grosses masses de données pour
+l’apprentissage ne sont pas utilisables dans ce contexte.
+
+5.2 Evaluation de la grammaire
+
+Nous utilisons le second corpus pour évaluer la grammaire produite : il s’agit d’un échantillon de l’année
+2007 du journal Le Monde composé d’environ 639 500 mots. 227 segments attestant la relation de contact
+ont été annotés manuellement; nous avons volontairement utilisé un corpus d’un genre textuel proche du
+corpus d’acquisition pour l’évaluation (corpus de type journalistique) mais nous avons tenu a modiﬁer la
+source aﬁn de ne pas étre trop proche du corpus original. Le reste de la section présente uniquement les
+résultats obtenus a partir du corpus de test.
+
+Pour l’étape de sélection des segments de textes, nous n’utilisons pas de métriques car la sélection des
+segments de textes est effectuée manuellement (a partir de l’analyse automatique des cooccurrences tou-
+tefois). Pour le transducteur généré, nous utilisons les mesures de precision et rappel, calculé a partir des
+segments annotés dans le corpus d’évaluation.
+
+Nous appliquons la grammaire générée sur le corpus de test et nous calculons le rappel (tableau 2) selon
+trois cas distincts.
+1. En prenant en compte tous les segments annotés dans le corpus.
+2. En ne gardant que les segments annotés construits autour d’un prédicat verbal.
+
+3. En ne gardant qu’un sous-ensemble des segments annotés construits autour d’un prédicat verbal
+sans anaphores ou coréférences des entités nommées du type personne.
+
+La precision ne varie pas car la grammaire reconnait soit des segments qui correspondent au critere 3 (le
+plus petit des ensembles), soit des segments qui ne correspondent a aucun des trois criteres. Si une petite
+partie du bruit généré provient des grammaires utilisées dans l’analyseur (mauvaise détection d’entités
+
+Acquision de grammaire locale pour l ’extraction de relations entre entités nommées
+
+Segments considérés Rappel Précision
+
+Tous segments confondus 36.5% 84.6%
+
+Prédicats verbaux 55.3% 84.6%
+
+Prédicats verbaux sans coréférences 83.8% 84.6%
+
+TAB. 2 — Estimation du rappel et de la précision
+
+nommées, de groupes nominaux et verbaux), la maj eure partie est due aux retours arriére du transducteur,
+notamment sur le noeud représentant un groupe nominal. En effet, celui-ci ne fait l’objet d’aucune regle
+de jointure, engendrant alors une forte augmentation de la combinatoire des séquences reconnues.
+
+Le silence est en partie dﬁ aux différences textuelles des corpus. Le corpus d’évaluation contient des
+phrases et des textes généralement plus longs qui peuvent contenir des incises. D’autre part, on observe
+également que la longueur des textes du corpus d’évaluation force 1’ emploi d’ anaphores et de coréférences,
+qui composent pres d’un tiers des segments annotés manuellement. Leur résolution peut améliorer de
+maniere importante le rappel (environ 30%).
+
+On remarque également que le rappel est relativement correct si on considere la petite taille de l’échan-
+tillon de segments de textes (au nombre de 54) a partir duquel est produite la grammaire. Les regles de
+généralisation et de jointure relachent sufﬁsamment les contraintes sans pour autant augmenter le bruit
+d’une maniere importante.
+
+6 Discussion et conclusion
+
+Nous avons présenté une méthode semi-automatique pour la création de grammaires de détection de re-
+lations entre entités nommées. Si les performances sont honorables en terme de précision et rappel, il
+est en revanche difﬁcile d’objectiver le réel gain apporté. En effet, notre méthode a un double objectif.
+D’une part, elle doit faciliter l’édition de la grammaire par un linguiste en la rendant plus lisible a travers
+un unique transducteur a nombre ﬁni d’états, et d’autre part, elle doit également permettre un gain de
+temps important par rapport a la constitution manuelle d’une telle ressource. Ces deux criteres, récurrents
+dans les systemes d’extraction d’informations fondés sur une approche symbolique, sont particulierement
+difﬁciles a évaluer. Par ailleurs, la maniere de fusionner les noeuds du graphe est guidée par le type de
+construction syntaxique des phrases analysées. Ce qui implique un changement de regles selon ce type.
+Nous avons seulement expérimenté l’algorithme dans le cas de relations entre entités nommées basées sur
+un prédicat verbal. Mais il faut déﬁnir autant de regles qu’il existe de constructions syntaxiques exprimant
+une relation entre entités nommées. Celles-ci sont potentiellement nombreuses.
+
+Remerciements
+
+J e remercie mon directeur de recherche, Thierry Poibeau, pour son suivi et ses conseils avisés. J e remercie
+également Nicolas Dessaigne, directeur technique de l’entreprise qui m’emploie, ainsi que mon collegue
+Gael Patin pour son aide apportée. Ces recherches ont été en partie effectuées dans le cadre du projet
+CAHORS ﬁnancé par l’ANR (appel a projet CSOSG 2008).
+
+Mani EZZAT
+
+Références
+
+ACE (2004). Automatic Content Extraction, English Annotation Guidelines for Relations. ACE Consor-
+tium, Linguistic Data.
+AHO A. & ULLMAN J. (1972). The Theory of Parsing, Translation and Compiling. Prentice Hall.
+
+CALIFF M.-E. & MOONEY R. J. (2003). Relational learning of pattern matching rules for information
+extraction. In The Journal of Machine Learning Research.
+
+FARGUES J ., DUGOURD M.-C. L. A. & CATACH L. (1986). Conceptual graphs for semantics and
+knowledge processing. IBM Journal of Research and Development archive, 30(1), 70-79.
+
+GOUJ ON B. (2008). Relation extraction in an intelligence context. In LangTech 2008.
+
+HEARST M. (1992). Automatic acquisition of hyponyms from large text corpora. Conference On Com-
+putational Linguistics ( C OLING), p. 539-545.
+
+HUFFMAN S. B. (1996). Learning information extraction patterns from examples. In Connectionist,
+Statistical and Symbolic Approaches to Learning for Natural Language Processing.
+
+MUC (1998). Proceedings of the Seventh Message Understanding Conference. MUC-7.
+
+RILOFF E. (1996). Automatically generating extraction patterns from untagged text. In Thirteenth
+National Conference on Artiﬁcial Intelligence (AAAI-96).
+
+SILBERZTEIN M. (1993). Dictionnaires électroniques et analyse automatique de textes - Le systeme
+Intex. Masson.
+
+SODERLAND S., FISHER D., ASELTINE J . & LEHNERT W. (1995). Crystal : Inducing a conceptual
+dictionary. In Fourteenth International Joint Conference on Artiﬁcial Intelligence.
+
+SORICUT R. & MARCU D. (2003). Sentence level discourse parsing using syntactic and lexical in-
+formation. Proceedings of the 2003 Conference of the North American Chapter of the Association for
+Computational Linguistics on Human Language Technology.
+
+SOWA J . F. (1984). Conceptual Structures .' Information Processing in Mind and Machine. Addison-
+Wesley.
+
+ZELENKO D., AONE C. & RICHARDELLA A. (2003). Kernel method for relation extraction. In Journal
+of Machine Learning Research.
+
+ZHANG S., ZHANG S. & GAO G. (2008). Automatic entity relation extraction based on conditional
+random ﬁelds. Fuzzy Systems and Knowledge Discovery, 2008. FSKD ’08.
+
+ZHAO S. & GRISHMAN R. (2005). Extracting relations with integrated information using kernel me-
+thods. In ACL 2005, Dourdan.
+

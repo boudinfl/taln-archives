@@ -1,0 +1,430 @@
+Apprentissage automatique d’un chunker pour le francais
+
+Isabelle Tellier1»2, Denys Duchierz, Iris Eshko13,
+Arnaud Courmetz, Mathieu Martinet3
+(1) LaTTiCe, université Paris 3 — Sorbonne Nouvelle
+(2) LIFO, université d’0r1éans
+(3) 1.1.1., université d’0r1éans
+isabelle . 1:ellier@u.niv—paris3 . fr, denys . duchier@u.niv—orleans . fr ,
+iris . eshkol@u.niv—orleans . fr , arnaud . coumettﬁgmail . com,
+ma1:hieu_martine1:@hotmail . fr
+
+RESUME
+Nous décrivons dans cet article comment nous avons procédé pour apprendre automatiquement
+un chunker a partir du French Tree Bank, en utilisant les CRF (Conditional Random Fields).
+Nous avons réalisé diverses expériences, pour reconnaitre soit l’ensemble de tous les chunks
+possibles, soit les seuls groupes nominaux simples. Nous évaluons le chunker obtenu aussi
+bien de maniére interne (sur le French Tree Bank lui-méme) qu’externe (sur un corpus distinct
+transcrit de l’oral), aﬁn de mesurer sa robustesse.
+
+ABSTRACT
+Machine Learning of a chunker for French
+
+We describe in this paper how to automatically learn a chunker for French, from the French Tree
+Bank and CRFs (Conditional Random Fields). We did several experiments, either to recognize
+every possible kind of chunks, or to focus on simple nominal phrases only. We evaluate the
+obtained chunker on internal data (i.e. also extracted from the French Tree Bank) as well as on
+external (i.e from a distinct corpus) ones, to measure its robustness.
+
+MOTS-CLEIS : chunking, apprentissage automatique, French Tree Bank, CRF.
+KEYWORDS: chunking, Machine Learning, French Tree Bank, CRF.
+
+1 Introduction
+
+Nous présentons dans cet article la démarche ayant permis d’apprendre automatiquement a
+partir du French Tree Bank (Abeillé et aL, 2003) un “chunker” ou analyseur syntaxique super-
+ﬁciel (Abney, 1991) du francais. Alors que cette tache a fait l’objet du challenge CoNLL 2000 1
+pour l’ang1ais, aucun chunker du francais n’avait encore, semble-t-il, été appris automatique-
+ment a partir de données annotées. Ce travail est une suite naturelle a l’acquisit1'on d’un ét1'que-
+teur morpho-syntaxique (ou POS) du francais réalisée précédemment a partir du méme corpus
+
+1. htrp ://www.cnts.ua.ac.be/con112000/chunking/
+
+Actes de la conférence onjointe JEP-TALN-RECITAL 2012, volume 2: TALN, pages 431-438,
+Grenoble, 4 au 8 juin 2012. ©2012 ATAI.A 8: AFCP
+
+431
+
+(Constant et al., 2011), et sur lequel il s’appuie. Comme l’ét1'queteur POS, notre chunker a été
+appris a l’aide des CRF (Conditional Random Fields) (lafferty et al., 2001; Tellier et Tommasi,
+2011). Comme lui, il est librement disponible en téléchargement ('I'ellier et aL, 2012).
+
+la notion de chunk peut recouvrir plusieurs niveaux de détails possibles, suivant que l’on se
+concentre sur les seuls groupes nominaux simples, a la facon de (Sha et Pereira, 2003) ou sur
+l’ensemble de tous les constituants non récursifs possibles. Ces deux variantes ont été testées
+et évaluées par validation croisée sur le corpus, en s’appuyant sur un étiquetage POS parfait,
+et montrent qu’identiﬁer les différents types de chunks est de difﬁculté variable suivant leur
+nature. De plus, la variante qui se concentre sur les groupes nominaux simples a aussi été testée
+sur un autre corpus totalement différent, constitué de transcriptions de l’oral et annoté avec
+notre étiqueteur, donc imparfaitement. Ces évaluations permettent de mesurer la sensibilité du
+modéle a des conditions d’utilisation dégradées.
+
+I.’article suit la structure suivante. Tout d’abord, nous évoquons la tache de chunking et ses diffé-
+rentes variantes. Nous décrivons ensuite les différentes instances du French Tree Bank de Paris
+7 qui ont permis la constitution du corpus d’apprentissage ainsi que les CRF qui ont été utilisés
+pour cet apprentissage. Nous fournissons enﬁn les résultats de nos différentes experiences.
+
+2 Le chunking
+
+2.1 Le chunking du francais
+
+les chunks sont des constituants continus et non-récursifs (Abney, 1991). Ils déﬁnissent la struc-
+ture syntaxique superﬁcielle des phrases et, a ce titre, sont moins coﬁteux et plus faciles a obtenir
+que leur structure en constituants complete. Pour certains textes non normés (transcriptions de
+l’oral par exemple), ils représentent le degré d’analyse le plus poussé qu’on puisse espérer.
+
+A notre connaissance, peu de solutions spéciﬁques sont disponibles pour le chunking du francais,
+et celles qui existent ont été écrites a la main :
+— soit pour réaliser une analyse syntaxique superﬁcielle de textes non normés, en par11'culier
+ceux transcrits de l’oral (Antoine et al., 2008; Blanc et al., 2010)
+— soit en tant que composant d’un analyseur syntaxique complet, comme par exemple les sys-
+témes ayant participé aux campagnes d’évaluation Easy et Passage (Paroubek et al., 2006)
+— soit encore en tant que composant d’une plateforme généraliste et multilingue comme Gatez
+Nous proposons a la place de coder la tache de chunking comme une annotation, et
+de l’apprendre automatiquement a l’aide d’un CRF, en nous inspirant des expériences de
+(Sha et Pereira, 2003).
+
+2.2 Découpages en chunks
+
+Ia notion de chunk n’est pas toujours trés précisément déﬁnie. Deux niveaux de détails sont
+possibles pour caractériser les chunks :
+
+2. http ://www.semanticsoftware.info/munpex
+
+432
+
+— soit on s’intéresse aux seuls groupes nominaux simples (i.e. non récursifs), qui sont chacun
+constitués d’un unique nom ou pronon, incluant ses éventuels groupes adjectivaux immédiats,
+déterminants et adjectifs numériques. Les compléments du nom sont dans des chunks distincts
+de celui du nom qu’ils qualiﬁent.
+
+— soit on s’intéresse a tous les groupes possibles, en cherchant a obtenir un parenthésage com-
+plet de la phrase. Dans ce cas, les différents types possibles de chunks, tels qu’ils apparaissent
+dans le French Tree Bank, sont :
+
+— les groupes nominaux ou NB déﬁnis comme précédemment sauf quand ils sont inclus dans
+un des autres types suivants ;
+
+— les groupes verbaux ou VN, incluant les formes interrogatives, inﬁnitives, modales.. ;
+
+— les groupes prépositionnels ou PP, incluant tous les groupes nominaux introduits par une
+préposition ainsi que tous ceux qui qualiﬁent les VN;
+
+— les groupes adjectivaux ou AB incluant les éventuels adverbes modiﬁeurs d’adjectifs;
+
+— les groupes adverbiaux ou Adp, incluant les modiﬁeurs de phrases;
+
+— les groupes coordonnés ou COORD, introduits par une conjonction de coordination, et
+pouvant aussi inclure des groupes nominaux.
+
+Ces différents chunks peuvent bien s1"1r étre obtenus a partir de la structure en constituants de
+
+la phrase. Par exemple, l’arbre de 1a Figure 1 donne lieu aux deux découpages suivants :
+
+— (Ia commercialisation efﬁcace)NP est plus exigeante.
+
+— (Ia commercialisation efﬁcace)NP (est)VN (plus exigeante)AP.
+
+Dans le cas des compléments du nom ou des groupes nominaux coordonnés par exemple, le
+
+découpage de premier type n’est pas strictement inclu dans celui de deuxiéme type, comme
+
+l’illustre le cas suivant :
+
+— (Ia commercialisation)NP de (la marchandise)NP et (des services) NP est plus exigeante.
+
+— (Ia commercialisation) NP (de la marchandise)PP (et des services)COOR (est)VN (plus
+exigeante)AP .
+
+Pour aborder la tache de chunking comme une tache d’annotat1'on, il sufﬁt d’associer a chaque
+
+mot appartenant a un chunk une étiquette donnant son type (voit NB soit un type parmi {NB
+
+VN, PB AB AdB VCOOR}) accompagnée du codage BIO (Begin/ In/ out) qui permet de délimiter
+
+ses frontiéres. Dans le cas d’un parenthésage total, le type 0 est inutile car la ﬁn d’un chunk
+
+coincide toujours avec le début d’un autre :
+
+— La/B-NP commercialisation/I-NP efﬁcace/I-NP est/O plus/O exigeante/O.
+
+— La/B-NP commercialisation/I-NP efﬁcace/I-NP est/B-VN plus/B-AP exigeante/I-AP.
+
+SENT
+/ \
+NP VN
+/ \ / \
+NP AP V AP
+/ \ | I / \
+Det NC ADJ est ADV ADJ
+|
+Ia commercialisation efﬁlace p1|11S exigtlante
+
+FIGURE 1 — Arbre d’analyse syntaxique extrait du French Tree Bank
+
+3 Constitution de corpus de référence
+
+3.1 Le French Tree Bank
+
+Le French Tree Bank (Abeillé et aL, 2003) est la ressource a partir de laquelle nous avons pu
+constituer des ensembles d’exemples de référence pour l’apprentissage automatique. Ce corpus
+est composé d’articles du journal “Le Monde”. Les phrases qui y ﬁgurent sont complétement
+analysées syntaxiquement en constituants, comme dans la Figure 1. Nous en avons extrait deux
+variantes de corpus annotés en chunks, correspondant aux deux notions possibles de chunks
+évoquées précédemment.
+
+3.2 Homogénéisation des étiquettes
+
+Pour ce travail, nous disposions en fait de deux versions complémentaires du corpus :
+
+— la version arborée, composée d’environ dix mille ﬁchiers XML (un par phrase). Ces ﬁchiers
+décrivent donc la structure syntaxique complete des phrases ainsi que de leurs unités. Les
+mots sont associés a une liste d’attributs qui les caractérisent (lemme, catégorie, ...).
+
+— une version on ne ﬁgurent plus que les mots et leur catégorie morpho-syntaxique, ayant servi
+a acquérir un étiqueteur (Constant et al., 2011). Son jeu d’ét1'quettes comprend 29 catégories
+POS distinctes. Ces catégories ne correspondent pas exactement avec la valeur de l’attribut
+“cat” associé aux mots de la version arborée (des simpliﬁcations ont eu lieu), ce qui nous a
+containt a quelques prétraitements.
+
+Il était indispenable d’harmoniser les catégories morpho-syntaxiques ﬁgurant dans ces deux
+
+versions du corpus, car notre chunker doit pouvoir s’appuyer sur l’étiqueteur POS appris précé-
+
+demment a partir des catégories simpliﬁées. L’ét1'queteur POS utilisé ne prend pas en compte
+pour l’instant 1a reconnaissance des unités multimots.
+
+4 Le modéle d’apprentissage
+
+4. 1 Les CRF
+
+Les champs markoviens conditionnels ou CRF ('I'ellier et Tommasi, 2011) sont des modéles
+probabilistes discriminants introduits par (1affertyetal., 2001) pour l’annotation de don-
+nées séquentielles. Ils ont été utilisés dans de nombreuses taches de traitement automatique
+des langues, pour lesquelles ils sont particuliérement bien adaptés (McCallum et Li, 2003;
+Sha et Pereira, 2003; Tsuruoka et al., 2009; Tellier et al., 2010).
+
+Les CRF permettent d’associer a une observation x une annotation y en se basant sur un en-
+semble d’exemples annotés (x, y). La plupart du temps (et ce sera le cas ici), x est une séquenoe
+d’unite’s (ici, une suite d’unités lexicales associées a leur catégorie POS) et y la séquence des an-
+notations correspondante (ici, la suite des étiquettes BIO couplées au type des chunks). Ils sont
+déﬁnis par X et Y, deux champs aléatoires décrivant respectivement chaque unité de l’obser-
+vation x et de son annotation y, et par un graphe dont V = X U Y est l’ensemble des noeuds
+(verﬁces) et E E V X V l’ensemble des arcs (edges). Deux variables sont reliées dans le graphe
+
+434
+
+si elles dépendent l’une de l’autre. Le graphe sur le champ Y des CRF linéaires est une simple
+chaine qui traduit le fait que chaque étiquette est supposée dépendre de l’étiquette précédente
+et de la suivante et, implicitement, de la donnée x complete.
+
+Dans un CRF linéaire, on a la relation suivante :
+
+p(y|x) = % 1-] exp  ?Lkfk(yi-, xi 6)) avec
+ce‘6’ k
+
+— Z (x) est un coefﬁcient de normalisation, déﬁni de telle sorte que la somme sur y de toutes
+les probabilités p(y|x) pour une donnée x ﬁxée soit égale a 1.
+
+— <6 est l’ensemble des cliques (sous-graphes complétement connectés) de ‘5 sur Y : dans le cas
+des CRF linéaires, ces cliques sur Y sont constituées soit d’un noeud isolé, soit d’un couple de
+noeuds successifs.
+
+— Les fonctions fk sont appelées fonctions caractéristiques (features) : elles sont déﬁnies a l’in-
+térieur de chaque clique c et sont a valeurs réelles, mais souvent choisies pour donner un
+résultat binaire (0 ou 1). Elles doivent étre founies au systéme par l’utilisateur. Par déﬁni-
+tion, la valeur de ces fonctions peut dépendre des annotations yc présentes dans une certaine
+clique c ainsi que de la valeur de x n’importe oi: dans la donnée (et pas uniquement aux indices
+correspondants a la clique c, ce qui donne beaucoup d’expressivité aux CRF).
+
+— yc est l’ensemble des valeurs prises par les variables de Y sur la clique c pour une annotation y
+donnée : ici, c’est donc soit la valeur yi d’une seule étiquette soit celles d’un couple d’étiquettes
+successives (yi, yi+1).
+
+— Les poids Ak, a valeurs réelles, permettent d’accorder plus ou moins d’importance a chaque
+fonction fk dont ils caractérisent le pouvoir discriminant. Ce sont les paramétres du modéle :
+l’enjeu de la phase d’apprentissage est de ﬁxer leur valeur en cherchant a maximiser la log-
+vraisemblance sur l’ensemble des exemples annotés constituant le corpus d’apprentissage.
+
+Ie logiciel que nous avons utilisé est Wapiti avec pénalisation L1 (Iavergne et al., 2010), re-
+connu comme actuellement le plus efﬁcace pour les CRF linéaires, car il procéde lors de sa
+phase d’apprentissage a une se'lection des features les plus discriminantes.
+
+4.2 Features utilisées
+
+Pour nos expériences, nous nous sommes contenté de features simples. Ie seul attribut associé
+aux mots M est leur catégorie POS, notée C. A chaque fois qu’un couple xi = (Mi, Ci) est associé
+a une étiquette yi = Ei a une position i dans le corpus d’apprentissage, on crée une feature “uni-
+gramme” (c’est-a-dire ne prenant en compte qu’une seule étiquette) caractérisant l’associat1'on
+du mot et de l’étiquette, ainsi qu’une autre caractérisant l’associau'on de la catégorie et de l’éti-
+quette. On fait de méme avec chacun des mots situés dans une fenétre de taille 5 (de deux places
+avant a deux places aprés) centrée sur le mot courant. les features “bigrammes” (c’est-a-dire
+portant sur un couple d’étiquettes successives) sont construites de la méme facon, en ne tenant
+compte que des catégories et pas des mots, parce qu’elles varient moins que ces derniers. les
+features sont donc toutes les conﬁgurations attestées dans les exemples de la forme suivante :
+— fiiiii-(yi,x) = 1 si yi = Ei et moti = Mi, Vj e [i —2,i +2] (=0 sinon)
+
+— fi’,i,i.(yi,x) = 1 si yi = Ei et POSi = Ci, Vj e [i — 2,i +2] (=0 sinon)
+
+— fziiii-(yi,yi+1,x) = 1 siyi = Ei et yi+i = Ei+i et POSi = Ci, Vj e [i — 2,i +2] (=0 sinon)
+
+435
+
+5 Les résultats
+
+5. 1 Validation interne
+
+Les premiéres évaluations ont été réalisés par validation croisée en répartissant le corpus d’ap-
+prentissage dans 5 ensembles distincts, 4 servant pour l’apprentissage et 1 pour le test. Dans
+chacun de ces ensembles, on dispose d’un étiquetage POS parfait, puisqu’il est lui-méme issu du
+French Tree Bank. Un chunk est considéré comme reconnu si 5 la fois ses frontiéres et son type
+sont corrects.
+
+Les seuls “groupes nominaux simples” NP sont identiﬁés avec une précision de 97, 49%, un
+rappel de 97, 40% et une F-mesure de 97,45. Ces excellents résultats dépassent ceux obtenus
+pour la téiche CoNI.L 2000 sur l’anglais (o1‘1 les meilleurs dépassaient 5 peine 94 points de F-
+mesure), mais ces comparaisons sont 5 prendre avec précautions, car ni les données ni le jeu de
+catégories POS utilisées n’étaient les mémes.
+
+Il faut remarquer que, dans le cas du chunking complet, une erreur de frontiére rend erronés
+les deux chunks que cette frontiére devrait séparer. Les taux d’erreurs sont donc naturellement
+globalement plus bas :
+
+type de chunk | proporﬁon (%) Précision (%) Rappel (%) F-mesure
+
+AP 10 68,36 68,61 68,49
+AdP 2 53,57 39,47 45,45
+COORD 6 80,81 76,35 78,52
+NP 26 84,99 86, 10 85,54
+PP 34 77,79 77,82 77,81
+VN 22 83,3 85,52 84,39
+
+Ce tableau montre que les NP sont les mieux reconnus, mais avec tout de méme prés de 12
+points de F-mesure de moins que quand ils sont la seule cible, les goupes adverbiaux étant quant
+a eux 21 la fois les plus rares et les plus difﬁciles 5 identiﬁer. Ia “micro-average” (moyenne des
+F-mesure pondérées par les effectifs des différents chunks) vaut 79, 73, tandis que la “macro-
+average” (moyenne donnant autant d’importance 5 chaque type de chunk, indépendamment
+de sa fréquence d’apparition) vaut : 73,37. 11 n’y a pourtant pas toujours corrélation entre
+la fréquence d’un chunk et sa propention 5 étre reconnu. Ainsi, PP est le type de chunks le
+plus fréquent car il couvre 21 la fois les compléments du nom qui suivent un NP et les groupes
+prépositionnels associés 5 un VN. Cette variabilité de construction explique sans doute la relative
+difﬁculté ales retrouver. Inversement, les COORD sont assez rares, mais comme ils doivent étre
+nécessairement introduits par une conjonction de coordination, ils ne sont pas si durs 21 repérer.
+
+Les résultats de notre systéme de chunking complet sont moins bons que ceux habituellement
+obtenus par les analyseurs syntaxiques complets (qui peuvent atteindre une exactitude d’environ
+85%) : la simple identiﬁcation des chunks est apparemment plus difﬁcile quand elle n’est pas
+couplée avec celle des relations qu’ils entretiennent les uns avec les autres.
+
+Nous aurions pu mesurer l’importance de la catégorie POS sur cette identiﬁcation en cherchant
+21 retrouver les chunks 5 par11'r d’un corpus annoté par notre étiqueteur, c’est-‘a-dire imparfaite-
+ment. Cependant, cet étiqueteur POS a été appris sur ce méme corpus, il y fait moins de 2 points
+d’erreur en exactitude (puisqu’il n’en faisait déja pas beaucoup plus en validation croisée), et l’ef-
+
+436
+
+fet de ces trés rares erreurs sur le chunking sera donc difﬁcile 5 mesurer. A la place, nous avons
+testé le résultat ﬁnal du traitement : étiquetage + chunking NP sur un corpus complétement
+différent.
+
+5.2 Test sur un corpus oral
+
+Aﬁn de tester la robustesse du chunker qui se concentre sur les groupes nominaux simples dans
+un contexte différent de celui dans lequel il a été appris, nous avons évalué ses performances
+sur un extrait du corpus de transcriptions orales ESLO 3. Le corpus a été annoté en POS avec
+SEM 4, l’étiqueteur POS appris sur le French Tree Bank, sans que les catégories fournies par ce
+programme ne soient corrigées. Seuls les résultats du chunking ont, eux, été vériﬁés a la main.
+Sur un corpus comprenant 575 “phrases” (i.e. tours de parole ou “groupe de soufﬂe”) et environ
+9 280 mots, la performance de notre chunker tombe a moins de 40 en F-mesure, trés loin de
+ses 97,45 points obtenus par validation croisée. L’exactitude de l’étiquetage B_NP est d’environ
+56%, celui des I_NP de 61%.
+
+Il n’est pas facile d’analyser la raison de ces résultats. Certaines erreurs semblent provenir de
+la segmentation qui n’est pas traitée par notre étiqueteur POS : les mots composés, entités
+nommées ou expressions ﬁgées devraient rester dans le méme chunk et ne pas étre considérés
+comme des compléments du nom. Les irrégularités propres a l’oral (disﬂuences, hésitations,
+amorces) sont aussi courantes et rendent bien s1"1rl’étiquetage POS moins ﬁable (méme si nous
+n’avons pas mesuré la qualité de l’étiquetage POS indépendamment de celle du chunking), donc
+la reconnaisance des chunks plus délicate. En fait, la notion méme de chunk doit étre amendée
+dans ce contexte. En effet, quand le nom principal d’un chunk est oralement répété, les deux
+formes transcrites sont incluses dans le méme chunk qui comporte donc deux noms, ce qui est
+en principe interdit par notre déﬁnition des NP. Si la répétition d’un déterminant ne provoque
+pas un changement de chunk NP, en revanche celle d’un pronom en entraine un : est-ce toujours
+souhaitable ? Et doit-on considérer que des interruptions comme “lieu”, “oui”, “ah bon” doivent
+étre incluses dans le chunk NP qui les englobe, le découper en deux NP distincts ou en constituer
+un nouveau a part? Le statut syntaxique de ces formes propres a l’oral reste sujet a discussion.
+
+6 conclusion
+
+Dans cet ar11'cle, nous avons présenté comment obtenir efﬁcacement deux variantes de chunkers
+du frangais par apprentissage automatique a partir du French Tree Bank.
+
+Nos expériences montrent que la tache de chunking est de difﬁculté trés variable en fonction
+du contexte dans lequel on l’applique. Ia reconnaissance des NP seuls dans des textes normés
+ne pose pas de problémes, mais ils sont difﬁciles a distinguer des autres groupes qui peuvent
+aussi intégrer des noms dans le cas d’un chunking complet. Enﬁn, la robustesse d’un chunker
+acquis par apprentissage automatique est trés limitée quand on l’applique a des types de textes
+présentant des propriétés trés différentes. Ia notion méme de chunking est peut-étre 5 préciser
+dans le cas des corpus oraux.
+
+3. http ://es1o.in2p3.fr
+4. http : / /www.1attice.cnrs.fr/ sites /ite11ier/ SEM.htrnl
+
+437
+
+Il nous reste a étudier en quoi la reconnaissance des unités multimots dans la phase prélimi-
+naire d’étiquetage modiﬁe ou non les propriétés du chunking, et a repérer les dépendances
+entre chunks, pour se rapprocher des performances des analyseurs syntaxiques profonds. Il
+est aussi envisageable d’apprendre directement un segmenteur-étiqueteur POS-chunker en une
+seule étape, aﬁn d’éviter de cumuler les erreurs.
+
+Références
+
+ABEILLE, A., CLEMENT, L. et TOUSSENEL, F. (2003). Building a treebank for french. In ABEILLE,
+A., éditeur : Treebanks. Kluwer, Dordrecht.
+
+ABNEY, S. (1991). Parsing by chunks. In BERWICK, R., ABNEY, R. et TENNY, C., éditeurs : Principle-
+based Parsing. Kluwer Academic Publisher
+
+ANTOINE, J.-Y., MOKRANE, A. et FRIBURGER, N. (2008). Automatic rich annotation of large corpus
+of conversational transcribed speech : the chunking task of the epac project. In Proceedings of
+LREC’2008.
+
+BLANC, 0., CONSTANT, M., DISTER, A. et WATRIN, P. (2010). Partial parsing of spontaneous spoken
+french. In Proceedings of LREC’201 0.
+
+CONSTANT, M., TELLIER, I., DUCHIER, D., DUPONT, Y., SIGOGNE, A. et BILLOT, S. (2011). Intégrer
+des connaissances linguistiques dans un CRF : application a l’apprenu'ssage d’un segmenteur-
+étiqueteur du francais. In Actes de TALN’1 1.
+
+LAFFERTY, J., MCCALLUM, A. et PEREIRA, F. (2001). Conditional random ﬁelds : Probabilistic
+models for segmenting and labeling sequence data. In Proceedings of ICML 2001, pages 282-
+289.
+
+LAVERGNE, 'I‘., CAPPE, O. et YvON, F. (2010). Practical very large scale CRFs. In Proceedings of
+ACL’2010, pages 504-513. Association for Computational Linguistics.
+
+MCCALLUM, A. et 1.1, W. (2003). Early results for named entity recognition with conditional
+random ﬁelds, feature induction and web-enhanced lexicons. In Proceedings of CoNLL’03.
+PAROUBEK, P, ROBBA, I., VILNAT, A. et C., A. (2006). Data annotations and measures in easy, the
+evaluation campain for parsers of french. In Proceedings of LREC’2006, pages 315-320.
+
+SHA, F. et PEREIRA, F. (2003). Shallow parsing with conditional random ﬁelds. In Proceedings of
+HLT-NAACL 2003, pages 213 — 220.
+
+TELLIER, I., DUPONT, Y. et COURMET, A. (2012). Un segmenteur-étiqueteur et un chunker pour
+le francais. In Actes de TALN’12, session de’mo.
+
+TELLIER, I., ESHKOL, I., TAALAB, S. et PROsT, J. P (2010). Pos-tagging for oral texts with crf
+and category decomposition. Research in Computing Science, 46:79-90. Special issue "Natural
+language Processing and its Applications".
+
+TELLIER, I. et TOMMAs1, M. (2011). Champs Markoviens Conditionnels pour l’extraction d’in-
+formation. In Eric GAUSSIER et Francois YvON, éditeurs : Modeles probabilistes pour l’acces d
+l’information textuelle. Hermes.
+
+TSURUOKA, Y., TSUJII, J. et ANANIADOU, S. (2009). Fast full parsing by linear-chain conditional
+random ﬁelds. In Proceedings of EACL 2009, pages 790-798.
+
+438
+

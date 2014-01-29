@@ -1,0 +1,526 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Utilisation d&#8217;indices temporels pour la segmentation &#233;v&#233;nementielle de textes</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2010, Montr&#233;al, 19&#8211;23 juillet 2010
+</p>
+<p>Utilisation d&#8217;indices temporels pour la segmentation &#233;v&#233;nementielle
+de textes
+</p>
+<p>Ludovic Jean-Louis Romaric Besan&#231;on Olivier Ferret
+CEA, LIST, Laboratoire Vision et Ing&#233;nierie des Contenus
+</p>
+<p>Fontenay-aux-Roses, F-92265, France.
+{ludovic.jean-louis,romaric.besancon,olivier.ferret}@cea.fr
+</p>
+<p>R&#233;sum&#233;. Dans le domaine de l&#8217;Extraction d&#8217;Information, une place importante est faite &#224; l&#8217;extraction
+d&#8217;&#233;v&#233;nements dans des d&#233;p&#234;ches d&#8217;actualit&#233;, particuli&#232;rement justifi&#233;e dans le contexte d&#8217;applications de
+veille. Or il est fr&#233;quent qu&#8217;une d&#233;p&#234;che d&#8217;actualit&#233; &#233;voque plusieurs &#233;v&#233;nements de m&#234;me nature pour
+les comparer. Nous proposons dans cet article d&#8217;&#233;tudier des m&#233;thodes pour segmenter les textes en s&#233;pa-
+rant les &#233;v&#233;nements, dans le but de faciliter le rattachement des informations pertinentes &#224; l&#8217;&#233;v&#233;nement
+principal. L&#8217;id&#233;e est d&#8217;utiliser des mod&#232;les d&#8217;apprentissage statistique exploitant les marqueurs temporels
+pr&#233;sents dans les textes pour faire cette segmentation. Nous pr&#233;sentons plus pr&#233;cis&#233;ment deux mod&#232;les
+(HMM et CRF) entra&#238;n&#233;s pour cette t&#226;che et, en faisant une &#233;valuation de ces mod&#232;les sur un corpus de
+d&#233;p&#234;ches traitant d&#8217;&#233;v&#233;nements sismiques, nous montrons que les m&#233;thodes propos&#233;es permettent d&#8217;obte-
+nir des r&#233;sultats au moins aussi bons que ceux d&#8217;une approche ad hoc, avec une approche beaucoup plus
+g&#233;n&#233;rique.
+</p>
+<p>Abstract. One of the early application of Information Extraction, motivated by the needs for intel-
+ligence tools, is the detection of events in news articles. But this detection may be difficult when news
+articles mention several occurrences of events of the same kind, which is often done for comparison pur-
+poses. We propose in this article new approaches to segment the text of news articles in units relative to
+only one event, in order to help the identification of relevant information associated to the main event
+of the news. We present two approaches that use statistical machine learning models (HMM and CRF)
+exploiting temporal information extracted from the texts as a basis for this segmentation. The evaluation
+of these approaches in the domain of seismic events show that with a robust and generic approach, we can
+achieve results at least as good as results obtained with an ad hoc approach.
+</p>
+<p>Mots-cl&#233;s : Extraction d&#8217;information, extraction d&#8217;&#233;v&#233;nements, segmentation de textes, indices
+temporels, apprentissage statistique.
+</p>
+<p>Keywords: Information extraction, event extraction, text segmentation, temporal cues, statistical
+machine learning.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LUDOVIC JEAN-LOUIS, ROMARIC BESAN&#199;ON, OLIVIER FERRET
+</p>
+<p>1 Introduction
+</p>
+<p>D&#232;s les premiers travaux en extraction d&#8217;information, tels que ceux r&#233;alis&#233;s dans le cadre des conf&#233;rences
+MUC (Message Understanding Conference) (Grishman &amp; Sundheim, 1996) et plus tard des &#233;valuations
+ACE (Automatic Content Extraction), l&#8217;extraction des &#233;v&#233;nements d&#8217;un texte s&#8217;est av&#233;r&#233;e une t&#226;che cen-
+trale. Elle constitue en effet le point de d&#233;clenchement du processus d&#8217;extraction d&#8217;information visant &#224;
+compl&#233;ter des templates pr&#233;d&#233;finis associ&#233;s &#224; un nombre restreint de types d&#8217;&#233;v&#233;nements. Dans le contexte
+des attaques terroristes par exemple, un tel processus consiste &#224; identifier le type de l&#8217;attaque (explosion,
+etc.), sa date, ainsi que le lieu concern&#233;. Les informations associ&#233;es aux &#233;v&#233;nements dans les templates
+sont en g&#233;n&#233;ral rep&#233;r&#233;es par des entit&#233;s nomm&#233;es, et selon les cas, la notion d&#8217;&#233;v&#233;nement se mat&#233;ria-
+lise par une relation qui peut soit &#234;tre directe entre entit&#233;s nomm&#233;es (par exemple, &lt;Hurricane&gt;l&#8217;ouragan
+Hugo&lt;/Hurricane&gt; de &lt;Date&gt;1989&lt;/Date&gt;), soit m&#233;di&#233;e par un verbe ou un d&#233;verbal (par exemple, &lt;Hur-
+ricane&gt;l&#8217;ouragan Hugo&lt;/Hurricane&gt; qui a d&#233;vast&#233; &lt;Location&gt;les Antilles&lt;/Location&gt;) ou encore s&#8217;&#233;tendre au-
+del&#224; d&#8217;un contexte phrastique. La plupart des travaux en extraction d&#8217;information se concentrent sur les
+deux premiers cas dans la mesure o&#249; l&#8217;identification d&#8217;une relation entre un &#233;v&#233;nement et une entit&#233; nom-
+m&#233;e s&#8217;appuie le plus souvent sur des patrons lexico-syntaxiques ou des relations syntaxiques. N&#233;anmoins,
+comme le souligne (Stevenson, 2006), une part significative de ces relations ne peuvent &#234;tre identifi&#233;es
+qu&#8217;&#224; un niveau discursif. Jusqu&#8217;&#224; pr&#233;sent, cette voie a surtout &#233;t&#233; explor&#233;e au travers de la r&#233;solution de
+cor&#233;f&#233;rences ou de l&#8217;utilisation de connaissances sur le domaine. Dans cet article, nous abordons cette pro-
+bl&#233;matique par le biais de la segmentation du discours. Plus pr&#233;cis&#233;ment, nous proposons de segmenter les
+textes suivant les &#233;v&#233;nements qu&#8217;ils &#233;voquent afin de diminuer les ambigu&#239;t&#233;s de rattachement des entit&#233;s.
+</p>
+<p>Une telle segmentation &#233;v&#233;nementielle des textes se retrouve dans quelques travaux. Elle repose sou-
+vent sur l&#8217;identification des diff&#233;rents constituants d&#8217;un type d&#8217;&#233;v&#233;nements d&#233;finis comme connaissance a
+priori sur le domaine et peut aussi int&#233;grer des informations sur l&#8217;organisation discursive des textes. (Ki-
+tani et al., 1994) distinguent ainsi deux types de structures discursives dans les articles de journaux qu&#8217;ils
+consid&#232;rent : l&#8217;une se pr&#233;sente comme une succession d&#8217;&#233;v&#233;nemenents distincts tandis que l&#8217;autre s&#8217;arti-
+cule autour d&#8217;un &#233;v&#233;nement principal avec des r&#233;f&#233;rences courtes &#224; diff&#233;rents &#233;v&#233;nements secondaires li&#233;s
+au premier. Cette distinction rejoint en partie celle op&#233;r&#233;e dans (Lucas, 2004), qui propose de diff&#233;rencier
+les textes &#224; structure simple et les textes &#224; structure complexe : les premiers sont centr&#233;s sur un seul &#233;v&#233;ne-
+ment d&#233;crit selon un seul point de vue ; les seconds font r&#233;f&#233;rence &#224; plusieurs &#233;v&#233;nements parmi lesquels
+se distingue un &#233;v&#233;nement principal auquel se subordonnent les autres &#233;v&#233;nements. (Crowe, 1995) a test&#233;
+quant &#224; lui plusieurs heuristiques de nature discursive concernant le rattachement d&#8217;une proposition &#224; un
+&#233;v&#233;nement dans une perspective proche de la th&#233;orie du Centrage. Enfin, (Naughton, 2007) repr&#233;sente une
+tendance un peu diff&#233;rente dans la mesure o&#249; l&#8217;objectif principal de la segmentation des textes y est de
+d&#233;limiter des segments faisant r&#233;f&#233;rence &#224; des &#233;v&#233;nements et des segments &#224; caract&#232;re non &#233;v&#233;nementiel.
+Cette segmentation est r&#233;alis&#233;e par un mod&#232;le statistique d&#8217;&#233;tiquetage des phrases en quatre types (nou-
+vel &#233;v&#233;nement, continuation d&#8217;un &#233;v&#233;nement, ref&#233;rence &#224; un &#233;v&#233;nement d&#233;j&#224; mentionn&#233;, sans &#233;v&#233;nement)
+impl&#233;ment&#233; par un automate probabiliste.
+</p>
+<p>Compte tenu de l&#8217;&#233;troite d&#233;pendance existant entre les dimensions temporelle et &#233;v&#233;nementielle des textes
+(Pustejovsky et al., 2005), l&#8217;utilisation d&#8217;indices temporels pour mettre en &#233;vidence la segmentation des
+textes en &#233;v&#233;nements appara&#238;t comme une voie int&#233;ressante. Les relations entre temps et segmentation
+du discours ont en fait &#233;t&#233; principalement abord&#233;s dans le domaine de la linguistique textuelle et de la
+psycho-linguistique au travers de l&#8217;&#233;tude du r&#244;le discursif des adverbes de temps plac&#233;s &#224; l&#8217;initiale des
+propositions. Dans le domaine de la psycho-linguistique, (Bestgen &amp; Vonk, 2000) montrent ainsi l&#8217;exis-</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>UTILISATION D&#8217;INDICES TEMPORELS POUR LA SEGMENTATION &#201;V&#201;NEMENTIELLE DE TEXTES
+</p>
+<p>tence d&#8217;une corr&#233;lation entre la pr&#233;sence de tels adverbes et des changements de th&#232;me tandis que du point
+de vue linguistique, (Ho-Dac &amp; P&#233;ry-Woodley, 2008) d&#233;crivent une situation plus complexe dans laquelle
+le r&#244;le discursif de ces adverbes est d&#233;pendant du type des textes.
+</p>
+<p>Dans cet article, nous nous focaliserons sur l&#8217;utilisation d&#8217;indices temporels pour la segmentation &#233;v&#233;ne-
+mentielle en nous int&#233;ressant particuli&#232;rement au cas de textes &#224; structure complexe. Nous pr&#233;senterons
+d&#8217;abord les principes g&#233;n&#233;raux de l&#8217;approche que nous utilisons pour l&#8217;extraction d&#8217;&#233;v&#233;nements en sec-
+tion 2. Dans la section 3, nous d&#233;taillerons les techniques utilis&#233;es pour la segmentation de textes en
+&#233;v&#233;nements avant de rendre compte de l&#8217;&#233;valuation de ces techniques en section 4 pour des &#233;v&#233;nements
+dans le domaine sismique.
+</p>
+<p>2 Principes et objectifs
+</p>
+<p>L&#8217;extraction d&#8217;&#233;v&#233;nements que nous op&#233;rons prend place dans un contexte de veille au sein duquel les uti-
+lisateurs sont essentiellement int&#233;ress&#233;s par les &#233;v&#233;nements les plus r&#233;cents : le but est alors de fournir &#224; ces
+utilisateurs une information synth&#233;tique relative &#224; ces &#233;v&#233;nements r&#233;cents &#224; partir de leur &#233;vocation dans
+des d&#233;p&#234;ches d&#8217;actualit&#233;1. Or, une des caract&#233;ristiques des d&#233;p&#234;ches de presse est de faire fr&#233;quemment
+r&#233;f&#233;rence &#224; plusieurs &#233;v&#233;nements de m&#234;me nature, en g&#233;n&#233;ral pour donner des points de comparaison par
+rapport &#224; l&#8217;&#233;v&#233;nement faisant l&#8217;objet de l&#8217;actualit&#233;. Dans notre cas, les autres &#233;v&#233;nements rapport&#233;s dans
+les d&#233;p&#234;ches ne nous int&#233;ressent pas en tant que tels et sont vus comme des sources de perturbation de
+l&#8217;extraction des informations relatives &#224; l&#8217;&#233;v&#233;nement principal.
+</p>
+<p>La d&#233;marche que nous proposons pour aborder ce probl&#232;me distingue deux &#233;tapes :
+&#8211; segmenter le texte en fonction des diff&#233;rents &#233;v&#233;nements qui y sont &#233;voqu&#233;s. Comme il est fr&#233;quent
+</p>
+<p>dans les structures des d&#233;p&#234;ches d&#8217;actualit&#233; de faire des allers-retours entre des &#233;v&#233;nements pass&#233;s et
+pr&#233;sents, les segments ne sont pas forc&#233;ment contigus ;
+</p>
+<p>&#8211; rattacher &#224; l&#8217;&#233;v&#233;nement d&#8217;un segment les entit&#233;s nomm&#233;es de ce segment qui lui sont associ&#233;es. Dans
+notre cas, ce rattachement est op&#233;r&#233; seulement pour les segments li&#233;s &#224; l&#8217;&#233;v&#233;nement principal.
+</p>
+<p>Cette d&#233;marche est illustr&#233;e au niveau de la figure 1 sur un exemple de texte concernant un &#233;v&#233;nement
+sismique. L&#8217;&#233;tude que nous pr&#233;sentons ici se focalise principalement sur la segmentation des textes en
+</p>
+<p>  
+</p>
+<p>Un &lt;E&gt;s&#233;isme&lt;/E&gt; d'une magnitude de &lt;M&gt;5,5&lt;/M&gt; degr&#233;s sur l'&#233;chelle ouverte de Richter a &#233;t&#233; enregistr&#233; &lt;D&gt;vendredi 
+soir&lt;/D&gt; dans la r&#233;gion d'&lt;L&gt;Oran&lt;/L&gt; &lt;L&gt;(430 km &#224; l'ouest d'Alger)&lt;/L&gt;, a annonc&#233; la radio publique.
+Oran, la m&#233;tropole de l'ouest alg&#233;rien, avait d&#233;j&#224; &#233;t&#233; secou&#233;e en janvier par un tremblement de terre d'une magnitude de 5,3 
+sur l'&#233;chelle de Richter. Cette secousse n'avait fait ni victime, ni d&#233;g&#226;ts.
+L'Alg&#233;rie, dont le nord est situ&#233; dans une zone sismique, est r&#233;guli&#232;rement affect&#233;e par des tremblements de terre. 
+Alger et sa r&#233;gion avaient &#233;t&#233; frapp&#233;es, le 21 mai 2003, par un violent s&#233;isme qui avait fait 2.300 morts et plus de 10.000 
+bless&#233;s.
+&lt;E&gt; : entit&#233; sismique &lt;M&gt;: magnitude &lt;D&gt;: date &lt;L&gt;: lieu P: &#201;v&#233;nement principal S: &#201;v&#233;nement secondaire C: Contexte
+</p>
+<p>FIG. 1 &#8211; Annotation des textes en entit&#233;s nomm&#233;es et en &#233;v&#233;nements
+</p>
+<p>&#233;v&#233;nements. Dans ce cadre, un texte est vu comme une s&#233;quence de phrases o&#249; chaque phrase est associ&#233;e
+</p>
+<p>1Nous nous diff&#233;rencions en cela des approches classiques d&#8217;extraction g&#233;n&#233;rale d&#8217;&#233;v&#233;nements o&#249; l&#8217;on cherche &#224; associer
+des informations &#224; tous les &#233;v&#233;nements &#233;voqu&#233;s dans un texte.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LUDOVIC JEAN-LOUIS, ROMARIC BESAN&#199;ON, OLIVIER FERRET
+</p>
+<p>&#224; un &#233;v&#233;nement ou &#224; une absence d&#8217;&#233;v&#233;nement2. Comme nous nous int&#233;ressons au rep&#233;rage des entit&#233;s
+associ&#233;es au seul &#233;v&#233;nement principal de la d&#233;p&#234;che, nous ne distinguons pas les autres &#233;v&#233;nements. Ainsi,
+nous proposons de classer les phrases selon les trois cat&#233;gories suivantes :
+&#8211; &#201;v&#233;nement principal : toutes les phrases faisant r&#233;f&#233;rence &#224; l&#8217;&#233;v&#233;nement principal du texte ;
+&#8211; &#201;v&#233;nement secondaire : toutes les phrases en rapport avec une information associ&#233;e &#224; un &#233;v&#233;nement
+</p>
+<p>diff&#233;rent de l&#8217;&#233;v&#233;nement principal ;
+&#8211; Contexte : toutes les phrases n&#8217;appartenant ni &#224; l&#8217;&#201;v&#233;nement principal ni &#224; un &#201;v&#233;nement secondaire.
+Pour r&#233;aliser cette classification, nous supposons que les crit&#232;res les plus int&#233;ressants reposent non sur la
+seule nature des phrases mais sur leur encha&#238;nement dans le cadre d&#8217;une structure textuelle. Au niveau lin-
+guistique, le passage d&#8217;une cat&#233;gorie d&#8217;&#233;v&#233;nement &#224; une autre peut s&#8217;observer de plusieurs fa&#231;ons : l&#8217;usage
+d&#8217;un marqueur temporel diff&#233;rent de celui de l&#8217;&#233;v&#233;nement principal (nouvelle date par exemple) ou l&#8217;em-
+ploi d&#8217;un temps grammatical diff&#233;rent (ant&#233;rieur) &#224; celui de l&#8217;&#233;v&#233;nement principal. Ainsi, dans l&#8217;exemple
+donn&#233; &#224; la figure 1, les successions de temps pass&#233; compos&#233;/plus-que-parfait/pr&#233;sent/plus-que-parfait cor-
+respondent &#224; des changements de contexte &#233;v&#233;nementiel principal/secondaire/contexte/secondaire. Ces
+changements sont de plus renforc&#233;s par une mention explicite de la date de ces &#233;v&#233;nements dans les
+deuxi&#232;me et derni&#232;re phrases, qui correspondent &#224; un &#233;v&#233;nement secondaire, et dans la troisi&#232;me phrase
+par l&#8217;expression temporelle de p&#233;riodicit&#233; r&#233;guli&#232;rement. Nous souhaitons capturer la d&#233;pendance entre
+ces changements de cadre temporel et d&#8217;&#233;v&#233;nement par des techniques d&#8217;apprentissage automatique afin
+d&#8217;effectuer une segmentation &#233;v&#233;nementielle.
+</p>
+<p>3 M&#233;thodes de segmentation en &#233;v&#233;nements
+</p>
+<p>Nous avons choisi de traiter la probl&#233;matique de la segmentation de textes en &#233;v&#233;nements comme un
+probl&#232;me de classification de s&#233;quences, dans lequel l&#8217;objectif est d&#8217;attribuer un type d&#8217;&#233;v&#233;nement &#224;
+chaque phrase ou proposition. Un mod&#232;le graphique d&#8217;annotation de s&#233;quences para&#238;t donc particuli&#232;-
+rement adapt&#233; : nous d&#233;crivons ici deux approches de segmentation en &#233;v&#233;nements fond&#233;es respective-
+ment sur les mod&#232;les de Markov Cach&#233;s (Hidden Markov Model, ou HMM) et les Champs Al&#233;atoires
+Conditionnels (Conditional Random Fields, ou CRF).
+</p>
+<p>3.1 Pr&#233;-traitement des d&#233;p&#234;ches
+</p>
+<p>Une &#233;tape pr&#233;liminaire &#224; la segmentation des textes en &#233;v&#233;nements est le rep&#233;rage des informations tempo-
+relles &#224; la base de notre approche. Pour ce rep&#233;rage nous appliquons &#224; chaque texte la cha&#238;ne de traitements
+linguistiques suivante : tokenisation, d&#233;tection des fins de phrases, d&#233;sambigu&#239;sation morphosyntaxique,
+reconnaissance des temps de verbes, reconnaissance des entit&#233;s nomm&#233;es. Cette cha&#238;ne de traitement est
+mis en &#339;uvre par l&#8217;analyseur linguistique LIMA pr&#233;sent&#233; dans (Besan&#231;on et al., 2010 &#224; para&#238;tre).
+</p>
+<p>3.2 Mod&#232;le HMM
+</p>
+<p>Le mod&#232;le HMM est un mod&#232;le de classification de s&#233;quences (Rabiner, 1989) tr&#232;s largement utilis&#233; en
+TAL (reconnaissance d&#8217;entit&#233;s nomm&#233;es, d&#233;sambigu&#239;sation morpho-syntaxique) et qui a d&#233;j&#224; &#233;t&#233; appliqu&#233;
+</p>
+<p>2L&#8217;hypoth&#232;se &#171; une phrase = un &#233;v&#233;nement &#187; est bien entendu simplificatrice mais ne s&#8217;av&#232;re en pratique pas trop r&#233;ductrice
+dans les domaines d&#8217;applications que nous avons test&#233;s.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>UTILISATION D&#8217;INDICES TEMPORELS POUR LA SEGMENTATION &#201;V&#201;NEMENTIELLE DE TEXTES
+</p>
+<p>pour segmenter de textes, par exemple pour la segmentation th&#233;matique (Yamron et al., 1998). Les HMM
+sont des automates stochastiques &#224; &#233;tats finis permettant de d&#233;duire des s&#233;quences d&#8217;&#233;tats non observables
+(ou &#233;tats cach&#233;s) &#224; partir de s&#233;quences de donn&#233;es observ&#233;es (observables). Dans notre cas, nous cherchons
+&#224; d&#233;terminer la s&#233;quence d&#8217;&#233;v&#233;nements qui est associ&#233;e &#224; un texte donn&#233;, consid&#233;r&#233; comme s&#233;quence de
+phrases.
+</p>
+<p>Nous faisons l&#8217;hypoth&#232;se que la segmentation est un processus markovien, c&#8217;est-&#224;-dire que l&#8217;&#233;tat associ&#233;
+&#224; l&#8217;observable courant ne d&#233;pend que des observables pr&#233;c&#233;dents et de l&#8217;&#233;tat pr&#233;c&#233;dent : nous proposons
+d&#8217;utiliser les marqueurs temporels (temps grammaticaux) comme observables, les cat&#233;gories d&#8217;&#233;v&#233;ne-
+ments constituant les &#233;tats cach&#233;s. Les matrices de transitions (une pour les &#233;tats, une pour les observables)
+sont obtenues &#224; partir d&#8217;un corpus de textes annot&#233;s manuellement. Une illustration du mod&#232;le HMM que
+nous utilisons est propos&#233;e dans la figure 2.
+</p>
+<p>  
+Plus que Parfait
+</p>
+<p>Un s&#233;isme a &#233;t&#233; enregistr&#233; vendredi soir  &#224; Oran. Pass&#233;-compos&#233;
+</p>
+<p>Pr&#233;sent
+</p>
+<p>La ville avait d&#233;j&#224; &#233;t&#233; secou&#233;e en janvier par une secousse.
+</p>
+<p>Le pays est r&#233;guli&#232;rement affect&#233; par des s&#233;ismes.  Contexte
+</p>
+<p> &#201;v&#233;nement secondaire
+</p>
+<p> &#201;v&#233;nement Principal
+</p>
+<p>&#201;tats cach&#233;sObservations
+</p>
+<p>FIG. 2 &#8211; Illustration de la segmentation de textes en &#233;v&#233;nements avec le mod&#232;le HMM
+</p>
+<p>Une contrainte due &#224; l&#8217;utilisation des HMM est que pour une s&#233;quence d&#8217;observation donn&#233;e, le calcul de la
+s&#233;quence d&#8217;&#233;tat correspondant ne consid&#232;re que l&#8217;&#233;tat pr&#233;c&#233;dent et ne prend pas en compte les d&#233;pendances
+qui existent entre l&#8217;&#233;tat pr&#233;c&#233;dent et la s&#233;quence d&#8217;observation et ne permet pas d&#8217;int&#233;grer des crit&#232;res plus
+vari&#233;s. Pour y rem&#233;dier, nous avons essay&#233; un mod&#232;le utilisant les CRF, d&#233;crit dans la section suivante.
+</p>
+<p>3.3 Mod&#232;le CRF
+</p>
+<p>Depuis leur introduction en 2001, les CRF (Lafferty et al., 2001) ont &#233;t&#233; tr&#232;s largement utilis&#233;s dans le
+domaine du TAL. Dans le cadre de la segmentation de textes avec cat&#233;gorisation de segments, dont rel&#232;ve
+notre travail, (Hirohata et al., 2008) ont ainsi obtenu de tr&#232;s bons r&#233;sultats en appliquant un mod&#232;le CRF
+pour classifier les phrases contenues dans les r&#233;sum&#233;s d&#8217;articles scientifiques, selon quatre cat&#233;gories :
+objectif, m&#233;thode, r&#233;sultat, conclusion.
+</p>
+<p>Les mod&#232;les HMM et les mod&#232;les CRF se diff&#233;rencient sur le fait que l&#8217;objectif des premiers est de maxi-
+miser la probabilit&#233; jointe P (x, y) entre une s&#233;quence d&#8217;observations (x) et une s&#233;quence d&#8217;&#233;tats cach&#233;s
+(y), alors que les seconds utilisent une approche conditionnelle (on calcule P (y|x)) pour attribuer une
+s&#233;quence d&#8217;&#233;tats &#224; une s&#233;quence d&#8217;observations. L&#8217;avantage de l&#8217;approche conditionnelle est de permettre
+la repr&#233;sentation de la s&#233;quence d&#8217;observations sous forme d&#8217;un vecteur dont les composantes sont issues
+de traits caract&#233;ristiques (ou features). Ces traits offrent la possibilit&#233; d&#8217;int&#233;grer des connaissances vari&#233;es
+dans les mod&#232;les. Une d&#233;finition plus formelle des CRF est donn&#233;e par (en reprenant (Hirohata et al.,
+2008)) :
+</p>
+<p>P (y|x) = 1
+Z&#955;(x)
+</p>
+<p>exp(&#955;.F (y, x)) (1)
+</p>
+<p>F (y, x) =
+&#8721;
+i
+</p>
+<p>f(y, x, i) (2)
+</p>
+<p>Z&#955;(x) =
+&#8721;
+y
+</p>
+<p>exp(&#955;.F (y, x)) (3)</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LUDOVIC JEAN-LOUIS, ROMARIC BESAN&#199;ON, OLIVIER FERRET
+</p>
+<p>o&#249; F (y, x) est un vecteur ayant pour composantes les valeurs des traits pour chaque s&#233;quence i de la
+s&#233;quence d&#8217;entr&#233;e, &#955; est un vecteur de pond&#233;ration des traits, et Z&#955;(x) est un facteur de normalisation
+qui d&#233;pend de toutes les s&#233;quences d&#8217;&#233;tats possibles. Un algorithme de programmation dynamique est
+g&#233;n&#233;ralement utilis&#233; pour r&#233;duire la complexit&#233; du calcul de Z&#955;(x). De m&#234;me que pour les mod&#232;les HMM,
+l&#8217;algorithme de Viterbi est utilis&#233; pour calculer la s&#233;quence d&#8217;&#233;tats la plus probable en fonction d&#8217;une
+s&#233;quence d&#8217;observations.
+</p>
+<p>Nous proposons d&#8217;int&#233;grer les traits suivants &#224; notre mod&#232;le de segmentation en &#233;v&#233;nements :
+&#8211; le temps des verbes : comme avec notre mod&#232;le HMM, nous faisons l&#8217;hypoth&#232;se que les change-
+</p>
+<p>ments de temps grammaticaux, en particulier lorsqu&#8217;ils concernent des temps du pass&#233;, sont corr&#233;l&#233;s
+aux changements d&#8217;&#233;v&#233;nements dans le type de textes que nous consid&#233;rons. Nous prenons en compte
+cette dimension dans notre mod&#232;le CRF en utilisant un trait binaire pour chaque temps grammatical
+possible, le trait valant 1 si au moins un verbe de la phrase est conjugu&#233; au temps consid&#233;r&#233;, 0 sinon ;
+</p>
+<p>&#8211; la pr&#233;sence d&#8217;une date : si une phrase contient une date ant&#233;rieure &#224; la date de l&#8217;&#233;v&#233;nement principal,
+il est probable qu&#8217;elle fasse r&#233;f&#233;rence &#224; un &#233;v&#233;nement secondaire. Nous exploitons cette caract&#233;ristique
+de fa&#231;on limit&#233;e en utilisant un trait pour indiquer la pr&#233;sence ou l&#8217;absence d&#8217;une entit&#233; nomm&#233;e de type
+date dans la phrase (dans le mod&#232;le actuel, la valeur de la date n&#8217;est pas utilis&#233;e) ;
+</p>
+<p>&#8211; les expressions temporelles : ce trait est utilis&#233; pour prendre en compte la pr&#233;sence d&#8217;une expression de
+localisation temporelle dans une phrase. Pour cela, nous utilisons un dictionnaire d&#8217;expressions que nous
+avons constitu&#233; manuellement &#224; partir du corpus pr&#233;sent&#233; dans (Laporte et al., 2008). Le dictionnaire
+contient des expressions telles que : au d&#233;but de l&#8217;ann&#233;e, ces derni&#232;res ann&#233;es.
+</p>
+<p>4 &#201;valuation
+</p>
+<p>Cette section pr&#233;sente les r&#233;sultats que nous avons obtenus en appliquant les mod&#232;les HMM et CRF &#224; la
+segmentation des textes en &#233;v&#233;nements. Pour la mise en &#339;uvre de ces mod&#232;les, nous avons utilis&#233; deux im-
+pl&#233;mentations de r&#233;f&#233;rence : NLTK3 (HMM) et CRF++4 (CRF). L&#8217;&#233;valuation est propos&#233;e en deux volets :
+d&#8217;une part, une &#233;valuation intrins&#232;que de la segmentation (les segments trouv&#233;s par la m&#233;thode sont-ils
+bons ?) ; d&#8217;autre part, une &#233;valuation finale sur l&#8217;application vis&#233;e, c&#8217;est-&#224;-dire l&#8217;impact de la qualit&#233; de la
+segmentation sur l&#8217;extraction des informations de l&#8217;&#233;v&#233;nement principal dans les d&#233;p&#234;ches.
+</p>
+<p>4.1 Donn&#233;es
+</p>
+<p>Pour l&#8217;&#233;valuation des mod&#232;les, nous avons utilis&#233; un corpus de 501 d&#233;p&#234;ches de presse en langue fran-
+&#231;aise concernant les &#233;v&#233;nements sismiques. Ces d&#233;p&#234;ches ont &#233;t&#233; collect&#233;es entre fin f&#233;vrier 2008 et d&#233;but
+septembre 2008, en provenance pour partie d&#8217;un flux de d&#233;p&#234;ches AFP (1/3 du corpus), et pour partie
+de d&#233;p&#234;ches collect&#233;es sur Google Actualit&#233;s (2/3 du corpus). Ces d&#233;p&#234;ches &#233;voquent 142 &#233;v&#233;nements
+sismiques principaux diff&#233;rents. On y retrouve &#224; la fois des d&#233;p&#234;ches ayant une structure simple (1 seul
+&#233;v&#233;nement) et une structure complexe (plusieurs &#233;v&#233;nements) : 252 d&#233;p&#234;ches (50%) mentionnent au moins
+un &#233;v&#233;nement secondaire. Le corpus a &#233;t&#233; manuellement annot&#233; en entit&#233;s nomm&#233;es par des analystes du
+domaine, uniquement pour les entit&#233;s li&#233;es &#224; l&#8217;&#233;v&#233;nement principal ; en revanche, les annotateurs pou-
+</p>
+<p>3http ://www.nltk.org/
+4http ://crfpp.sourceforge.net/</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>UTILISATION D&#8217;INDICES TEMPORELS POUR LA SEGMENTATION &#201;V&#201;NEMENTIELLE DE TEXTES
+</p>
+<p>vaient annoter plusieurs entit&#233;s du m&#234;me type s&#8217;ils jugeaient qu&#8217;elles &#233;taient identiquement acceptables
+comme information associ&#233;e &#224; l&#8217;&#233;v&#233;nement (ces alternatives concernent par exemple plusieurs niveaux
+de granularit&#233; de l&#8217;information ; par exemple pour des noms de lieux, la ville ou le pays). Les informa-
+tions associ&#233;es &#224; un &#233;v&#233;nement sismique sont pr&#233;sent&#233;es dans le tableau 1, avec leur distribution dans le
+corpus. On remarque que la distribution des entit&#233;s nomm&#233;es n&#8217;est pas homog&#232;ne : il y a beaucoup de
+noms de lieux (28,64%) et tr&#232;s peu de coordonn&#233;es g&#233;ographiques (0,91%). Pour &#233;valuer notre approche
+</p>
+<p>Type d&#8217;entit&#233; Nombre Nature
+EVENT_TYPE 499 type d&#8217;&#233;v&#233;nement (s&#233;isme, tsunami ...)
+LOCATION 947 lieu de l&#8217;&#233;v&#233;nement
+DATE 470 date de l&#8217;&#233;v&#233;nement
+TIME 345 heure de l&#8217;&#233;v&#233;nement
+MAGNITUDE 484 magnitude
+DAMAGES 531 d&#233;g&#226;ts caus&#233;s par l&#8217;&#233;v&#233;nement
+GEO_COORDINATES 30 coordonn&#233;es g&#233;ographiques
+</p>
+<p>TAB. 1 &#8211; Distribution des entit&#233;s nomm&#233;es dans le corpus de r&#233;f&#233;rence : 3306 entit&#233;s dans 501 d&#233;p&#234;ches
+</p>
+<p>de segmentation en &#233;v&#233;nements, nous avons annot&#233; une sous-partie du corpus, compos&#233;e de 140 d&#233;p&#234;ches
+principalement s&#233;lectionn&#233;es parmi les d&#233;p&#234;ches &#233;voquant au moins un &#233;v&#233;nement secondaire. Le tableau
+2 montre la distribution des &#233;v&#233;nements sur la sous-partie annot&#233;e. On remarque que la cat&#233;gorie d&#8217;&#233;v&#233;-
+nements la plus repr&#233;sent&#233;e est &#201;v&#233;nement principal (70%), ce qui est coh&#233;rent avec l&#8217;aspect tr&#232;s factuel
+des d&#233;p&#234;ches de presse. La cat&#233;gorie &#201;v&#233;nement secondaire regroupe sans distinction tous les &#233;v&#233;nements
+diff&#233;rents de l&#8217;&#233;v&#233;nement principal : notons que parmi les d&#233;p&#234;ches s&#233;lectionn&#233;es, le nombre r&#233;el d&#8217;&#233;v&#233;-
+nements secondaires distincts &#233;voqu&#233;s peut monter jusqu&#8217;&#224; 4, avec un nombre moyen de 1,66 &#233;v&#233;nements
+secondaires &#233;voqu&#233;s par article.
+</p>
+<p>1659 &#233;v&#233;nements sismiques dans 140 d&#233;p&#234;ches
+Type d&#8217;&#233;v&#233;nement Nombre de phrases Repr&#233;sentativit&#233;
+&#201;v&#233;nement principal 1168 70%
+&#201;v&#233;nement secondaire 287 17%
+Contexte 213 13%
+</p>
+<p>TAB. 2 &#8211; Distribution des types d&#8217;&#233;v&#233;nements dans le corpus de r&#233;f&#233;rence
+</p>
+<p>4.2 &#201;valuation intrins&#232;que de la segmentation en &#233;v&#233;nements
+</p>
+<p>Nous reportons dans le tableau 3 les r&#233;sultats en termes de pr&#233;cision-rappel (not&#233;s P. et R.) pour la seg-
+mentation des textes en &#233;v&#233;nements en utilisant les mod&#232;les HMM et CRF. Ces r&#233;sultats sont obtenus par
+validation crois&#233;e en exploitant 4/5 du corpus pour la phase d&#8217;apprentissage et 1/5 pour la phase de test.
+Ils sont compl&#233;t&#233;s par les r&#233;sultats d&#8217;une heuristique ad hoc de segmentation, HeurSeg, issue d&#8217;une ap-
+plication existante d&#8217;extraction d&#8217;information dans le domaine des &#233;v&#233;nements sismiques5 et d&#233;velopp&#233;e
+</p>
+<p>5Cette application est actuellement utilis&#233;e par les analystes du Laboratoire de D&#233;tection et de G&#233;ophysique du CEA.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LUDOVIC JEAN-LOUIS, ROMARIC BESAN&#199;ON, OLIVIER FERRET
+</p>
+<p>sp&#233;cifiquement pour ce domaine. Cette heuristique utilise comme crit&#232;re principal la pr&#233;sence et la valeur
+des dates selon les principes suivants : des dates ayant des valeurs diff&#233;rentes correspondent &#224; des seg-
+ments diff&#233;rents (le segment principal &#233;tant celui de date la plus r&#233;cente) ; les ruptures de segments entre
+deux dates diff&#233;rentes s&#8217;appuient sur la structure du texte en phrases et paragraphes ainsi que la pr&#233;sence
+d&#8217;autres entit&#233;s caract&#233;ristiques du domaine entre les dates. Pour sa part, le mod&#232;le HMM exploite les
+seules s&#233;quences des temps des verbes contenus dans les textes. Le mod&#232;le CRF int&#232;gre tous les traits pr&#233;-
+sent&#233;s &#224; la section 3.3 ainsi que les d&#233;pendances entre la cat&#233;gorie de l&#8217;&#233;v&#233;nement courant et la cat&#233;gorie
+de l&#8217;&#233;v&#233;nement pr&#233;c&#233;dent. Il faut noter que les r&#233;sultats obtenus par les mod&#232;les HMM et CRF ne sont
+pas directement comparables puisque les deux mod&#232;les utilisent des caract&#233;ristiques diff&#233;rentes pour la
+classification (respectivement des observations et des traits). N&#233;anmoins, les mod&#232;les HMM et CRF ob-
+tiennent tous deux des meilleurs r&#233;sultats que l&#8217;heuristique ad hoc, except&#233; le HMM pour les &#233;v&#233;nements
+secondaires. On remarque que pour le HMM le seul crit&#232;re utilis&#233; n&#8217;est pas suffisant pour discriminer les
+&#233;v&#233;nements : si l&#8217;&#233;v&#233;nement principal est correctement reconnu (82,95% rappel et 93,56% de pr&#233;cision),
+les autres types d&#8217;&#233;v&#233;nements le sont nettement moins. De fa&#231;on globale, on peut noter que le mod&#232;le CRF
+permet d&#8217;obtenir une meilleure segmentation en &#233;v&#233;nements, notamment de par sa capacit&#233; &#224; int&#233;grer un
+plus large ensemble d&#8217;informations.
+</p>
+<p>HeurSeg HMM CRF
+Type d&#8217;&#233;v&#233;nement R. (%) P. (%) R. (%) P. (%) R. (%) P. (%)
+&#201;v&#233;nement principal 82,8 64,68 82,95 93,56 98,69 87,39
+&#201;v&#233;nement secondaire 23,53 43,42 37.84 9,63 52,65 95,76
+Contexte 16,87 21,72 49,15 39,97 69,31 92,96
+</p>
+<p>TAB. 3 &#8211; R&#233;sultats de la segmentation en &#233;v&#233;nements
+</p>
+<p>4.3 &#201;valuation de la segmentation pour l&#8217;extraction d&#8217;information
+</p>
+<p>L&#8217;objectif de la segmentation en &#233;v&#233;nements est de constituer des segments de texte faisant r&#233;f&#233;rence &#224;
+un seul &#233;v&#233;nement. Les segments &#233;tablis sont ensuite utilis&#233;s pour rattacher les entit&#233;s aux &#233;v&#233;nements
+(le rattachement se fait &#224; l&#8217;int&#233;rieur d&#8217;un segment). L&#8217;heuristique simple que nous appliquons pour le rat-
+tachement se fonde sur l&#8217;hypoth&#232;se que les informations contenues dans les d&#233;p&#234;ches sont organis&#233;es en
+fonction de leur importance dans l&#8217;actualit&#233; : les informations les plus pertinentes (g&#233;n&#233;ralement associ&#233;es
+&#224; l&#8217;&#233;v&#233;nement principal) sont cit&#233;es avant les informations subordonn&#233;es (associ&#233;es &#224; un &#233;v&#233;nement secon-
+daire ou au contexte). Nous utilisons donc l&#8217;heuristique suivante : pour chaque type d&#8217;entit&#233;, on choisit la
+premi&#232;re entit&#233; trouv&#233;e dans le segment. Pour d&#233;montrer l&#8217;int&#233;r&#234;t de la segmentation en &#233;v&#233;nements, nous
+reportons dans le tableau 4 les r&#233;sultats du rattachement des entit&#233;s &#224; l&#8217;&#233;v&#233;nement principal dans le cas o&#249;
+il n&#8217;y a pas de segmentation en &#233;v&#233;nements (dans ce cas, on consid&#232;re le document comme un seul seg-
+ment) et lorsque la segmentation est r&#233;alis&#233;e par l&#8217;heuristique de segmentation HeurSeg de la Section 4.2
+ainsi que par les mod&#232;les HMM et CRF. Il faut d&#8217;abord souligner que l&#8217;approche sans segmentation permet
+d&#8217;obtenir un niveau de rattachement d&#233;j&#224; &#233;lev&#233; (et m&#234;me sup&#233;rieur au HMM : +2,73% en F1-mesure) que
+la segmentation fond&#233;e sur l&#8217;heuristique HeurSeg am&#233;liore de fa&#231;on significative (+6,22% en F1-mesure
+par rapport &#224; l&#8217;approche basique). Moyennant les variations selon les types d&#8217;entit&#233;s, le mod&#232;le &#224; base de
+CRF donne pour sa part des r&#233;sultats aussi bons (et m&#234;me un peu meilleurs) que ceux obtenus avec la
+segmentation heuristique tout en offrant une approche ne d&#233;pendant pas du domaine consid&#233;r&#233;.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>UTILISATION D&#8217;INDICES TEMPORELS POUR LA SEGMENTATION &#201;V&#201;NEMENTIELLE DE TEXTES
+</p>
+<p>Sans segmentation HeurSeg HMM CRF
+Type d&#8217;entit&#233; R. (%) P. (%) R. (%) P. (%) R. (%) P. (%) R. (%) P. (%)
+DAMAGES 83,51 77,88 76,29 74,37 69,85 65,14 80,15 75,3
+DATE 38,41 35,87 69,31 64,99 48,93 45,6 64,38 60,12
+EVENT_TYPE 82,09 81,6 79,28 78,8 59,15 58,8 76,66 76,2
+GEO_COORDINATES 86,67 96,3 66,67 74,07 86,67 96,3 83,33 92,59
+LOCATION 41,00 40,92 56,00 55,89 61,2 61,08 57,4 57,29
+MAGNITUDE 93,54 92,96 86,25 85,89 66,67 66,25 86,67 86,13
+TIME 61,05 51,22 56,4 49,24 78,78 71,5 63,37 55,47
+Tous 66,58 63,5 71,02 68,63 63,44 61,15 71,65 68,82
+</p>
+<p>TAB. 4 &#8211; R&#233;sultats du rattachement des entit&#233;s &#224; l&#8217;&#233;v&#233;nement principal
+</p>
+<p>5 Conclusion
+</p>
+<p>L&#8217;objectif de cet article est l&#8217;&#233;tude de la segmentation des textes en &#233;v&#233;nements, dans le but de faciliter
+le rattachement des entit&#233;s pertinentes &#224; l&#8217;&#233;v&#233;nement principal. Dans notre approche, nous avons trait&#233;
+la probl&#233;matique de la segmentation des textes en &#233;v&#233;nements comme un probl&#232;me de classification de
+s&#233;quences o&#249; l&#8217;objectif est de d&#233;terminer un type d&#8217;&#233;v&#233;nement associ&#233; &#224; chaque phrase. Nous avons pro-
+pos&#233; et &#233;valu&#233; deux mod&#232;les : un mod&#232;le HMM, qui utilise comme seul crit&#232;re de d&#233;cision la succession
+des temps des verbes dans un texte et un mod&#232;le CRF, qui pour sa d&#233;cision int&#232;gre en plus des indices
+temporels suppl&#233;mentaires (expressions temporelles, dates). En &#233;valuant les diff&#233;rents mod&#232;les sur un cor-
+pus de d&#233;p&#234;ches concernant les &#233;v&#233;nements sismiques, nous avons montr&#233; que le mod&#232;le CRF obtient de
+meilleurs r&#233;sultats pour la segmentation des textes en &#233;v&#233;nements. De plus, nous avons v&#233;rifi&#233; l&#8217;impact de
+la segmentation des textes en &#233;v&#233;nements sur l&#8217;identification des entit&#233;s pertinentes rattach&#233;es &#224; l&#8217;&#233;v&#233;ne-
+ment principal de la d&#233;p&#234;che, et nous avons montr&#233; que le mod&#232;le &#224; base d&#8217;apprentissage par CRF permet
+d&#8217;avoir des r&#233;sultats &#233;quivalents (et m&#234;me un peu meilleurs) &#224; ceux obtenus avec un syst&#232;me utilisant une
+heuristique ad hoc, avec une approche a priori beaucoup plus g&#233;n&#233;rique.
+</p>
+<p>Concernant la g&#233;n&#233;ricit&#233; de l&#8217;approche, nous avons fait des premiers tests encourageants sur l&#8217;applica-
+tion du mod&#232;le pour une autre langue (l&#8217;anglais), en utilisant directement les mod&#232;les appris du fran&#231;ais.
+Concernant le domaine, nous avons utilis&#233; un corpus de d&#233;p&#234;ches dans le domaine des &#233;v&#233;nements sis-
+miques o&#249; l&#8217;information est bien structur&#233;e. N&#233;anmoins, nous pensons que l&#8217;approche peut donner de bons
+r&#233;sultats dans d&#8217;autres domaines et nous pensons faire des tests dans ce sens prochainement. Enfin, une
+analyse plus fine des erreurs d&#8217;identification d&#8217;entit&#233;s sur notre corpus d&#8217;&#233;valuation nous a montr&#233; que la
+principale source d&#8217;erreur est maintenant la technique de rattachement des entit&#233;s aux &#233;v&#233;nements, pour
+laquelle une heuristique simple a &#233;t&#233; utilis&#233;e. Nous allons donc focaliser notre recherche future sur cette
+probl&#233;matique, en exploitant &#224; la fois des crit&#232;res de densit&#233; des entit&#233;s et des crit&#232;res linguistiques (liens
+explicites de d&#233;pendance syntaxique entre les entit&#233;s).
+</p>
+<p>Remerciements
+</p>
+<p>Nous remercions les analystes du Laboratoire de D&#233;tection et de G&#233;ophysique du CEA (au sein du D&#233;par-
+tement Analyse, Surveillance, Environnement) pour l&#8217;annotation du corpus.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LUDOVIC JEAN-LOUIS, ROMARIC BESAN&#199;ON, OLIVIER FERRET
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>BESAN&#199;ON R., DE CHALENDAR G., FERRET O., GARA F. &amp; SEMMAR N. (2010, &#224; para&#238;tre). LIMA : A
+Multilingual Framework for Linguistic Analysis and Linguistic Resources Development and Evaluation.
+In 7th Conference on Language Resources and Evaluation (LREC 2010), Malta.
+</p>
+<p>BESTGEN Y. &amp; VONK W. (2000). Temporal Adverbials as Segmentation Markers in Discourse Com-
+prehension. Journal of Memory and Language, 42(1), 74&#8211;87.
+CROWE J. (1995). Constraint-based Event Recognition for Information Extraction. In 33rd Annual Mee-
+ting of the Association for Computational Linguistics (ACL&#8217;95), p. 296&#8211;298, Cambridge, Massachusetts,
+USA.
+</p>
+<p>GRISHMAN R. &amp; SUNDHEIM B. (1996). Message Understanding Conference-6 : A Brief History. In
+16th International Conference on Computational linguistics (COLING&#8217;96), p. 466&#8211;471, Copenhagen,
+Denmark.
+</p>
+<p>HIROHATA K., OKAZAKI N., ANANIADOU S. &amp; ISHIZUKA M. (2008). Identifying Sections in Scien-
+tific Abstracts using Conditional Random Fields. In Third International Joint Conference on Natural
+Language Processing (IJCNLP 2008), p. 381&#8211;388, Hyderabad, India.
+</p>
+<p>HO-DAC L.-M. &amp; P&#201;RY-WOODLEY M.-P. (2008). Temporal adverbials and discourse segmentation
+revisited. In 7th International Workshop on Multidisciplinary Approaches to Discourse 2008 (MAD 08)
+- Linearisation and Segmentation in Discourse, p. 65&#8211;77, Lysebu, Oslo, Norway.
+</p>
+<p>KITANI T., ERIGUCHI Y. &amp; HARA M. (1994). Pattern Matching and Discourse Processing in Informa-
+tion Extraction from Japanese Text. Journal of Artificial Intelligence Research, 2, 89&#8211;110.
+LAFFERTY J. D., MCCALLUM A. &amp; PEREIRA F. C. N. (2001). Conditional Random Fields : Probabi-
+listic Models for Segmenting and Labeling Sequence Data. In Eighteenth International Conference on
+Machine Learning (ICML&#8217;01), p. 282&#8211;289, USA.
+</p>
+<p>LAPORTE E., NAKAMURA T. &amp; VOYATZI S. (2008). A French Corpus Annotated for Multiword Expres-
+sions with Adverbial Function. In 6th Conference on Language Resources and Evaluation (LREC&#8217;08),
+p. 48&#8211;51, Marrakech, Maroc.
+</p>
+<p>LUCAS N. (2004). La rh&#233;torique des d&#233;p&#234;ches de presse &#224; travers les marques &#233;nonciatives du temps, du
+lieu et de la personne. In Journ&#233;e ATALA : Mod&#233;liser et d&#233;crire l&#8217;organisation discursive &#224; l&#8217;heure du
+document num&#233;rique, La Rochelle, France.
+</p>
+<p>NAUGHTON M. (2007). Exploiting Structure for Event Discovery Using the MDI Algorithm. In 45th
+</p>
+<p>Annual Meeting of the Association for Computational Linguistics (ACL 2007), p. 31&#8211;36, Prague.
+</p>
+<p>PUSTEJOVSKY, JAMES, KNIPPEN, ROBERT, LITTMAN, JESSICA, SAURI &amp; ROSER (2005). Temporal
+and Event Information in Natural Language Text. Computers and the Humanities, 39(2-3), 123&#8211;164.
+RABINER L. (1989). A tutorial on Hidden Markov Models and selected applications in speech recogni-
+tion. Readings in Speech Recognition, p. 267&#8211;290.
+</p>
+<p>STEVENSON M. (2006). Fact distribution in Information Extraction. Language Resources and Evalua-
+tion, 40(2), 183&#8211;201.
+YAMRON J. P., CARP I., GILLICK L., LOWE S. &amp; VAN MULBREGT P. (1998). A Hidden Markov Model
+Approach to Text Segmentation and Event Tracking. In IEEE International Conference on Acoustics,
+Speech, and Signal Processing (ICASSP&#8217;98), p. 333&#8211;336.</p>
+
+</div></div>
+</body></html>

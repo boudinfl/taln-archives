@@ -1,0 +1,524 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Apprentissage automatique et Co-training</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>RECITAL 2009, Senlis, 24&#8211;26 juin 2009
+</p>
+<p>Apprentissage automatique et Co-training
+</p>
+<p>Pierre Gotab
+LIA / Universit&#233; d&#8217;Avignon, 339 chemin des Meinajari&#232;s, 84911 Avignon
+</p>
+<p>pierre.gotab@univ-avignon.fr
+</p>
+<p>R&#233;sum&#233;. Dans le domaine de la classification supervis&#233;e et semi-supervis&#233;e, cet article
+pr&#233;sente un contexte favorable &#224; l&#8217;application de m&#233;thodes statistiques de classification. Il
+montre l&#8217;application d&#8217;une strat&#233;gie alternative dans le cas o&#249; les donn&#233;es d&#8217;apprentissage sont
+insuffisantes, mais o&#249; de nombreuses donn&#233;es non &#233;tiquet&#233;es sont &#224; notre disposition : le co-
+training multi-classifieurs. Les deux vues ind&#233;pendantes habituelles du co-training sont rempla-
+c&#233;es par deux classifieurs bas&#233;s sur des techniques de classification diff&#233;rentes : icsiboost sur le
+boosting et LIBLINEAR sur de la r&#233;gression logistique.
+</p>
+<p>Abstract. In the domain of supervised and semi-supervised classification, this paper des-
+cribes an experimental context suitable with statistical classification. It shows an alternative
+method usable when learning data is unsufficient but when many unlabeled data is avaliable :
+the multi-classifier co-training. Two classifiers based on different classification methods replace
+the two independent views of the original co-training algorithm : icsiboost based on boosting
+and LIBLINEAR which is a logistic regression classifier.
+</p>
+<p>Mots-cl&#233;s : Apprentissage automatique, classification, co-training.
+</p>
+<p>Keywords: Machine learning, classification, co-training.
+</p>
+<p>1 Classification et apprentissage supervis&#233;
+</p>
+<p>Les probl&#232;mes de classification pr&#233;sent&#233;s ici sont relatifs &#224; l&#8217;apprentissage automatique super-
+vis&#233;. Il s&#8217;agit de construire un mod&#232;le repr&#233;sentatif d&#8217;un certain nombre de donn&#233;es organis&#233;es
+en classes - ensemble que l&#8217;on appelle g&#233;n&#233;ralement le corpus d&#8217;apprentissage - puis d&#8217;utiliser
+ce mod&#232;le afin de classer de nouvelles donn&#233;es, c&#8217;est &#224; dire de pr&#233;dire leur classe au vu de
+leurs caract&#233;ristiques (appel&#233;es param&#232;tres ou features). La construction du mod&#232;le rel&#232;ve de
+l&#8217;apprentissage automatique supervis&#233;, l&#8217;ensemble des exemples constituant le corpus d&#8217;appren-
+tissage &#233;tant annot&#233;s, c&#8217;est &#224; dire qu&#8217;ils portent le label de leur classe donn&#233; a priori.
+</p>
+<p>Le processus permettant d&#8217;obtenir ce corpus d&#8217;apprentissage est g&#233;n&#233;ralement d&#8217;utiliser des
+annotateurs manuels, qui vont observer les exemples et, selon leur appr&#233;ciation, leur attribuer
+tel label ou tel autre.
+</p>
+<p>Un des probl&#232;mes majeurs inh&#233;rent &#224; la classification supervis&#233;e en Traitement Automatique de
+la Langue Naturelle (TALN) est qu&#8217;obtenir un corpus d&#8217;apprentissage annot&#233; manuellement est
+assez difficile, cela coute cher et n&#8217;est pas rapide. Ces corpus sont donc souvent disponibles en
+quantit&#233; limit&#233;e. Or la qualit&#233; des mod&#232;les des classifieurs d&#233;pend directement de la taille de
+ces corpus.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pierre Gotab
+</p>
+<p>2 Application &#224; la campagne DEFT
+</p>
+<p>2.1 Pr&#233;sentation
+</p>
+<p>DEFT (D&#201;fi Fouille de Textes) est une campagne d&#8217;&#233;valuation ayant lieu chaque ann&#233;e depuis
+20051. Elle porte sur la fouille de textes en langue fran&#231;aise.
+</p>
+<p>Pour l&#8217;ann&#233;e 2008, elle traitait de la classification automatique de textes, et plus particuli&#232;-
+rement de la d&#233;tection du genre et du th&#232;me d&#8217;articles provenant du journal Le Monde et de
+l&#8217;encyclop&#233;die Wikipedia.
+</p>
+<p>L&#8217;int&#233;r&#234;t de ce corpus est qu&#8217;il rend compte d&#8217;un probl&#232;me de classification r&#233;el, dont les don-
+n&#233;es ont &#233;t&#233; annot&#233;es par des humains. En effet, les classes ont &#233;t&#233; d&#233;finies par Le Monde et
+Wikipedia et choisies par les auteurs des articles. Il se pr&#234;te donc &#224; des exp&#233;riences &#224; la fronti&#232;re
+entre apprentissage th&#233;orique et linguistique appliqu&#233;e.
+</p>
+<p>L&#8217;inconv&#233;nient induit est qu&#8217;il existe sans doute des erreurs d&#8217;annotation, ou, plus souvent,
+de l&#8217;ambigu&#239;t&#233; et des recouvrements entre les classes. Des articles peuvent traiter de plusieurs
+th&#232;mes mais ne sont rang&#233;s que dans un seul (un article de litt&#233;rature scientifique sera rang&#233;
+dans Litt&#233;rature ou dans Sciences ?), et des th&#232;mes peuvent &#234;tre fortement imbriqu&#233;s (Sport et
+t&#233;l&#233;vision par exemple). On suppose tout de m&#234;me qu&#8217;il existe un lien fort entre le contenu
+d&#8217;un article et son th&#232;me principal, et c&#8217;est ce qui permettra de construire des mod&#232;les pour les
+classifier.
+</p>
+<p>Le corpus fourni pour l&#8217;apprentissage est assez important, de l&#8217;ordre d&#8217;une dizaine de milliers
+d&#8217;exemples, c&#8217;est donc un contexte tr&#232;s favorable &#224; la classification automatique supervis&#233;e &#224;
+l&#8217;aide de m&#233;thodes statistiques.
+</p>
+<p>2.2 Donn&#233;es
+</p>
+<p>Le corpus est divis&#233; en deux t&#226;ches.
+</p>
+<p>La premi&#232;re t&#226;che est un ensemble de 15223 articles en texte brut. Chaque article est associ&#233; &#224;
+une classe parmi : art (ART), &#233;conomie (ECO), sport (SPO), t&#233;l&#233;vision (TEL) r&#233;parties ainsi :
+</p>
+<p>ART ECO SPO TEL
+30.41% 8.88% 37.88% 22.82%
+</p>
+<p>La partition de test, quant &#224; elle, contient 10596 articles.
+</p>
+<p>La deuxi&#232;me t&#226;che est un ensemble de 23550 articles associ&#233;s aux classes : france (FRA),
+international (INT), litt&#233;rature (LIV), sciences (SCI), soci&#233;t&#233; (SOC) r&#233;parties ainsi :
+</p>
+<p>FRA INT LIV SCI SOC
+14.12% 22.52% 19.43% 27.87% 16.04%
+</p>
+<p>La partition de test contient 15693 articles.
+</p>
+<p>1http ://deft.limsi.fr/</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage automatique et Co-training
+</p>
+<p>2.3 Protocole exp&#233;rimental
+</p>
+<p>Deux classifieurs sont utilis&#233;s pour r&#233;aliser cette t&#226;che de classification.
+</p>
+<p>Le premier est icsiboost 2 , une version open-source du classifieur BoosTexter, bas&#233; sur Ada-
+Boost (Freund &amp; Schapire, 1996), un algorithme de boosting. Icsiboost &#224; l&#8217;avantage d&#8217;&#234;tre fa-
+cile &#224; mettre en oeuvre, et poss&#232;de des facilit&#233;s telles que la g&#233;n&#233;ration de N-gram pour le
+texte. BoosTexter a &#233;t&#233; sp&#233;cifiquement con&#231;u pour la classification de textes (Schapire &amp; Sin-
+ger, 2000), icsiboost convient donc parfaitement &#224; cette t&#226;che.
+</p>
+<p>L&#8217;algorithme AdaBoost consiste &#224; construire une multitude d&#8217;apprenants faibles, qui combin&#233;s
+formeront l&#8217;apprenant fort, qui se r&#233;sume &#224; un vote pond&#233;r&#233; des apprenants faibles. Il fonctionne
+de mani&#232;re it&#233;rative. A chaque it&#233;ration, l&#8217;apprenant faible qui minimise le nombre d&#8217;erreurs de
+classification est choisi. Les exemples qu&#8217;il aura mal class&#233;s auront un poids plus fort lors de
+l&#8217;it&#233;ration suivante, afin que le prochain apprenant faible se concentre sur ces exemples difficiles
+&#224; classer. Et ainsi de suite.
+</p>
+<p>Voici un exemple naif illustr&#233;, avec deux classes (positive et n&#233;gative) et deux param&#232;tres (abs-
+cisse et ordonn&#233;e). Les apprenants faibles sont de simples fonctions lin&#233;aires qui s&#233;parent l&#8217;es-
+pace en deux :
+</p>
+<p>Dans notre exp&#233;rience sur DEFT, icsiboost est utilis&#233; en apprentissage sur le sac de mots (c&#8217;est
+&#224; dire l&#8217;ensemble des mots d&#8217;un exemple, ind&#233;pendemment de leur nombre d&#8217;occurences), le
+nombre d&#8217;it&#233;rations de boosting est fix&#233; &#224; 1000.
+</p>
+<p>2icsiboost, an opensource implementation of BoosTexter - http ://code.google.com/p/icsiboost</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pierre Gotab
+</p>
+<p>Le second est LIBLINEAR (Lin et al., 2007), semblable &#224; libsvm, mais bas&#233; sur de la r&#233;gression
+logistique et des SVM &#224; noyau lin&#233;aire (Vapnik, 2000). Son utilisation est plus aust&#232;re mais il
+est tr&#232;s rapide. Il est particuli&#232;rement indiqu&#233; dans la classification de documents comme le
+montre l&#8217;appendice B.2 du guide de LIBSVM (Hsu et al., 2003).
+</p>
+<p>Le principe est assez proche de la r&#233;gression lin&#233;aire &#224; ceci pr&#232;s qu&#8217;on utilise une fonction de la
+forme p(X) = e
+</p>
+<p>&#945;+&#946;.X
+</p>
+<p>1+e&#945;+&#946;.X
+o&#249; &#945; et &#946; sont des constantes d&#233;termin&#233;es par la m&#233;thode du maximum
+</p>
+<p>de vraissemblance afin de minimiser l&#8217;erreur de classification. L&#8217;avantage est, au contraire de
+la r&#233;gression lin&#233;aire, de pouvoir obtenir une probabilit&#233; (comprise dans [0..1]) associ&#233;e &#224; un
+exemple donn&#233;.
+</p>
+<p>Lorsque l&#8217;on a plus d&#8217;un param&#232;tre, &#946; et X deviennent des vecteurs dont chaque dimension est
+associ&#233;e &#224; un param&#232;tre.
+</p>
+<p>Dans notre cas, le vecteur de liblinear pour un exemple donn&#233; est un vecteur &#224; composantes
+binaires dont chaque dimension repr&#233;sente un mot du lexique, et sa valeur est 1 si le mot est
+dans le sac de mots, 0 sinon.
+</p>
+<p>2.4 R&#233;sultats obtenus
+</p>
+<p>Sur la premi&#232;re t&#226;che :
+</p>
+<p>Classifieur icsiboost LIBLINEAR
+Classe Pr&#233;cision Rappel F-mesure Pr&#233;cision Rappel F-mesure
+ART 81.7% 90.4% 85.8% 84.7% 90.2% 87.4%
+ECO 84.3% 91.7% 87.9% 82.6% 96.2% 88.9%
+SPO 95.2% 89.9% 92.5% 96.8% 91.6% 94.1%
+TEL 83.5% 49.3% 62.0% 90.3% 48.0% 62.7%
+Toutes classes confondues 85.4% 86.9%
+</p>
+<p>Sur la deuxi&#232;me t&#226;che :
+</p>
+<p>Classifieur icsiboost LIBLINEAR
+Classe Pr&#233;cision Rappel F-mesure Pr&#233;cision Rappel F-mesure
+FRA 79.9% 76.1% 78.0% 84.1% 78.9% 81.4%
+INT 89.2% 89.9% 89.6% 90.9% 93.2% 92.0%
+LIV 92.3% 89.7% 91.0% 92.5% 93.4% 92.9%
+SCI 84.6% 89.5% 87.0% 89.1% 89.8% 89.5%
+SOC 67.2% 64.9% 66.1% 72.0% 71.6% 71.8%
+Toutes classes confondues 83.8% 86.8%
+</p>
+<p>Lors de la campagne DEFT&#8217;08 les deux meilleurs syst&#232;mes ont obtenu un f-score de 87.8% sur
+la premi&#232;re t&#226;che (Trinh et al., 2008) et de 87.9% sur la deuxi&#232;me (Charton et al., 2008).
+</p>
+<p>En comparaison, ces r&#233;sultats montrent que l&#8217;on obtient facilement des scores tr&#232;s satisfaisants
+avec des m&#233;thodes statistiques, et sans pr&#233;traitements, d&#232;s lors que l&#8217;on a &#224; disposition une
+quantit&#233; suffisante de donn&#233;es d&#8217;apprentissage.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage automatique et Co-training
+</p>
+<p>Il est &#224; noter que le classifieur icsiboost a &#233;t&#233; utilis&#233; dans la fusion avec pr&#233;traitements de
+l&#8217;&#233;quipe jeunes chercheurs du Laboratoire Informatique d&#8217;Avignon qui a remport&#233; la premi&#232;re
+place sur la deuxi&#232;me t&#226;che (Charton et al., 2008).
+</p>
+<p>Mais lorsque nous n&#8217;avons pas acc&#232;s &#224; une quantit&#233; suffisante de donn&#233;es d&#8217;apprentissage,
+quelles sont les alternatives ?
+</p>
+<p>La faible quantit&#233; de corpus d&#8217;apprentissage peut-&#234;tre contrebalanc&#233;e en en augmentant la qua-
+lit&#233;, c&#8217;est le but de l&#8217;active-learning (Riccardi &amp; Hakkani-Tur, 2005). Il consiste &#224; s&#233;lectionner
+pr&#233;alablement les exemples &#224; annoter manuellement afin d&#8217;avoir un corpus peu redondant qui
+couvre un maximum de cas de figure en &#233;liminant les exemples trop similaires.
+</p>
+<p>Deux autres m&#233;thodes sont envisageables dans le cas o&#249; l&#8217;on a acc&#232;s &#224; de grandes quantit&#233;s de
+donn&#233;es non annot&#233;es :
+&#8211; L&#8217;online-learning permet &#224; un syst&#232;me de s&#8217;am&#233;liorer alors qu&#8217;il est en production, c&#8217;est un
+</p>
+<p>domaine de recherche r&#233;cent et assez prospectif.
+&#8211; Et le co-training (Blum &amp; Mitchell, 1998), qui permet d&#8217;augmenter artificiellement le corpus
+</p>
+<p>d&#8217;apprentissage, en lui adjoignant les donn&#233;es non annot&#233;es, apr&#232;s leur avoir attribu&#233; un label.
+Il se rapproche du self-training &#224; ceci pr&#232;s qu&#8217;il met en jeu plusieurs classifieurs. C&#8217;est cette
+technique qui sera utilis&#233;e dans la suite de cet article.
+</p>
+<p>3 Co-training
+</p>
+<p>3.1 Pr&#233;sentation
+</p>
+<p>Le co-training consiste &#224; entra&#238;ner plusieurs classifieurs, chacun bas&#233; sur une vue du corpus,
+puis &#224; les am&#233;liorer entre eux &#224; l&#8217;aide d&#8217;une masse importante de donn&#233;es non annot&#233;es ; les
+classifieurs plus &#224; m&#234;me de classer un exemple donn&#233; jouant le r&#244;le de &quot;professeurs&quot; pour les
+autres.
+</p>
+<p>L&#8217;algorithme original pr&#233;sent&#233; par Blum et Mitchell (Blum &amp; Mitchell, 1998) a subi toutes
+sortes de modifications et d&#8217;adaptations &#224; travers la litt&#233;rature parue depuis :
+</p>
+<p>&#8211; Utilisation d&#8217;un ensemble d&#8217;exemples commun aux classifieurs (Sarkar, 2001) ou bien un
+ensemble distinct par classifieur (Hwa et al., 2003) (M&#252;ller et al., 2001)
+</p>
+<p>&#8211; Dans le m&#234;me ordre d&#8217;id&#233;es, s&#233;parer le corpus d&#232;s la premi&#232;re it&#233;ration (M&#252;ller et al., 2001)
+ou bien laisser les classifieurs apprendre sur le m&#234;me corpus de base.
+</p>
+<p>&#8211; Utiliser un pool d&#8217;exemples non annot&#233;s (comme d&#233;fini dans (Blum &amp; Mitchell, 1998)) g&#233;r&#233;
+de plusieurs fa&#231;ons :
+&#8211; Aucun pool, le non annot&#233; est trait&#233; d&#8217;un seul bloc (Guz et al., 2007)
+&#8211; Un pool de taille fixe r&#233;approvisionn&#233; de fa&#231;on al&#233;atoire (Pierce &amp; Cardie, 2001)
+</p>
+<p>&#8211; Obliger les classifieurs &#224; classer un certain nombre d&#8217;exemples &#224; chaque it&#233;ration (Denis
+et al., 2002)
+</p>
+<p>&#8211; Respecter la distribution des classes a priori en ne retenant que les k &#8727; fc exemples les mieux
+class&#233;s de la classe c de probabilit&#233; a priori fc (k est une constante empirique)
+</p>
+<p>Dans notre cas, les deux classifieurs commencent leur apprentissage sur le m&#234;me corpus (A),
+puis se constituent un corpus personnel (Gi) qui grossira &#224; mesure qu&#8217;il sera approvisionn&#233; par
+l&#8217;autre classifieur.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pierre Gotab
+</p>
+<p>Le pool d&#8217;exemples non annot&#233;s (U ) est s&#233;par&#233; en autant de partitions (Ui) que l&#8217;on souhaite
+d&#8217;it&#233;rations de co-training, et &#224; chaque it&#233;ration i, on soumet la partition Ui aux deux clas-
+sifieurs. Pour chaque exemple, si un classifieur annonce un score de confiance sup&#233;rieur &#224; un
+certain seuil, il y apposera son label et ajoutera cet exemple au corpus d&#8217;apprentissage de l&#8217;autre
+classifieur.
+</p>
+<p>Lorsqu&#8217;il est difficile de d&#233;finir plusieurs vues d&#233;corr&#233;l&#233;es sur un ensemble de donn&#233;es, comme
+dans le cas de l&#8217;exp&#233;rience pr&#233;c&#233;dente, il est possible d&#8217;utiliser plusieurs classifieurs diff&#233;rents
+bas&#233;s sur l&#8217;ensemble des param&#232;tres P (ici, le sac de mots). Et c&#8217;est la diff&#233;rence de m&#233;thode
+de classification qui va introduire la compl&#233;mentarit&#233; n&#233;cessaire au co-training.
+</p>
+<p>3.2 Algorithme
+</p>
+<p>Soit un ensemble de donn&#233;es d&#8217;apprentissage A, de donn&#233;es de test T et de donn&#233;es non &#233;tique-
+t&#233;es U ; et un ensemble de param&#232;tres (features) P . Un exemple e &#8712; A est un couple e = (v, l)
+o&#249; v est un vecteur de dimension |P | repr&#233;sentant les diff&#233;rentes valeurs de chaque param&#232;tre,
+et l est le label (la classe) de cet exemple.
+</p>
+<p>On d&#233;coupe U en N partitions de taille &#233;gale not&#233;es U1, U2, ...UN .
+</p>
+<p>On entra&#238;ne deux classifieurs C1 et C2 sur A. Un exemple e = (v, l) class&#233; par un classifieur Ci
+donne Ci(e) = (l&#8242;, s) o&#249; l&#8242; est la classe attribu&#233;e par Ci avec un score de confiance s &#8712; [0..1].
+0n d&#233;finit un seuil seuili &#8712; [0..1] de confiance minimale pour chaque classifieur Ci.
+On constitue deux ensembles G1 = G2 = A.
+</p>
+<p>&#8226; Pour k allant de 1 &#224; N
+&#9702; Chaque exemple e = (v, l) &#8712; Uk est class&#233; par C1 et C2 :
+C1(e) = (l1, s1) et C2(e) = (l2, s2)
+</p>
+<p>&#5; Si s1 &gt; seuil1, G2 := G2 &#8746; {(v, l1)}
+&#5; Si s2 &gt; seuil2, G1 := G1 &#8746; {(v, l2)}
+</p>
+<p>&#9702; On entra&#238;ne Ci sur Gi
+&#9702; On teste Ci sur T
+</p>
+<p>4 Co-training multi-classifieurs appliqu&#233; &#224; DEFT
+</p>
+<p>4.1 Protocole exp&#233;rimental
+</p>
+<p>Pour simuler une p&#233;nurie de donn&#233;es annot&#233;es nous allons circonscrire les donn&#233;es d&#8217;appren-
+tissage &#224; seulement quelques milliers d&#8217;exemples.
+</p>
+<p>Nous retirons les labels du reste des donn&#233;es d&#8217;apprentissage, qui sera alors consid&#233;r&#233; comme
+la partition non annot&#233;e (U ).
+</p>
+<p>Nous utilisons toujours icsiboost et LIBLINEAR comme classifieurs.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage automatique et Co-training
+</p>
+<p>L&#8217;apprentissage et l&#8217;&#233;valuation sont r&#233;alis&#233;s avec la configuration suivante :
+&#8211; A contient quelques exemples, U contient le reste de l&#8217;apprentissage et T est la partition de
+</p>
+<p>test originale
+&#8211; 10 &#233;tapes de co-training (N = 10)
+&#8211; 1000 it&#233;rations d&#8217;icsiboost pour l&#8217;apprentissage des mod&#232;les
+&#8211; Le seuil de confiance d&#8217;icsiboost est fix&#233; &#224; 0.78 et celui de LIBLINEAR &#224; 0.98
+Les seuils de confiance sont d&#233;termin&#233;s afin d&#8217;avoir 99% des exemples annot&#233;s automatique-
+ment avec la bonne &#233;tiquette. Ils sont calcul&#233;s &#224; partir de la partition de test.
+</p>
+<p>Les deux classifieurs servent de t&#233;moins dans l&#8217;&#233;valuation, en comparant leurs performances
+avant et apr&#232;s le co-training.
+</p>
+<p>4.2 R&#233;sultats obtenus
+</p>
+<p>Voici deux r&#233;sultats en d&#233;tails, avec entre 85 et 90% du corpus d&#8217;apprentissage consid&#233;r&#233; comme
+non annot&#233; :
+</p>
+<p>R&#233;sultats avant, avec 2000 articles en apprentissage, et apr&#232;s co-training en tirant partie des
+13223 autres articles de la premi&#232;re t&#226;che :
+</p>
+<p>Classifieur icsiboost LIBLINEAR
+Classe avant apr&#232;s avant apr&#232;s
+ART 81.4% 82.6% 81.2% 82.3%
+ECO 83.5% 84.7% 84.7% 85.9%
+SPO 90.2% 90.9% 88.6% 90.4%
+TEL 50.9% 53.2% 40.3% 39.3%
+</p>
+<p>Toutes 81.1% 82.2% 80.5% 81.7%
+</p>
+<p>On a une progression de la f-mesure de icsiboost de 1.1 points, et 1.2 points pour LIBLINEAR.
+</p>
+<p>De m&#234;me sur la deuxi&#232;me t&#226;che, 3000 articles en apprentissage et 20550 articles consid&#233;r&#233;s
+comme non annot&#233;s :
+</p>
+<p>Classifieur icsiboost LIBLINEAR
+Classe avant apr&#232;s avant apr&#232;s
+FRA 73.7% 75.7% 76.9% 77.3%
+INT 85.6% 85.5% 88.0% 88.3%
+LIV 88.4% 88.3% 89.1% 89.4%
+SCI 82.6% 84.1% 84.9% 85.4%
+SOC 58.1% 59.6% 61.6% 61.8%
+</p>
+<p>Toutes 79.4% 80.2% 81.9% 82.4%
+</p>
+<p>On note un gain pour quasiment toutes les classes (&#224; une exception pr&#232;s), la f-mesure d&#8217;icsiboost
+progresse de 0.8 points, et celle de LIBLINEAR de 0.5 points.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pierre Gotab
+</p>
+<p>Voici les r&#233;sultats des autres exp&#233;riences pr&#233;sentant l&#8217;&#233;volution du f-score (en ordonn&#233;e) en
+fonction du nombre d&#8217;exemples d&#8217;apprentissage (en abscisse) :
+</p>
+<p>Sur la premi&#232;re t&#226;che :
+</p>
+<p>0,71
+0,73
+0,75
+0,77
+0,79
+0,81
+0,83
+0,85
+</p>
+<p>250 500 750 1000 2000 3000 4000 8000
+</p>
+<p>Evolution du f-score de la t&#226;che 1 en fonction de | A|
+icsiboost avant icsiboost apr&#232;s liblinear avant liblinear apr&#232;s
+</p>
+<p>f-score
+</p>
+<p>|A|
+</p>
+<p>Avec 2000 articles en apprentissage par exemple, m&#234;me si on reste loin des performances obte-
+nues en ayant des annotations parfaites (en prenant l&#8217;int&#233;gralit&#233; du corpus annot&#233; comme dans la
+premi&#232;re exp&#233;rience), gr&#226;ce au co-training icsiboost atteint le score qu&#8217;on aurait eu en entra&#238;nant
+les mod&#232;les sur 4000 articles, soit le double d&#8217;annotations manuelles.
+</p>
+<p>Sur la deuxi&#232;me t&#226;che :
+</p>
+<p>0,6
+</p>
+<p>0,65
+</p>
+<p>0,7
+</p>
+<p>0,75
+</p>
+<p>0,8
+</p>
+<p>0,85
+</p>
+<p>250 500 750 1000 2000 3000 4000 8000
+</p>
+<p>Evolution du f-score de la t&#226;che 2 en fonction de | A|
+icsiboost avant icsiboost apr&#232;s liblinear avant liblinear apr&#232;s
+</p>
+<p>f-score
+</p>
+<p>|A|
+</p>
+<p>L&#224; encore on remarque que le co-training permet d&#8217;atteindre un f-score donn&#233; en minimisant
+l&#8217;effort d&#8217;annotation manuelle.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Apprentissage automatique et Co-training
+</p>
+<p>Voici la progression du f-score obtenue gr&#226;ce au co-training en fonction du nombre d&#8217;exemples
+d&#8217;apprentissage (c&#8217;est la diff&#233;rence entre les courbes pr&#233;c&#233;dentes) :
+</p>
+<p>-0,01
+0
+</p>
+<p>0,01
+0,02
+0,03
+0,04
+0,05
+0,06
+0,07
+0,08
+</p>
+<p>250 500 750 1000 2000 3000 4000 8000
+</p>
+<p>Marge de progression du f-score via le co-training en fonction de | A|
+T&#226;che 1 icsiboost T&#226;che 1 liblinear T&#226;che 2 icsiboost T&#226;che 2 liblinear
+</p>
+<p>&#916;f-score
+</p>
+<p>|A|
+</p>
+<p>De mani&#232;re g&#233;n&#233;rale on constate que la marge de progression du co-training est inversement
+proportionnelle &#224; la qualit&#233; des mod&#232;les de d&#233;part. Le co-training semble donc particuli&#232;rement
+adapt&#233; lorsque le corpus d&#8217;apprentissage est insuffisant.
+</p>
+<p>Avec 8000 exemples en apprentissage, on approche le f-score qu&#8217;on aurait avec l&#8217;ensemble
+du corpus d&#8217;apprentissage. Le co-training semble alors montrer ses limites, avec de faibles
+progressions des scores, voire m&#234;me une diminution de la f-mesure d&#8217;icsiboost sur la premi&#232;re
+t&#226;che.
+</p>
+<p>5 Conclusion
+</p>
+<p>Les deux exp&#233;riences pr&#233;sent&#233;es et leurs r&#233;sultats encourageants montrent que, d&#232;s lors que nous
+avons acc&#232;s &#224; une quantit&#233; suffisante de donn&#233;es non annot&#233;es, le co-training peut am&#233;liorer les
+performances de classification, et ce &#224; moindre co&#251;t.
+</p>
+<p>Le &quot;bond&quot; que l&#8217;on observe sur la premi&#232;re t&#226;che avec 500 exemples montre que la s&#233;lection
+des exemples servant de corpus de d&#233;part est primordiale. Allier active-learning et co-training
+devrait donc donner de meilleurs r&#233;sultats.
+</p>
+<p>Les corpus &#224; disposition &#233;taient totalement annot&#233;s, ce qui a permis de surveiller la qualit&#233; de
+l&#8217;annotation automatique de la partition non annot&#233;e (not&#233;e pr&#233;c&#233;demment U ). Les r&#233;sultats
+am&#232;neraient &#224; penser que le respect de la distribution &#224; priori des classes est important. Le fait
+que les courbes issues du co-training &#233;pousent vaguement celles de base semble montrer un
+manque de latitude laiss&#233; aux classifieurs pour choisir les exemples &#224; annoter. Il serait donc
+int&#233;ressant de se pencher sur l&#8217;algorithme de co-training en lui m&#234;me, en confrontant plusieurs
+fa&#231;ons de g&#233;rer le pool d&#8217;exemples non annot&#233;s, et de s&#233;lectionner les exemples &#224; int&#233;grer aux
+mod&#232;les.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pierre Gotab
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>BLUM A. &amp; MITCHELL T. (1998). Combining labeled and unlabeled data with co-training.
+Proceedings of the eleventh annual conference on Computational learning theory, p. 92&#8211;100.
+</p>
+<p>CHARTON E., CAMELIN N., ACUNA-AGOST R., GOTAB P., LAVALLEY R., KESSLER R. &amp;
+FERNANDEZ S. (2008). Pr&#233;-traitements classiques ou par analyse distributionnelle : applica-
+tion aux m&#233;thodes de classification automatique d&#233;ploy&#233;es pour DEFT08. DEFT&#8217;08.
+</p>
+<p>DENIS F., GILLERON R. &amp; TOMMASI M. (2002). Classification de textes et co-training &#224; par-
+tir de textes positifs et non &#233;tiquet&#233;s. Actes de la Conf&#233;rence Francophone sur l&#8217;Apprentissage
+(CAP 2002), p. 205&#8211;220.
+</p>
+<p>FREUND Y. &amp; SCHAPIRE R. E. (1996). Experiments with a new boosting algorithm. In In
+Proceedings of the Thirteenth International Conference on Machine Learning, p. 148&#8211;156 :
+Morgan Kaufmann.
+</p>
+<p>GUZ U., CUENDET S., HAKKANI-T&#220;R D. &amp; TUR G. (2007). Co-training Using Prosodic
+and Lexical Information for Sentence Segmentation. Interspeech, p. 2597&#8211;2600.
+</p>
+<p>HSU C. W., CHANG C. C. &amp; LIN C. J. (2003). A practical guide to support vector classifi-
+cation. Rapport interne, Taipei.
+</p>
+<p>HWA R., OSBORNE M., SARKAR A. &amp; STEEDMAN M. (2003). Corrected co-training for
+statistical parsers. ICML-03 Workshop on the Continuum from Labeled to Unlabeled Data in
+Machine Learning and Data Mining, Washington DC.
+</p>
+<p>LIN C., WENG R. &amp; KEERTHI S. (2007). Trust region Newton methods for large-scale
+logistic regression. Proceedings of the 24th international conference on Machine learning, p.
+561&#8211;568.
+</p>
+<p>M&#220;LLER C., RAPP S. &amp; STRUBE M. (2001). Applying Co-Training to reference resolution.
+Proceedings of the 40th Annual Meeting on Association for Computational Linguistics, p.
+352&#8211;359.
+</p>
+<p>PIERCE D. &amp; CARDIE C. (2001). Limitations of co-training for natural language learning
+from large datasets. Proceedings of the 2001 Conference on Empirical Methods in Natural
+Language Processing (EMNLP-2001), p. 1&#8211;9.
+</p>
+<p>RICCARDI G. &amp; HAKKANI-TUR D. (2005). Active learning : theory and applications to
+automatic speech recognition. IEEE Transactions on Speech and Audio Processing, 13(4),
+504&#8211;511.
+</p>
+<p>SARKAR A. (2001). Applying co-training methods to statistical parsing. North American
+Chapter Of The Association For Computational Linguistics, p. 1&#8211;8.
+</p>
+<p>SCHAPIRE R. &amp; SINGER Y. (2000). BoosTexter : A Boosting-based System for Text Catego-
+rization. Machine Learning, 39(2), 135&#8211;168.
+TRINH A., BUFFONI D. &amp; GALLINARI P. (2008). Classifieur probabiliste avec Support Vec-
+tor Machine (SVM) et Okapi. DEFT&#8217;08.
+</p>
+<p>VAPNIK V. (2000). The Nature of Statistical Learning Theory. Springer.</p>
+
+</div></div>
+</body></html>

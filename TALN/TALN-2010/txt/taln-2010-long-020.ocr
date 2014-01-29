@@ -1,0 +1,509 @@
+TALN 2010, Montréal, 19-23 juillet 2010
+
+Reconnaissance robuste d’entités nommées sur de la parole
+transcrite automatiquement
+
+Christian Raymondla 2 Julien Fayollel
+(1) Université Européenne de Bretagne, INRIA,IRISA, UMR 6074, France
+(2) INSA de Rennes, 20 Avenue des buttes de coesme, Rennes, France
+prénom.nom@irisa.fr
+
+Résumé. Les transcriptions automatiques de parole constituent une ressource importante, mais sou-
+vent bruitée, pour décrire des documents multimédia contenant de la parole (e. g. journaux télévisés). En
+vue d’améliorer la recherche documentaire, une étape d’extraction d’information a caractere sémantique,
+précédant l’indexation, permet de faire face au probleme des transcriptions imparfaites. Parmis ces conte-
+nus informatifs, on compte les entités nommées (e. g. noms de personnes) dont l’extraction est l’objet de ce
+travail. Les méthodes traditionnelles de reconnaissance basées sur une deﬁnition manuelle de grammaires
+formelles donnent de bons résultats sur du texte ou des transcriptions propres manuellement produites,
+mais leurs performances se trouvent fortement affectées lorsqu’elles sont appliquées sur des transcriptions
+automatiques. Nous présentons, ici, trois méthodes pour la reconnaissance d’entités nommées basées sur
+des algorithmes d’apprentissage automatique : les champs conditionnels aléatoires, les machines a de sup-
+port, et les transducteurs a états ﬁnis. Nous présentons également une méthode pour rendre consistantes
+les données d’entrainement lorsqu’elles sont annotées suivant des conventions légerement différentes. Les
+résultats montrent que les systemes d’étiquetage obtenus sont parmi les plus robustes sur les données
+d’évaluation de la campagne ESTER 2 dans les conditions 011 la transcription automatique est particuliere-
+ment bruitée.
+
+Abstract. Automatic speech transcripts are an important, but noisy, ressource to index spoken mul-
+timedia documents (e. g. broadcast news). In order to improve both indexation and information retrieval,
+extracting semantic information from these erroneous transcripts is an interesting challenge. Among these
+meaningful contents, there are named entities (e. g. names of persons) which are the subject of this work.
+Traditional named entity taggers are based on manual and formal grammars. They obtain correct perfor-
+mance on text or clean manual speech transcripts, but they have a lack of robustness when applied on
+automatic transcripts. We are introducing, in this work, three methods for named entity recognition based
+on machine learning algorithms, namely conditional random ﬁelds, support vector machines, and ﬁnite-
+state transducers. We are also introducing a method to make consistant the training data when they are
+annotated with slightly different conventions. We show that our tagger systems are among the most robust
+when applied to the evaluation data of the French ESTER 2 campaign in the most difﬁcult conditions where
+transcripts are particularly noisy.
+
+M0tS-CléS I étiqueteur d’entités nommées, transcription automatique de parole, apprentissage au-
+tomatique, champs conditionnels aléatoires, machines a vecteurs de support, transducteurs a états ﬁnis.
+
+Keywords: named entity tagger, automatic speech recognition transcripts, machine learning, condi-
+tionnal random ﬁelds, support vector machines, ﬁnite-state transducers.
+
+Christian Raymond, Julien Fayolle
+
+1 Introduction
+
+La transcription de ﬂux audio (enregistrements radiophoniques, de reunions, de joumaux televises, etc.)
+est un enj eu important pour le domaine de l’archivage et de la recherche d’information. L’ extraction auto-
+matique de contenus a valeur ajoutee a partir de ces transcriptions devient un axe de recherche primordial
+aﬁn d’utiliser et d’exploiter le maximum d’information contenu dans le ﬂux audio. Parmi ces contenus
+a valeur ajoutee, sont souvent considerees les entites nommees. La plupart des systemes d’etiquetage en
+entites nommees utilisent des methodes symboliques a base de grammaires formelles, eventuellement
+completees par des connaissances a priori (e.g. listes de prenoms, de villes ou de pays). Dans les grandes
+campagnes d’evaluation, ces systemes implementes manuellement obtiennent les meilleurs resultats sur le
+texte propre (texte ou transcription manuelle de parole) (voir [1] pour la campagne ESTER 2). Lorsque la
+reconnaissance d’entites nommees se fait sur des transcriptions automatiques de parole, le probleme gagne
+en difﬁculte car contrairement aux documents textuels, les documents transcrits automatiquement ne sont
+pas structures (ni casse, ni ponctuation) et certains mots transcrits sont errones : le taux d’erreur de mots
+peut varier de 5% a plus de 50% selon le document et les conditions de transcriptions. Dans ces conditions,
+les systemes symboliques sont generalement moins robustes que des etiqueteurs bases sur des methodes
+d’apprentissage automatique, notamment car elles sont capables d’extraire de ces donnees des regles de
+decision qu’un expert humain n’aurait pu apprehender. Guides par cette notion de robustesse face aux
+transcriptions automatiques, nous presentons trois systemes d’etiquetage bases sur differents algorithmes
+de classiﬁcation automatique qui ont deja fait leurs preuves dans la tache de reconnaissance en entites
+nommees (voir respectivement [8, 5, 3]), un systeme a base de champs conditionnels aleatoires (CRF),
+un a base de machines a vecteurs de support (SVM), et un a base de transducteurs a etats ﬁnis (FST).
+Dans la partie 2, nous presentons l’approche generale utilisee en reconnaissance d’entites nommees par
+des methodes a base d’apprentissage automatique. Seront ensuite presentees dans la partie 3, les methodes
+d’apprentissage utilisees dans ce travail. Enﬁn, la partie 4 presentera les donnees d’evaluations et la partie
+5 les experiences effectuees ainsi que les resultats obtenus.
+
+2 Reconnaissance d’entités nommées
+
+La reconnaissance d’entites r1ommees consiste a rechercher des objets textuels (i. e. un mot, ou un groupe
+de mot) categorisables dans des classes telles que noms de personnes, noms d’organisations ou d’entre-
+prises, noms de lieux, quantites, distances, valeurs, dates, etc. C’est un probleme typique d’etiquetage de
+sequences dont le but est, pour une sequence donnee, de trouver la sequence d’etiquettes correspondante
+la plus probable. Dans notre cas, la sequence donnee est une sequence de mots issus de la transcrip-
+tion de parole, et la sequence d’etiquettes recherchee est la sequence d’entites nommees correspondante.
+Pour resoudre le double probleme de la segmentation et de l’etiquetage (i.e. trouver l’entite ainsi que ses
+frontieres dans la sequence de mots), l’encodage BIO (pour begin, inside, outside) est traditionnellement
+utilise. Un indicateur B, I ou O est ajoute a l’etiquette aﬁn d’identiﬁer si le mot correspondant est au debut,
+a l’interieur ou a l’exterieur de l’entite nommee. Un exemple est donne table 1.
+
+Les methodes a base d’apprentissage automatique utilisent des donnees annotees (en general par des ex-
+perts humains) pour construire automatiquement des regles de decision a partir d’un ensemble de des-
+cripteurs. Les mots de la transcription sont deja un premier niveau de description. Aﬁn de construire des
+systemes plus performants, d’autres niveaux sont generalement envisages.
+
+Reconnaissance robuste d’entités nommées sur de la parole transcrite automatiquement
+
+mots ici jacques doutisoro lomé africa numéro un
+étiquettes O pers-B pers—I loc—B org—B org—I org—I
+entités null pers loc org
+
+TABLE 1 — Exemple d’étiquetage de séquences appliqué a la reconnaissance d’entités nommées. On y
+retrouve les mots de la transcription automatique a étiqueter, les étiquettes trouvées suivant l’encodage
+BIO et les entités nommées correspondantes.
+
+Par exemple, le résultat d’un étiqueteur morpho—syntaxique peut étre utilisé pour construire des regles a
+portée plus générale et ainsi améliorer le rappel du systeme, ou bien des connaissances a priori fortes
+peuvent étre intégrées pour améliorer la précision ainsi que le rappel.
+
+| niveau | type | exemple |
+premier MOT : mot "Jacques"
+MS : étiquette morpho—syntaxique "NPMS", nom propre masculin singulier
+second AP : classe connu a priori "VILLE"
+MI : mot "important" "numéro"
+
+TABLE 2 — Niveaux de description
+
+Ici, deux niveaux de description (table 2) sont utilises. Le premier est directement composé des mots
+
+(MOT) de la transcription et le second peut étre des trois types suivants :
+
+— MS : résultat d’un étiquetage morpho—syntaxique [4],
+
+— AP : classe de généralisation correspondant a des connaissances connues a priori, i. e. listes de pays, de
+villes, de gentilés, d’unités de mesure,
+
+— MI : mot "important" dont l’inforInation mutuelle partagée avec son etiquette d’entité nommée est su-
+périeure a zero (i. e. mot supposé plus discriminant qu’une etiquette morpho—syntaxique) et qui apparait
+au moins trente fois dans le corpus d’apprentissage (i. e. mot a capacité de généralisation sufﬁsante).
+
+Comme illustré sur la ﬁgure 1, l’étiquette courante est estimée a partir des descripteurs (mots et classes)
+
+situés dans la fenétre locale [-2, +2] entourant la position 0 de décision. On y retrouve les trois types de
+
+classe du second niveau de description, a savoir les étiquettes morpho-syntaxiques en rouge, les classes
+connues a priori en bleu, et les mots "importants" en vert.
+
+Label estimé 4-I Ensemble de descripteurs 41
+
+LABEL : 0 Pers-I Pers-B Loc-B Org-B Org-I I Org-I
+CLASSE: ici NPMS <unk> VILLE NPSIG numéro un
+MOT: Ici Jacques doutisoro Iomé africa numéro un
+POSITION : -3 -2 -1 0 +1 +2 +3
+
+FIGURE 1 — Exemple d’étiquetage en entités nommées a partir des descripteurs de premier et second
+niveaux
+
+Christian Raymond, Julien Fayolle
+
+3 Algorithmes d’apprentissage automatique
+
+3.1 Machines £1 vecteurs de support
+
+Les machines a vecteurs de support introduites par Vapnik [11], couramment abrégées en SVM sont des
+classiﬁeurs discriminants a large marge. Les SVM sont au départ des classiﬁeurs binaires qui représentent
+les échantillons a classer sous la forme d’un vecteur dont chaque composante représente la contribution
+d’un parametre a un exemple. Par exemple, pour une tache de classiﬁcation de documents les vecteurs
+représentant chaque document pourraient avoir la taille du vocabulaire associé aux documents et chaque
+composante du vecteur serait nulle ou non nulle selon que le mot correspondant est absent ou non du
+document en question. Le principe est alors de déterminer l’hyperplan séparateur optimal entre les deux
+classes (si le probleme est linéairement séparable), celui qui maximise la marge entre les échantillons et
+l’hyperplan séparateur. La marge est la distance entre l’hyperplan et les échantillons le plus proches : appe-
+lés "vecteurs de support". Si la méthode ne fonctionne que si le probleme est linéairement séparable, grace
+aux fonctions noyaux, les SVM sont capables de considérer le probleme dans un espace de dimension plus
+élevé dans lequel il existe probablement un séparateur linéaire.
+
+Deux méthodes principales ont été proposées pour étendre la classiﬁcation binaire au cas o1‘1 l’on a M
+
+classes :
+
+— La méthode one-versus-all consiste a construire M classiﬁeurs binaires en attribuant le label 1 aux
+échantillons de l’une des classes et le label -1 a toutes les autres. En phase detest, le classiﬁeur donnant
+la valeur de conﬁance (e.g. la marge) la plus élevée remporte le vote.
+
+— La méthode one-versus-one consiste a construire M (M — 1) / 2 classiﬁeurs binaires en confrontant
+chacune des M classes. En phase de test, l’échantillon a classer est analysé par chaque classiﬁeur et un
+vote majoritaire permet de déterminer sa classe.
+
+Bien que les SVM permettent l’utilisation de parametres tres variés, contrairement aux algorithmes speci-
+ﬁquement connus pour l’étiquetage séquentiel, ils ne peuvent prendre de décision globale sur la séquence
+car chaque étiquette de la séquence est vue indépendamment des autres. Toutefois, certaines heuristiques
+peuvent étre implémentées, par 1’ exemple l’aj out d’un parametre de classiﬁcation qui serait la décision pre-
+cédente dans la séquence. YAMCHA, un systeme basé sur cette approche, a obtenu les meilleurs résultats
+dans la tache de chunking et BaseNP chunking de CoNLL2000 [6] et a été choisi pour l’implémentation
+de l’étiqueteur SVM.
+
+Dans ce travail, le vecteur de chaque exemple est composé des couples mots ou/et classes associés a leur
+position par rapport a la position de décision dans un intervalle local [-2, +2] (ﬁgure 1).
+
+3.2 Transducteurs £1 états ﬁnis
+
+L’ approche a base de transducteurs a états ﬁnis est une approche générative stochastique basée sur le cal-
+cul de la probabilité jointe entre la séquence d’observations (mots) et la séquence d’étiquettes (entités
+nommées). Cette approche est particulierement appropriée pour traiter des transcriptions de parole [3]
+puisqu’elle est basée sur le méme paradigme traditionnellement utilisée dans les systemes de reconnais-
+sance automatique de la parole. Plus formellement, notons e = e1, e2, . . . , e N la séquence d’étiquettes
+associées a la séquence de mots In = m1,m2, . . . ,mN produite par un systeme de reconnaissance auto-
+matique de la parole. Le processus d’étiquetage consiste a trouver la séquence d’étiquettes maximisant la
+
+Reconnaissance robuste d’entités nommées sur de la parole transcrite automatiquement
+
+probabilité a posteriori p(e|A), ou A représente les observations acoustiques extraites du signal de parole.
+Pour résoudre ce probleme, il est commode de faire intervenir des connaissances supplémentaires tels que
+des classes d’équivalence (présentées dans la partie 2). Notons c = c1,c2, . . . , cN la séquence de classes.
+Ainsi, trouver la meilleure séquence d’étiquettes é étant données les observations acoustiques A se formule
+par :
+
+p(é|A) = argmax Z Zp(m,c,e|A)
+= argmax Z Zp(A|m, c, e)p(m, c, e)
+
+argmax p(A|m, c, e)p(m, c, e)
+m,c,e
+
+22
+
+o1‘1
+p(A|ma¢ae) W P(A|m)
+P011: 0: 9) = P(m|¢a °)P(Ca 9)
+alors
+p(é|A) w argmaXp(A|m)p(m|c,e)p(c,e) (1)
+
+m,c,e
+
+La probabilité p(A |m) est estimée par le modele acoustique du systeme de reconnaissance automatique de
+la parole. p(m|c, e) est la probabilité d’une séquence de mots sachant le couple classe/étiquette et p(c, e)
+la probabilité jointe estimée sur les couples classe/étiquette.
+
+p(m|c, e) est estimée de la maniere suivante :
+
+c00ccurence(mi, ci, ei)
+
+N
+p(mlc, e) = H (2)
+i=1
+
+c00ccurence(ci, ei)
+
+Les problemes de segmentation et de classiﬁcation sont résolus simultanément a travers l’utilisation de
+l’encodage BIO (table 1). A chaque mot mi est alors associée l’étiquette ti, ti = {ei-[BII], 0}. La proba-
+bilité jointe est alors calculée par :
+
+P(°a 9) = P{(?51a C1)(752a 02) - - - (tn, Cn)} = 170,0)
+
+Cette probabilité est estimée par un modele N -gramme du troisieme ordre :
+
+N
+p(c,e) = 1]p(c..,t..lh..) (3)
+n=1
+avec hn = (Cn_1, tn_1), (Cn_2, tn_2)
+
+Le processus d’étiquetage est généralement effectué pour une séquence de mots In ﬁxée (i. e. la meilleure
+hypothese de transcription automatique). L’ originalité de cette approche est de pouvoir s’intégrer direc-
+tement dans le processus de reconnaissance automatique de la parole. En effet, elle permet de réaliser
+l’étiquetage directement sur des graphes de mots, a condition que ceux-ci soient encodés comme des
+automates a états ﬁnis. L’ implémentation de cette approche a été réalisé avec la librairie AT&T [9].
+
+La meilleure séquence de couples mot/étiquette est le meilleur chemin dans le transducteur Amge obtenu
+par composition de trois transducteurs : )\m2e = Am o Amgce o Ace
+
+Les trois transducteurs sont déﬁnis de la maniere suivante :
+
+Christian Raymond, Julien Fayolle
+
+1. Am est la representation de l’entrée a étiqueter sous forme d’automate a états ﬁnis (hypothese ou graphe
+de mots généré par le moteur de reconnaissance de la parole avec les scores acoustiques, p(A|m) dans la
+formule 1). Dans les expériences suivantes, dans le but de rester comparable avec les autres méthodes,
+Am encode la meilleure hypothese de reconnaissance;
+
+2. Amgce fait l’association entre les mots et leurs couples classe/entité, les classes peuvent étre le résultat
+d’un étiquetage morpho-syntaxique ou/et des classes représentant des connaissances a priori sur les
+mots (e. g. liste de pays, de ville) ou/et les mots eux-mémes. Le transducteur possede alors en entrée les
+mots et en sortie les couples classe/entité. Les scores associés aux transitions encodent p(m|c, e) dans
+la formule 1 et sont calculés selon 2;
+
+3. Ace encode le modele estimant la probabilité jointe étiquette/entité décrite dans la formule 4.
+
+3.3 Champs Conditionnels Aléatoires
+
+Les champs conditionnels aléatoires, introduits par [7], possedent les avantages des modeles génératifs
+et discriminants. Comme les classiﬁeurs discriminants, ils peuvent manipuler un grand nombre de des-
+cripteurs et comme les modeles génératifs, ils integrent des dépendances entre les étiquettes de sortie et
+prennent une décision globale sur la séquence. Cependant, ils ne sont pas facilement intégrables avec le
+systeme de reconnaissance automatique de la parole (e. g. analyse d’un graphe de mots).
+
+Un champ conditionnel aléatoire est déﬁni par un graphe de dépendances et un ensemble de fonctions fk
+auxquelles sont associées des poids A;,. La probabilité conditionnelle d’une annotation, séquence d’éti-
+quettes e étant donné l’observation O (i. e. mots, étiquettes morpho-syntaxiques) est donnée par :
+
+1
+
+Plelo) = T))€$P(ZC ; )\kfk(eca 0: 0))
+Z(O) = Z exp(Z Z )\;,f;,(ec, O, c))
+e CEC k;
+
+Les connaissances, les desctipteurs (lexicaux, sémantique, etc.), et les relations entre concepts sont enco-
+dés dans le modele a travers ces fonctions. Ces fonctions binaires retoument 1 s’il y a correspondance ou
+0 sinon. Elles prennent en parametre les valeurs prises par les variables aléatoires (ec) de la clique (c) sur
+laquelle elles s’appliquent, ainsi que la totalité de l’observation 0. Les poids A], associés a chacune de
+ces fonctions sont les parametres du modele estimés lors de la phase d’apprentissage. Dans ce travail, le
+graphe des dépendances modélise des dépendances du premier ordre, et les cliques seront alors composées
+de deux variables aléatoires, celle a la position courante et a la position précédente. Les expériences ont
+été réalisées a l’aide de l’outil libre CRF++1.
+
+Dans nos experiences, les fonctions encodent tous les unigrammes, bigrammes et trigrammes construits
+sur les couples symbole/position dans une fenétre [-2, +2] autour de la position de decision.
+
+1. Disponible sur Internet a l’adresse http : //crfpp . source forge . net/
+
+Reconnaissance robuste d’entites nommees sur de la parole transcrite automatiquement
+
+4 Conditions expérimentales
+
+4.1 Corpus et téiches ESTER 2
+
+Le corpus ESTER 2 relatif aux entites nommees se composent de 72 heures d’emissions radiophoniques
+francophones (France-Inter, France Info, RFI, RTM, France Culture, Radio Classique) manuellement
+transcrites et annotees en entites nommees suivant les conventions des deux campagnes ESTER [Ester]
+qui sont legerement differentes. La premiere campagne comporte un jeu de 30 types d’entites nommees
+reparties en 9 categories principales (personne, organisation, groupe geo-socio-politique, lieu, batiment
+et construction humaine, production humaine, date et heure, montant, inconnue), alors que la seconde
+possede un jeu de 37 types d’entites nommees reparties en 7 categories principales (personne, fonction,
+organisation, lieu, production humaine, date et heure, montant). Le tableau 3 detaille la composition des
+donnees utilisees dans ce travail.
+
+| corpus | nombre d’heures | source |
+. 60h apprentissage ESTER 1
+emramemem 6h developpement ESTER 2
+test 6h test ESTER 2
+
+TABLE 3 — Decomposition du corpus ESTER 2 pour la tache d’annotation en entites nommees
+
+La campagne ESTER 2 comporte deux taches de reconnaissance d’entites nommees qui consistent a recon-
+naitre les entites nommees, d’une part, dans la transcription manuelle (man) du corpus de test et, d’autre
+part, dans les trois transcriptions automatiques (aut) du corpus de test dont les taux d’erreur de mots sont
+12.11%, 17.83% et 26.09%. On se place, ici, dans le cas oh la transcription automatique est la plus bruitee
+(i. e. taux d’erreur de mots de 26.09%).
+
+4.2 Mesure des performances
+
+Les performances pour la reconnaissance d’entites nommees sont ici evaluees en terme de slot error rate
+(SER) utilise dans la campagne ESTER 2 [Ester]. Le SER fournit un taux d’erreur sur l’ensemble des
+entites nommees de reference (R) pour lequel on distingue les erreurs d’insertion (I), de suppression (D)
+et de substitution (S). Dans le cas de la substitution, on distingue les erreurs de type (T), d’extension
+(E), de type et d’extension (TE), ou multiples (M) on plusieurs hypotheses correspondent a une entite de
+reference. Pour evaluer la mise au point de nos systemes, nous utilisons un premier SER deﬁni par :
+
+SER1 = #I+;:1;+#s
+
+Dans le cadre de la campagne ESTER 2, chaque type d’erreur est pondere par un coefﬁcient suivant son
+importance. Il est deﬁni par :
+
+a1.#I + aD.#D + aT.#T +  + aTE.#TE + 
+
+SER2 = #R
+
+avec (a1,aD,aT,aE,aTE,aM) = (1, 1,0.5,0.5,0.7, 0.7).
+
+La F-mesure en entites nommees est aussi utilise pour mesurer les performances lors la Inise au point de
+nos systemes. Elle correspond a la moyenne harmonique entre la precision et le rappel en entites nommees.
+
+Christian Raymond, Julien Fayolle
+
+Le SER1 et la F-mesure perrnettront de comparer les differents systemes combines aux differents descrip-
+teurs utilises, tandis que le SER2 permettra de s’evaluer par rapport aux meilleurs systemes de la campagne
+ESTER 2.
+
+5 Résultats
+
+5.1 Apport des différents descripteurs
+
+Aﬁn de mesurer l’apport des differents descripteurs, on teste quatre cas de systeme (MOT, MOT+MS,
+MOT+MS+AP, et MOT+MS+AP+MI), utilisant progressivement les informations decrites dans la table 2.
+
+descripteurs MOT MOT+MS MOT+MS+AP MOT+MS+AP+MI
+transcription man man man man
+FST 32.3 (0.77) 31.9 (0.77) 32.2 (0.77) 30.9 (0.78)
+SVM 35.1 (0.77) 29.4 (0.80) 29.1 (0.81) 28.9 (0.81)
+CRF 41.7 (0.72) 29.8 (0.79) 28.4 (0.80) 28.1 (0.80)
+
+TABLE 4 — Performances des etiqueteurs en SER1 (F-mesure) suivant differents descripteurs
+
+Les resultats (tableau 4) nous montrent l’inﬂuence positive de l’ajout du deuxieme niveau de description.
+On le voit notarnment pour les methodes discriminantes (SVM et CRF) ou le gain est signiﬁcatif lorsqu’on
+aj oute des informations morpho-syntaxiques qui permettent de deduire des regles plus generalisatrices que
+dans le cas des mots seuls. Il est interessant de noter que, pour le modele FST, l’ajout de connaissances a
+priori degrade les performances. On peut aussi supposer que l’inconsistance des annotations (differentes
+suivant les deux campagnes ESTER) du corpus d’apprentissage perturbe les classiﬁeurs, ce qui sera l’objet
+de la partie suivante.
+
+5.2 Correction des données d’entra’1‘nement
+
+En apprentissage automatique (AA), la quantite de donnees d’apprentissage est une notion cruciale. C’est
+pourquoi certains concepteurs privilegient l’enrichissement des connaissances au detriment de leur aspect
+qualitatif. Or les methodes d’AA y sont tres sensibles. De plus, dans un contexte de transcription de parole,
+ou la robustesse est une priorite et ou les mots a analyser sont limites au lexique deﬁni par le systeme de
+reconnaissance de la parole, la qualite de ces donnees est primordiale. Comme precise dans la partie 4.1,
+l’ensemble utilise pour l’entrainement des classiﬁeurs est le corpus d’apprentissage annote dans le cadre
+de la campagne ESTER 1 ainsi que le corpus de developpement annote, suivant des conventions legerement
+differentes, dans le cadre de ESTER 2. Les systemes obtenus sont bien sﬁr plus performants en utilisant
+conjointement les deux corpora plutot que separement. Neanmoins, l’incoherence des annotations affecte
+les performances de ces systemes [10]. Il n’est pas rare de se retrouver dans ce genre de situation et nous
+proposons une methode pour harmoniser, et rendre les annotations coherentes. L’idee est de conserver
+le systeme de description le plus performant (MOT+MS+AP+MI) pour le corpus le plus ﬁable (corpus de
+developpement (DEV), annote suivant les memes conventions que le test ESTER 2). Le corpus d’apprentis-
+sage (APP), quanta lui, est decrit avec les mots ainsi que les etiquettes morpho-syntaxiques (MOT+MS). Le
+premier niveau de description, compose des mots, va permettre de generer des regles faibles, peu generali-
+santes. Le deuxieme niveau de description, compose de (MOT+MS) ou de MOT+MS+AP+MI selon la partie
+
+Reconnaissance robuste d’entités nommées sur de la parole transcrite automatiquement
+
+considérée des données d’entrainement, Va permettre de produire des regles plus fortes. En utilisant le
+systeme le plus performant (CRF), un modele est appris sur la concaténation des deux corpora. Au corpus
+d’entrainement sont de nouveau associés les niveaux de description les plus efﬁcaces MOT+MS+AP+MI
+sur toutes les données. Il est ensuite ré-annoté automatiquement avec le modele précédent. Lors de la ré-
+annotation, les annotations de la partie DEV seront reproduites. Sur la partie APP, les regles fortes apprises
+sur la partie APP ne pourront plus s’appliquer du fait de la modiﬁcation du second niveau de description,
+seules les regles fortes apprises sur la partie DEV vont s’appliquer. Les regles faibles apprises sur la partie
+APP vont permettre de régénérer les annotations sur la partie APP (et donc de conserver la connaissance
+incluse dans APP) sauf en cas de contradiction avec les regles fortes apprises sur le DEV qui dans ce cas
+vont l’emporter pour proposer une nouvelle annotation plus conforme a la partie DEV. C’est cette nouvelle
+annotation qui servira de reference a l’entrainement de tous les systemes.
+
+Le tableau 5 montre les performances des systemes entrainés avec ce nouveau jeu d’annotations. On
+constate une amélioration signiﬁcative (jusqu’a 5 points absolu ou environ 20% relatif de gain) des résul-
+tats par rapport a ceux de la partie précédente.
+
+descripteurs MOT MOT+MS MOT+MS+AP MOT+MS+AP+MI
+transcription man man man man
+FST 27.3 (0.81) 29.6 (0.80) 29.1 (0.80) 26.6 (0.82)
+SVM 32.4 (0.79) 27.4 (0.82) 26.9 (0.83) 26.6 (0.83)
+CRF 36.2 (0.76) 24.8 (0.83) 23.4 (0.84) 22.8 (0.84)
+
+TABLE 5 — Performances des étiqueteurs en SER1 (F-mesure) suivant différents descripteurs avec correc-
+tion automatique du corpus d’entrainement
+
+5.3 Evaluation ESTER 2
+
+Nous évaluons ici les performances de nos systemes sur le jeu de données ESTER 2 en les comparant aux
+meilleurs systemes de la campagne ESTER 2. Le meilleur systeme ESTER 2 sur la transcription manuelle
+est basé sur des regles de grammaires formelles, noté ref-man, tandis que le meilleur systeme ESTER 2 sur
+la transcription automatique la plus bruitée (taux d’erreur de mots de 26.09%) est a base d’apprentissage
+automatique proche de notre approche a base de CRF, noté ref-aut. Un post-traitement simple est appliqué
+sur la sortie des trois systemes. I1 consiste a appliquer quelques regles d’imbrications d’entités nommées
+et de correction de segmentation aﬁn de mieux correspondre aux conventions d’annotation d’ESTER 2.
+
+systéme FST SVM CRF oracle(SVM+CRF) oracle(FST+SVM+CRF) ref—man ref—aut
+man 27.89 28.06 22.79 / / 9.80 23.91
+aut 59.44 59.83 53.49 50.40 45.80 66.22 56.79
+
+TABLE 6 — Performances des étiqueteurs en SER2 (évaluation ESTER 2)
+
+Les trois systemes que nous présentons obtiennent tous des résultats inférieurs a 60% en SER2, ce qui
+les classerait premier, troisieme et quatrieme de la campagne ESTER 2 sur les transcriptions les plus
+bruitées. Notre systeme a base de CRF, proche du meilleur systeme ref-aut, obtient des performances
+sensiblement meilleures grace a notre méthode d’amélioration de la qualité des annotations (partie 5.2) et
+ce bien qu’aucune ressource autre que celles annotées durant ESTER n’ai été utilisées contrairement au
+systeme participant. Outre les avantages respectifs de chaque méthode, l’analyse directe des graphes de
+
+Christian Raymond, Julien Fayolle
+
+mots pour les FST et la précision des méthodes discriminantes (CRF et SVM), l’intérét de proposer trois
+systemes ayant une vue différente du probleme permettra d’améliorer dans de futurs travaux la robustesse
+de l’étiquetage par des stratégies de fusion. Le tableau 6 illustre a travers les taux oracles (taux d’erreur
+minimal que ferait une stratégie qui prend touj ours la bonne décision) le gain potentiel d’une telle stratégie.
+
+6 Conclusion
+
+Nous avons présenté dans ce travail trois méthodes pour la reconnaissance d’entités nommées a partir de
+transcriptions automatiques de parole ainsi qu’une méthode permettant d’améliorer automatiquement la
+qualité des annotations d’un corpus dont les annotations ont été effectuées suivant des conventions légere-
+ment différentes. Nous avons montré que les systemes d’étiquetage obtenus sont parIr1i les plus robustes
+sur les données d’évaluation de la campagne ESTER 2 dans les conditions ou la transcription automatique
+est particulierement bruitée (taux d’erreur de mots de 26.09%). Le systeme a base de CRF obtient les
+meilleures performances. Bien que moins performante, la méthode a base de SVM offre tout de meme une
+distribution des erreurs différentes. La méthode a base de FST possede l’avantage de pouvoir étre couplée
+efﬁcacement avec les systemes de reconnaissance de la parole et sera évaluée prochainement dans ces
+conditions. Enﬁn, l’évaluation oracle montre que les trois systemes offrent des résultats complémentaires
+que nous comptons combiner grace a des méthodes de fusion pour améliorer les performances.
+
+Références
+
+[1] BRUN C. & EHRMANN M. (2009). Adaptation of a named entity recognition system for the ester 2
+evaluation campaign. In IEEE NLP-KE, Dalian, Chine.
+
+[Ester] ESTER. Conventions et plans d’évaluation des campagnes ester. Disponible sur Internet a l’adresse
+http://www.afcp—parole.org/ester/docs.html.
+
+[3] FAVRE B., BECHET F. & NOCERA P. (2005). Robust named entity extraction from spoken archives.
+In HLT-EMNLP ’05.
+
+[4] HUET S., GRAVIER G. & SEBILLOT P. (2008). Morphosyntactic resources for automatic speech
+recognition. In LREC’08, Marrakech, Maroc.
+
+[5] ISOZAKI H. & KAZAWA H. (2002). Efﬁcient support vector classiﬁers for named entity recognition.
+In COLING.
+
+[6] KUDO T. & MATSUMOTO Y. (2001). Chunking with support vector machines. In NAACL’01, p. 1-8.
+
+[7] LAFFERTY J ., MCCALLUM A. & PEREIRA F. (2001). Conditional random ﬁelds : Probabilistic
+models for segmenting and labeling sequence data. In ICML’01, p. 282-289.
+
+[8] MCCALLUM A. & LI W. (2003). Early results for named entity recognition with conditional random
+ﬁelds, feature induction and web-enhanced lexicons. In C0NLL-2003, p. 188-191.
+
+[9] MOHRI M., PEREIRA F. & RILEY M. (1997). AT&T FSM Library - Finite State Machine Library.
+Rapport inteme, AT&T.
+
+[10] RAYMOND C. & RICCARDI G. (2007). Generative and discriminative algorithms for spoken lan-
+guage understanding. In Interspeech, Anvers, Belgique.
+
+[11] VAPNIK V. N. (1995). The nature of statistical learning theory. Springer-Verlag New York, Inc.
+

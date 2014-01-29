@@ -1,0 +1,828 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Inf&#233;rence grammaticale guid&#233;e par clustering</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Inf&#233;rence grammaticale guid&#233;e par clustering
+</p>
+<p>No&#233;mie-Fleur Sandillon-Rezer
+CNRS, Esplanade des Arts et M&#233;tiers, 33402 Talence
+LaBRI, 351 Cours de la Lib&#233;ration, 33405 Talence
+</p>
+<p>nfsr@labri.fr
+</p>
+<p>R&#201;SUM&#201;
+Dans cet article, nous nous focalisons sur la mani&#232;re d&#8217;utiliser du clustering hi&#233;rarchique pour
+apprendre une grammaire AB &#224; partir d&#8217;arbres de d&#233;rivation partiels. Nous d&#233;crirons bri&#232;vement
+les grammaires AB ainsi que les arbres de d&#233;rivation dont nous nous servons comme entr&#233;e pour
+l&#8217;algorithme, puis la mani&#232;re dont nous extrayons les informations des corpus arbor&#233;s pour
+l&#8217;&#233;tape de clustering. L&#8217;algorithme d&#8217;unification, dont le pivot est le cluster, sera d&#233;crit et les
+r&#233;sultats analys&#233;s en d&#233;tails.
+</p>
+<p>ABSTRACT
+Clustering for categorial grammar induction
+</p>
+<p>In this article, we describe the way we use hierarchical clustering to learn an AB grammar from
+partial derivation trees. We describe AB grammars and the derivation trees we use as input
+for the clustering, then the way we extract information from Treebanks for the clustering. The
+unification algorithm, based on the information extracted from our cluster, will be explained and
+the results discussed.
+</p>
+<p>MOTS-CL&#201;S : grammaires cat&#233;gorielles, clustering hi&#233;rarchique, inf&#233;rence grammaticale.
+KEYWORDS: categorial grammars, hierarchical clustering, grammatical inference.
+</p>
+<p>1 Introduction
+</p>
+<p>Le but de cet article est de pr&#233;senter une nouvelle m&#233;thode d&#8217;inf&#233;rence grammaticale. En effet,
+nous utilisons en entr&#233;e de notre algorithme des arbres de d&#233;rivations d&#8217;une grammaire AB
+partiellement remplis, et l&#8217;algorithme est ensuite guid&#233; par le clustering pour savoir quelles
+variables vont &#234;tre unifi&#233;es. L&#8217;id&#233;e de base est que les mots qui sont dans des contextes similaires
+doivent avoir des types similaires.
+</p>
+<p>L&#8217;inf&#233;rence grammaticale appliqu&#233;e aux grammaires cat&#233;gorielles peut &#234;tre class&#233;e en trois
+cat&#233;gories distinctes, en fonction des m&#233;thodes employ&#233;es et des structures d&#8217;entr&#233;e.
+</p>
+<p>La m&#233;thode d&#233;crite par Adriaans (Trautwein et al., 2000; Adriaans, 1999) a pour point de
+d&#233;part des phrases sans structure. Bien qu&#8217;elle fonctionne dans la plupart des cas, ce genre de
+m&#233;thode d&#8217;inf&#233;rence rencontre des probl&#232;mes avec des phrases permettant plusieurs analyses
+syntaxiques qu&#8217;on ne peut pas distinguer et qui sont fond&#233;es seulement sur la cha&#238;ne des mots
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>28 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>-par exemple l&#8217;attachement des syntagmes pr&#233;positionnels. Il semble donc logique, &#233;tant donn&#233;
+que cette information est g&#233;n&#233;ralement annot&#233;e dans des corpus arbor&#233;s, de l&#8217;utiliser lors de
+l&#8217;apprentissage.
+</p>
+<p>Des structures partielles sont utilis&#233;es dans les m&#233;thodes de Buszkowski et Penn (Buszkowski et
+Penn, 1990) ou Kanazawa (Kanazawa, 1998). Ces m&#233;thodes sont clairement dans la lign&#233;e du
+paradigme de Gold (Gold, 1967). Les structures d&#8217;entr&#233;e sont d&#233;crites ult&#233;rieurement, section
+3. La sortie de ces algorithmes donne soit une grammaire rigide 1 (algorithme de Buszkowski
+et Penn) soit une grammaire k-valu&#233;e 2 (algorithme de Kanazawa). Une grammaire rigide n&#8217;est
+pas repr&#233;sentative d&#8217;un langage naturel, et d&#232;s k &#8805; 2, l&#8217;unification devient un probl&#232;me NP-dur
+(Costa-Flor&#234;ncio, 2001). Outre ce fait, comme k n&#8217;est pas connu par avance, il convient de trouver
+la valeur optimale, ce qui est particuli&#232;rement complexe. On doit alors appliquer une recherche
+dichotomique pour trouver k, partant du principe que celui-ci se situe au d&#233;part entre 1 et&#8734;.
+L&#8217;id&#233;e est de prendre une valeur arbitraire qui semble raisonnable, de tester. Si cela fonctionne,
+on divise la valeur par deux et on tente &#224; nouveau, sinon on la multiplie par deux en partant du
+principe que la bonne valeur devra &#234;tre sup&#233;rieure ou &#233;gale &#224; k+ 1. Il est &#224; noter, cependant,
+que m&#234;me une grammaire 2-valu&#233;e ne peut pas repr&#233;senter une langue naturelle : l&#8217;exp&#233;rience
+avec les grammaires extraites montre que le nombre maximum de types par mot est grand, et
+de nombreux mots fr&#233;quents (d&#233;terminants, conjonctions de coordinations) poss&#232;dent plus de
+quarante types (Hockenmaier et Steedman, 2007; Sandillon-Rezer et Moot, 2011).
+</p>
+<p>Enfin, les m&#233;thodes utilisent des structures totalement d&#233;finies, comme celle d&#8217;Hockenmaier
+(Hockenmaier, 2003), qui construit une grammaire cat&#233;gorielle combinatoire, ou notre m&#233;thode
+(Sandillon-Rezer et Moot, 2011), qui utilise un transducteur d&#8217;arbres g&#233;n&#233;ralis&#233; pour transformer
+des arbres syntaxiques en arbres de d&#233;rivation d&#8217;une grammaire AB (Lambek, 1958). C&#8217;est la
+sortie de notre transducteur qui nous servira de standard d&#8217;&#233;valuation ainsi que d&#8217;entr&#233;e apr&#232;s
+modification des arbres pour notre algorithme d&#8217;inf&#233;rence grammaticale.
+</p>
+<p>Dans cet article nous combinons les m&#233;thodes du second type avec des structures partielles
+(agr&#233;ment&#233;es de certaines informations provenant des corpus) et du clustering. Nous &#233;valuons &#224;
+la fois la complexit&#233; du probl&#232;me et la qualit&#233; du lexique obtenu. Le clustering est effectu&#233; en
+utilisant une mesure de similarit&#233; fond&#233;e sur le contexte local du mot, qui est directement extrait
+des arbres syntaxiques.
+</p>
+<p>Les arbres de d&#233;rivation sont extraits de corpus annot&#233;s. Nous utilisons deux corpus diff&#233;rents en
+guise de base : le corpus de Paris VII (Abeill&#233; et al., 2003) et Sequoia (Candito et Seddah, 2012).
+Les deux corpus sont annot&#233;s de mani&#232;re syntaxique par les m&#234;mes protocoles d&#8217;annotation
+(Abeill&#233; et Cl&#233;ment, 2003). Les principales diff&#233;rences entre les deux corpus r&#233;sident dans le
+nombre de phrases et l&#8217;origine de celles-ci. Le corpus de Paris VII est compos&#233; de 12351 phrases
+qui proviennent d&#8217;une s&#233;lection d&#8217;articles du journal Le Monde, et Sequoia est compos&#233; de 3204
+phrases venant de diff&#233;rents horizons, commeWikipedia, le journal L&#8217;Est R&#233;publicain ou encore des
+notices m&#233;dicales. La figure 1 donne un exemple d&#8217;arbre syntaxique. Les noeuds pr&#233;-terminaux
+contiennent les POS-tag 3 du mot, les autres noeuds internes contiennent le type syntagmatique
+du sous-arbre et les feuilles repr&#233;sentent les mots de la phrase.
+</p>
+<p>Etant donn&#233; que le format des annotations ne correspond pas aux arbres de d&#233;rivation d&#8217;une
+grammaire AB, nous utilisons le transducteur d&#8217;arbres g&#233;n&#233;ralis&#233; pour transformer les arbres du
+</p>
+<p>1. Une grammaire cat&#233;gorielle rigide force les mots du lexique &#224; n&#8217;avoir qu&#8217;un seul type.
+2. Une grammaire k-valu&#233;e permet aux mots d&#8217;un lexique d&#8217;avoir k types au maximum.
+3. les annotations parties du discours
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>29 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>corpus de Paris VII et de Sequoia en arbres de d&#233;rivation.
+</p>
+<p>Nous commencerons par d&#233;crire la grammaire AB g&#233;n&#233;r&#233;e par le transducteur g&#233;n&#233;ralis&#233;, ensuite
+nous rappellerons le principe g&#233;n&#233;ral de l&#8217;algorithme d&#8217;unification pour les grammaires AB et
+d&#233;crirons celui que nous utilisons. Dans la section quatre, nous d&#233;crirons le format de vecteurs
+utilis&#233;s pour l&#8217;&#233;tape de clustering. L&#8217;&#233;valuation de notre m&#233;thode suivra, ainsi qu&#8217;une discussion
+sur les extensions possible de ce travail.
+</p>
+<p>SENT
+</p>
+<p>NP-SUJ
+</p>
+<p>DET
+</p>
+<p>Le
+</p>
+<p>NPP
+</p>
+<p>CBV
+</p>
+<p>VN
+</p>
+<p>V
+</p>
+<p>autorise
+</p>
+<p>NP-OBJ
+</p>
+<p>NPP
+</p>
+<p>Indosuez
+</p>
+<p>VPinf-A_OBJ
+</p>
+<p>P
+</p>
+<p>&#224;
+</p>
+<p>VN
+</p>
+<p>ADV
+</p>
+<p>ne_pas
+</p>
+<p>VINF
+</p>
+<p>d&#233;poser
+</p>
+<p>NP-OBJ
+</p>
+<p>DET
+</p>
+<p>d&#8217;
+</p>
+<p>NC
+</p>
+<p>OPA
+</p>
+<p>PP-MOD
+</p>
+<p>P
+</p>
+<p>sur
+</p>
+<p>NP
+</p>
+<p>DET
+</p>
+<p>la
+</p>
+<p>NPP
+</p>
+<p>CPR
+</p>
+<p>PONCT
+</p>
+<p>.
+</p>
+<p>FIGURE 1 &#8211; Exemple d&#8217;arbre syntaxique du corpus de Paris VII.
+</p>
+<p>2 Arbres de d&#233;rivation d&#8217;une grammaire AB
+</p>
+<p>Les grammaires AB ont &#233;t&#233; d&#233;finies s&#233;par&#233;ment par Ajdukiewicz (Ajdukiewicz, 1935) et Bar-Hillel
+(Bar-Hillel, 1964) &#224; partir du coeur des grammaires cat&#233;gorielles et sont &#224; pr&#233;sent consid&#233;r&#233;es
+comme une sous-partie du calcul de Lambek (Lambek, 1958) et des grammaires cat&#233;gorielles
+combinatoires 4 (Hockenmaier et Steedman, 2007). Les grammaires AB ont seulement deux
+r&#232;gles d&#8217;&#233;liminations, comme montr&#233; tableau 1.
+</p>
+<p>A/B B
+A [/E]
+</p>
+<p>B B\A
+A [\E]
+</p>
+<p>TABLE 1 &#8211; The elimination rules for AB grammar
+</p>
+<p>Les arbres de d&#233;rivation d&#8217;une grammaire AB repr&#233;sentent l&#8217;application successive des r&#232;gles
+d&#8217;&#233;liminations.
+</p>
+<p>Notre transducteur g&#233;n&#233;ralis&#233;, qui correspond &#224; une version modifi&#233;e d&#8217;un transducteur descen-
+dant, transforme les arbres syntaxiques des deux corpus en d&#233;rivations d&#8217;une grammaire AB. La
+figure 2 montre un exemple de sortie du transducteur correspondant &#224; l&#8217;arbre syntaxique de la
+</p>
+<p>4. Il est &#224; noter cependant que nous suivons la convention d&#233;termin&#233;e par Lambek d&#8217;avoir toujours la cat&#233;gorie qui
+sert d&#8217;argument sous le slash.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>30 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>figure 1. Moins de 1.650 r&#232;gles de transduction sont n&#233;cessaires pour convertir 92% du corpus
+de Paris VII (93% de Sequoia).
+</p>
+<p>TEXT t x t
+</p>
+<p>SENT s
+</p>
+<p>NP-SUJ np
+</p>
+<p>DET np/n
+</p>
+<p>Le
+</p>
+<p>NPP n
+</p>
+<p>CBV
+</p>
+<p>np\s
+</p>
+<p>(np\s)/(np\si)
+</p>
+<p>VN ((np\s)/(np\si))/np
+</p>
+<p>V ((np\s)/(np\si))/np
+</p>
+<p>autorise
+</p>
+<p>NP-OBJ np
+</p>
+<p>NP np
+</p>
+<p>Indosuez
+</p>
+<p>VPinf-A_OBJ np\si
+</p>
+<p>P (np\si)/(np\si)
+</p>
+<p>&#224;
+</p>
+<p>np\si
+</p>
+<p>np\si
+</p>
+<p>(np\si)/np
+</p>
+<p>ADV ((np\si)/np)/((np\si)/np)
+</p>
+<p>ne_pas
+</p>
+<p>VINF (np\si)/np
+</p>
+<p>d&#233;poser
+</p>
+<p>NP-OBJ np
+</p>
+<p>DET np/n
+</p>
+<p>d&#8217;
+</p>
+<p>NC n
+</p>
+<p>OPA
+</p>
+<p>PP-MOD (np\si)\(np\si)
+</p>
+<p>P ((np\si)\(np\si))/np
+</p>
+<p>sur
+</p>
+<p>NP np
+</p>
+<p>DET np/n
+</p>
+<p>la
+</p>
+<p>NPP n
+</p>
+<p>CPR
+</p>
+<p>PONCT s\t x t
+</p>
+<p>.
+</p>
+<p>FIGURE 2 &#8211; Sortie du transducteur. Les informations provenant de l&#8217;arbre syntaxique sont toujours
+pr&#233;sentes. Il est &#224; noter que sur la sortie r&#233;elle, les types sont aussi pr&#233;sents dans les feuilles ; ils
+sont h&#233;rit&#233;s des noeuds pr&#233;-terminaux.
+</p>
+<p>Le transducteur utilise quelques types atomiques pour l&#8217;&#233;tape de transduction : np, n, s, txt, pp,
+cs, clr . Cela correspond respectivement, &#224; : un syntagme nominal, un nom commun, une phrase,
+un &quot;texte&quot; (une phrase avec une ponctuation finale), un syntagme pr&#233;positionnel, une clause
+subordonn&#233;e et un clitique r&#233;flexif. En plus, nous utilisons les types np\sp et np\si pour les
+syntagmes participiaux et infinitivaux. Cependant, le transducteur est relativement modulaire.
+Chacun peut cr&#233;er un ensemble de r&#232;gles pour binariser les arbres et le transducteur v&#233;rifiera que
+les arbres sont bien binaires &#224; la sortie et que les types sont coh&#233;rents au sens de Ajdukiewicz,
+c&#8217;est &#224; dire qu&#8217;on a bien &#224; chaque &#233;tape une application d&#8217;une des r&#232;gles d&#8217;&#233;limination.
+</p>
+<p>Nous utiliserons ces types pour initialiser nos arbres avant l&#8217;&#233;tape d&#8217;unification ; la description du
+format d&#8217;entr&#233;e est effectu&#233;e dans la section 3.
+</p>
+<p>3 Inf&#233;rence grammaticale
+</p>
+<p>Un algorithme d&#8217;inf&#233;rence grammaticale bien connu est celui d&#233;crit par Buszkowski et Penn
+(Buszkowski et Penn, 1990). Pour apprendre une grammaire rigide, cela ne pose pas de probl&#232;me
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>31 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>(voir algorithme 1) : soit les types du lexique peuvent &#234;tre unifi&#233;s jusqu&#8217;&#224; ce qu&#8217;il n&#8217;y en ait plus
+qu&#8217;un par mot, soit l&#8217;algorithme &#233;choue. Pour apprendre une grammaire k-valu&#233;e (Kanazawa,
+1998) il y a besoin du m&#234;me format d&#8217;entr&#233;e, comme montre la figure 3. Le coeur du probl&#232;me
+avec les grammaires k-valu&#233;es est de d&#233;cider quels types doivent &#234;tre unifi&#233;s, car la meilleure
+unification possible ne peut &#234;tre d&#233;cid&#233;e que d&#8217;un point de vue global. C&#8217;est pour cela que ce
+probl&#232;me d&#8217;inf&#233;rence grammaticale est NP-dur (Costa-Flor&#234;ncio, 2001) d&#232;s que k &#8805; 2. Il est
+&#233;galement important de noter que k n&#8217;est g&#233;n&#233;ralement pas connu d&#8217;avance, ce qui complique la
+r&#233;solution de l&#8217;algorithme.
+</p>
+<p>\ s
+</p>
+<p>\ a
+</p>
+<p>/ b
+</p>
+<p>Le b/c CBV c
+</p>
+<p>/ b\a
+</p>
+<p>/ (b\a)/d
+</p>
+<p>autorise ((b\a)/d)/e Indosuez e
+</p>
+<p>/ d
+</p>
+<p>&#224; d/ f \ f
+</p>
+<p>/ g
+</p>
+<p>/ g/h
+</p>
+<p>ne_pas (g/h)/i d&#233;poser i
+</p>
+<p>/ h
+</p>
+<p>d&#8217; h/ j OPA j
+</p>
+<p>/ g\ f
+</p>
+<p>sur (g\ f )/k / k
+</p>
+<p>la k/l CPR l
+</p>
+<p>. a\s
+</p>
+<p>FIGURE 3 &#8211; Exemple d&#8217;entr&#233;e pour les deux algorithmes d&#8217;unification.
+</p>
+<p>Donn&#233;es: arbres dont la racine est &#233;tiquet&#233;e s, les noeuds internes / ou \, et les feuilles
+avec des variables
+</p>
+<p>R&#233;sultat: une grammaire rigide
+cr&#233;ation d&#8217;un lexique de mots contenant toutes les variables qui leurs sont li&#233;es ;
+tant que chaque mot a plusieurs types qui lui sont li&#233;s faire
+</p>
+<p>rechercher l&#8217;unificateur le plus g&#233;n&#233;raliste, de mani&#232;re &#224; r&#233;duire globalement le nombre
+de variables li&#233;es aux mots;
+si l&#8217;unification n&#8217;est pas possible alors l&#8217;algorithme &#233;choue;
+</p>
+<p>fin
+Algorithm 1: Algorithme d&#8217;apprentissage d&#8217;une grammaire rigide.
+</p>
+<p>Pour illustrer le probl&#232;me de l&#8217;unification, il suffit de prendre deux phrases du corpus de Paris VII :
+Nous avons de plus en plus de monde dans les DOM-TOM et Le gouvernement n&#8217;avait ni &#233;crit ni choisi
+cet accord dont nous avons h&#233;rit&#233;. Le lexique avant unification est d&#233;crit tableau 2. En appliquant
+l&#8217;algorithme de Buszkowski et Penn, le verbe avons aura deux types qui se ressemblent : (d\c)/e
+et (w\v)/x . En effet, &#224; chaque fois avons prend deux arguments, l&#8217;un &#224; sa gauche et l&#8217;autre &#224; sa
+droite. Cependant, nous ne pouvons pas unifier ces deux types, parce que dans le premier cas
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>32 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>l&#8217;argument de droite est un groupe nominal et dans le second cas un participe pass&#233; ; en outre
+nous ne souhaitons pas que les deux aient le m&#234;me type, pour &#233;viter des phrases agrammaticales.
+Pour ces deux phrases, nous avons donc besoin au minimum d&#8217;une grammaire 2-valu&#233;e, et avons
+doit avoir deux types diff&#233;rents : (np\s)/np et (np\s)/(np\sp).
+</p>
+<p>nous d, w avons (d \c)/e de_plus_en_plus e/ f
+, (w \v)/x
+</p>
+<p>de f /g monde g dans (c\a)/h
+les h/i DOM-TOM i le l/m
+gouvernement m n&#8217; ((l \k)/n)/p avait (o/p)/q
+ni q/r, p/s &#233;crit r cet n/t
+accord u dont (u\t)/v h&#233;rit&#233; x
+. k\ j, a\b
+</p>
+<p>TABLE 2 &#8211; Lexique avant unification
+</p>
+<p>Entre ces algorithmes standards d&#8217;inf&#233;rence grammaticale et le n&#244;tre, il y a deux diff&#233;rences
+principales.
+</p>
+<p>La premi&#232;re diff&#233;rence r&#233;side dans le fait que nous utilisons les informations provenant des
+annotations du corpus, comme r&#233;sum&#233; dans la table 3. Les types assign&#233;s aux noeuds ont &#233;t&#233;
+choisis en fonction de leur fr&#233;quence dans le lexique extrait des arbres apr&#232;s transduction. Si
+le label n&#8217;est pas dans la table, le type du noeud sera une variable dans le cas d&#8217;un noeud
+argument. Si le noeud est foncteur, son type sera instanci&#233; en m&#234;me temps que celui de son
+argument, puisque cette m&#233;thode est descendante. Les arbres utilis&#233;s en entr&#233;e contiennent donc
+des sous-formules avec des variables libres. L&#8217;inf&#233;rence grammaticale consiste &#224; transformer ces
+arbres aux types partiellement sp&#233;cifi&#233;s en arbres de d&#233;rivation sans variable. Un exemple d&#8217;arbre
+d&#8217;entr&#233;e est montr&#233; figure 4. On remarque que certains mots, m&#234;me si leur POS-tag n&#8217;est pas
+dans la table 3, ont d&#233;j&#224; des types complexes sans variable.
+</p>
+<p>label type label type
+TEXT txt SENT s
+NP np NP-ARG np
+PP pp AP-ARG n\n
+CLS np CLS-SUJ np
+NC n NPP np
+VPP np\ sp VINF np \ si
+</p>
+<p>TABLE 3 &#8211; Extrait de la liste des types assign&#233;s aux noeuds lorsque ceux-ci ont le bon label, si et
+seulement s&#8217;ils sont arguments et non foncteurs au niveau des d&#233;rivations d&#8217;une grammaire AB.
+</p>
+<p>La seconde diff&#233;rence est l&#8217;utilisation de clusters pour guider l&#8217;&#233;tape d&#8217;unification. Nous avons
+pris le parti d&#8217;utiliser un algorithme de clustering hi&#233;rarchique pour ce faire. Un cluster peut aussi
+bien regrouper un ensemble de cluster que des mots. Chaque cluster est associ&#233; &#224; une hauteur
+qui repr&#233;sente la similarit&#233; entre les donn&#233;es qu&#8217;il regroupe. Ainsi, les clusters de hauteur z&#233;ro
+regroupent les mots dont les vecteurs sont identiques, et les clusters de hauteur plus importante
+regroupent aussi bien des mots que d&#8217;autres clusters qui leurs sont proches, comme montr&#233; figure
+5. Nous unifions les clusters par hauteur croissante, ce qui nous permet d&#8217;unifier par ordre de
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>33 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>\ t x t
+</p>
+<p>\ s
+</p>
+<p>/ np
+</p>
+<p>Le np/n CBV n
+</p>
+<p>/ np\s
+</p>
+<p>/ (np\s)/(np\si)
+</p>
+<p>autorise ((np\s)/(np\si))/np Indosuez np
+</p>
+<p>/ np\si
+</p>
+<p>&#224; (np\si)/aa1 \ aa1
+</p>
+<p>/ ab1
+</p>
+<p>/ ab1/np
+</p>
+<p>ne_pas (ab1/np)/ac1 d&#233;poser ac1
+</p>
+<p>/ np
+</p>
+<p>d&#8217; np/n OPA n
+</p>
+<p>/ ab1\aa1
+</p>
+<p>sur (ab1\aa1)/np / np
+</p>
+<p>la np/n CPR n
+</p>
+<p>. s\t x t
+</p>
+<p>FIGURE 4 &#8211; Arbre d&#8217;entr&#233;e pour notre algorithme d&#8217;inf&#233;rence grammaticale. Certains types sont
+d&#233;j&#224; trait&#233;s par l&#8217;&#233;tape de transduction et les autres sont remplac&#233;s par des variables.
+</p>
+<p>similarit&#233;. Lorsque, pour une hauteur donn&#233;e, nous avons plusieurs possibilit&#233;s d&#8217;unification,
+nous appliquons un ordre de priorit&#233; qui peut &#234;tre r&#233;sum&#233; par :
+</p>
+<p>1. unifier les plus petits clusters,
+</p>
+<p>2. unifier les clusters pour lesquels il n&#8217;y a qu&#8217;un seul choix par variable,
+</p>
+<p>3. unifier avec le plus simple candidat (la complexit&#233; d&#8217;un candidat est calcul&#233;e en fonction
+du nombre de \et de / qu&#8217;il contient),
+</p>
+<p>4. choisir le premier venu pour les autres variables, avec la possibilit&#233; de choisir al&#233;atoirement
+l&#8217;unification.
+</p>
+<p>Il se peut que tous les mots ne soient pas repr&#233;sent&#233;s &#224; un niveau donn&#233;, par cons&#233;quent il peut
+rester des variables dans les types apr&#232;s une &#233;tape de clustering. Dans ce cas, on passe &#224; un
+nouveau niveau de clustering. Cette mani&#232;re de proc&#233;der nous assure l&#8217;unification des variables
+qui apparaissent en premier lieu dans des contextes les plus similaires possibles.
+</p>
+<p>Il est &#224; noter que m&#234;me avec des variables, les arbres de d&#233;rivation partiels restent des d&#233;rivations
+valides et repr&#233;sentatives d&#8217;une grammaire AB : Les deux r&#232;gles d&#8217;&#233;limination sont les seules
+utilis&#233;es pour cr&#233;er les arbres.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>34 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>FIGURE 5 &#8211; Extrait d&#8217;un cluster de 5 phrases. Les participes pass&#233;s sont regroup&#233;s d&#8217;abord par
+contexte puis tous ensemble dans de plus larges clusters jusqu&#8217;&#224; n&#8217;en former plus qu&#8217;un.
+</p>
+<p>4 Clustering
+</p>
+<p>4.1 Extraction de vecteurs
+</p>
+<p>Nous avons d&#233;cid&#233; d&#8217;assigner des vecteurs aux mots en extrayant les informations des corpus
+avant transductions.
+</p>
+<p>Les vecteurs ont six dimensions :
+</p>
+<p>1 POS-tag du mot (p&#232;re),
+</p>
+<p>2 information morpho-syntaxique (grand-p&#232;re),
+</p>
+<p>3-4 POS-tag du fr&#232;re &#224; gauche et &#224; droite,
+</p>
+<p>5-6 distance jusqu&#8217;au plus proche anc&#234;tre commun avec le voisin de gauche et de droite.
+</p>
+<p>S&#8217;il n&#8217;y a pas de voisin de droite ou de gauche (dernier ou premier mot d&#8217;une phrase), la valeur
+correspondant &#224; la coordonn&#233;e de ce vecteur sera instanci&#233;e &#224; N I L ou &#8722;5, suivant si c&#8217;est un
+label ou un nombre. Deux exemples de vecteurs sont donn&#233;s figure 6.
+</p>
+<p>le1 &lt; DET, NP-SUJ,N I L,NC,&#8722;5,2&gt;
+le2 &lt; DET, NP-MOD, VPP, ADJ,3,2&gt;
+</p>
+<p>FIGURE 6 &#8211; Deux vecteurs correspondant au d&#233;terminant &quot;le&quot;.
+</p>
+<p>Pour comparer les vecteurs, nous avons besoin de les transformer en vecteurs dans Zn,n &#8712; N.
+Nous avons pris le parti de transformer chaque label en vecteur o&#249; seulement une ou deux
+dimensions poss&#232;de la valeur 1 et le reste des coordonn&#233;es a pour valeur 0. Les POS-tags
+et les informations syntaxiques sont transform&#233;s de cette mani&#232;re. Les distances num&#233;riques
+restent telles quelles, comme montr&#233; figure 6. La transformation est illustr&#233;e par la table 4 avec
+seulement une portion des donn&#233;es. Il y a une &#8220;dimension&#8221; pour presque chacun des POS-tags
+(avec cependant quelques exceptions pour des cas que nous souhaitons voir unifi&#233;s ensemble,
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>35 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>comme ET pour les mots &#233;trangers et NPP pour les noms propres) ; pour les informations morpho-
+syntaxiques, en plus d&#8217;une dimension pour chaque cat&#233;gorie de base (NP, PP...) on fait seulement
+la diff&#233;rence entre les arguments ( repr&#233;sent&#233;s par le -SUJ, -OBJ, -ATS... &#224; la fin des labels) et les
+modificateurs -MOD.
+</p>
+<p>POS-tag NC DET P ...
+NC 1 0 0 0...0
+DET 0 1 0 0...0
+P+D 0 1 1 0...0
+Other NP ... -ARG -MOD
+NP 1 0...0
+NP-SUJ 1 0...0 1 0
+NP-MOD 1 0...0 0 1
+</p>
+<p>TABLE 4 &#8211; Exemple de transformation de vecteurs.
+</p>
+<p>4.2 Cr&#233;ation des clusters
+</p>
+<p>Pour calculer le cluster hi&#233;rarchique nous utilisons le logiciel R (Ihaka et Gentleman, 1993), la
+distance m&#233;trique Manhattan et pour le clustering en lui-m&#234;me la m&#233;thode de variance minimum
+de Ward (Ward, 1963). Pour mieux visualiser le cluster complet nous utilisons Tulip (Auber et
+Mary, 2007), ce qui permet de cr&#233;er des graphes comme ceux de la figure 7. Les d&#233;tails du
+graphe seront montr&#233;s dans la section suivante.
+</p>
+<p>5 Evaluation
+</p>
+<p>Nous avons test&#233; notre m&#233;thode sur 754 phrase de Sequoia et 553 phrases du corpus de Paris VII.
+Le tableau 5 montre l&#8217;efficacit&#233; de la m&#233;thode, calcul&#233;e en fonction du pourcentage de variables
+restant apr&#232;s unification.
+</p>
+<p>Corpus Sequoia (754 phrases) Paris VII (553 phrases)
+variables restantes 3 0
+nombre total de variables 1.429 686
+ratio 99,8% 100%
+</p>
+<p>TABLE 5 &#8211; Pourcentage de variables restantes apr&#232;s unifications sur l&#8217;extrait de Sequoia et Paris
+VII.
+</p>
+<p>Cependant le nombre de variables restantes sont un faible crit&#232;re de succ&#232;s. En effet, si les
+variables sont unifi&#233;es mais que les types r&#233;sultants sont trop complexes, on ne peut pas dire que
+notre m&#233;thode soit un r&#233;el succ&#232;s, m&#234;me si toutes les phrases ont un arbre de d&#233;rivation valide.
+</p>
+<p>Pour le corpus Sequoia, lorsque l&#8217;on compare les lexiques extraits apr&#232;s transduction et avec
+notre nouvel algorithme d&#8217;inf&#233;rence grammaticale, on peut noter que 82,7% des lexiques sont
+identiques : cela signifie qu&#8217;il y a seulement 2967 paires mot-type diff&#233;rentes sur les 17110
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>36 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>FIGURE 7 &#8211; Cluster correspondant &#224; notre ensemble test de phrases. La partie entour&#233;e en
+pointill&#233;s correspond &#224; l&#8217;endroit o&#249; il y a le plus de verbes ; celle entour&#233;e par des tirets aux
+d&#233;terminants et la partie simplement cercl&#233;e correspond aux adjectifs. On peut noter que les
+adjectifs et les d&#233;terminants sont proches les uns des autres. Cela s&#8217;explique parce qu&#8217;ils prennent
+g&#233;n&#233;ralement tous les deux un nom commun en argument et qu&#8217;ils sont pr&#233;sents dans des
+groupes nominaux.
+</p>
+<p>paires du lexique. Cela correspond &#224; 1012 entr&#233;es dans le lexique qui ont au moins une diff&#233;rence.
+</p>
+<p>Pour les 553 phrases du corpus de Paris VII, nous comparons plus en d&#233;tail les deux lexiques.
+Cela correspond &#224; 2076 mots, soit 5731 paires mot-types.
+</p>
+<p>Les diff&#233;rences entre les deux lexiques correspondent &#224; 899 paires qui s&#8217;&#233;talent sur 379 mots,
+soit 14,9% du lexique. Cela signifie que 85,1% des lexiques sont identiques. Dans ces 85,1%
+il faut noter cependant qu&#8217;il y a 2% de modifications mineures, telles qu&#8217;un np qui devient
+un n (majoritairement dans des cas tels que &quot;Le pr&#233;sident Merem&quot;) ou qu&#8217;une inversion entre
+les diff&#233;rents types des pr&#233;positions, pp, ppde ou ppa (les trois correspondent &#224; des syntagmes
+pr&#233;positionnels, mais les deux derniers ajoutent comme information que la pr&#233;position utilis&#233;e
+est un &#224; ou un de. Il faut noter cependant que certaines pr&#233;positions ne sont pas annot&#233;es
+comme ayant un &#224; ou un de dans le corpus). Nous travaillons actuellement &#224; faire dispara&#238;tre ces
+modifications mineures.
+</p>
+<p>Le tableau 6 trie les diff&#233;rences en deux cat&#233;gories : d&#8217;un c&#244;t&#233; les types qui sont pr&#233;sents dans le
+lexique provenant du transducteur mais qui n&#8217;ont pas la m&#234;me occurrence, et de l&#8217;autre ceux qui
+n&#8217;apparaissent pas dans le lexique de r&#233;f&#233;rence. Quelques exemples sont montr&#233;s dans le tableau
+7. Le participe pass&#233; accumul&#233; peut &#234;tre utilis&#233; aussi bien comme un adjectif. Le type donn&#233; par
+l&#8217;unification correspond &#224; un noeud VPP utilis&#233; comme un participe pass&#233; et non comme un
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>37 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>adjectif, ce qui pourtant correspond mieux au contexte, cependant la CCG Bank (Hockenmaier et
+Steedman, 2007) contient une r&#232;gle sp&#233;ciale qui permet une translation de np\sp &#224; n\n ; on peut
+donc dire que le fait de consid&#233;rer les deux types comme &#233;quivalents pour l&#8217;&#233;valuation semble
+&#234;tre justifi&#233;.
+</p>
+<p>Le type donn&#233; &#224; change est une vraie erreur : &#224; la place d&#8217;&#234;tre trait&#233; comme un verbe transitif qui
+prendrait donc deux arguments, il est trait&#233; comme un verbe intransitif. Cette erreur vient de
+l&#8217;&#233;tape de clustering, o&#249; change est proche d&#8217;un autre verbe intransitif.
+</p>
+<p>paires erron&#233;es 569 8,7%
+paires &#233;quivalentes 336 6,2%
+paires identiques 4 832 85,1%
+paires utilisables 5 168 91,3%
+</p>
+<p>TABLE 6 &#8211; Ratio entre les diff&#233;rences des lexiques, compt&#233;es en paire mot-type. On note que
+91,3% du lexique est sans erreur, donc utilisable en l&#8217;&#233;tat.
+</p>
+<p>Mot Unification Transduction
+accumul&#233; np\sp n\n
+change np\s (np\s)/np
+</p>
+<p>TABLE 7 &#8211; Un exemple de chaque classe de mots.
+</p>
+<p>La figure 8 montre deux clusters de niveau z&#233;ro. Le gauche est un cluster d&#8217;adverbes. La variable
+ab331 sera unifi&#233;e avec np. Le cluster de droite contient uniquement des variables qui seront
+unifi&#233;es en une seule. Il rassemble des adjectifs et des participes pass&#233;s utilis&#233;s en tant qu&#8217;adjectifs.
+</p>
+<p>FIGURE 8 &#8211; Zoom sur deux clusters de niveau z&#233;ro.
+</p>
+<p>6 Discussions
+</p>
+<p>La m&#233;thode que nous utilisons est faite pour fonctionner avec des arbres de d&#233;rivation : il s&#8217;agit
+d&#8217;apprentissage non supervis&#233;, mais avec des structures d&#8217;entr&#233;e contenant beaucoup d&#8217;infor-
+mations dont des informations syntaxiques. Cependant, cela pourrait &#234;tre &#233;tendu &#224; n&#8217;importe
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>38 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>quel ensemble de phrases qui ne sont pas sous forme d&#8217;arbres avec quelques modifications. L&#8217;id&#233;e
+serait d&#8217;utiliser &#224; la fois des phrases simples et d&#8217;autres phrases sous forme d&#8217;arbres de d&#233;rivation.
+</p>
+<p>Le probl&#232;me est d&#8217;avoir les vecteurs de mots pour les phrases qui n&#8217;ont pas d&#8217;arbres syntaxiques
+attach&#233;s. On pourrait alors utiliser les vecteurs d&#8217;un sous-espace car certaines informations,
+comme le POS-tag des mots, peuvent &#234;tre facilement retrouv&#233;es avec un tagger (Moot, 2012).
+</p>
+<p>Ensuite, nous pouvons effectuer une &#233;tape de clustering avec ces vecteurs partiels et ceux extraits
+d&#8217;arbres syntaxiques en faisant une projection sur les seconds pour diminuer le nombre de
+dimensions. De cette mani&#232;re, les mots pourraient avoir le type le plus utilis&#233; par le cluster
+de niveau z&#233;ro leur correspondant. Cela nous permettrait d&#8217;avoir une plus grande visibilit&#233; sur
+les mots que si nous leur donnions juste le type le plus utilis&#233; dans un lexique de r&#233;f&#233;rence en
+fonction de leur POS-tag. Etant donn&#233; que nos vecteurs ont un grand nombre de dimensions et
+sont tr&#232;s vides, nous pourrions aussi appliquer la m&#233;thode d&#233;crite par Kailing et al. (Kailing et al.,
+2004) pour les manipuler.
+</p>
+<p>6.1 Application &#224; de plus grands corpus
+</p>
+<p>Nous souhaitons appliquer notre m&#233;thode actuelle &#224; des ensembles plus larges, mais nous
+aurons alors affaire &#224; des clusters beaucoup plus larges pour le corpus Sequoia complet (plus de
+63000 mots) ou encore pour le corpus de Paris VII (environ 300000 mots). L&#8217;&#233;tape de clustering
+est, avec la m&#233;thode de Ward (Ward, 1963), d&#8217;une complexit&#233; O(n3), et cela commence &#224;
+devenir probl&#233;matique pour ces grands ensembles. Il faut cependant noter que cela constitue une
+am&#233;lioration par rapport aux autres algorithmes d&#8217;apprentissage, &#233;tant donn&#233; que les grammaires
+k-valu&#233;es ont une complexit&#233; exponentielle.
+</p>
+<p>6.2 Optimisation de l&#8217;unification des types
+</p>
+<p>Pour l&#8217;instant, nous utilisons le crit&#232;re &#8220;premier trouv&#233;&#8221; pour unifier les variables lorsque nous
+n&#8217;avons pas d&#8217;autre crit&#232;re de choix. Une solution plus optimale serait de regarder toutes les
+variables dans leur globalit&#233;, de leur assigner une liste d&#8217;unifications possibles et d&#8217;utiliser
+l&#8217;algorithme de Kuhn-Munkres (Kuhn, 1955; Munkres, 1957) pour choisir la meilleure unification
+globale, comme par exemple celle qui donne l&#8217;instantiation des variables avec les types les plus
+simples.
+</p>
+<p>7 Conclusion
+</p>
+<p>Dans cet article, nous avons montr&#233; une nouvelle m&#233;thode pour extraire une grammaire AB
+par unification en utilisant le clustering pour nous guider. Une impl&#233;mentation est disponible
+(Sandillon-Rezer, 2013).
+</p>
+<p>Nous avons d&#233;cid&#233; d&#8217;utiliser un clustering hi&#233;rarchique, ce qui nous permettait d&#8217;unifier le lexique
+pas &#224; pas, soit jusqu&#8217;&#224; convergence, soit jusqu&#8217;&#224; ce qu&#8217;un conflit bloque l&#8217;unification. Cependant,
+il serait int&#233;ressant de tester notre m&#233;thode avec d&#8217;autres types de clustering, comme la m&#233;thode
+des k-means ou celle appel&#233;e Clustering By Committee (Pantel, 2003). Cette derni&#232;re m&#233;thode
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>39 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>cherche le meilleur centro&#239;de de chaque cluster qui est sens&#233; &#234;tre repr&#233;sentatif de chacun ; elle
+ne peut cependant pas &#234;tre appliqu&#233; en l&#8217;&#233;tat, parce que nous souhaitons faire l&#8217;unification apr&#232;s
+le clustering et que les types des centro&#239;des ne sont donc pas encore d&#233;finis.
+</p>
+<p>Les r&#233;sultats que nous avons sont prometteurs surtout si on garde &#224; l&#8217;esprit le fait que le format
+d&#8217;entr&#233;e est peu d&#233;taill&#233;, ce qui n&#233;cessite donc moins d&#8217;heures aux annotateurs, mais que nous
+sommes proches de notre lexique de r&#233;f&#233;rence : nous avons 91,3% du lexique qui est similaire et
+85,1% qui est identique.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>ABEILL&#201;, A. et CL&#201;MENT, L. (2003). Annotation morpho-syntaxique.
+</p>
+<p>ABEILL&#201;, A., CL&#201;MENT, L. et TOUSSENEL, F. (2003). Building a treebank for french. Treebanks,
+Kluwer, Dordrecht.
+</p>
+<p>ADRIAANS, P. W. (1999). Learning shallow Context-Free languages under simple distributions.
+</p>
+<p>AJDUKIEWICZ, K. (1935). Die syntaktische konnexit&#228;t. Stud. Philos., 1:1&#8211;27.
+</p>
+<p>AUBER, D. et MARY, P. (2007). Tulip : Better visualization through research.
+</p>
+<p>BAR-HILLEL, Y. (1964). Language and information : selected essays on their theory and application.
+Addison-Wesley Pub. Co.
+</p>
+<p>BUSZKOWSKI, W. et PENN, G. (1990). Categorial grammars determined from linguistic data by
+unification. Studia Logica.
+</p>
+<p>CANDITO, M. et SEDDAH, D. (2012). Le corpussequoia : annotation syntaxique et exploitation
+pour l&#8217;adaptation d&#8217;analyseur par pont lexical.
+</p>
+<p>COSTA-FLOR&#202;NCIO, C. (2001). Consistent identification in the limit of any of the classes k-valued
+is np-hard. Lecture Notes in Artificial Intelligence.
+</p>
+<p>GOLD, E. (1967). Language identification in the limit. Information and Control, 10.
+</p>
+<p>HOCKENMAIER, J. (2003). Data and models for statistical parsing with combinatory categorial
+grammar.
+</p>
+<p>HOCKENMAIER, J. et STEEDMAN, M. (2007). CCGbank : a corpus of CCG derivations and depen-
+dency structures extracted from the penn treebank. Computational Linguistics, 33(3):355&#8211;396.
+</p>
+<p>IHAKA, R. et GENTLEMAN, R. (1993). R project.
+</p>
+<p>KAILING, K., KRIEGEL, H. et KR&#214;GER, P. (2004). Density-connected subspace clustering for
+high-dimensional data. Proceedings of the Fourth SIAM International Conference on Data Mining.
+</p>
+<p>KANAZAWA, M. (1998). Learnable Classes of Categorial Grammars. Center for the Study of
+Language and Information, Stanford University.
+</p>
+<p>KUHN, H. (1955). The hungarian method for the assignment problem. Naval Research Logistics
+Quarterly.
+</p>
+<p>LAMBEK, J. (1958). The mathematics of sentence structure. The American Mathematical Monthly,
+65.
+</p>
+<p>MOOT, R. (2012). Wide-coverage semantics for spatio-temporal reasoning. Traitement Automa-
+tique des Langues 52.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>40 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MUNKRES, J. (1957). Algorithms for the assignment and transportation problems. Journal of the
+Society for Industrial and Applied Mathematics.
+</p>
+<p>PANTEL, P. (2003). Clustering by committee. PhD thesis.
+</p>
+<p>SANDILLON-REZER, N.-F. (2013). http ://www.labri.fr/perso/nfsr.
+SANDILLON-REZER, N.-F. et MOOT, R. (2011). Using tree tranducers for grammatical inference.
+Proceedings of Logical Aspects of Computational Linguistics 2011.
+</p>
+<p>TRAUTWEIN, H., ADRIAANS, P. et VERVOORT, M. (2000). Towards high speed grammar induction
+on large text corpora.
+</p>
+<p>WARD, J. (1963). Hierarchical grouping to optimize an objective function. Journal of the
+American Statistical Association.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>41 c&#65535; ATALA</p>
+
+</div></div>
+</body></html>

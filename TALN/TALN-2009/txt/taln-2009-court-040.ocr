@@ -1,0 +1,566 @@
+TALN 2009 — Session posters , Senlis, 24-26 juin 2009
+
+Un Algorithme d’Analyse de Type Earley pour Grammaires 51
+Concaténation d’Intervalles
+
+Laura Kallmeyerl Wolfgang Maierl Yannick Parmentierz
+
+(1) SFB 441 / UniversitatTi‘1bingen, Nauklerstr. 35, D-72074 Tiibingen
+(2) LORIA / Nancy Université, Campus Scientiﬁque, BP 239,
+F-54506 Vandoeuvre-Les-Nancy Cedex
+
+lk@sfs.uni-tuebingen.de wo.maier@uni-tuebingen.de parmenti@loria.fr
+
+Résumé. Nous présentons ici différents algorithmes d’analyse pour grammaires a conca-
+ténation d’intervalles (Range Concatenation Grammar, RCG), dont un nouvel algorithme de
+type Earley, dans le paradigme de l’analyse déductive. Notre travail est motivé par l’intérét
+porté récemment a ce type de grammaire, et comble un manque dans la littérature existante.
+
+Abstract. We present several different parsing algorithms for Range Concatenation Gram-
+mar (RCG), inter alia an entirely novel Earley-style algorithm, using the deductive parsing fra-
+mework. Our work is motivated by recent interest in range concatenation grammar in general
+and ﬁlls a gap in the existing literature.
+
+M0tS-CléS I Analyse syntaxique déductive, grammaires a concatenation d’intervalles.
+
+Keywords: Deductive parsing, range concatenation grammar.
+
+1 Introduction
+
+Les grammaires a concatenation d’intervalles (RCG) (Boullier, 2000) ont récemment recu une
+attention particuliere dans différents contextes de travail. Ceux-ci incluent la traduction auto-
+matique dirigée par la syntaxe (S¢gaard, 2008), le développement de grammaires (Sagot, 2005)
+ou encore l’extraction de grammaires a partir de treebanks (Maier & S¢gaard, 2008).
+
+En outre, d’un point de vue formel, les RCGs sont intéressantes car elles génerent exactement
+la classe des langages analysables en un temps polynomial (Bertsch & Nederhof, 2001). En
+particulier, elles sont plus puissantes que la classe des RCGs « simples », une sous-classe de
+RCG qui est équivalente aux systemes de réécriture hors-contexte linéaires (Linear Context-
+Free rewriting Systems, LCFRS), aux grammaires d’arbres adjoints multi-composantes locales
+aux arbres (Set-Local Multi-Component Tree-Adjoining Grammars, SL-MCTAG) (Weir, 1988)
+et aux grammaires hors-contexte multiples (Multiple Context-Free Grammars, MCFG) (Seki
+et al., 1991) (les preuves sont données par Boullier (1998)). Or, il a été démontré que cette
+derniere classe des RCGs simples est incapable de traiter certains phénomenes de la langue
+naturelle, comme par exemple la permutation d’arguments dans le « brouillage » (scrambling)
+des langues dites a ordre des mots libres (Becker et al., 1992), ou encore les constructions non
+
+Laura Kallmeyer, Wolfgang Maier et Yannick Parmentier
+
+semi-linéaires telles que l’empilement de cas en géorgien ancien (Michaelis & Kracht, 1996),
+et les nombres chinois (Radzinski, 1991), phénomenes que les RCGs peuvent traiter (Boullier,
+1999)
+
+Aussi, des algorithmes d’analyse pour RCG ont été présentés par (i) Boullier (2000), qui déﬁnit
+un algorithme d’analyse descendante directionnelle, et (ii) Barthélemy et al. (2001), qui ajoutent
+un oracle a l’algorithme de Boullier aﬁn de limiter l’espace de recherche. La classe des RCGs
+simples a recu une plus grande attention, comme en témoignent les travaux sur l’analyse a base
+d’automates de De La Clergerie (2002), ceux sur l’analyse déductive de LCFRS de Burden et
+Ljunglof (2005), ou encore l’approche de Kanazawa (2008) pour l’analyse de MCFG au moyen
+de Datalog.
+
+Dans cet article, nous ne prétendons pas motiver l’utilisation des RCGs (pour cela, se référer aux
+articles sus-cités), mais cherchons plutot a combler un manque dans la littérature sur les algo-
+rithmes d’analyse pour RCG non-simples. Plus précisément, nous fournissons une formulation
+de l’analyse de la classe entiere des RCGs dans le cadre de l’analyse par déduction. Nous pré-
+sentons dans un meme cadre des algorithmes descendants, des algorithmes de type CYK, et un
+algorithme de type Earley, facilitant ainsi une comparaison des différentes stratégies d’analyse.
+Pour proﬁter pleinement de cette comparaison, il est utile d’avoir des connaissances en analyse
+déductive, et notamment des regles de déduction du type de celles présentées par Shieber et
+al. (1995). L’ article est structuré comme suit. En Section 2, nous introduisons les notions préli-
+minaires nécessaires. En Section 3, nous introduisons les algorithmes descendants, en Section 4
+les algorithmes de type CYK et en Section 5 un algorithme de type Earley. Nous terminons en
+donnant quelques chiffres sur l’efﬁcacité relative des ces algorithmes.
+
+2 Notions préliminaires
+
+Les RCGs sont des grammaires dont les productions (appelées clauses) réécrivent des prédicats
+couvrant certaines parties de la phrase en d’autres prédicats. Par exemple, une clause de la forme
+S (aX b) —> S (X ) indique qu’un prédicat S est vrai pour une partie de la phrase si cette partie
+commence par un a et ﬁnit par un b, et si, de plus, S est également vrai pour la portion de phrase
+comprise entre a et b. Une clause S (c) —> e indique que S est vrai pour tout terminal c, sans
+autre condition. La RCG ayant les deux clauses S (aX b) —> S (X), S (c) —> e génere le langage
+{a”cb” | n 2 0}.
+
+Dans cet article, nous nous intéressons uniquement aux RCG positives car elles correspondent
+a la variante utilisée dans les travaux sus-mentionnés. Les RCG non-positives, appelées RCG
+négatives, permettent l’utilisation de prédicats négatifs de la forme A(0z1, . . . , an). De tels pré-
+dicats permettent de reconnaitre le langage complémentaire de celui généré au moyen des pré-
+dicats positifs correspondants (voir Boullier (2000) pour plus de détails).
+
+Déﬁnition 1 (Grammaire a concaténation d’intervalle). Une grammaire a concaténation d’in-
+tervalle (RCG) est un 5-uplet G = (N, T, V, P, S). N est an ensemble ﬁni de noms de prédicats,
+avec une fonction d’arité déﬁnie comme suit .' dim.‘ N —> N \ {O}, T et V sont des ensembles
+ﬁnis de symboles terminaux et de variables respectivement. P est an ensemble ﬁni de clauses de
+la forme 1/20 —> 1/21 . . Abm, on m 2 0 et chacun des 1/1,-, 0 g 2' g m, est un prédicat de la forme
+A,-(oz1,...,ozd,-m(,41.)) avec A, E N et ozj E (T U V)*pour 1 3 j g dz'm(A,-). Comme raccourci
+de notation pour A,-(ozl, . . . , old,-m(,41.)), nous utilisons A,-(62). S E N est le nom du prédicat de
+depart, tel que dz'm(S) = 1.
+
+Un Algorithme d’Analyse de Type Earley pour Grammaires a Concaténation d’Intervalles
+
+Le concept d’intervalle est primordial pour les RCG. Nous déﬁnissons ce concept et celui de
+vecteur d’intervalle ci-dessous.
+
+Déﬁnition 2 (Intervalle). Pour tout w E T*, ou w = wl . . .w,, avec w,- E T pour 1 3 i 3 n,
+
+nous déﬁnissons .'
+
+— Pos(w) := {0, . . .,n}.
+
+— Une paire (l, r) E Pos(w) >< Pos(w) avec l 3 r est un intervalle dans 11;. Sa production
+(l, r) (11)) est la sous-chaine w;+1 . . .wT.
+
+— Pour deux intervalles p1 = (l1,r1),p2 = (l2,r2) .' si r1 = lg, alors p1 - p2 = (l1,r2) ; sinon
+p1 - pg n’est pas déﬁni.
+
+Déﬁnition 3 (Vecteur d’intervalles). Pour un 11) E T* donne’, nous appelons un vecteur (;5 =
+((x1,y1), . . . , (wk, y,,)) vecteur d’intervalles de dimension k dans w si (x,-, y,-) est un intervalle
+dans w pour 1 3 2' 3 k.  (resp. gz5(i).r) dénote alors le premier (resp. second) composant
+du 1'9 element de qﬁ, c’est-a-dire 1:, (resp. y,-).
+
+Aﬁn d’instancier une clause de la grammaire, nous avons besoin de déterminer les intervalles
+couverts par toutes les variables dans la clause, et de toutes les occurrences de symboles ter-
+Ininaux. Par souci de clarté, nous supposons que les variables d’une clause et les occurrences
+de symboles terminaux sont équipées d’indices distincts, commencant a 1, ordonnés de gauche
+a droite, et tels que, pour les variables, seule la premiere occurrence donne lieu a un nouvel
+indice. Nous introduisons alors une fonction T : P —> N retournant l’indice maximal dans une
+clause. De plus, nous déﬁnissons T(c, 1:) pour une clause c et une variable ou une occurrence
+d’un terminal 1: donnés comme étant l’indice de 1: dans c.
+
+Déﬁnition 4 (Instanciation de clause). Une instanciation d ’une clause c E P avec T(c) =
+j par rapport a une chaine w est donne’e par le vecteur d’intervalles (g5 avec  = j.
+L’application de (;5 a un prédicat A(6Z) dans c associe toutes les occurrences de :13 E (T U V)
+avec T(c, 1:) = i dans 62 a  Si le résultat est déﬁni (c ’est-a-dire, les images de variables
+adjacentes peuvent étre concaténées), celui-ci est appelé un prédicat instancié et le re’sultat de
+l ’application de (;5 a tous les prédicats dans c, s’il est déﬁni, est appelé une clause instanciée.
+
+En plus des vecteurs d’intervalles, nous introduisons également des vecteurs de contraintes
+d’intervalle. Ceux-ci sont des vecteurs contenant des paires composées de variables d’extréIr1ité
+d’intervalle, et un ensemble de contraintes sur ces variables.
+
+Déﬁnition 5 (Vecteur de contraintes d’intervalles). Soit V, = {r1, r2, . .  un ensemble de va-
+riables d ’extre’mite’ d ’intervalle.
+
+Un vecteur de contraintes d’intervalles de dimension k est une paire (/3’, 0) oil
+
+— p E (V,2)k ; nous déﬁnissons l/T(p) comme l’ensemble des variables d ’extre’mite’ d ’intervalle
+apparaissant dans ,6
+
+— C est un ensemble de contraintes c, ayant l ’une desformes suivantes .'
+r1=r2, k=r1, r1+l€=r2, k3r1, r13k, r13r2our1+l€3r2
+pour r1,r2 E l/T(p) et k E N.
+
+Nous disons qu’un vecteur d’intervalles qﬁ satisfait un vecteur de contraintes d’intervalles (p, C)
+ssi qﬁ et p ont la meme dimension is et qu’il existe une fonction f : V, —> N associant p(i).l
+a q5(i).l et p(i).r a q5(i).r pour tout 1 3 i 3 k telle que toutes les contraintes dans C soient
+satisfaites. De plus, nous disons qu’un vecteur de contraintes d’intervalles (p, C) est satisﬁable
+ssi il existe un vecteur d’intervalles qﬁ qui le satisfait.
+
+Laura Kallmeyer, Wolfgang Maier et Yannick Parmentier
+
+Déﬁnition 6 (Vecteur de contraintes d’intervalles d’une clause). Pour toute clause c, nous deﬁ-
+
+nissons son vecteur de contraintes d’intervalles (p, G) par rapport a une chaine w avec |w| = n
+
+comme suit .'
+
+— p a pour dimension T(c), et toutes les variables d’extrémite’ d’intervalle dans p sont diﬁ°e’-
+rentes deux a deux.
+
+— Pour tout (T1, 7'2) 6 p.‘ 0 3 r1, r1 3 7'2, 7‘; g n E G.
+Pour toutes les occurrences :13 de terminaux dans c avec 2' = T(c, 1:) .'  .l+1 =  .7‘ E G.
+Pour toutes 1:, y qui sont des variables ou des occurrences de terminaux dans c telles que my
+est une sous-chaine d’un des arguments de c .' p(T(c,  = p(T(c, y)).l E G.
+Ce sont toutes les contraintes dans G.
+
+Intuitivement, un vecteur de contraintes d’intervalles d’une clause capture toute l’information
+sur les extrémités formant un intervalle, sur les intervalles contenant un unique terminal, et sur
+les occurrences de variables / terminaux adjacentes dans la clause.
+
+Une dérivation RCG consiste en la réécriture de prédicats instanciés:
+
+Déﬁnition 7 (Dérivation). Etant donné une RCG G et une chaine d’entrée w, nous de’ﬁnissons
+la relation =>g,w (appelée de’rive) sur les chaines des prédicats instanciés de la maniere sui-
+vante. Soient P1, P2 des chaines de prédicats instancie’s. Si A0(oZ{)) —> A1(oZ’1) . . .Am(oZ,’,,) est
+l ’instanciation d’une clause c 6 Pg, alors I‘1A0(oZ{))I‘2 =>g,w P1141 (071) . . .A,,,(oZ,’,,)I‘2.
+
+Intuitivement, si le membre de gauche d’une clause instanciée apparait dans la chaine de prédi-
+cats instanciés, il peut étre remplacé par son membre de droite.
+
+Déﬁnition 8 (Langage). Le langage d’une RCG G est l’ensemble des chaines qui peuvent etre
+réduites au mot vide: L(G) = {w | S((0,  §>g,w 6}.
+
+La capacité générative des RCGs dépasse celle des formalismes légerement sensibles au contexte.
+Par exemple, on peut considérer la RCG G = ({S, eq}, {a}, {X, Y}, P, S) avec P = {S(XY) —>
+S(X)eq(X, Y), S(a) —> 6, eq(aX, aY) —> eq(X, Y), eq(a, a) —> 6}. Il est facile de constater
+que L(G) = {a2" | n 2 0}. Ce langage n’est pas légerement sensible au contexte car il n’a pas
+la propriété de croissance constante.
+
+Par souci de clarté, nous supposons dans ce qui suit, sans perte de généralité, que les arguments
+vides (6) apparaissent uniquement dans les clauses dont les membres de droite sont vides.1
+
+3 Analyse descendante
+
+Analyse descendante non-directionnelle L’idée de 1’ana1yse descendante est d’instancier 1e
+prédicat de départ par rapport a la chaine d’entrée toute entiere et de veriﬁer récursivement s’il
+existe un moyen de réduire tous les prédicats des membres de droite a 6.
+
+Les items ont la forme [A, qﬁ, flag], ou A est un prédicat, qﬁ est un vecteur d’intervalles de di-
+mension dim (A) (contenant les intervalles avec lesquels sont instanciés les arguments de A) et
+ﬂag E {c, p} indique si l’item a été complété ou prédit.
+
+1Toute RCG peut étre transfonnée en une RCG satisfaisant cette condition: pour cela, il sufﬁt d’introduire un
+nouveau prédicat unaire Eps et une clause Eps(6) —> 6, puis, pour chaque clause :17 dont le membre de droite n’est
+pas 6, de remplacer chaque argument 6 qui apparait dans c par une nouvelle Variable X 5 et d’ajouter le prédicat
+Eps(X€) au membre de droite de c.
+
+Un Algorithme d’Analyse de Type Earley pour Grammaires a Concatenation d’Intervalles
+
+Comme axiome, nous predisons S couvrant toute la chaine d’entree. Ainsi, la regle initialisa-
+tion est la suivante:
+
+[3, (<0, n)),p]
+L’ operation prédiction predit de nouveaux items a partir des items precedemment predits :
+
+[A0a¢apl
+[A17¢1apl' ' ' [Aka (ﬁkapl
+
+s’il existe une clause A0(§:’0) —> A1(§:’1) . . .Ak(§:’k) avec une instanciation 1/2 telle que 1/2(0) =
+
+AW) —’ A1(¢1) - - -Ak(¢k)-
+
+Puisque, a la difference de l’analyse descendante standard pour grammaires hors-contexte, nous
+commencons avec l’integralite de la chaine d’entree a l’initialisation, nous avons besoin d’un
+moyen pour propager l’information sur les predicats instancies. Ceci se fait via un ﬂag p / c, dont
+la valeur est donnee par les operations de lecture et de completion. L’ operation de lecture met
+la valeur du ﬂag a c pour un item decrivant un predicat prealablement predit:
+
+[A7 ¢,;0]
+[Av <25, 0]
+
+s’il existe une clause c = A(§:’) —> e avec une instanciation 1/2 telle que 1/2(A(§:’)) = A(q5). La
+regle de completion met le ﬂag a c pour un predicat d’un membre de droite complete:
+
+[A0a¢7pla[A1a¢1aCl ' ' ' [Aka Q5767 Cl
+[A07¢aCl
+
+La reconnaissance reussit s’il existe un moyen de declarer que le predicat de depart est complete.
+Pour cela, nous utilisons un item but : [S, ((0, n)), c].
+
+Analyse descendante directionnelle L’a1gorithme ci-dessus peut étre ameliore en evaluant les
+predicats d’un membre de droite de maniere ordonnee (de gauche a droite), et en interrompant
+l’evaluation des qu’une instanciation de predicat echoue. Cette variante correspond a l’algo-
+rithme presente dans Boullier (2000)? Aussi, nous devons distinguer les items passifs des items
+actifs. Les items passifs ont les memes forme et signiﬁcation que les items de l’algorithme non-
+directionnel presente precedemment. Les items actifs permettent de deplacer un signet (appele
+dot) le long d’un membre de droite d’une clause:  —> Q) 0 \II, qﬁ] ou A(§:’) —> <I>\II est
+une clause et qﬁ est un vecteur d’intervalles de dimension j = T(A(§:’) —> <I>\II) qui foumit
+l’instanciation de la clause.
+
+L’ axiome est la prediction du predicat de depart couvrant toute la chaine d’entree. Ainsi la regle
+initialisation est la meme que celle de l’algorithme non-directionnel. L’ item but ne change pas
+non plus. Nous avons a present deux operations de prediction. La premiere, prédiction-regle,
+predit des items actifs avec leur dot au debut de leur membre de droite, pour un item passif
+predit donne :
+
+A, , _.
+  ¢<A<w>> = Aw)
+
+La seconde, prédiction-préd, predit un item passif pour un predicat suivant le dot dans un item
+actif : _’
+[A(w) —> 41> - B(17)‘I’, <25]
+
+[B, T/1:19]
+2Notons que cet algorithme n’est pas celui implante dans le systéme SYNTAX developpe par Boullier et al.
+
+avec ¢(B(?7)) = B (1/1)
+
+Laura Kallmeyer, Wolfgang Maier et Yannick Parmentier
+
+L’ opération de lecture est la méme que dans le cas non-directionnel. L’ opération de complétion
+déplace le dot au-dessus d’un prédicat dans le membre de droite d’un item actif si l’item passif
+correspondant a été complété :
+
+[ , 3,0, A17’ —> 0 ,
+B "’[A(l,)[ § §,B(yi§’ ,5}? “*1 ¢<B<.«7>> = B<¢B>
+
+Une fois que le dot a atteint la ﬁn du membre de droite, nous pouvons effectuer une conversion
+de l’item actif en un item passif complété :
+
+  ¢<A<a2’>> = Aw)
+
+Un probleme évident de cet algorithme est que la regle prédiction-regle doit calculer toutes les
+instanciations possibles des clauses correspondant a un prédicat instancié donné. Prenons par
+exemple la RCG pour {a2" | n 2 0} de la Section 2. Si 11; = aaaa, a partir de [S, ((0, 4)), p]
+prédiction-regle prédirait (entre autres) tous les items actifs [S (X 11/5) —> oS(X1)eq(X1, Y5),
+((0, r), (r,  avec r E {0, 1, 2, 3, 4}. Le calcul de toutes les instanciations possibles est tres
+coﬁteux, et Va étre évité dans l’algorithme de type Earley présenté en Section 5. En effet, dans
+ce demier, nous utiliserons des vecteurs de contraintes d’intervalles (au lieu de vecteurs d’inter-
+valles) pour ne prédire qu’un seul item actif :
+
+[S(X1Yé) —> -S(X1)eq(X1,Yé), (((7‘1,7‘2), (7‘3,7‘4)), {0 = mri S 7‘2,7‘2 = 7‘3,7‘3 S 721,4 = 7‘4})]
+
+4 Analyse ascendante
+
+Analyse CYK L’analyse CYK (Cocke, Younger, Kasami) est une technique d’analyse ascen-
+dante non-directionnelle. Les items ont la forme [A, qﬁ] o1‘1 A est un prédicat et qﬁ un vecteur
+d’intervalles de dimension dim 
+
+Regle de lecture:
+
+[A, <25]
+s’il existe une clause c = A(§:’) —> e avec une instanciation 1/2 telle que 1/2(A(§:’)) = A(q5).
+Regle de complétion:
+[A1, 9151] - - - [Aka 9151s]
+[A, <25]
+
+o1‘1 A(q5) —> A1(q51) . . .A,,(q5,,) est une clause instanciée.
+L’item but est: [3, ((0, 
+
+Analyse ascendante directionnelle Un désavantage évident de 1’a1gorithme CYK est que, aﬁn
+de réaliser une opération de complétion, tous les A1, . . . , A], du membre de droite doivent étre
+vériﬁés pour les items correspondants. Ce qui mene a un grand nombre d’indices qui doivent
+étre vériﬁés en méme temps. Pour éviter cela, nous pouvons a nouveau déplacer un signet le
+long du membre de droite d’une clause. Comme dans le cas descendant directionnel, en plus
+des items ci-dessus (appelés items passzfs), nous ajoutons des items actifs. Dans les items actifs,
+nous gardons une trace des positions déja déterminées pour les extrémités gauche et droite des
+occurrences de variables et terminaux. Ceci est réalisé par l’enrichissement des items lies a la
+
+Un Algorithme d’Analyse de Type Earley pour Grammaires a Concaténation d’Intervalles
+
+Grammaire G: S'(XY) —> S'(X)eq(X, Y), S'(a1) —> 6, eq(a1X,a2Y) —> eq(X, Y), eq(a1,a2) —> 6
+Items générés pour la chaine w = aa (les contraintes 0 3 7'1, 7'2 3 n pour un intervalle <1"1,1"2) sont o1nises):
+Item Operation
+
+1. [.S', ((0,  lecture S'(a1) —> 6
+
+2. [.S', ((1,  lecture S'(a1) —> 6
+
+3. [eq, ((0, 1), (0,  lecture eq(a1,a2) —> 6
+4. [eq, ((0, 1), (1,  lecture eq(a1,a2) —> 6
+5. [eq, ((1,2), (0,  lecture eq(a1,a2) —> 6
+6. [eq, ((1, 2), (1, 2 lecture eq(a1,a2) —> 6
+7. [S'(XY) —> oS'(X)eq(X, Y), {X.l 3 X.1", X.1" = Y.l,Y.l 3 Y.1"}] initialisation,
+
+8. [eq(a1X,a2Y) —> oeq(X, Y),
+
+{(11.1 + 1 = a1.r,a1.r = X.l,X.l 3 X.r,a2.l + 1 = (12.7’', (12.7’' = Y.l,Y.l 3 Y.1"}]initialisation
+
+9. [S'(XY) —> S'(X) 0 eq(X,Y),  . . ,0 = X.l, 1 = X.r}] completion 7. avec 1.
+10. [S'(XY) —> S'(X) 0 eq(X,Y),  . . , 1 = X.l, 2 = X.r}] completion 7. avec 2.
+ll. [eq(a1X,a2Y) —> eq(X,Y)o,  . . , 1 = X.l, 2 = X.r, 1 = Y.l, 2 = Y.r}] completion 8. avec 6.
+12. [S'(XY) —> S'(X)eq(X,Y)o,  . . ,0 = X.l, 1 = X.r, 1 = Y.l,2 = Y.r}] completion 9. avec 4.
+13. [eq, ((0, 2), (0,  conversion 11.
+
+14. [S', ((0, 1), (1,  conversion 12.
+
+FIG. 1 — Trace d’une analyse CYK directionnelle.
+
+clause. Les items actifs ont la forme  —> Q 0 \II, (p, 0)] avec A(§:’) —> Q\II une clause,
+Q\II 7% 6, T(A(§:’ —> Q\II)) = j et (p, 0) un vecteur de contraintes d’intervalles de dimension
+j. Nous imposons que (p, C) doit étre satisﬁable. Les items qui different uniquement par une
+bijection des variables d’intervalles sont considérés comme equivalents.
+
+La regle de lecture et celle de but sont les memes que dans le cas non-directionnel. En outre,
+la regle initialisation introduit des clauses dont le dot est au début du membre de droite:
+
+[A(5) —> °‘1>,<p,C)]
+
+A(§:’) —> Q étant une clause avec pour vecteur de contraintes d’intervalles (p, C), Q 7% 6.
+
+La regle de complétion déplace le dot au-dessus d’un prédicat dans le membre de droite d’un
+item actif si l’item passif correspondant a été complété:
+
+lBa¢Bl:
+[A(.f:’) —> Q 0 B(.1:1...y1, ...,.1:;,...y;,)\Il, (p, C')]
+[A(.f:’) —> QB(1:1...y1, ..., .1:;,...yk) o \I/, (p, C'’)]
+
+011 C’ = C U {q5B(j).l = p(T(xj)).l, qSB(j).r = p(T(yj)).r | 1 3 j 3  Notons que les
+conditions sur les items nécessitent que le nouvel ensemble de contraintes pour p soit satisﬁable.
+
+La regle de conversion convertit un item actif dont le dot est a la ﬁn du membre de droite en un
+item passif complété :
+[Am a an, <p, 0)]
+[A, <25]
+s’il existe une instanciation 1/) de A(§:’) —> \II qui satisfasse (p, C) tel que 1/2(A(§:’)) = A(q5).
+
+Un exemple de trace d’exécution est donné en Fig. 1. Par souci de clarté, au lieu de variables
+d’intervalles, nous utilisons X .l (resp. X .7‘) pour l’extréInité gauche (resp. droite) de l’intervalle
+associé a X .
+
+Laura Kallmeyer, Wolfgang Maier et Yannick Parmentier
+
+5 Algorithme de type Earley
+
+Régles de déduction Nous ajoutons a present une opération de prédiction a l’algorithme CYK
+avec items actifs, ce qui conduit a un algorithme de type Earley. Les items passifs sont enrichis
+avec un ﬂag additionnel qui peut prendre les valeur p ou c selon que l’item est prédit ou com-
+plété. De plus, ils contiennent un vecteur de contraintes d’intervalles puisque, lorsqu’on prédit
+un prédicat, les extrémités gauche et droite de ses arguments peuvent ne pas étre connues.
+
+Les items passifs ont soit la forme [A, (p, C) , p] pour les items prédits, o1‘1 (p, C) est un vecteur
+de contraintes d’intervalles de dimension dim (A), soit la forme [A, qﬁ, c] pour les items com-
+plétés o1‘1 qﬁ est un vecteur d’intervalles de dimension dim  Les items actifs sont les mémes
+que dans le cas CYK. L’axiome est la prédiction d’un prédicat S couvrant la chaine d’entrée,
+c’est-a-dire, la regle initialisation est la suivante:
+
+[S9 «<71: 7.2)): {O : T1: n : r2}>apl
+
+Nous avons deux opérations de prédiction. La premiere, prédiction-régle, prédit des items
+actifs avec le dot au début de leur membre de droite, pour un item passif prédit donné:
+
+[14, <p,0>,pl
+[A(1:1...y1,...,1:k...yk) —> o\II, (p’,C")]
+
+011 (p’ , C’) est obtenu a partir du vecteur de contraintes d’intervalles de la clause
+
+A(a:1 . . .y1, . . . , 1:], . . .y,,) —> \II en prenant toutes les contraintes de C, en associant tous les
+p(i).l a p’ et tous les p(i).r a p’ (T(y,-)).r, et en ajoutant les contraintes résultant au
+vecteur de contraintes de la clause. La seconde opération, prédiction-pred, prédit un item passif
+pour le prédicat suivant le dot dans un item actif:
+
+ —> (I) 0 B(.1:1...y1, ...,.1:;,...yk)\I/, (p, C')]
+[3, <10’, 0’),pl
+
+o1‘1 p’(z').l = p(T(a:,-)).l, p’(i).r = p(T(y,-)).r pour tout 1 3 i 3 is et C’ = {c|c E C',cne
+contient que des variables d’intervalles de p’ L’opération lecture peut étre appliquée si un
+prédicat prédit peut étre dérivé par une 6-clause :
+
+[14, (/0, CM]
+[A9 <25, 0]
+
+s’il existe une clause A(§:’) —> e avec une instanciation possible 1/) qui satisfasse (p, C) telle que
+¢(A(5»")) = A(¢)-
+
+Finalement, les regles de complétion, de conversion sont celles de 1’a1gorithme CYK avec
+items actifs a ceci pres que nous ajoutons des ﬂags c aux items passifs apparaissant dans ces
+
+regles. L’ item but est le méme que précédemment. La Fig. 2 illustre cet algorithme avec la RCG
+et la chaine d’entrée déﬁnies dans l’eXemple de la Fig. 1.
+
+Correction et complétude Il est aisé de constater que 1’a1gorithme de type Earley est a la fois
+correct et complet. Plus précisément, si un item complété est généré, alors le prédicat corres-
+pondant peut étre dérivé: [A,1/2, c] => A(1/2). De plus, si on peut dériver un constituant A(1/2),
+alors on peut également générer l’item correspondant. Soit I‘ une chaine de prédicats instan-
+ciés. Alors S((0,  =*>; A(1/2)I‘ =*>; I‘ ssi [A,1/2, c] 011 =*>; signiﬁe “dérivation plus a gauche”.
+En particulier, [S, ((0, 72)), c] ssi S((0,  5 6.
+
+Un Algorithme d’Analyse de Type Earley pour Grammaires a Concatenation d’Intervalles
+
+Item Operation
+
+1 [S', (((1"1,1"2)), {0 = 1"1,r1 3 r2, 2 = 1"2}>a10l initialisation
+2 [S'(XY) —> o.S'(X)eq(X, Y), {X.l 3 X.r,X.r = Y.l, Y.l 3 Y.r,0 = X.l, 2 = Y.r}] prediction—regle del
+3 [3, (((1"1, 1"2)), {0 = 1"1,1"1 3 r2}),p] prediction-pred de 2
+4 [.S', ((0, 1)), c] lecture de 3
+5 [S'(XY) —> o.S'(X)eq(X, Y), {X.l 3 X.r,X.r = Y.l, Y.l 3 Y.r,0 = X.l,  prediction—regle de 3
+6 [S'(XY) —>S'(X)oeq(X,Y),{...,0=X.l,2=Kr,1=X.r}] complet.de2aVec4
+7 [S'(XY) —> .S'(X) 0 eq(X, Y), {X.l 3 X.r,X.r = Y.l,Y.l 3 Y.1",0 = X.l, 1 = X.1"}]complet. de 5 avec 4
+8 [eq, (((1"1,1"2), (r3,r4)),{1"1 3 13,13 = 1"3,r3 3 r4,0 = 1"1,2 = T'4,1 = r2})] prediction—predde6
+9 [eq(a1X,a2Y) —> oeq(X, Y), {(11.1 + 1 = a1.r,a1.r = X.l,X.l 3 X.r,
+
+(12.1 + 1 = 0,2.T', (1,2.T' = Y.l,Y.l 3 Y.r, X.r = (12.1, 0 = (11.1, 1 = X.r, 2 = Y.1"}] prediction-regle de 8
+
+10  ((0, 1), (1 2)) c] lecture 8
+
+11 [S'(XY) —» ,(X)ieq(X,Y)o,  . . ,0 = X.l, 2 = YA", 1 = X.r, 1 = Y.l}] complet. de 6 aVec10
+12 [S', ((0, 2)),c] conversion 11
+
+FIG. 2 — Trace d’une analyse de type Earley pour la chaine aa.
+
+Obtenir une forét d’analyse Jusqu’ici, nous avons decrit des reconnaisseurs et non des ana-
+lyseurs. Cependant, chaque fois qu’une conversion est realisee, une clause completement ins-
+tanciee a ete trouvee. En collectant ces clauses, nous obtenons une representation compacte de
+la forét. En partant d’un predicat S couvrant toute la chaine d’entree, nous pouvons extraire
+directement les analyses de cette representation.
+
+Complexité Il est clair que tous les algorithmes presentes ici sont polynomiaux par rapport a
+la taille de la chaine d’entree. Un grand facteur de complexite avec RCG, comme l’a montre
+Boullier (2000), est le nombre maximal de variables d’intervalles apparaissant dans un argument
+d’un predicat. Dans notre approche a la Earley, nous essayons de retarder au maximum le calcul
+des valeurs que ces intervalles peuvent prendre, aﬁn de reduire l’espace de recherche. Aﬁn
+d’avoir une idee de l’efﬁcacite de notre approche, nous donnons une evaluation du coﬁt relatif
+des algorithmes directionnel descendant et de type Earley. Ces algorithmes ont ete testes sur
+differents mots du langage L = {a2" |n 3 0}. La table ci-dessous donne le nombre d’items
+generes. Nous constatons que la propagation de contraintes d’intervalles augmente la quantite
+d’information transportee dans un item, et ainsi diminue grandement le nombre d’items.3
+Mots | Earley Descendant Mots | Earley Descendant
+a2 15 21 am 100 539
+as 55 164 (132 185 1894
+
+6 Conclusion
+
+Nous avons presente differents algorithmes d’analyse pour la classe entiere des RCGS, au moyen
+du paradigme de l’analyse par deduction. Seul l’algorithme descendant directionnel avait ete
+presente jusqu’alors. La difference cruciale entre cet algorithme et notre algorithme de type
+Earley est que, alors que le premier calcule toutes les instanciations de clause lors des operations
+de prediction, le second evite cela en utilisant une technique de mise a jour dynamique d’un
+ensemble de contraintes sur les extremites des intervalles. Les experiences menees montrent
+que l’algorithme de type Earley genere bien moins d’items, ce qui conﬁrme que la propagation
+de contraintes d’intervalles est une methode viable pour un calcul paresseux des intervalles.
+
+3Bien entendu, la presence de contraintes rend la comparaison entre items plus complexe, necessitant ainsi
+l’utilisation de representations de bas niveau et de techniques efﬁcaces de resolution de contraintes.
+
+Laura Kallmeyer, Wolfgang Maier et Yannick Parmentier
+
+Références
+
+BARTHELEMY F., BOULLIER P., DESCHAMP P. & DE LA CLERGERIE E. (2001). Guided
+parsing of Range Concatenation Languages. In Proceedings of the 39th Annual Meeting on
+Association for Computational Linguistics, p. 42-49.
+
+BECKER T., RAMBOW O. & NIV M. (1992). The Derivationel Generative Power of For-
+mal Systems or Scrambling is Beyond LCFRS. Technical Report IRCS-92-38, Institute for
+Research in Cognitive Science, University of Pennsylvania.
+
+BERTSCH E. & NEDERHOF M.-J. (2001). On the complexity of some extensions of RCG
+parsing. In Proceedings of the Seventh International Workshop on Parsing Technologies, p.
+66-77, Beijing, China.
+
+BOULLIER P. (1998). Proposal for a Natural Language Processing Syntactic Backbone. Rap-
+port de Recherche RR-3342, Institut National de Recherche en Informatique et en Automa-
+tique, Le Chesnay, France.
+
+BOULLIER P. (1999). Chinese numbers, mix, scrambling, and range concatenation grammars.
+In Proceedings of the 9th Conference of the European Chapter of the Association for Compu-
+tational Linguistics (EACL’99), p. 53-60, Bergen, Norway.
+
+BOULLIER P. (2000). Range concatenation grammars. In Proceedings of the Sixth Internatio-
+nal Workshop on Parsing Technologies (IWPT 2000), p. 53-64, Trento, Italy.
+
+BURDEN H. & LJUNGLOF P. (2005). Parsing linear context-free rewriting systems. In Pro-
+ceedings of the Ninth International Workshop on Parsing Technology, p. 11-17, Vancouver,
+British Columbia.
+
+KANAZAWA M. (2008). A preﬁx-correct earley recognizer for multiple context-free gram-
+mars. In Proceedings of the Ninth International Workshop on Tree Adjoining Grammars and
+Related Formalisms (TAG+9), p. 49-56, Tiibingen, Germany.
+
+MAIER W. & S¢GAARD A. (2008). Treebanks and mild context-sensitivity. In Proceedings
+of the I 3th Conference on Formal Grammar 2008, Hamburg, Germany.
+
+MICHAELIS J. & KRACHT M. (1996). Semilinearity as a Syntactic Invariant. In Logical
+Aspects of Computational Linguistics, Nancy.
+
+RADZINSKI D. (1991). Chinese number-names, tree adjoining languages, and mild context-
+sensitivity. Computational Linguistics, 17, 277-299.
+
+SAGOT B. (2005). Linguistic facts as predicates over ranges of the sentence. In Proceedings of
+LACL 05, number 3492 in Lecture Notes in Computer Science, p. 271-286, Bordeaux, France.
+SEKI H., MATSUMURA T., FUJII M. & KASAMI T. (1991). On multiple context-free gram-
+mars. Theoretical Computer Science, 88, 191-229.
+
+SHIEBER S. M., SCHABES Y. & PEREIRA F. C. N. (1995). Principles and implementation
+of deductive parsing. Journal of Logic Programming, 24(1& 2), 3-36.
+
+S¢GAARD A. (2008). Range concatenation grammars for translation. In Proceedings of the
+22nd International Conference on Computational Linguistics, Manchester, England.
+
+VILLEMONTE DE LA CLERGERIE E. (2002). Parsing mildly context-sensitive languages with
+thread automata. In Proceedings of the I 9th International Conference on Computational Lin-
+guistics, p. 1-7, Taipei, Taiwan.
+
+WEIR D. J. (1988). Characterizing mildly context-sensitive grammar formalisms. PhD thesis,
+University of Pennsylvania, Philadelphia, PA.
+

@@ -1,0 +1,576 @@
+TALN 2007, Toulouse, 5-8 juiu 2007
+
+Alignements monolingues avec déplacements
+
+Julien BOURDAILLET, Jean—Gabrie1 GANASCIA
+Laboratoire d’Inforrnatique de Paris 6
+Université Pierre et Marie Curie, 104 Quai Kennedy, 75016 Paris
+{julien . bourdaillet , j ean—gabrie1 . ganascia}@1ip6 . fr
+
+Résumé. Ce travail présente une application d’alignement monolingue qui répond a une
+problématique posée par la critique génétique textuelle, une école d’études littéraires qui s’in-
+téresse a la genese textuelle en comparant les différentes versions d’une oeuvre. Ceci nécessite
+l’identiﬁcation des déplacements, cependant, le probleme devient ainsi NP-complet. Notre algo-
+rithme heuristique est basé sur la reconnaissance des homologies entre séquences de caracteres.
+Nous présentons une validation expérimentale et montrons que r1otre logiciel obtient de bons
+résultats ; il permet notamment l’alignement de livres entiers.
+
+Abstract. This paper presents a monolingual alignment application that addresses a pro-
+blem which occurs in textual genetic criticism, a humanities discipline of literary studies which
+compares texts’ versions to understand texts’ genesis. It requires the move detection, but this
+characteristic makes the problem NP-complete. Our heuristic algorithm is based on pattern mat-
+ching in character sequences. We present an experimental validation where we show that our
+application obtains good results ; in particular it enables whole book alignment.
+
+Mots-clés 2 alignement monolingue, distance d’édition avec déplacements, critique gé-
+nétique textuelle.
+
+Keywords: monolingual alignment, edit distance with moves, textual genetic criticism.
+
+1 Introduction
+
+L’alignement textuel monolingue consiste a comparer deux textes plus ou moins proches aﬁn
+d’identiﬁer le11rs similitudes et leurs dissemblances ; ou plus précisément, a rechercher les par-
+ties communes a ces deux textes et les parties propres a chaque texte. Les premiers travaux d’ali-
+gnements automatique peuvent étre attribués a (Levenshtein, 1966) qui a introduit la distance
+d’édition : le nombre minimum d’opérations d’édition (insertions, suppressions et remplace-
+ments) permettant de transformer un texte en un autre. Par la suite, cette approche considérant
+les textes comme deux sequences de caracteres a été beaucoup étudiée en informatique théo-
+rique, voir (Bergroth et al., 2000) pour une synthese récente, et appliquée ou des programmes
+de comparaison de code source comme Dzﬂ ont été développés.
+
+Ces méthodes d’alignement de code source, a savoir des langages formels et structurés, ont
+ensuite été naturellement adaptées po11r comparer les textes en langage nat11rel. Dans les lan-
+
+gages formels, on a généralement une seule instruction par ligne; ainsi entre deux versions
+d’un ﬁchier, il est relativement simple d’identiﬁer les modiﬁcations. Par contre, dans les textes
+
+303
+
+Julien BOURDAILLET, J ean-Gabriel GANASCIA
+
+en langage nat11rel, une unité entre ligne et phrase n’a pas de raison d’étre, si l’on s’en tient au
+texte et que l’on omet les questions de mise en page liées au support. Et il se trouve en effet que
+les logiciels d’alignement existants présentent de mauvais résultats po11r les textes en langage
+naturel, comme nous l’avons montré dans (Bourdaillet & Ganascia, 2006).
+
+En Traduction Automatique, il existe une littérature importante s11r l’alignement bilingue de
+textes qui sont généralement la traduction de l’un dans l’autre (bitexte). Ces alignements sont
+relatif s a des structures de haut niveau, a savoir paragraphes, phrases et plus difﬁcilement mots
+(Chiao et al., 2006). Nous présentons ici un algorithme d’alignement monolingue au niveau des
+caracteres, entre textes pouvant étre tres différents l’un de l’autre puisqu’ils peuvent comporter
+des insertions, suppressions, remplacements et méme déplacements. Notre algorithme est plus
+proche de ceux utilisés en biologie moléculaire tels que (Bray et al., 2003), mais néanmoins il
+induit un alignement aux niveaux supérieurs.
+
+C’est l’étude des processus de réécriture, dans le cadre d’un travail commun avec l’Institut des
+Textes et Manuscrits Modemes (ITEM), qui nous a amenée a étudier l’alignement monolingue.
+C’est dans ce laboratoire qu’est née la critique génétique textuelle (de Biasi, 2000), une école
+d’études littéraires étudiant la genese des oeuvres littéraires a travers les différents états d’un
+texte laissés par un écrivain. Ces différentes versions, c’est-a-dire les brouillons successifs, sont
+annotées par l’auteur qui corrige une faute d’orthographe, afﬁne son vocabulaire ou encore
+soigne son style en déplacant un terme. D’un point de vue computationnel, les trois opérateurs
+classiques de la distance d’édition ne sont pas sufﬁsants pour caractériser ces réécritures; il
+est nécessaire d’introduire un opérateur de déplacement d’un bloc de caracteres d’une position
+dans le premier texte vers une position différente dans le second. Cette modélisation correspond
+a la notion de distance d ’éditi0n avec déplacements.
+
+Les généticiens du texte ont redécouvert empiriquement cette notion, mais celle-ci avait été
+introduite auparavant en informatique par (Tichy, 1984). (Lopresti & Tomkins, 1997) ont étendu
+la notion en introduisant plusieurs modeles de distance d’édition par blocs. (Shapira & Storer,
+2002) ont pro11vé que le calcul de la distance d’édition avec déplacements entre deux textes
+est un probleme NP-complet ; il n’existe donc pas actuellement d’algorithme le résolvant en un
+temps polynomial et ils ont proposé un algorithme heuristique glouton pour ce calcul.
+
+L’automatisation de ce travail de comparaison textuelle nécessaire a la critique génétique s’avere
+donc étre un probleme difﬁcile. Dans la section 2 nous présentons l’algorithme de notre logi-
+ciel, appelé MEDITE1, traitant ce probleme. Dans un précédent travail, nous avions montré
+son utilité pour la critique génétique (Ganascia & Bourdaillet, 2006). Nous montrons ici que
+l’algorithme glouton de (Shapira & Storer, 2002) ne permet pas de modéliser correctement ce
+probleme et que MEDITE supporte maintenant le passage 51 l’échelle en permettant d’aligner
+différentes versions d’un livre entier (section 3).
+
+L’alignement d’ouvrages complets est une problématique récente née de l’essor des projets de
+numérisation de livres a grande échelle, comme le “Million Book Project” ou celui de Google
+(Feng & Manmatha, 2006). De plus, la taille des textes rapproche ce probleme de l’alignement
+des séquences d’acides nucléiques en bioinformatique (Gusﬁeld, 1997). Néanmoins la prise en
+compte des déplacements n’a pas ou peu été traitée dans ces deux domaines.
+
+Nous pouvons maintenant formuler le probleme de maniere plus précise. Il consiste a aligner
+deux textes en langage nat11rel A et B. Ceux-ci peuvent étre vus comme des séquences de
+caracteres de tailles respectives m et 71, telles que A = a1,a2, ..., am = [a,<]19Sm et B =
+
+llibrement téléchargeable en ligne: http : //www—poleia . l ip6 . fr/~ganascia/medite
+304
+
+Alignements monolingues avec déplacements
+
+b1,b2, ..., b,, = [bi-]1<J-9, et déﬁnies s11r un alphabet E de taille ﬁnie.
+
+Nous déﬁnissons la notion de paire de blocs (ou bi-bloc) par un tuplet (p, ZA, q, ZB) avec —1 3
+p 3 |A| = m,0 3 ZA 3 met —1 3 q 3 |B| = 71,0 3 Z3 3 n. Celasigniﬁequ’unesous-chaine
+A[p..p + ZA — 1] de la premiere séquence est en relation avec une sous-chaine B [q..q + Z3 — 1]
+de la seconde séquence.
+
+Finalement, nous déﬁnissons un alignement .A(A, B) e11tre deux séquences A et B comme un
+tuplet tel que A(A, B) = (INV, SUP, INS, REMP, DEP) avec INV, SUP, INS, REMP
+et DEP les ensembles de bi-blocs respectivement invariants, supprimés, insérés, remplacés et
+déplacés constituant cet alignement. Ainsi, le type de relation entre les sous-chaines constituant
+un bi-bloc est déﬁni par l’ensemble auquel le bi-bloc appartient dans .A(A, B Les invariants,
+remplacements et déplacements sont des appariements de blocs effectivement présents dans A
+et B, alors que les suppressions et insertions sont des pseudo-appariements avec un bloc vide.
+Pour ce faire, un bloc ayant p ou q égal a —1 représente respectivement une insertion ou une
+suppression ; dans ce cas ZA ou Z3 valent respectivement 0, ce qui correspond a un bloc vide.
+
+2 Algorithme
+
+Notre algorithme se décompose en cinq étapes.
+
+La premiere étape est un pré-traitement qui per-
+
+met d’établir des classes d’équivalence entre ca-
+racteres. La seconde étape identiﬁe les blocs de
+caracteres répétés entre A et B. La troisieme
+étape aligne ces blocs répétés aﬁn de détermi-
+ner lesquels sont invariants et lesquels sont dé-
+placés. La quatrieme étape consiste a répéter les
+étapes 2 et 3 sm les sous-séquences situées entre
+les blocs alignés lors de l’étape 3. La derniere
+
+Identification des invariants
+et des déplaoements
+
+ 
+
+étape est la déduction des insertions, suppres- _
+sions et déplacements. La ﬁgure 1 présente cet
+algorithme.
+
+FIG. 1 — Algorithme de IVIEDITE
+
+2. 1 Pré-traitement
+
+Un pré-traitement optionnel peut étre appliqué aux séquences A et B. En langage nat11rel, il
+existe des caracteres que l’on peut vouloir considérer comme équivalents : les caracteres iden-
+tiques mais avec une casse différente, par exemple “J” et “j” ; les caracteres avec ou sans signe
+diacritique, par exemple “c” et “c” ; ou encore les séparateurs, par exemple “ ?” et . Pour cela
+les majuscules sont converties en minuscules, les caracteres avec diacritique en leur équivalent
+sans diacritique, et tous les signes de ponctuation en un méme signe, a savoir le caractere point.
+Ce pré-traitement peut étre appliqué sur A et B en un temps linéaire. Ainsi, lors des étapes
+
+ultérieures de l’algorithme, des blocs identiques modulo les classes d’équivalence pourront étre
+
+cs '17
+
+305
+
+Julien BOURDAILLET, J ean-Gabriel GANASCIA
+
+appariés méme si ces blocs sont différents dans A et B, et ceci pour un coﬁt computationnel
+faible.
+
+Pour illustrer l’algorithme, nous utilisons l’exemple suivant ou nous cherchons a aligner ces
+deux courts textes : “Ce matin le chat observa de petits oiseaux dans les arbres.” et “Le chat était
+en train d’observer des oiseaux dans les petits arbres ce matin. Il observa les oiseaux pendant
+deux heures.” Apres pré-traitement, les phrases deviennent : "ce.matin.le.chat.observa.de.petits.
+oiseaux.dans.les.arbres.” et "le.chat.était.en.train.d.observer.des.oiseaux.dans.les.petits.arbres.
+ce.matin.il.observa.les.oiseaux.pendant.deux.heures.”
+
+2.2 Identiﬁcation des blocs répétés
+
+L’identiﬁcation des blocs de caracteres répétés, c’est-a-dire présents dans les deux textes, est
+effectuée en construisant un arbre des sufﬁxes généralisé entre A et B (Ukkonen, 1995). Cette
+structure de données permet en effet d’identiﬁer l’ensemble des blocs répétés entre A et B
+en un temps linéaire. Toutefois la taille de cet ensemble de blocs est exponentielle et seul un
+sous-ensemble est intéressant, celui des appariements exacts super-maximaux (Gusﬁeld, 1997).
+
+Un bi-bloc (p, ZA, q, Z3) est un appariement exact super-maximal si et seulement si :
+
+— A[p..p + lA — 1] = B[q..q + lA — 1] (appariement exact);
+
+— A[p — 1] 75 B[q — 1] et Ah) + ZA] 75 B[q + Z3] (maximalité);
+
+— et ni A[p..p + ZA — 1] ni B[q..q + Z3 — 1] ne sont inclus dans un autre appariement exact
+
+maximal (super-maximalité).
+
+Cette déﬁnition n’empéche pas les chevauchements entre appariements exacts super-maximaux
+(bien que les inclusions le soient). Ces chevauchements peuvent étre résolus heuristiquement en
+les scindant sur les séparateurs, en effet il est préférable d’avoir des coupures entre les mots plu-
+tot qu’a l’intérieur dans les séquences en langage nat11rel. Le résultat de cette seconde étape se
+présente sous la forme de deux listes A’ et B’ de blocs (des séquences A et B) qui ont été iden-
+tiﬁés comme faisant partie de l’ensemble des bi-blocs super-maximaux et non-chevauchants.
+
+Dans l’exemple, avant la résolution des chevauchements, les blocs super-maximaux “s.arbres.”
+chevauchent les blocs “oiseaux.dans.les.” et “petits.”; la césure sur le séparateur permet de
+résoudre le conﬂit. Finalement, apres la seconde étape, les blocs super-maximaux non-chevau-
+
+chants suivants sont identiﬁés : “I ce.matin. le.chat. observa. de. petits. oiseaux.dans.les.
+’ ct ‘ était-en-‘vrain-d-°bserver-des-
+il. les.oiseaux. pendant.deux.heures.”. Le mot “oiseaux” est répété trois
+
+fois mais n’apparait pas dans la liste des blocs super-maximaux car les deux premieres occur-
+rences sont incluses dans des blocs plus longs qui eux sont super-maximaux.
+
+2.3 Identiﬁcation des blocs invariants et déplacés
+
+Les blocs invariants sont ceux qui apparaissent a la méme position dans A et B, et les déplacés
+ceux dont la position a change. Or chacun des blocs super-maximaux identiﬁés lors de l’étape
+précédente peut étre soit un bloc invariant, soit un bloc déplacé. En effet, lorsque deux blocs sont
+permutés, on peut établir que l’un est invariant et l’autre déplacé ou vice-versa, et il n’existe pas
+de variable permettant de prendre la bonne décision de facon certaine. Néanmoins nous pouvons
+utiliser le critere heuristique suivant : entre une telle paire de blocs, le plus long sera considéré
+
+306
+
+Alignements monolingues avec déplacements
+
+comme invariant et l’autre comme déplacé.
+
+La méthode exhaustive permettant de prendre l’ensemble de ces décisions pour tous les blocs
+consiste a parcourir l’espace des alignements possibles aﬁn de trouver l’optimum suivant une
+certaine fonction de coﬁt. Or la taille de cet espace est combinatoire, ce qui rend cette recherche
+peu opérationnelle. C’est pourquoi nous utilisons l’algorithme de type A* suivant.
+
+Les alignements possibles sont évalués a l’aide d’une fonction de coﬁt c ; l’objectif est de trou-
+ver un alignement de coﬁt minimal. Ceci est équivalent a un probleme de plus court chemin
+dans un graphe ou l’état ﬁnal correspond a l’alignement de coﬁt minimal et l’état initial 51 l’état
+ou aucune décision n’a encore été prise. A chaque étape de l’algorithme, une décision est prise
+en choisissant de désigner l’appariement d’un bloc A; avec un bloc B’. comme étant un bi-bloc
+invariant. Ce choix est conduit grace a la fonction de coﬁt c qui estime le coﬁt de l’alignement
+ﬁnal induit par ce choix. Lorsque l’état ﬁnal est atteint, c’est-a-dire lorsque l’on ne peut plus
+choisir de bloc invariant, tous les blocs qui n’ont pas été choisis durant le parco11rs sont conside-
+rés comme des blocs déplacés. Aﬁn d’atteindre l’état ﬁnal, c doit étre admissible, c’est-a-dire ne
+jamais surestimer le coﬁt de l’alignement ; nous détaillons ci-dessous pourquoi c est admissible.
+
+L’évaluation du coﬁt de l’alignement induit par le choix de l’appariement de A; et B; est calculé
+
+par la fonction c(i, j). Celle-ci décompose ce coﬁt en un coﬁt g(i, j ) de l’alignement effectué
+
+lors des étapes précédentes, et une estimation heuristique h(i, j ) du coﬁt de l’alignement qu’il
+reste a effectuer durant les étapes ultérieures, tel que c(i, j ) = g(i, j) + h(i, j). Ces coﬁts sont
+calculés de la facon suivante :
+
+— NA(z',j) = non—apparz'és(A’[1..z' — 1], B’[1..j — 1]) est l’ensemble des blocs non appa-
+riés durant les étapes précédentes, ceux qui n’ont pas été choisis comme invariants et seront
+considérés comme déplacés.
+
+— g(i, j ) = 21,6 N Am-) |b est la somme de la taille des blocs précédemment non choisis comme
+étant invariants, c’est-a-dire que seuls les déplacements vont pénaliser le coﬁt d’un aligne-
+ment.
+
+— DS(i,j) = A’[i + l..|A’|] e B’[j + l..|B’|] est la différence symétrique des deux ensembles
+de blocs a aligner durant les étapes suivantes. Ces blocs sont présents soit uniquement dans
+A’  + l..|A’  soit uniquement dans B’  + l..|B’  , il ne sera donc pas possible de les apparier
+ultérieurement.
+
+— h(i,j) = Ebensm-) |b| est la somme de la taille des blocs de DS(i,j). h(i,j) est la borne
+inférieure du coﬁt des blocs restant a aligner. h ne surestime jamais le coﬁt de l’alignement,
+c’est pourquoi c est admissible et A* trouve l’alignement optimal au sens de notre critere.
+
+Ce calcul permet de rechercher un alignement optimal au sens de la maximisation de la taille
+
+des blocs invariants et de la minimisation de la taille des blocs déplacés.
+
+Dans notre exemple, apres cette étape, les blocs encadrés en gras désignent les invariants
+
+et les autres blocs encadrés les déplacements : “Ice.matin. le.chat. observa. de. petits.
+
+[oiseaux.dans.les.] [arbres.]” et “(le.chat.] était.en.train.d.observer.des.  
+
+petits. arbres. ce. matin. il. observa. les.oiseaux. pendant.deux.heures.”.
+
+2.4 Recherche récursive d’appariements
+
+Lors de cette quatrieme étape, on considere chaque sous-chaine de A et B située entre deux
+bi-blocs invariants. Ces sous-chaines sont examinées a nouveau par les étapes 2 et 3 aﬁn de
+découvrir d’éventuels nouveaux bi-blocs invariants, auquel cas ceux-ci sont ensuite inclus dans
+
+307
+
+Julien BOURDAILLET, J ean-Gabriel GANASCIA
+
+l’alignement principal. Cette étape récursive permet de répondre aux eﬂets de masquage qui
+se produisent lorsque les séquences A et B comportent un nombre important de sous-chaines
+répétées : dans ces cas la, les algorithmes classiques d’alignement omettent des appariements
+importants qui sont masqués par des appariements moins importants (Ganascia & Bourdaillet,
+2006). De tels phénomenes ont également été identiﬁés dans les séquences d’acides nucléiques
+en biologie moléculaire (Arslan et al., 2001).
+
+Dans notre exemple, entre les bi-blocs invariants “le.chat.” et “oiseaux.dans.les.” se tlouvent
+les sous-chaines “observa.de.petits.” et “était.en.t1ain.d.observer.des.”. L’étape récursive va per-
+mettre d’identiﬁer le bi-bloc “observ” comme invariant, ce qui donne l’alignement ﬁnal sui-
+
+vant : “l ce.matin. le.chat. observ .de. [petits.J [oiseaux.dans.les.) [arbres.]” et “[le.chat.j
+était.en.train.d. observ Ier.des. oiseaux.dans.les. petits. arbres. ce. matin. il.observa.les.
+
+oiseaux.pendant.deux.heures.”. Ainsi, un bi-bloc dep ace a été perdu (“observa.”) mais un bi-
+bloc invariant a été gagné (“observ”); ceci permet de favoriser les appariements locaux au
+détriment des appariements longue-distance et les invariants plutot que les déplacements.
+
+2.5 Déduction des autres types de blocs
+
+Les insertions, suppressions et remplacements peuvent ﬁnalement étre déduits des étapes pré-
+cédentes. En effet, les suppressions sont les blocs non répétés et présents uniquement dans A,
+et les insertions ceux présents uniquement dans B.
+
+L’identiﬁcation des remplacements se fait de maniere heuristique : lorsqu’entre deux bi-blocs
+invariants se tlouve un bloc supprimé 5 dans A et un bloc inséré i dans B et que le ratio entre
+le11r taille   atteint un certain seuil t, alors ces blocs sont retirés des ensembles SUP et
+I N 5' (cf. section 1), et appariés en un bi-bloc 7" place dans REM P, signiﬁant ainsi que le bloc
+dans A a été remplacé par le bloc dans B. Le seuil 15 est ﬁxé par défaut a 0, 5.
+
+Dans l’exemple, le bi-bloc constitué des chaines “a.de.” et “er.des.” sera considéré comme un
+remplacement et les deux autres blocs non encadrés de la seconde séquence comme des inser-
+tions.
+
+Finalement, un post-traitement permet de retrouver les positions des blocs dans les séquences
+originales (c’est-a-dire sans les classes d’équivalence).
+
+3 Validation expérimentale
+
+3.1 Application 2‘! la critique génétique textuelle
+
+Cette expérience consiste a aligner deux versions d’un méme texte et évaluer l’alignement ré-
+sultant. Pour ce faire, nous allons comparer les résultats de MEDITE a ceux de GREEDY qui
+est un algorithme glouton de calcul de la distance d’édition avec déplacements (Shapira & Sto-
+rer, 2002). Ce demier sélectionne a chaque itération le plus grand appariement qu’il considere
+comme un déplacement et ﬁnalement calcule une distance d’édition classique par programma-
+tion dynamique.
+
+L’évaluation des alignements résultants se fait en calculant les fonctions de score suivantes a
+partir d’un alignement .A(A, B) :
+
+308
+
+Alignements monolingues avec déplacements
+
+— Nous déﬁnissons au préalable une fonction somme(S) = Em, M1,, B)e S l A + Z3 qui somme la
+taille de tous les bi-blocs d’un ensemble de bi-blocs S.
+
+— On cherche a maximiser la somme de la taille des blocs invariants et a minimiser la somme
+de la taille des autres types de bloc, d’o1‘1 la fonction :
+
+(INV) -2 _gsomme(s)
+
+1 + '  2
+( IAI + IBI /
+avecS = {SUP, INS, REMP, DEP}
+
+(1)
+
+— On cherche a maximiser la taille moyenne des blocs aﬁn d’éviter la fragmentation de l’ali-
+gnement :
+
+y = (Z  / max(s)) /5 (2)
+
+36.9 '5'
+avec S = {INV, SUP, INS, REMP, DEP},
+|s| le nombre de blocs dans s
+
+et max(s) la taille du plus grand bloc de s
+
+— On cherche a maximiser le ratio des déplacements par rapport aux autres blocs non-invariants
+et le ratio des remplacements par rapport aux autres blocs non-invariants (sauf les déplace-
+ments) :
+
+(3)
+
+somme(MOV) somme(REM P)
+z = /2
+somme(S1) somme(S2)
+avec S1 = {SUP, INS, REMP, DEP}
+et S2 = {SUP, INS, REMP}
+
+— Finalement, ceci nous permet de déﬁnir une fonction de similarité globale combinant les
+équations précédentes ;les pondérations sont ﬁxées arbitrairement mais reﬂetent les prioiités
+accordées aux différentes fonctions :
+
+sim = 0.5x + 0.35;; + 0.152 (4)
+
+Les termes de normalisation rendent ces équations un peu chargées, mais les idées sous-jacentes
+sont tres simples.
+
+Les textes a aligner sont les suivants : deux versions d’un poeme d’Andrée Chedid “La Robe
+Noire” de 2 Ko, nommé A ci-dessous ; un cahier d’expé1ience de Claude Bernard et une syn-
+these académique de ce cahier (7.5 Ko, B) ; un sous-ensemble de la partie francaise du Hansard
+et la traduction en francais de la partie correspondante anglaisez (20 Ko, C) ; et deux versions
+d’un texte de Louis Althusser “Freud et Lacan” (50 Ko, D). Le tableau 1 présente les résultats
+de ces alignements.
+
+On peut constater que MEDITE obtient de meilleurs résultats po11r tous les textes et ciiteres
+(sauf pour z sur B et C). Le critere x signiﬁe que l\/IEDITE trouve plus de blocs invariants que
+GREEDY ; y signiﬁe que les blocs alignés sont plus longs ;et z qu’on favoiise les déplacements
+au détriment des autres types de blocs non-invariants et les remplacements au détriment des
+insertions et suppressions, en effet ces blocs apportent plus d’informations. On remarquera aussi
+les différences considérables en temps de calcul.
+
+Zcorpus pré—traité et mis a disposition par le RALI
+309
+
+Julien BOURDAILLET, J ean-Gabriel GANASCIA
+
+Algorithme GREEDY l\/IEDITE
+Texte A B C D A B C D
+x 0.3654 0.2657 0.4106 0.7835 0.4934 0.2697 0.4936 0.9223
+y 0.1161 0.0793 0.0784 0.1397 0.3331 0.2488 0.1951 0.2318
+z 0.1971 0.2340 0.4096 0.1653 0.2003 0.1676 0.2937 0.2587
+
+aim 0.2529 0.1957 0.2942 0.4655 0.3933 0.2471 0.3591 0.5811
+Temps 0mn18s 12mn5s 1h1mn 29mn3s 0mn1s 0mn2s 0mn6s 0mn2s
+
+TAB. 1 — Alignements avec GREEDY et MEDITE
+
+3.2 Alignement de données synthétiques
+
+Le but de cette seconde expérience est d’évaluer la qualité des alignements de MEDITE sur
+des données synthétiques ou il existe un alignement de référence. Etant donné un texte et un
+générateur de bruit, un second texte est généré en altérant le premier. L’alignement entre les
+deux textes est enregistré durant le processus d’altération; il est alors possible d’évaluer la
+qualité d’un aligneur en comparant ses résultats avec l’alignement de référence.
+
+Premier générateur de bruit Le générateur de bruit permet de générer un second texte a
+partir de l’original de la facon suivante. Des ratios d’insertions, suppressions et remplacements
+sont ﬁxés avant de commencer. Des blocs de caracteres sont alors insérés dans le second texte,
+supprimés dans l’original et remplacés entre les deux textes, de facon répétée jusqu’a ce que
+les ratios soient atteints. Les positions des modiﬁcations sont choisies aléatoirement sur toute
+la longueur des textes (le chevauchement d’opérations n’est pas permis). La taille des blocs est
+choisie aléatoirement entre 1 et 25 caracteres. Durant ce processus, les positions des modiﬁca-
+tions sont enregistrées, ce qui permet d’obtenir un alignement de référence.
+
+Pour cette expérience, nous avons choisi un texte de 520 Ko comme texte original, soit la taille
+d’un livre d’environ 350 pages. Cinq textes synthétiques différents ont été générés et alignés
+chacun avec l’original via MEDITE, puis les scores de précision calculés. Deux séries de tests
+avec différents ratios de modiﬁcations ont été menées : dans la premiere il y a 5% d’insertions,
+5 % de suppressions et 5 % de remplacements, ce qui signiﬁe que les textes altérés présentent
+15 % de différences avec l’original ; dans la seconde série, les ratios sont portés a 10 %, ce qui
+signiﬁe qu’il y 30 % de différences entre les textes.
+
+Pour chacun des quatre types de caracteres (invariants, insertions, suppressions et remplace-
+ments) le taux de précision est déﬁni comme le nombre de caracteres correctement alignés / le
+nombre total de ces caracteres. Les précisions moyennes s11r les cinq alignements sont alors cal-
+culées. Po11r la précision pondérée, les précisions de chaque type sont pondérées par leurs poids
+respectif s dans les textes ; par exemple po11r la premiere série de tests on aura Preapondérée =
+0.85 >1: Prec.INV + 0.05 >1: Prec.INS + 0.05 >1: Prec.SUP + 0.05 >1: Prec.REMP. Les deux
+premieres colonnes du tableau 2 présentent les résultats de cette experience.
+
+On peut constater que les précisions moyennes sont bonnes, en particulier les précisions pondé-
+rées, et que les temps de calcul sont raisonnables ; il serait inenvisageable de traiter ces textes
+avec GREEDY. L’expérience a été réalisée s11r un Pentium 4, 2.4 GHz avec 1 Go de RAM.
+MEDITE est implémenté en Python, un langage de haut niveau, bon pour le prototypage mais
+
+310
+
+Alignements monolingues avec déplacements
+
+Générateur de bruit sans déplacements avec déplacements
+Ratio de modiﬁcations 5 % 10 % 5 % 10 %
+Precision moyenne 94.48 % 89.27 % 86.56 % 78.36 %
+Précision pondérée moyenne 98.16 % 94.0 % 95.19 % 86.18 %
+Temps moyen 11 mn5s 27mn53 s 27 mn8s 77mn 17 s
+
+TAB. 2 — Alignement de données synthétiques avec MEDITE
+
+lent. Une implémentation en C permettrait de gagner considérablement en vitesse d’exécution.
+Néanmoins, le goulot d’étranglement de notre algorithme reste le calcul des différences symé-
+triques er1tre listes de blocs (voir section 2.4), qui est quadratique par rapport a la taille de ces
+listes.
+
+Générateur de bruit avec déplacements Ce second générateur de bruit est similaire au pre-
+mier mais en plus des déplacements seront générés er1tre texte original et texte altéré. Ainsi, des
+blocs de caracteres sont déplacés d’une position dans le texte original vers une seconde dans
+le texte altéré. Les ratios de modiﬁcations sont to11jours ﬁxés a 5 et 10 % par opérations, ce
+qui donne des textes avec 20 et 40 % de différences respectivement. Deux séries de tests sont
+a nouveau conduites et les moyennes des résultats présentées dans les deux dernieres colonnes
+du tableau 2.
+
+On peut constater que les précisions moyennes décroissent signiﬁcativement mais que les pré-
+cisions pondérées conservent de meille11rs scores. Il faut toutefois garder a l’esprit que les ratios
+de différences sont de 20 et 40 % contre 15 et 30 % avec le premier générateur de bruit. De
+plus, la différence er1tre les précisions pondérées et non-pondérées indiquent que les blocs inva-
+riants ont un meille11r taux de classiﬁcation. Ceci est conﬁrmé dans le tableau 3 qui présente la
+moyenne des matrices de confusion : les blocs de référence sont en lignes et ceux trouvés par
+MEDITE en colonnes. Les erreurs les plus importantes proviennent des déplacements qui sont
+identiﬁés comme insertions et suppressions ; or un déplacement peut étre considéré comme une
+suppression suivie d’une insertion. De méme les insertions et suppressions sont confondues avec
+des remplacements ; or les remplacements peuvent aussi étre considérés comme une suppres-
+sion suivie d’une insertion. Ceci implique un probleme de décision : notre modele de décision
+est tres simple et pourrait étre amélioré ; néanmoins les résultats présentés ont le mérite d’étre
+consistants.
+
+Ratio de modiﬁcations 5 % 10 %
+Type de bloc INV INS SUP REMP DEP INV INS SUP REMP DEP
+Invariants 98.07 0.56 0.52 0.76 0.08 94.0 1.75 1.6 2.32 0.32
+Insertions 0.21 92.16 0 7.55 0.07 0.21 85.1 0 14.52 0.17
+
+Suppressions 0.14 0 87.76 9.25 1.76 1.46 0 76.77 17.78 3.99
+Remplacements 0.70 5.40 4.65 88.40 0.84 0.72 11.32 9.43 76.34 2.18
+Déplacements 1.43 13.70 14.05 4.38 66.43 1.47 15.16 15.55 8.25 59.56
+
+TAB. 3 — Moyenne des matrices de confusion (en %) pour le générateur de bruit avec déplace-
+ments
+
+311
+
+Julien BOURDAILLET, J ean-Gabriel GANASCIA
+
+4 Conclusion
+
+Nous avons présenté MEDITE, un aligneur monolingue détectant les déplacements entre deux
+textes. Nous traitons ce probleme d’alignement difﬁcile par un algorithme heuristique de re-
+cherche d’homologies dans les sequences. Notre validation expérimentale montre que MEDITE
+présente de bons résultats et qu’il est capable d’aligner des livres entiers en un temps raison-
+nable, tout en identiﬁant les déplacements.
+
+MEDITE est maintenant utilisé par les généticiens du texte po11r aligner différentes versions de
+livres entiers. Ce travail fastidieux nécessiterait plusie11rs mois, voire plusie11rs années de travail
+sans l’usage de la machine. Nous projetons maintenant de l’utiliser po11r établir des éditions
+électroniques d’ouvrages en intégrant directement le logiciel dans le support électronique.
+
+Références
+
+ARSLAN A. N., EGECIOGLU O. & PEVZNER P. A. (2001). A new approach to sequence
+comparison : normalized sequence alignment. Bioinformatics, 17(4), 327-337.
+
+BERGROTH L., HAKONEN H. & RAITA T. (2000). A Survey of Longest Common Subse-
+quence Algorithms. In SPIRE ’00 : Proceedings of the Seventh International Symposium on
+String Processing Information Retrieval.
+
+BOURDAILLET J. & GANASCIA J .-G. (2006). MEDITE : A unilingual textual aligner. In Pro-
+ceedings of FinTAL, 5th International Conference on Natural Language Processing, Lecture
+Notes in Artiﬁcial Intelligence, 4139, 458-469.
+
+BRAY N., DUBCHAK I. & PACHTER L. (2003). AVID : A Global Alignment Program. Ge-
+nome Res., 13(1), 97-102.
+
+CHIAO Y.-C., KRAIF 0., LAURENT D., NGUYEN T. M. H., SEMMAR N., STUCK F., VE-
+RONIS J . & ZAGHOUANI W. (2006). Evaluation of multilingual text alignment systems : the
+ARCADE II project. Proceedings of the LREC 2006 Conference.
+
+DE BIASI P.-M. (2000). La Génétique des Textes. Nathan Université.
+
+FENG S. & MANMATHA R. (2006). A hierarchical, HMIVI-based automatic evaluation of
+OCR accuracy for a digital library of books. In JCDL’06, p. 109-118 : ACM Press.
+
+GANASCIA J .-G. & BOURDAILLET J . (2006). Alignements unilingues avec MEDITE. In
+857"” Journées I nternationales d ’Analyse Statistique des Données Textuelles (JADT 2006).
+
+GUSFIELD D. (1997). Algorithms on Strings, Trees and Sequences : Computer Science and
+Computer Biology. Cambridge University Press.
+
+LEVENSHTEIN V. (1966). Binary codes capable of correcting deletions, insertions and rever-
+sal. Cybernetics and Control Theory, 10(8), 707-710.
+
+LOPRESTI D. P. & TOMKINS A. (1997). Block Edit Models for Approximate String Mat-
+ching. Theoretical Computer Science, 181(1), 159-179.
+
+SHAPIRA D. & STORER J . A. (2002). Edit Distance with Move Operations. In CPM, volume
+2373 of Lecture Notes in Computer Science, p. 85-98 : Springer.
+
+TICHY W. F. (1984). The String-to-String Correction Problem with Block Moves. ACM
+Trans. Comput. Syst., 2(4), 309-321.
+
+UKKONEN E. (1995). On-Line Construction of Sufﬁx Trees. Algorithmica, 14(3), 249-260.
+
+312
+

@@ -1,0 +1,741 @@
+TALN2011, Montpellier, 27 juin -1” juillet 2011
+
+Estimation d’un modéle de traduction £1 partir d’alignements mot-£1-mot
+non-déterministes
+
+Nadi Tomeh Alexandre Allauzen Francois Yvon
+Université Paris Sud et LIIVISI/CNRS
+BP 133 91 403 Orsay
+{nadi,allauzen,yvon} @ limsi.fr
+
+Résumé. Dans les systemes de traduction statistique £1 base de segments, le modele de traduction est estimé £1 partir d’aligne-
+ments mot—£1—mot gr£1ce £1 des heuristiques d’extraction et de valuation. Bien que ces alignements mot—£1—mot soient construits par des
+modeles probabilistes, les processus d’ extraction et de valuation utilisent ces modeles en faisant l’hypothese que ces alignements
+sont déterrninistes. Dans cet article, nous proposons de lever cette hypothese en considérant l’ensemble de la matrice d ’alignement,
+d’une paire de phrases, chaque association étant Valuée par sa probabilité. En comparaison avec les travaux antérieurs, nous montrons
+qu’en utilisant un modele exponentiel pour estimer de maniere discrirninante ces probabilités, il est possible d’obtenir des ameliora-
+tions signiﬁcatives des performances de traduction. Ces améliorations sont mesurées £1 l’aide de la métrique BLEU sur la t£1che de
+traduction de l’arabe Vers l’anglais de l’éValuation NIST MT ’09, en considérant deux types de conditions selon la taille du corpus de
+données paralleles utilisées.
+
+Abstract. In extant phrase—based statistical translation systems, the translation model relies on word—to—word alignments,
+which serve as constraints for further heuristic extraction and scoring processes. These word aligmnents are infered in a probabilistic
+framework; yet, only one single best word alignment is used as if aligmnents were deterrninistically produced. In this paper, we
+propose to take the full probabilistic alignment matrix into account, where each alignment link is scored by its probability score. By
+comparison with previous attempts, we show that using an exponential model to compute these probabilities is an effective way to
+achieve signiﬁcant improvements in translation accuracy on the NIST M T’09 Arabic to English translation task, where the accuracy
+is measured in terms of BLEU scores.
+
+M0tS-CléS 3 traduction statistique, modeles de traduction £1 base de segments, modeles d’alignement mot—£1—mot.
+
+Keywords: statistical machine translation, phrase based translation models, word alignment models.
+
+1 Introduction
+
+Dans les systemes de traduction statistique £1 base de segments (phrase—based systems), le modéle de traduction sert de pont entre
+les langues source et cible. Sur la base d’hypotheses de segmentation de la phrase source £1 traduire, il perrnet de proposer, pour
+chacun des segments, des traductions candidates en langue cible. Ces hypotheses de traduction sont sélectionnées dans un inventaire
+qui enregistre des appariements values entre segments de longueur variable. Ces associations et les scores qui les accompagnent
+constituent la table de traductions (phrase-table).
+
+Ce modele est estimé en deux temps £1 partir d’un corpus parallele : (i) extraction d’un ensemble de couples de segments candidats,
+(ii) Valuation des couples retenus dans la phase (i). Faute de disposer de méthodes d’estimation théoriquement bien fondées, cha-
+cune de ces deux étapes repose sur un ensemble d’heuristiques. Il s’aVere en effet impossible d’estimer directement les valuations
+calculées en (ii), ni meme de recencer tous les appariements possibles en (i). En effet, estimer de fagon non-supervisée un modele
+probabiliste des alignements de segments demanderait de pouvoir calculer des sommes sur tous les alignements de segments pos-
+sibles, £1 défaut, de savoir calculer un alignement optimal utilisant des segments de taille variable. Ces deux procedures posent des
+problemes combinatoires NP-difﬁciles (DeNero & Klein, 2008) et ne peuvent etre effectuées de maniere exacte. De maniere plus
+subtile, construire des modeles d’alignements de segments demande de mettre en competition des segmentations conj ointes de taille
+Variable des phrases source et cible, au risque de toujours préférer les alignements impliquant des segments longs. Enﬁn, ne consi-
+dérer qu’une seule segmentation lors de l’apprentissage semble avoir un effet négatif sur la capacité de generalisation du modele
+(DeNero et al., 2006).
+
+La solution pratique qui s’est progressivement imposée contourne le probleme en considérant en premier lieu une segmentation
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS Yv0N
+
+maximale et en effectuant un alignement préalable au niveau des mots; des procedures efﬁcaces fondées sur l’algorith1ne EM
+(Expectation—Maximisation) pour effectuer cet alignement de maniere efﬁcace existent depuis le debut des années 90 (Brown et al.,
+1993; Och & Ney, 2003). Ces alignements de mots sont ensuite re—analysés pour en déduire des alignements de segments, la methode
+la plus repandue consistant a extraire les alignements de segments compatibles avec les contraintes posées par les alignements de
+mots.
+
+Dans un troisieme temps, les statistiques d’occurrence de ces alignements de segments sont collectées et utilisées pour attribuer des
+scores de conﬁance a ces groupes bilingues. Ces trois etapes successives de la construction du modele de traduction sont usuelle—
+ment abordées et optimisees séparément les unes des autres. Le risque est naturellement que les erreurs s’accumulent le long de
+cette sequence de traitements. Ainsi, des erreurs precoces dans les calculs des alignements mot—a—mot viennent bruiter le processus
+d’extraction des couples de segments appariés et biaiser les calculs de scores afferents.
+
+Pour pallier ce probleme, les auteurs de (Liu et al., 2009) proposent d’extraire davantage d’informations de la phase d’alignement
+des mots, sous la forme d’une matrice d ’alignements pondérés, qui représente de maniere compacte un ensemble d’ alignements de
+mots potentiels. Cette matrice est utilisée dans les etapes ultérieures de l’apprentissage. Dans une matrice pondérée, chaque lien
+d’alignement potentiel est nanti d’une probabilité qui mesure la conﬁance dans l’alignement de ces deux mots. Dans (Liu et al.,
+2009), ces probabilités sont estimees a partir du calcul des n—meilleurs alignements de mots tels que produits par les modeles d’ali-
+gnement standards. A l’aide de cette technique, ces auteurs parviennent a améliorer de fagon modeste leurs systemes de traduction
+automatique. Une des limites de cette approche est toutefois l’utilisation d’ une liste de n-meilleurs, qui ne représente que tres i1n—
+parfaitement la diversite et la variabilité des alignements de mots potentiels, et conduit a des mauvais estimateurs des probabilités a
+posteriori des liens d’ alignement.
+
+Dans ce travail, nous soutenons qu’une meilleure estimation des probabilités des liens d’alignement est susceptible de donner lieu a
+de meilleurs modeles. Nous étudions donc une methode alternative pour réaliser cette estimation, fondée sur des modeles discri1ni—
+nants pour l’alignement de mots (Ayan & Dorr, 2006; Tomeh et al., 2010, 2011) et analysons les performances qu’elles permettent
+d’obtenir. La principale contribution de ce travail est donc de nature empirique : en comparant djfferentes manieres de calculer et
+d’exploiter ces matrices d’alignement pondérées, nous montrons qu’il peut etre bénéﬁque, en particulier quand les données d’ appren-
+tissage du modele de traduction sont réduites, de prendre en compte l’information contenue dans ces matrices, au—dela du meilleur
+alignement mot—a—mot.
+
+Cet article est organise comme suit. Apres avoir brievement pose le cadre de la construction du modele de traduction dans l’approche
+standard, nous presentons a la section 2 les principes de construction et d’exploitation de matrices d’alignements pondérées. Nous
+introduisons, a la section 3 une approche alternative permettant d’ estimer directement la matrice d’ alignement pondérée. Les résultats
+experimentaux sont ensuite decrits a la section 4. Enﬁn, nous explicitons le positionnement de notre approche par rapport aux travaux
+existants, avant de conclure et d’evoquer diverses pistes vers lesquelles nous comptons nous orienter dans le futur.
+
+2 Matrices pondérées pour la construction de modéles de traduction
+
+Pour un systeme de traduction a base de segments (Zens et al., 2002), le modele de traduction est la source de connaissance principale
+qui établit une correspondance entre les deux langues (source et cible). Son role est de guider la construction, pour chaque phrase
+source, d’un ensemble d’hypotheses de traduction en langue cible. L’ unite de traduction est le segment, qui correspond a un groupe
+de mots contigus. L’ association e11tre un segment source et une traduction possible en cible forme un bi—segment. Notons qu’il est
+possible qu’un segment admette plusieurs traductions alternatives, donnant lieu a plusieurs bi—segments partageant le meme segment
+source. Aﬁn de faire un bon usage de ces bi—segments, il est necessaire de leur associer des mesures, par exemple statistiques, qui
+quantiﬁent la conﬁance en l’association ainsi réalisée.
+
+Dans la suite de cet article, nous utilisons les notations suivantes : un couple de phrases est désigné par (e, f), ou la phrase source
+f = fl, ..., f,-, ..., f1 est une sequence de I mots et la phrase cible e = 61, ..., Cj, ..., C] est une sequence de J mots. De plus, une
+sous—sequence de mots extraite d’une phrase sera notée  = f,-1 . . . f,~2 et donc f = ff .
+
+2.1 Cadre général
+
+Les methodes décrites dans la litterature pour constr11ire le modele de traduction peuvent se résumer par l’algorithme présente dans
+la partie gauche de la ﬁgure 1. Le point de depart est un couple de phrases accompagné d’un alignement mot—a—mot représenté par
+une matrice d ’alignement. Chaque cellule de cette matrice booléenne A = {(1,-J : 1 3 2' 3 I, 1 3 j 3 J} représente un lien
+
+ESTIMATION D’UN MODELE DE TRADUCTION
+
+1: POUR toutes les paires de phrases (f1J,e{) FAIRE
+
+   
+
+  
+      
+ 
+ 
+ 
+
+ 
+
+2: POUR tous les segments  FAIRE A Corpus parauéle:
+3: Construire l’ensemble des bi—segments E A = {fjf , cg f   -_
+
+satisfaisant le jeu de contraintes CA
+
+Trier EA Selon la fonction JCR Modéle d'alignements mot-.5-mot
+5: Appliquer le Critére de Sélection CS déﬁnissant 1’en_ f:je n' aime pas Ia glace au chocolat. e:|do not like chocolate ice cream.
+
+semble E Ag des bi—segments a extraire 1 X I 1 J
+6: Assignef um? fonction de compte fc. 5 chaque bi- e: Ido not like chocolate ice cream. f:je n'aime pas Ia glace au chocolat.
+
+segments (ff? 6%?) de EAS . . , . .
+7: end POUR HeLlr.‘Lst.‘LqLle de symetrlsatlon
+8: end POUR 0 0 §
+9: POUR chaque bi—segments extraite {(6, f)} FAIRE 2 = -5 E 2%. 2 E .
+
+10: Calcul des scores 2 ;mm
+ice
+¢(€|f) : fC(e’f) ’ lciiliicoiaxe
+:12 Me» f» 2:‘
+I
+length(e) 1
+l€.’II(€|f, = H  Z ’LU(€¢|fj), ; Extraction et éualuation
+1:1 ] . (Z,]) 6  V(i’j)Ea des segments mimgues
+on A désigne la matrice dialignement, et w une p1.Obabi_ [glace au chocolat ||| chocolate ice cream |||0.82 0.21 0.81 0.49 2.72j
+lite de traduction lexicale (IBM1 ou frequence relative).
+11: end POUR
+
+FIGURE 1 — Algorithme generique pour la construction du modele de traduction et un exemple de son application frequement utilise
+
+d’alignement potentiel; la Variable binaire am Vaut 1 si le lien entre le 1'5"” mot de f et le 3'5"” mot de e est actif, et 0 sinon.
+
+Un jeu de contraintes CA permet de deﬁnir, parmi tous les bi—segments potentiellement contenus dans une paire de phrases, ceux qui
+sont « acceptables >> ou coherents avec la matrice d’alignement. Les contraintes apportées par les alignements de mots permettent
+l’enumeration conjointe de toutes les segmentations de la paire de phrases avec tous les alignements de segments autorisés. Une fois
+cet ensemble de bi—segments identiﬁe, il est possible de le trier ( f R) et de lui appliquer un critere de selection C5 aﬁn d’eliminer les
+bi—segments qui semblent a priori les moins plausibles. La derniere étape concerne la Valuation des bi—segments ainsi extraits. Les
+fonctions de Valuation les plus communement utilisees sont 2
+
+— la frequence d’obserVation du segment 6 connaissant le segment f notee q5(e| f) ainsi que le terme symétrique q5( f |e) ;
+
+— les poids lexicaux ou lexical weights dans les deux directions (lea:(e|f, A) et lea:( f |e, A)), qui utilisent, le plus souvent, les
+
+probabilités de traduction lexicale du modele IBM1.
+Ces fonctions sont déﬁnies dans l’algorithme detaillé sur la ﬁgure 1 (ligne 10).
+
+L’instanciation standard de cet algorithme correspond aux travaux de (Zens er al., 2002; Koehn et al., 2003) (Voir partie droite de la
+
+ﬁgure 1), qui se deduit du cadre general en utilisant les deﬁnitions suivantes 2
+
+— CA représente des contraintes de coherence qui s’appliquent a un alignement mots—a-mots symetrise d’une paire de phrases. Ces
+alignements se deduisent des deux meilleures hypotheses données par le modele IBM4 (une pour chaque direction de traduction),
+symetrisees par l’heuristique grow-dz'ag—ﬁnal-and (Koehn et al., 2003).
+
+— La fonction de compte et celle de tri sont les memes 2 f R = fc = 1
+
+— la contrainte C5 est déﬁnie par un seuil portant sur la longueur relative des segments source et cible et permet de ﬁltrer les
+bi—segments trop longs.
+
+Les hypotheses simpliﬁcatrices utilisees dans l’approche standard permettent d’obtenir une procedure efﬁcace et robuste; elles
+
+soulevent neanmoins quelques critiques. Tout d’abord, le choix du modele IBM4 pose probleme puisque sa complexite interdit
+
+d’utiliser des procedures exactes lors de l’inference et du calcul des probabilites a posteriori de chacun des liens d’alignement.
+
+Ainsi, les contraintes de coherence des bi—segments portent sur des alignements qui ne sont pas forcément les meilleurs et pour
+
+lesquels les approximations des probabilites a posteriori ne reﬂetent qu’imparfaitement la conﬁance du modele. Ce dernier point
+
+implique naturellement le choix des fonctions de compte et de tri fc = fR = 1, puisqu’en l’absence de mesure de conﬁance,
+
+une decision binaire s’impose. Enﬁn, ces simpliﬁcations entrainent que l’exploration de la matrice d’alignement est restreinte a la
+
+sous-partie selectionnée par les alignements IBM4 et ne prend pas en consideration la plus grande partie de la matrice d’alignement.
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS YVON
+
+J1 J2
+
+0,9 0,5 0,8
+
+0,8 0,6 0,7 0,2
+
+0,4 0,8 0,7 0,1 0,3 0,1
+
+0,4 0,8 0,2 0,3 0,1
+
+ 
+
+i1
+i2
+0,5
+I (1’(j1,j2,i1_,'i2):D,999 0,9 0,4 0,8 0,3
+D %3(j1:j27/ilvyig) :  0,8 1,0
+
+FIGURE 2 — Illustration du calcul des comptes fractionnaire pour un bi—segment donné. Dans cet exemple, le calcul des comptes
+
+fractionnaires se fait de la maniere suivante : fc( J7f,e:f) = oz(j1,j2,i1,i2) >< ﬂ(j1,j2,i1,i2).
+
+2.2 La matrice d’alignement pondérée
+
+Dans (Liu et al., 2009), les auteurs proposent d’augmenter le nombre des alignements mot—a—mot qui sont impliques dans l’estimation
+
+des modeles de traduction et introduisent, a cet effet, la notion de matrice d’alignement porzdérée : Ap = {p(a,»7j |e, f) : 1 3 1' 3
+
+I, l 3 j 3 J Dans cette matrice, chaque lien d’alignement est pondéré par sa probabilité a posteriori p(a,»7j |e, f Ces probabilites
+
+sont calculées a partir des n—meilleurs alignements symetrises proposés par le modele IBM4. Partant de cette matrice, l’algorithme
+
+représente a la ﬁgure 1 est modiﬁé de la maniere suivante :
+
+— Les contraintes de coherence C A stipulent qu’un bi—segment est acceptable si au moins un lien d’alignement am a l’intérieur du
+bi—segment est tel que p(a,»7j |e, f) est supérieur a un certain seuil.
+
+— Les fonctions de compte fg =‘ f R prennent en compte le caractere non—déterministe des liens d’alignement de la rnaniere suivante.
+Pour un bi—segment fg(fJ7f , 672) :
+
+11
+fC( Jjf»5:f) : 0‘(J1,J2,i1,i2) >< 5(J1,J2,i1,i2) W90 (1)
+oz(j1,j2,i1,i2) = 1 — H I3(a2’,j|e» f), (2)
+(jzi)€i"(j17j2ﬂ1:i2)
+ﬁ(j1,j2,i1,i2) = H I3(a2’,j|ea f) (3)
+(j,i)€0ut(j17j27i17i2)
+
+ou z‘)(a,»7j |e, f) = (1 — p(a,»7j |e, f )), le coefﬁcient oz correspond a la conﬁance accordée au lien a l’intérieur (in) du bi—segment et
+
+ﬂ quantiﬁe la masse totale de probabilité des liens situes a l’eXtérieur (out) de ce bi—segment. L’estimation de cette fonction est
+
+illustree a la ﬁgure 2.
+Avec ces nouvelles deﬁnitions, l’éValuation des bi-segments doit étre modiﬁée pour également prendre en compte les probabilités
+des alignements. La fonction qﬁ ne nécessite pas de modiﬁcation, puisqu’elle utilise la fonction fg, qui a été redéﬁnie. En revanche,
+les poids lexicaux sont maintenant déﬁnis comme suit :
+
+|€| lfl
+l€$(€|f»Ap) = H  Z w(€¢|fj)P(<12‘,j|e» fl) +w(€z‘|f0) H5(a¢,j|e»f)>- (4)
+
+i=1 Vj:;v(¢h,j |e7f)>0 1:1
+
+L’une des hypotheses explorée dans notre travail est que les gains modestes obtenus par (Liu et al., 2009) sont dus a la méthode
+utilisée pour estimer cette matrice pondérée, qui s’appuie sur un petit ensemble d’alignements calculés par le modele IBM4. En
+
+ESTIMATION D’UN MODELE DE TRADUCTION
+
+effet l’echantillonnage des alignements en ne considérant que les n—meilleures hypotheses des modeles IBM4 (n = 10 en pratique)
+revient a considérer qu’un sous—ensemble qui ne contient que peu de variation et beaucoup de redondance. Ainsi, l’exploration de la
+matrice d’alignement est par construction tres limitée et l’estimation approximative. Par ailleurs, le calcul de la matrice d’alignement
+s’appuie sur une procedure ad hoc de recombinaisons des probabilites a posteriori des alignements initialement calcules separement
+pour chaque direction de traduction.
+
+L’ alternative que nous proposons d’explorer consiste a esti1ner cette matrice en utilisant une modélisation directe de la probabilité
+d’un lien d’alignement en utilisant des modeles conditionnels exponentiels qui seront decrits a la section 3.
+
+3 Modélisation de la matrice d’alignement
+
+Un alignement mot a mot entre une phrase source, et sa traduction (la phrase cible) regroupe un ensemble de liens décrivant une
+relation de traduction entre mots. Ainsi, prédire la matrice d’alignement peut etre envisage comme un probleme de classiﬁcation
+supervisée pour des données structurées. Lorsque des données étiquettees sont disponibles, la solution proposée dans (Ayan & Dorr,
+2006; Tomeh et al., 2010, 2011) consiste a estimer de maniere indépendante la probabilité de chaque lien dans la matrice a l’aide
+d’un modele de regression logistique deﬁni par :
+
+p(y|$) = Z(1m) exp  Akfk (317%)): 
+
+k=1
+
+ou y désigne la variable aleatoire binaire qui indique si un lien est actif, :1: l’observation, Z le facteur de normalisation, (fk),’f=1
+déﬁnit un ensemble de fonctions caractéristiques, et ()\;,),§=1 les poids associes. Dans l’équation (5), l’observation :1: désigne la paire
+de phrases augmentée de son étiquetage morphosyntaxique et des liens d’alignement produits par les modeles génératifs.
+
+Cette formulation du probleme permet de modéliser directement chaque cellule de la matrice d’alignement. Mais elle peut etre
+également percue comme une maniere de fusionner différents alignements d’une paire de phrases. Cette approche permet donc
+également de remplacer l’étape heuristique de symetrisation, nommee grow—diag—ﬁnal—and (Koehn et al., 2003) dans l’approche
+standard, par un modele d’apprentissage statistique pouvant prendre en compte un nombre arbitraire d’a1ignements en entree.
+
+Estimer ce modele a partir d’exemples demande neanmoins de prendre en consideration le caractere tres creux de la matrice d’ali—
+gnement, consequence du fait qu’une forte majorite de liens sont inactifs. La tache de classiﬁcation considéree est donc tres des-
+equilibree. Aﬁn d’éviter d’apprendre un classiﬁeur trop biaisé en faveur de la prediction de liens inactifs, l’ensemble des liens a
+étiqueter peut etre au préalable reduit a un sous—ensemble de la matrice. Pour deﬁnir ce sous—ensemble, les modeles génératifs clas-
+siques sont utilises (modeles de Markov caches et/ou IBM4 dans les deux directions) : tout lien qui n’apparait pas dans un des
+alignements géneratifs est considéré comme inactif ; les autres liens sont evalues par le modele de classiﬁcation. Dans ce cadre,
+les alignements generatifs sont utilises pour réduire l’espace de recherche et permettent de limiter l’effet potentiellement nefaste de
+données désequilibrees (Ayan & Dorr, 2006; Ehning & Habash, 2007).
+
+Ce modele est utilise pour estimer la matrice pondérée d’alignement Ap décrite a la section 2.2. Le classiﬁeur supervise esti1ne donc
+la probabilité p(a,-J |e, f) pour chaque cellule de la matrice.
+
+Apprentissage L’ estimation des parametres du modele (les A], dans l’équation (5)) est faite de maniere a maximiser la vraisem-
+blance conditionnelle regularisée a partir d’un corpus d’entrainement. La regularisation utilisee est connue sous le nom d’ elastic-
+net (Zou & Hastie, 2005) et combine un terme de regularisation £1, qui aide a sélectionner les fonctions caracteristiques les plus
+utiles et ainsi reduire la taille du modele, et un terme de regularisation £2, qui garantit que le Hessien de la fonction objectif n’est
+jamais trop proche de zero, et permet ainsi d’éviter les problemes d’instabilité numerique. Ce choix de regularisation nous permet
+d’envisager de nombreuses fonctions caracteristiques, sachant que certaines d’entre elles seront eliminées lors de l’entrainement car
+jugées inutiles.
+
+Les caractéristiques Les fonctions caractéristiques utilisées pour le classiﬁeur sont décrites en detail dans (Tomeh et al., 2010)
+et reprennent en partie celles proposees par (Ayan & Dorr, 2006). Elles prennent en compte les multiples sources d’informations :
+la paire de phrases augmentee de son etiquetage morphosyntaxique et les liens d’alignement produits par les différents modeles
+géneratifs considerés. Ainsi, pour un lien d’alignement donné, ces fonctions binaires indiquent par exemple : l’association entre les
+mots source/cible et de meme pour les etiquettes morphosyntaxiques associees; quel modele genératif propose ce lien comme actif
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS YVON
+
+ainsi que le nombre total de modeles génératifs proposant ce lien comme actif ; combien de liens sont proposes par les modeles
+génératifs dans le Voisinage; la fertilité du mot source (et resp. du mot cible) considérant l’ensemble des alignements d’entrée;
+l’écart du lien a la diagonale aﬁn de favoriser ou non les alignements monotones; la distance du lien avec le mot aligné le plus
+proche (en source et en cible) aﬁn de caractériser si ce lien est isolé des autres.
+
+A ces caractéristiques s’ajoutent celles que nous allons décrire. Une premiere famille de fonctions caractéristiques décrit les mots
+source et cible relatifs a un lien d’alignement (i.e une case de la matrice) :
+
+— Probabilité de traduction lexicale pour le couple de mots utilise : p(fi |ej) et p(e,-| fj) estimées par le modele IBMI.
+
+— La fréquence des mots source et cible ainsi que leur ratio.
+
+— Un test sur tous les preﬁxes et sufﬁxes de longueur 3.
+
+— La similarité entre les mots source et cible calculée par la distance d’édition. Cette caractéristique tente de capturer la propension
+
+qu’ont les noms propres a etre traduits de maniere similaire, comme par exemple : SdAm Hsyn et Saddam Hussein.
+
+— Un test portant sur l’égalité entre les mots source et cible.
+
+— Un test indiquant si l’un des mots est une ponctuation associé avec un mot qui n’est pas une ponctuation.
+
+Nous avons également deﬁnit un ensemble de fonctions caractéristiques permettant de décrire la structure de la matrice et les liens qui
+la composent. En plus des fonctions décrites dans (Tomeh et al., 2010), nous ajoutons la fonction qui indique si un lien d’alignement
+implique un mot dupliqué dans l’une des phrases. Cette caractéristique permet de pallier une faible modélisation de la distorsion.
+Par exemple le mot arabe fy peut apparaitre plusieurs fois dans une meme phrase et etre ainsi touj ours aligné avec le meme mot in
+en cible. Cette fonction retoume la distance du lien considéré a la diagonale.
+
+4 Expériences
+
+Pour évaluer les différentes approches, nous utilisons la tache de traduction de l’arabe Vers l’anglais de l’éValuation NIST MT ’09.
+Nous comparons quatre méthodes d’estimation de la matrice ponderée : l’approche standard qui utilise les modeles d’alignement
+IBM4 et les heuristiques d’extraction et de Valuation usuelles; la méthode décrite dans le premier article sur les matrices ponde-
+rées (Liu et al., 2009) ; le systeme PostCAT (Graca et al., 2010) (décrit brievement a la section 4.1); et l’estimation directe de la
+matrice Via un modele de regression logistique. Le systeme de traduction utilise est MOSES(Koehn et al., 2007), un outil sous licence
+libre.
+
+4.1 Corpus et outils
+
+Pour entrainer le modele logistique, nous avons utilise Wapiti (Lavergne et al., 2010) 1, avec comme corpus d’apprentissage et de
+développement les données alignées manuellement du corpus IBMAC (Ittycheriah et al., 2006), contenant respectivement 10 000 et
+663 paires de phrases. Nous avons construit 2 sous—ensembles, de taille différente, de données paralleles pour entrainer le systeme
+de traduction, aﬁn d’éValuer l’impact du Volume de données disponibles sur les résultats obtenus. Ces deux corpus ont été constitués
+a partir des données autorisées dans la tache contrainte de l’eValuation NIST MT ’09. Elles sont toutes disponibles Via le Linguistic
+Data Consortium 2.
+
+Nous avons ainsi déﬁni 2 taches, l’une avec un corpus parallele de 30 000 phrases (30k) et l’autre avec 130 000 phrases (l30k). Les
+systemes de traduction sont constr11its avec MOSES 3 en utilisant la conﬁguration par defaut. Les parametres de ces systemes sont
+optimises de maniere usuelle avec l’outil MERT (Minimum Error Rate Training) avec comme données de développement le corpus
+NIST MT’06 contenant 1 800 phrases arabes et 4 traductions anglaises. Les traductions produites sont évaluées avec la métrique
+BLEU (Papineni et al., 2002) sur les données d’éValuation NISTMT’08, qui contiennent 1 400 phrases et 53k mots.
+
+Pour le systeme PostCAT4 et l’extraction des unites de traduction 5, nous avons utilise les outils libres disponibles sur la toile. Enﬁn
+les modeles de langue cible ont été appris avec la boite a outils SRILM 5 en utilisant toutes les données monolingues autorisées dans
+le cadre de l’éValuation NIST MT ’09 (pour plus de details, on se reportera a (Allauzen et al., 2009)).
+
+La partie anglaise des données est pré—traitée de maniere classique (les méthodes utilisées sont décrites dans (Allauzen et al., 2009)).
+
+. http ://wapiti.limsi.fr/
+
+. La description complete est disponible a l’adresse http ://www.it1.nist.gov/iad/mig/tests/mt/200W
+http ://www.statmt.org/moses/
+
+. http : //www . seas . upenn . edu/~strctlrn/CAT/CAT . html
+
+. http : //www . nlp . org . cn/~liuyang/warn/warn . html.
+
+. http : //www— speech . sri . corn/projects/srilrrd .
+
+o«u-.>_wto>—-
+
+ESTIMATION D’UN MODELE DE TRADUCTION
+
+Pour la partie arabe, toutes les phrases sont analysées et segmentees avec l’outil MADA+TOKAN7. Nous avons utilise le schema
+de segmentation D2 aﬁn de tenir compte de la morphologie riche de l’arabe et ainsi segmenter les mots arabes en des unites qui
+correspondent approxirnativement aux mots anglais.
+
+4.2 Construction des modéles de traduction
+
+Dans la section 2, nous avons decrit un algorithme generique pour la construction d’un modele de traduction. Cet algorithrne fonc—
+tionne en trois etapes séparées : construction des matrices d’alignement pondérées, extraction puis evaluation des bi—segments. Nous
+allons maintenant évaluer l’impact de ces trois etapes sur les résultats en traduction automatique.
+
+Pour la premiere étape, nous experimentons deux manieres de constr11ire les matrices pondérées :
+
+(i) la méthode standard qui ne considere que les meilleurs alignements
+
+(ii) la matrice ponderée par les probabilités qui est utilisée dans le processus d’ extraction et de Valuation.
+Notons qu’il est possible de passer de la conﬁguration (ii) a (i) par un simple seuillage sur les probabilités. Dans toutes nos expe-
+riences, nous utilisons un seuil de 0,5. Ainsi, pour chaque modele d’alignement, deux types de systemes sont constr11its : standard
+(conﬁguration (i)) et WAM pour la matrice ponderée (conﬁguration (ii) ). Le corpus de reference IBMAC contient également un jeu
+de test qui est utilise pour calculer le taux d’erreur d’alignement (ou AER, pour Alignment Error Rate).
+
+Les deux autres etapes (extraction et Valuation des bi—segments) dependent du mode de construction de la matrice d’ alignement.
+Dans le cas standard, les bi—segments sont extraits et evalués selon les heuristiques decrites a la section 2.1. Lorsque l’on utilise
+des matrices pondérées, nous utilisons les methodes d’extraction et de Valuation décrites a la section 2.2, qui prennent en compte la
+probabilité des liens d’alignement. Pour cette demiere approche, seuls les bi—segments dont la probabilité est supérieure a un seuil
+sont conserves. Ceci permet, comme le preconisent les auteurs de (Liu et al., 2009), de restreindre le nombre de bi—segments qui
+sont extraits. De plus, comme cela est fait dans l’approche standard, les bi—segments comprenant un segment de longueur supérieur
+a 7 sont egalement rejetes. Comme il est d’usage, les performances en traduction automatique sont évaluées par la métrique BLEU
+(Papineni et al., 2002).
+
+4.3 Modéles d’alignement mot-£1-mot
+
+En plus des deux methodes de construction du modele de traduction, nous avons également considére plusieurs modeles d’ alignement
+mot—a—mot, que nous allons décrire brievement.
+
+MGIZA++8 propose une implementation efﬁcace et parallele (Gao & Vogel, 2008) des modeles géneratifs les plus utilises : les
+modeles IBMl a IBM4 (Brown et al., 1993) et HMM (Vogel et al., 1996). Ces modeles sont utilises par la suite pour constr11ire des
+modeles de traduction selon la conﬁguration standard et pour entrainer notre systeme d’alignement discriminant (Voir section 3).
+
+N-best WAM construit la matrice pondérée en effectuant une moyenne des occurences des liens d’alignement a partir des 12-
+meilleures sequences d’ alignement produites par le modele IBM4. Cette méthode correspond a l’article original sur les matrices
+ponderees (Liu et al., 2009). Come ces auteurs, nous avons utilise la Valeur n = 10.
+
+PostCAT (Posterior Constrained Alignment Toolkit) propose une implementation des modeles HMM permettant d’injecter des
+contraintes lors de l’apprentissage Via l’algorithrne EM. Ces contraintes portent sur les probabilites a posteriori des Variables la-
+tentes (Graga et al., 2010) et permettent de corréler les deux directions d’alignement. Deux types de contraintes simples (symmétrie
+et btjectivite’) permettent au modele HMM d’atteindre des performances comparables au modele IBM4. Le fait d’ utiliser des modeles
+HMM permet de pouvoir calculer de maniere exacte et efﬁcace les probabilités a posteriori et ainsi constr11ire la matrice ponderée
+en considerant l’ensemble des liens d’alignement. Dans cet article, nous avons utilise la boite a outils Geppetto 9 (Ling et al., 2010),
+une implementation de PostCAT et des matrices d’alignement pondérées.
+
+7. http ://wwwl.ccls.columbia.edu/ cadim/MADA.html
+8. http ://geek.kyloo.net/
+9. http ://code.goog1e.com/p/geppetto/
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS YVON
+
+MaxEntWA est le systeme decrit a la section 3. Il s’agit d’un classiﬁeur MaxEnt qui predit pour chaque lien de la matrice sa
+probabilite a posteriori.
+
+Exception faite du modele note MGIZ4++, il est possible pour tous les modeles d’ extraire et de Valuer les bi—segments selon les
+deux methodes. Pour appliquer la methode (i), nous aVons applique pour toutes les experiences un seuil de 0, 1 come les auteurs
+de (Liu et al., 2009).
+
+4.4 Résultats
+
+Les resultats experimentaux pour les differentes conﬁgurations et les differents modeles d’alignement sont rassembles dans le ta-
+bleau 1. Examinons pour commencer, la partie 30k du tableau qui correspond aux experiences ou MOSES a ete entraine sur un corpus
+de 30 000 phrases paralleles. La partie MGIZ4++ presente les resultats obtenus en utilisant l’approche standard : utilisation des
+meilleures hypotheses d’ alignement IBM4 symmetrises pour extraire et Valuer les bi—segments Via les heuristiques usuelles (Koehn
+et al., 2003). Ainsi sur la tache 30k, le systeme standard obtient un score BLEU de 35,9. La partie 10—best WAM correspond au
+matrice ponderee ou les probabibilites a posteriori sont estimees a partir des 10 meilleurs alignements de IBM4. Cette approche
+permet d’obtenir un faible gain de 0,3 points BLEU par rapport a l’approche standard, soit (36,2). Ce resultat est coherent aVec ceux
+publies dans (Liu et al., 2009).
+
+La partie PostCAT introduit par rapport aux traVaux de (Liu et al., 2009) l’utilisation des modeles HMM pour les alignements de
+mot et donc la possibilite d’estimer les probabilites a posteriori de maniere exacte pour l’ensemble de la matrice. Cet apport permet
+d’augmenter le BLEU de maniere signiﬁcative : de 35,9 51 36,9 ou 37,0 selon la Variante du modele HMM utilisee. Enﬁn la partie
+MaxEntWA presente les resultats obtenus en utilisant un modele exponentiel pour predire la matrice d’alignement. Les resultats
+montrent un gain en BLEU supplementaire et consequent : 1,5 points par rapport a l’approche standard et 0,5 points par rapport a
+l’approche PostCAT. Notons egalement, que meme si les methodes standard d’extraction et de Valuation sont utilisees, les matrices
+d’alignements engendrees par PostCAT et MaxEntWA permettent d’obtenir de meilleurs resultats et que MaxEntWA est a nouVeau la
+methode donnant le meilleur resultat.
+
+Sur la tache 130k (MOSES est entraine sur 130 000 phrases paralleles), nous observons les memes tendances, aVec cependant des
+gains en BLEU moindres. Notons que le gain modeste obtenu aVec la methode 10-best pour estimer la matrice ponderee est similaire
+a celui obtenu sur la tache 30k. Pour les autres methodes de calcul de la matrice ponderee, les gains restent signiﬁcatifs, bien
+que moins importants. De nouveau, nous pouVons observer que le calcul de la matrice d’ alignement aVec le modele de regression
+logisitique (MaxEntWA) permet d’obtenir de meilleurs resultats en termes de score BLEU.
+
+La colonne PT du tableau 1 indique la taille du modele de traduction en nombre de bi—segments extraits. Nous observons, tout
+naturellement, que quand on considere l’integralite de la matrice ponderee (PostCAT et MaxEntWA), la taille du modele de traduction
+augmente considerablement, puisqu’elle se trouve multipliee par plus de 4, alors meme que le seuil de ﬁltrage est reste constant a 0,1.
+Le risque etait, en multipliant les entrees du modele de traduction, d’ajouter un bruit pouVant affecter le comportement global du
+systeme. Toutefois, il apparait que la Valuation des bi—segments par les probabilites (Voir la section 2.2) est un moyen effectif pour
+ﬁltrer les bi—segments les moins utiles lors de l’etape de traduction.
+
+Ainsi, l’amelioration de la Valuation des bi—segments a un impact signiﬁcatif sur les resultats en BLEU. Si cette amelioration peut etre
+imputee en partie a l’utilisation des matrice ponderee, la colonne AER (Alignment Error Rate ) montre que cette amelioration peut
+provenir egalement d’alignements mot-a-mot de meilleure qualite. Partant d’un l’AER obtenu aVec les modeles IBM4 symetrises
+d’une Valeur de 25,0%, on note tout d’abord que l’usage des 10—meilleurs alignements ne permet pas d’ameliorer la qualite intrin-
+seque des alignements. En revanche, l’utilisation d’un modele plus approprie tel que PostCAT entraine une amelioration sensible
+des alignements, aVec un AER de 22,5%. Cette tendance est encore plus afﬁrmee aVec la methode MaxEntWA, qui introduit dans le
+processus des alignements de qualite nettement accrue, puisque la reduction absolue de l’AER est de plus de 10 points.
+
+Globalement, les resultats experimentaux montrent que l’utilisation de la matrice ponderee pour extraire et Valuer les bi—segments
+permet d’ameliorer les performances des systemes de traduction, quand cette methode est associee a un mode de calcul pertinent
+pour les Valuations de la matrice ponderee. Ce dernier point recouVre d’une part la maniere dont sont calculees les probabilites
+d’alignement, et d’ autre part la fraction de cette matrice qui est effectivement exploree. La difference de resultats entre les deux
+taches (30k et 130k) suggere que l’utilisation d’un modele de regression logistique pour estimer la matrice ponderee conduit a
+des gains bien plus importants sur la petite tache (30k). Une explication de cette difference est que cette approche permet, lorsque
+l’on dispose de peu de donnees paralleles, d’extraire plus de bi—segments : lorsque les donnees manquent pour estimer le modele
+de traduction, il est en effet important de pouVoir malgre tout engendrer un grand nombre de bi—segments potentiels. De surcroit,
+on note que la Valuation par des probabilites permet effectiVement de limiter, au moment du decodage, les effets de l’introduction
+d’entrees bruitees dans la table de traduction.
+
+ESTIMATION D’UN MODELE DE TRADUCTION
+
+Tdche de traduction : 30K 130K
+Construction du MT: Standard(i) WAM(ii) Standard(i) WAM(ii)
+Alignement AER BLEU PT BLEU PT AER BLEU PT BLEU PT
+HMM 28,4 35,0 3,6 — — 26,8 39,2 9,7 — —
+MGIZA” IBM4 25,0 35,9 2,4 — — 23,3 40,2 6,5 — —
+10-best IBM4 24,9 35,8 2,4 36,2 3,0 23,3 40,0 6,6 40,4 8,5
+PostCAT Bijective 22,5 36,6 3,3 36,9 10,2 20,5 40,1 9,1 40,6 29,5
+Symmetric 22,5 36,7 2,9 37,0 10,7 20,8 40,2 8,5 40,4 30,2
+HMM 17,6 36,9 6,7 37,5 11,7 16,4 40,5 17,7 40,8 30,0
+MaXEntWA IBM4 15,6 37,2 5,5 37,5 9,6 14,3 41,0 14,5 41,1 25,0
+HMM+IBM 1,3,4 14,7 37,1 5,2 37,9 8,6 13,9 40,8 13,4 41,1 22,2
+
+TABLE 1 — Comparaison de 4 modéles d’ alignement (MGIZA++, 10-best, PostCAT and MaxEntWA) et de leurs interactions avec
+la méthode d’extraction et de Valuation de la table de traduction en termes de taux d’erreur d’ alignement (AER), de score BLEU
+et de la taille de la table de traduction exprimée en millions de bi—segments (PT). Les deux méthodes de construction du modéle
+de traduction (MT) sont l’approche standard (standard) et celle utilisant les matrices pondérées (WAM). Deux tailles de données
+paralléles d’apprentissage sont considérées (30K et 130K).
+
+5 Discussion
+
+De nombreux travaux récents se sont intéressés aux méthodes d’ extraction d’unités de traduction a partir de corpus paralléles. Que
+ce soit dans le cadre des systémes hiérarchiques ou a base de segments, le processus d’extraction (Koehn et al., 2003; Chiang, 2007)
+repose sur les matrices d’alignement mot-a-mot construites a partir des modéles d’alignement IBM4 (Brown et al., 1993) symétrisés.
+Comme nous l’aVons évoqué a la section 2.1, ce choix de la premiere étape se justiﬁe par un souci d’efﬁcacité puisqu’il restreint
+considérablement l’espace des unités qui sont explorées, puis sélectionnées. Néanmoins, ce choix favorise la propagation d’erreurs
+dues a des décisions (d’accepter ou de rejeter des liens d’alignement) qui sont prises trop tot dans le processus, sans qu’il soit de
+surcroit possible d’ affecter de réels scores de conﬁance a ces décisions.
+
+Lorsqu’il s’agit d’ étendre l’espace des unités qui sont explorées, la premiere difﬁculté est la complexité qui résulte de l’énumération
+puis de la Valuation de toutes les unités de traduction possible. Ainsi, une partie des travaux récents s’intéresse a l’élaboration d’ une
+représentation efﬁcace. Dans (Mi & Huang, 2008), le processus d’extraction des régles pour un systéme hiérarchique est étendu en
+considérant l’ensemble composé des n—meilleurs arbres d’analyse syntaxique au lieu de tenir compte uniquement du meilleur. Aﬁn
+de représenter puis de manipuler efﬁcacement ces n-meilleurs arbres, les auteurs utilisent une représentation efﬁcace (packed forest)
+(Billot & Lang, 1989) ayant également démontré son utilité (Galley et al., 2006; Wang et al., 2007) en traduction automatique.
+
+De maniére similaire, les n—meilleurs alignements peuvent étre utilisés aﬁn d’ enrichir la matrice d’alignement, que ce soit pour
+extraire les bi—segments (Xue et al., 2006), ou les régles d’un systéme hiérarchique (Venugopal et al., 2008). Dans ce dernier article
+comme dans (Mi & Huang, 2008), les auteurs déﬁnissent une distribution de probabilité sur les alignements a partir des n—meilleurs
+alignements et des n—meilleurs arbres d’analyse syntaxique. Cette approche par échantillonage pennet aux auteurs d’introduire des
+comptes fractionnaires pour les régles extraites et ainsi de pouvoir estimer le modéle de traduction.
+
+Ce recours a l’ échantillonnage pour l’inférence des probabilités a paste riori des d’ alignement se justiﬁe par la complexité d’inférence
+du modéle IBM4. Il existe en revanche, pour les modéles plus simples, tels que ceux qui s’inspirent des modéles de Markov cachés
+(souvent désignés de maniére générique sous le nom de << modéle HMM ») (Vogel et al., 1996) ou pour le modéle IBM1 (Brown
+et al., 1993), des algorithmes d’inférence exacts et efﬁcaces (Venugopal et al., 2003; Deng & Byrne, 2005). Une des limitations
+du modéle HMM est son absence de modélisation de la fertilité. Pour pallier cette limitation, les auteurs de (Deng & Byrne, 2005)
+déﬁnissent un HMM permettant d’aligner des mots avec des segments qui rivalise en termes de performances avec le modéleIBM4,
+tout en préservant la possibilité d’un calcul exact des probabilités a posteriori des alignements de mots et qui s’étend au calcul de
+distributions a posteriori des segments ou des régles. Les expériences montrent que cette approche améliore signiﬁcativement le pro-
+cessus d’extraction d’unités de traductions pour les systémes a base de segments (Deng & Byme, 2005) et hiérarchiques (de Gispert
+et al., 2010).
+
+L’introduction des matrices pondérées (Liu et al., 2009) que nous décrivons a la section 2 peut étre considérée comme l’adaptation
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS Yv0N
+
+des packed forests des systemes hiérarchiques au systemes a base de segments : une exploration plus exhaustive de la matrice
+d’alignement, l’usage des probabilités des alignements de mots pour dériver des scores de conﬁance sur les bi—segments extraits.
+Pour ce demier point, les auteurs s’inspirent d’ailleurs des travaux de (Mi & Huang, 2008).
+
+Come mentionné a la section 2, un des probleme des matrices ponderées est l’esti1nation des probabilités a posteriori des aligne-
+ments. Dans (Liu et al., 2009), cette estimation est faite en échantillonnant les n-meilleurs alignements des modeles IBM4, alors que
+dans (Deng & Byme, 2005; de Gispert et al., 2010; Ling et al., 2010) le modele HMM ou une de ses variante est utilise pour les
+estimer de maniere exacte. Cependant, dans ce demier type d’approche, il est encore nécessaire de fusionner les alignements corres-
+pondant aux deux directions (un modele d’alignement de source vers cible et réciproquement). Les solutions envisagées semblent
+peu satisfaisantes : soit la fusion est heuristique et consiste simplement a prendre la moyenne arithmétique des distributions at poste-
+riori (Graga et al., 2010; Ling et al., 2010) ; soit de maniere beaucoup plus coﬁteuse, deux systemes de traduction indépendants sont
+utilises utilisant chaque modele HMM, la fusion se fait alors sur les treillis engendrés par chaque systeme (de Gispert et al., 2010).
+
+Dans cet article, nous introduisons donc une extension du travail de (Liu et al., 2009) en proposant une nouvelle methode de
+construction de la matrice d’alignement. Pour cela, nous proposons d’utiliser un classiﬁeur au maximum d’entropie décrit dans (Ayan
+& Dorr, 2006; Tomeh et al., 2010, 2011). Cette approche permet en effet de calculer directement la matrice ponderée sans avoir
+recours ni a une fusion heuristique des distributions a posteriori, ni a une coﬁteuse étape de fusion de systeme. Faute de données
+etiquettées permettant de mettre en oeuvre cette demarche, l’approche de (Graga et al., 2010) semble foumir des performances
+proches de nos meilleurs resultats.
+
+6 Conclusion
+
+Dans cet article, nous avons abordé le probleme de l’estimation des modeles de traduction a partir d’a1ignements mot—a—mot non-
+deterministes. En effet, dans l’approche considéree come standard, les modeles de traduction sont estimés a partir d’a1ignements
+mot—a—mot grace a des heuristiques d’extraction et de valuation. Bien que ces alignements mot—a—mot soient constr11its par des mo-
+deles probabilistes, les processus d’extraction et de valuation utilisent ces modeles comme produisant des alignements deterministes.
+A la suite (Liu et al., 2009), la solution que nous avons envisagée leve cette limitation en considérant une matrice d’alignement
+pondérée, dans laquelle chaque lien d’alignement est value par sa probabilité. Les premiers travaux dans cette direction étaient, selon
+nos hypotheses, limités par la méthode d’ estimation de la matrice pondérée, et nous avons propose une methode permettant d’esti1ner
+directement cette matrice a l’aide d’une methode de classiﬁcation supervisée.
+
+Aﬁn de valider cette approche, nous avons effectué des experiences sur la tache de traduction automatique de l’Arabe vers l’Anglais
+de l’évaluation NIST MT’09. Dans ce cadre experimental, nous avons compare 4 methodes de construction du modele de traduc-
+tion, contrastant ainsi l’approche standard avec l’usage des matrices pondérées, et évaluant djfférents estimateurs de cette matrice.
+Les résultats ont montré que l’usage des matrices pondérées impliquait une extraction plus importante de bi—segments et que leur
+valuation adaptée permettait au systeme de traduction d’obtenir de meilleurs résultats mesurés en terme de BLEU. En particulier,
+des gains signiﬁcatifs (entre 2 et 0,9 point BLEU, selon la tache considérée) ont été obtenus par notre méthode, qui semble la mieux
+a meme de produire des alignements de bonne qualité (au sens de l’AER). Ces resultats nous ont permis de conclure que le choix
+de l’estimateur des matrices pondérés a un impact net sur les performances en traduction et que notre méthode est nettement plus
+pertinente que celles proposées dans les travaux antérieurs.
+
+Contrairement aux heuristiques standard, notre methode permet de controler et d’adapter le nombre de bi—segments extraits a la taille
+des données paralleles d’entrainement. Nous souhaitons donc a l’avenir explorer cet aspect. L’ approche envisagée consiste a extraire
+le plus de bi—segments possibles et a travailler sur leur ﬁltrage. L’ intéret de cette approche est que nous pensons ainsi limiter l’impact
+des erreurs commises par les modeles d’alignement. De plus, l’étape de ﬁltrage peut se faire en prenant en compte l’utilité des bi-
+segments lors de l’etape de traduction et ainsi ne pas se limiter a des tests statistiques qui ne prennent pas en compte la ﬁnalité des
+modeles de traduction. Des articles recents comme (Wuebker et al., 2010) montrent l’i1nportance d’une valuation des bi—segments
+qui améliorerait les simples calculs de fréquences, et qui serait plus directement en rapport avec la ﬁnalité des modeles de traduction.
+
+Remerciements
+
+Ces travaux ont ete en partie ﬁnance par l’agence OSEO dans le cadre du programme Quaero. Les auteurs tiennent a remercier
+Thomas Lavergne pour son aide précieuse concemant la Inise en oeuvre de Wapiti.
+
+ESTIMATION D’UN MODELE DE TRADUCTION
+
+Références
+
+ALLAUZEN A., CREGO J ., MAX A. & YVON F. (2009). LIMSI’s statistical translation systems for WMT’09. In Proc. of the 4th
+Workshop on Statistical Machine Translation, p. 100-104, Athens, Greece : Association for Computational Linguistics.
+
+AYAN N. F. & DORR B. J . (2006). A maximum entropy approach to combining word aligmnents. In Proceedings of the main
+con erence on Human Language Technology Conference of the North American Chapter of the Association of Computational
+Linguistics, p. 96-103 : Association for Computational Linguistics.
+
+BILLOT S. & LANG B. (1989). The structure of shared forests in ambiguous parsing. In Proceedings of the 27th annual meeting
+on Association for Computational Linguistics, ACL ’89, p. 143-151.
+
+BROWN P. F., PIETRA V. J . D., PIETRA S. A. D. & MERCER R. L. (1993). The mathematics of statistical machine translation :
+parameter estimation. Comput. Linguist., 19, 263-311.
+
+CHIANG D. (2007). Hierarchical phrase-based translation. Comput. Linguist., 33(2), 201-228.
+
+DE GISPERT A., PINO J . & BYRNE W. (2010). Hierarchical phrase-based translation grammars extracted from alignment posterior
+probabilities. In Proceedings of the 2010 Conference on Empirical Methods in Natural Language Processing, EMNLP ’ 10, p. 545-
+554, Morristown, NJ, USA : Association for Computational Linguistics.
+
+DENERO J ., GILLICK D., ZHANG J . & KLEIN D. (2006). Why generative phrase models underperform surface heuristics.
+In Proceedings on the Workshop on Statistical Machine Translation, p. 31-38, New York City : Association for Computational
+Linguistics.
+
+DENERO J . & KLEIN D. (2008). The complexity of phrase alignment problems. In Proceedings of ACL-08 : HLT Short Papers,
+p. 25-28, Columbus, Ohio : Association for Computational Linguistics.
+
+DENG Y. & BYRNE W. (2005). Hmm word and phrase aligmnent for statistical machine translation. In Proceedings of the
+conference on Human Language Technology and Empirical Methods in Natural Language Processing, HLT ’05, p. 169-176,
+Morristown, NJ, USA : Association for Computational Linguistics.
+
+ELMING J . & HABASH N. (2007). Combination of statistical word aligmnents based on multiple preprocessing schemes. In Human
+Language Technologies 2007: The Conference of the North American Chapter of the Association for Computational Linguistics;
+Companion Volume, Short Papers, NAACL—Short ’07, p. 25-28, Stroudsburg, PA, USA : Association for Computational Linguistics.
+GALLEY M., GRAEHL J ., KNIGHT K., MARCU D., DENEEFE S., WANG W. & THAYER I. (2006). Scalable inference and
+training of context—rich syntactic translation models. In Proceedings of the 21 st International Conference on Computational Lin-
+guistics and 44th Annual Meeting of the Association for Computational Linguistics, p. 961-968, Sydney, Australia : Association
+for Computational Linguistics.
+
+GAO Q. & VOGEL S. (2008). Parallel implementations of word alignment tool. In Software Engineering, Testing, and Quality
+Assurance for Natural Language Processing, SETQA—NLP ’08, p. 49-57, Stroudsburg, PA, USA : Association for Computational
+Linguistics.
+
+GRACA J . A. V., GANCHEV K. & TASKAR B. (2010). Learning tractable word alignment models with complex constraints.
+Comput. Linguist., 36, 481-504.
+
+ITTYCHERIAH A., AL-ONAIZAN Y. & ROUKOS S. (2006). The IBM Arabic—English Word Alignment Corpus. Rapport inteme
+RC24024, IBM.
+
+KOEHN P., HOANG H., BIRCH A., CALLISON-BURCH C., FEDERICO M., BERTOLDI N., COWAN B., SHEN W., MORAN C.,
+ZENS R., DYER C., BOJAR 0., CONSTANTIN A. & HERBST E. (2007). Moses : Open source toolkit for statistical machine
+translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics Companion Volume
+Proceedings of the Demo and Poster Sessions, p. 177-180, Prague, Czech Republic : Association for Computational Linguistics.
+KOEHN P., OCH F. J . & MARCU D. (2003). Statistical phrase-based translation. In NAACL ’03 : Proceedings of the 2003
+Conference of the North American Chapter of the Association for Computational Linguistics on Human Language Technology, p.
+48-54 : Association for Computational Linguistics.
+
+LAVERGNE T., CAPPE O. & YVON F. (2010). Practical Very large scale CRFs. In Proceedings the 48th Annual Meeting of the
+Association for Computational Linguistics (ACL), p. 504-513 : Association for Computational Linguistics.
+
+LING W., LUIS T., GRACA J ., COHEUR L. & TRANCOSO I. (2010). Towards a General and Extensible Phrase—Extraction
+Algorithm. In M. FEDERICO, I. LANE, M. PAUL & F. YVON, Eds., Proceedings of the seventh International Workshop on Spoken
+Language Translation (IWSLT), p. 313-320.
+
+LIU Y., XIA T., XIAO X. & LIU Q. (2009). Weighted alignment matrices for statistical machine translation. In Proceedings of
+the 2009 Conference on Empirical Methods in Natural Language Processing : Volume 2 — Volume 2, EMNLP ’09, p. 1017-1026,
+Morristown, NJ, USA : Association for Computational Linguistics.
+
+NADI TOMEH, ALEXANDRE ALLAUZEN ET FRANCOIS Yv0N
+
+MI H. & HUANG L. (2008). Forest—based translation r11le extraction. In Proceedings of the 2008 Conference on Empirical Methods
+in Natural Language Processing, p. 206-214, Honolulu, Hawaii : Association for Computational Linguistics.
+
+OCH F. J. & NEY H. (2003). A systematic comparison of various statistical alignment models. Comput. Linguist., 29, 19-51.
+PAPINENI K., ROUKOS S., WARD T. & ZHU W.—J . (2002). Bleu : a method for automatic evaluation of machine translation. In
+Proceedings of the 40th Annual Meeting on Association for Computational Linguistics, ACL ’02, p. 311-318, Stroudsburg, PA,
+USA : Association for Computational Linguistics.
+
+TOMEH N., ALLAUZEN A., WISNIEWSKI G. & YVON F. (2010). Reﬁning word alignment with discriminative training. In
+Proceedings of the ninth Conference of the Association for Machine Translation in the America (AMTA), Denver, CO.
+
+TOMEH N., LAVERGNE T., ALLAUZEN A. & YVON F. (2011). Designing an improved discriminative word aligner. In Proceedings
+of the 12th International Conference on Intelligent Text Processing and Computational Linguistics (CICLING), Tokyo, Japan.
+
+VENUGOPAL A., VOGEL S. & WAIBEL A. (2003). Effective phrase translation extraction from alignment models. In Proceedings
+of the 41 st Annual Meeting on Association for Computational Linguistics — Volume I , ACL ’03, p. 319-326, Stroudsburg, PA, USA :
+Association for Computational Linguistics.
+
+VENUGOPAL A., ZOLLMANN A., SMITH N. A. & VOGEL S. (2008). Wider pipelines : N-best alignments and parses in MT
+training. In Proceedings of the Association for Machine Translation in the Americas (AM TA ).
+
+VOGEL S., NEY H. & TILLMANN C. (1996). Hmm—based word aligmnent in statistical translation. In Proceedings of the 16th
+conference on Computational linguistics, p. 836-841 : Association for Computational Linguistics.
+
+WANG W., KNIGHT K. & MARCU D. (2007). Binarizing syntax trees to improve syntax—based machine translation accuracy.
+In Proceedings of the 2007 Joint Conference on Empirical Methods in Natural Language Processing and Computational Natural
+Language Learning (EMNLP—CoNLL), p. 746-754, Prague, Czech Republic : Association for Computational Linguistics.
+
+WUEB KER J ., MAUSER A. & NEY H. (2010). Training phrase translation models with leaving—one—out. In Proceedings of the 48th
+Annual Meeting of the Association for Computational Linguistics, p. 475-484, Uppsala, Sweden : Association for Computational
+Linguistics.
+
+XUE Y.—Z., LI S., ZHAO T., YANG M. & LI J. (2006). Bilingual phrase extraction from n-best alignments. In ICICIC (3 ), p.
+410-414.
+
+ZENS R., OCH F. J. & NEY H. (2002). Phrase—based statistical machine translation. In KI ’02 : Proceedings of the 25th Annual
+German Conference on A1, p. 18-32, London, UK : Springer—Verlag.
+
+ZOU H. & HASTIE T. (2005). Regularization and variable selection via the elastic net. Journal of the Royal Statistical Society,
+Series B, 67, 301-320.
+

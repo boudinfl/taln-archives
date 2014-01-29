@@ -1,0 +1,598 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Cha&#238;nes de traitement syntaxique</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2005, Dourdan, 6&#8211;10 juin 2005
+</p>
+<p>Cha&#238;nes de traitement syntaxique
+</p>
+<p>Pierre Boullier, Lionel Cl&#233;ment, Beno&#238;t Sagot, &#201;ric Villemonte de La Clergerie
+INRIA - Projet Atoll
+</p>
+<p>Domaine de Voluceau, Rocquencourt, B.P. 105,78153 Le Chesnay (France)
+{Benoit.Sagot,Eric.De_La_Clergerie}@inria.fr
+</p>
+<p>Lionel.Clement@lefff.net
+</p>
+<p>Mots-clefs : Analyse syntaxique, &#233;valuation
+Keywords: Parsing, Evaluation
+</p>
+<p>R&#233;sum&#233; Cet article expose l&#8217;ensemble des outils que nous avons mis en &#339;uvre pour
+la campagne EASy d&#8217;&#233;valuation d&#8217;analyse syntaxique. Nous commen&#231;ons par un aper&#231;u du
+lexique morphologique et syntaxique utilis&#233;. Puis nous d&#233;crivons bri&#232;vement les propri&#233;t&#233;s de
+notre cha&#238;ne de traitement pr&#233;-syntaxique qui permet de g&#233;rer des corpus tout-venant. Nous
+pr&#233;sentons alors les deux syst&#232;mes d&#8217;analyse que nous avons utilis&#233;s, un analyseur TAG issu
+d&#8217;une m&#233;ta-grammaire et un analyseur LFG. Nous comparons ces deux syst&#232;mes en indiquant
+leurs points communs, comme l&#8217;utilisation intensive du partage de calcul et des repr&#233;sentations
+compactes de l&#8217;information, mais &#233;galement leurs diff&#233;rences, au niveau des formalismes, des
+grammaires et des analyseurs. Nous d&#233;crivons ensuite le processus de post-traitement, qui nous
+a permis d&#8217;extraire de nos analyses les informations demand&#233;es par la campagne EASy. Nous
+terminons par une &#233;valuation quantitative de nos architectures.
+</p>
+<p>Abstract This paper presents the set of tools we used for the EASy parsing evaluation
+campaign. We begin with an overview of the morphologic and syntactic lexicon we used. Then
+we briefly describe the properties of our pre-syntactic processing that allows us to deal with
+real-life corpus. Afterwards, we introduce the two parsers we used, namely a TAG parser based
+on a meta-grammar and an LFG parser. We compare these parsers, showing their common
+points, e.g., the extensive use of tabulation and compact representation techniques, but also
+their differences, concerning formalisms, grammars and parsers. We then describe the post-
+processing that allowed us to extract from our analyses the data required by the EASy campaign.
+We conclude with a quantitative evaluation of our architectures.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Boullier, L. Cl&#233;ment, B. Sagot, &#201;. de la Clergerie
+</p>
+<p>1 Introduction
+</p>
+<p>L&#8217;objectif pour les participants de la campagne nationale EASy pour l&#8217;&#201;valuation des Ana-
+lyseurs Syntaxiques &#233;tait d&#8217;analyser, automatiquement et en moins d&#8217;une semaine, environ
+35000 phrases. Les analyses devaient &#234;tre rendues dans le format d&#233;fini dans le Guide d&#8217;an-
+notation (Gendner &amp; Vilnat, 2004). Ce format regroupe une annotation (obligatoire) en consti-
+tuants et une annotation (faculative) en d&#233;pendances syntaxiques, que l&#8217;on pouvait rendre sous
+une forme ambigu&#235; ou d&#233;sambigu&#239;s&#233;e. Bien que nos analyseurs soient non-deterministes, nous
+avons choisi de fournir &#224; la fois des constituants et des d&#233;pendances d&#233;sambigu&#239;s&#233;es.
+</p>
+<p>Les corpus &#224; analyser &#233;taient des corpus r&#233;els, non retravaill&#233;s, mais segment&#233;s en tokens et
+en phrases, principalement &#224; des fins d&#8217;alignement des r&#233;sultats des participants. Ils couvraient
+diff&#233;rents styles, avec environ 6 000 phrases de corpus g&#233;n&#233;raux (journalistiques, l&#233;gislatifs),
+8 000 phrases de corpus litt&#233;raires, pr&#232;s de 8 000 phrases de corpus de courrier &#233;lectronique
+(avec tout le bruit que l&#8217;on peut imaginer dans un tel corpus), plus de 2 000 phrases de corpus
+m&#233;dicaux, 7 000 phrases de corpus de transcription d&#8217;oral (avec les marques sp&#233;cifiques &#224; de
+tels corpus, comme les h&#233;sitations, les reprises, les r&#233;p&#233;titions, etc.), et 3 500 phrases de corpus
+de questions (issus de concours de questions-r&#233;ponses).
+Il nous a donc fallu d&#233;velopper un certain nombre d&#8217;outils permettant de transformer ces cor-
+pus en entr&#233;es acceptables par nos analyseurs. Par ailleurs, nous avons d&#233;velopp&#233; un lexique
+morphologique et syntaxique &#224; large couverture, une m&#233;ta-grammaire TAG et une grammaire
+LFG, et des m&#233;canismes permettant de d&#233;sambigu&#239;ser nos analyses et d&#8217;en extraire les consti-
+tuants et d&#233;pendances d&#233;finis par le guide d&#8217;annotation. Ces composants ont d&#251; &#234;tre articul&#233;s
+harmonieusement, construisant ainsi deux cha&#238;nes compl&#232;tes d&#8217;analyse syntaxique.
+</p>
+<p>2 Lexique
+</p>
+<p>Le lexique que nous avons utilis&#233; est en cours de d&#233;veloppement au sein de l&#8217;&#233;quipe (Sagot
+et al., 2005). Il s&#8217;agit d&#8217;un lexique morphologique et syntaxique &#224; large couverture, dont l&#8217;archi-
+tecture repose sur une structure hi&#233;rarchique avec h&#233;ritage. En effet, le lexique morphologique
+et syntaxique est construit en deux phases &#224; partir d&#8217;informations &#233;l&#233;mentaires factoris&#233;es. La
+premi&#232;re phase, morphologique, construit un fichier de formes fl&#233;chies associ&#233;es &#224; leur lemme
+et leur &#233;tiquette morphologique &#224; partir d&#8217;un fichier de lemmes, d&#8217;un fichier d&#233;crivant les diff&#233;-
+rentes flexions, et d&#8217;un fichier d&#8217;exceptions. La seconde phase, syntaxique, construit le lexique
+final &#224; partir du fichier de formes fl&#233;chies, d&#8217;un fichier associant les lemmes &#224; des patrons syn-
+taxiques et d&#8217;un fichier d&#233;crivant ces patrons au sein d&#8217;une structure d&#8217;h&#233;ritage.
+</p>
+<p>Le lexique comporte aujourd&#8217;hui 404 366 formes fl&#233;chies distinctes repr&#233;sentant 600 909 en-
+tr&#233;es dont certaines sont factoris&#233;es. Le d&#233;veloppement de ce lexique met en &#339;uvre diff&#233;rentes
+technique d&#8217;acquisition, de compl&#233;tion et de correction. Outre la r&#233;cup&#233;ration de ressources
+libres de droits, des techniques d&#8217;apprentissage automatique de lexiques morphologiques ont
+&#233;t&#233; utilis&#233;es. Elles ont donn&#233; naissance &#224; la premi&#232;re version du Lefff (Cl&#233;ment et al., 2004;
+Cl&#233;ment &amp; Sagot, 2004), qui est un lexique des verbes fran&#231;ais pr&#233;sents dans un gros corpus
+journalistique. Par ailleurs, un des points faibles des lexiques est souvent le manque de couver-
+ture pour les multi-mots (tels que pomme de terre ou un peu). Nous avons donc exp&#233;riment&#233;
+des techniques d&#8217;acquisition de multi-mots (cf. (Sagot et al., 2005)).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Cha&#238;nes de traitement syntaxique
+</p>
+<p>Notre lexique est encore r&#233;cent et comporte un certain nombre d&#8217;erreurs et de manques. Pour le
+compl&#233;ter et le corriger, d&#8217;autres techniques ont &#233;t&#233; employ&#233;es (cf. (Sagot et al., 2005)). Notre
+module de correction orthographique permet de d&#233;tecter automatiquement les mots pour les-
+quels il n&#8217;existe pas de correction &#224; faible co&#251;t. Il s&#8217;agit le plus souvent de mots manquants &#224;
+rajouter manuellement. Nous avons &#233;galement appliqu&#233; des m&#233;thodes de d&#233;tection automatique
+des entr&#233;es syntaxiquement incorrectes. L&#8217;id&#233;e est qu&#8217;un mot apparaissant principalement dans
+des phrases non-analysables a des chances d&#8217;&#234;tre syntaxiquement incomplet ou erron&#233; dans le
+lexique. Enfin, certaines informations sp&#233;cifiques (associations verbe-pr&#233;position, verbes sup-
+ports et leurs noms pr&#233;dicatifs, . . .) peuvent &#234;tre acquises semi-automatiquement moyennant
+des techniques statistiques simples sur gros corpus. D&#8217;autres m&#233;thodes sont aujourd&#8217;hui envisa-
+geables, par exemple des m&#233;thodes stochastiques sur des sorties d&#8217;analyse syntaxique de corpus
+avec des grammaires robustes sur-g&#233;n&#233;ratrices (cadres de sous-cat&#233;gorisation tr&#232;s souples, etc.).
+</p>
+<p>3 Traitements pr&#233;-syntaxiques
+</p>
+<p>3.1 Description
+</p>
+<p>Nous avons eu &#224; traiter des corpus bruts et donc bruit&#233;s, bien loin des phrases de linguistes ou
+des jeux de tests, impliquant le traitement de divers types d&#8217;entit&#233;s nomm&#233;es1 (Maynard et al.,
+2001), des adresses aux &#171; smileys &#187;, la correction de fautes d&#8217;orthographe, la d&#233;limitation des
+phrases et des mots, et la gestion des particularit&#233;s de certains corpus oraux ou de transcriptions
+de sites internet. La segmentation des corpus en phrases et tokens fournie par les organisa-
+teurs &#233;tait parfois soit partielle soit incompatible avec nos outils. Cette segmentation devant
+&#234;tre celle des r&#233;sultats rendus, notre cha&#238;ne de traitement pr&#233;-syntaxique (d&#233;crite plus en d&#233;tail
+dans (Sagot &amp; Boullier, 2005)) a &#233;t&#233; adapt&#233;e pour garder en permanence un lien entre une unit&#233;
+morphosyntaxique manipul&#233;e par nos outils (unit&#233; que nous appelerons mot) et le ou les tokens
+d&#8217;entr&#233;e (issus de la segmentation fournie) qui lui correspondent. Ainsi, pendant tout le pro-
+cessus, les tokens d&#8217;entr&#233;e sont conserv&#233;s dans des commentaires (entre accolades et compl&#233;t&#233;s
+par leur position dans la cha&#238;ne d&#8217;entr&#233;e) qui sont imm&#233;diatement suivis du mot associ&#233;2. Par
+exemple3,
+</p>
+<p>contactez-moi au 1 av. Foch, 75016 Paris, ou par e-mail &#224; my.name@my-email.com.
+</p>
+<p>deviendra, si on laisse de c&#244;t&#233; les ambigu&#239;t&#233;s4
+</p>
+<p>{contactez0..1} contactez {-moi1..2} moi {au2..3} &#224; {au2..3} le {1 av. Foch, 75016 Paris3..9}
+_ADDRESS {,9..10} , {ou10..11} ou {par11.12} par {e-mail12..13} e-mail {&#224;13..14} &#224;
+{my.name@my-email.com14..15} _EMAIL {.15..16} . {.15..16} _SENT_BOUND.
+</p>
+<p>1Nous utilisons ce terme dans un sens l&#233;g&#232;rement plus large, en y incluant toutes les s&#233;quences de tokens de ce
+type, y compris celles qui ne sont g&#233;n&#233;ralement pas consid&#233;r&#233;es comme des entit&#233;s nomm&#233;es (p.ex. les nombres).
+</p>
+<p>2Nous utilisons les conventions suivantes : un mot artificiel (par exemple un identifiant d&#8217;entit&#233; nomm&#233;e) com-
+mence par un &#171; _ &#187; ; dans le corpus, les caract&#232;res &#171; _ &#187;, &#171; { &#187; et &#171; } &#187; sont remplac&#233;s par les mots artificiels _UN-
+DERSCORE, _O_BRACE et _C_BRACE, qui sont donc des mots du lexique. Ainsi, ces trois caract&#232;res sont disponibles
+comme m&#233;ta-caract&#232;res.
+</p>
+<p>3Dans cet article, le symbole &#171; &#187; repr&#233;sente de mani&#232;re plus visible un espace, et donc une fronti&#232;re de tokens
+ou de mots.
+</p>
+<p>4On notera que le m&#234;me token peut &#234;tre utilis&#233; plusieurs fois de suite, pour g&#233;rer les agglutin&#233;es (ainsi au2..3).
+Par ailleurs, le token sp&#233;cial _SENT_BOUND indique une fronti&#232;re de phrase.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Boullier, L. Cl&#233;ment, B. Sagot, &#201;. de la Clergerie
+</p>
+<p>Par ailleurs, pour pouvoir prendre en compte certaines ambigu&#239;t&#233;s, le r&#233;sultat de notre cha&#238;ne
+de traitement pr&#233;-syntaxique, et donc l&#8217;entr&#233;e de nos analyseurs n&#8217;est pas une s&#233;quence de mots
+mais un treillis (DAG) de mots.
+L&#8217;architecture de notre cha&#238;ne de traitement pr&#233;-syntaxique est la suivante :
+Grammaires locales sur texte brut : reconnaissance d&#8217;un certain nombre d&#8217;entit&#233;s nomm&#233;es
+</p>
+<p>(et autres expressions apparent&#233;es) avant la phase de correction orthographique (adresses
+&#233;lectroniques, URL, dates, num&#233;ros de t&#233;l&#233;phone, horaires, adresses, nombres en chiffres,
+smileys, mots entre guillemets, ponctuations et artefacts de transcription de l&#8217;oral),
+</p>
+<p>Segmentation en phrases et identification des tokens inconnus : regroupement de deux phra-
+ses (au sens de la segmentation EASy) en une seule phrase, ou &#224; l&#8217;inverse d&#233;coupage
+d&#8217;une phrase en plusieurs (nous avons adapt&#233; pour cela notre segmenteur, qui &#233;tend les
+id&#233;es simples propos&#233;es p. ex. par (Grefenstette &amp; Tapanainen, 1994)) ; puis identification
+des tokens non analysables comme mots du lexique ou combinaison de mots du lexique5,
+</p>
+<p>Grammaires locales concernant les tokens inconnus : reconnaissance d&#8217;entit&#233;s nomm&#233;es met-
+tant en jeu des tokens inconnus &#224; l&#8217;aide des r&#233;sultats de la phase pr&#233;c&#233;dente : acronymes
+avec leur expansion, noms propres avec titres, s&#233;quences en langues &#233;trang&#232;res6,
+</p>
+<p>Correction orthographique et segmentation : transformation de tout token inconnu (c.-&#224;-d.
+ne faisant pas partie d&#8217;une entit&#233; nomm&#233;e reconnue) en un ou plusieurs mots du lexique
+par correction orthographique7, segmentation des tokens et regroupement de tokens adja-
+cents, &#224; l&#8217;aide du correcteur orthographique SXSPELL (Sagot &amp; Boullier, 2005),
+</p>
+<p>Grammaires locales sur mots connus : entit&#233;s nomm&#233;es compos&#233;es de mots du lexique (nom-
+bres, y compris les ordinaux, et dates &#233;crits en toutes lettres),
+</p>
+<p>Traitement non-d&#233;terministe : cette phase, qui produit un treillis de mots du lexique, permet
+de reconna&#238;tre les multi-mots (comme pomme de terre) et les agglutin&#233;es (comme au)
+tout en pr&#233;servant toutes les ambigu&#239;t&#233;s possibles, mais aussi de repr&#233;senter diff&#233;rentes
+alternatives pour g&#233;rer les erreurs d&#8217;accentuation ou de majuscule initiale8.
+</p>
+<p>&#192; titre d&#8217;illustration, la figure 1 montre la sortie de cette cha&#238;ne pour la phrase unique Jean
+abite en outre au 1 , rue de la Pompe, o&#249; une espace correspond &#224; une fronti&#232;re de to-
+kens au sens de la segmentation fournie par EASy. Les notations y sont all&#233;g&#233;es, et seuls les cas
+o&#249; il n&#8217;y a pas correspondance exacte entre un token et un mot sont indiqu&#233;s : le ou les tokens
+</p>
+<p>5Par combinaison de mots du lexique nous entendons des tokens tels que parle-m&#8217;en ou anti-Bush-n&#233;.
+6Ces grammaires reposent sur la m&#233;thode suivante. Soit w1 . . . wn une phrase dont les mots sont les wi. Nous
+</p>
+<p>d&#233;finissons une fonction d&#8217;&#233;tiquetage t qui associe (gr&#226;ce &#224; des expressions r&#233;guli&#232;res) une &#233;tiquette ti = t(wi) &#224;
+chaque motwi, o&#249; les ti sont pris dans un petit ensemble fini d&#8217;&#233;tiquettes possibles (respectivement 9 et 12 pour les
+deux grammaires locales concern&#233;es). Ainsi, une s&#233;quence d&#8217;&#233;tiquettes t1 . . . tn est associ&#233;e &#224; w1 . . . wn. Ensuite,
+un (gros) ensemble de transducteurs finis transforme t1 . . . tn en une nouvelle s&#233;quence d&#8217;&#233;tiquettes t&#8242;1 . . . t&#8242;n. Si
+dans cette derni&#232;re la sous-s&#233;quence t&#8242;i . . . t&#8242;j correspond &#224; un certain patron, la s&#233;quence de mots correspondante
+wi . . . wj est consid&#233;r&#233;e comme reconnue par la grammaire locale.
+</p>
+<p>Soit par exemple l&#8217;&#233;nonc&#233; Peu apr&#232;s , le Center for irish Studies publiait . . ., o&#249; Center , irish et Studies ont &#233;t&#233;
+identifi&#233;s comme mots inconnus. On associe &#224; cet &#233;nonc&#233; les &#233;tiquettes suivantes : cnpNEEucn. . .(c correspond &#224;
+initiale en majuscule, n &#224; probablement fran&#231;ais (cas par d&#233;faut), p &#224; ponctuation, N &#224; connu comme fran&#231;ais, E &#224;
+connu comme &#233;tranger et u &#224; inconnu). Ces &#233;tiquettes sont transform&#233;es en la nouvelle s&#233;quence cnpNeeeen. . .,
+o&#249; e correspond &#224; &#233;tranger : Center for irish Studies est reconnu comme une s&#233;quence en langue &#233;trang&#232;re.
+</p>
+<p>7Si la correction orthographique est impossible ou trop co&#251;teuse, deux mots du lexique repr&#233;sentant les mots
+inconnus sont utilis&#233;s, l&#8217;un correspondant aux mots &#224; initiale majuscule, l&#8217;autre &#224; ceux &#224; initiale minuscule.
+</p>
+<p>8Nous essayons aussi de corriger les composants de multi-mots qui n&#8217;existent pas isol&#233;ment mais qui ne
+prennent pas part &#224; leur multi-mot. Par exemple, brac n&#8217;existe que comme composant du multi-mot bric &#224; brac.
+Ainsi, un brac n&#8217;a pas &#233;t&#233; corrig&#233; pr&#233;c&#233;demment, mais est corrig&#233; en un bras.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Cha&#238;nes de traitement syntaxique
+</p>
+<p>sont alors entre accolades, le mot associ&#233; &#233;tant indiqu&#233; derri&#232;re. On notera que Jean, en tant que
+premier mot, peut aussi d&#233;signer une cat&#233;gorie de pantalon, que la faute d&#8217;orthographe sur abite
+est corrig&#233;e, la reconnaissance de l&#8217;adresse et le traitement du multi-mot et de l&#8217;agglutin&#233;e.
+</p>
+<p>0 1 2 3 4 5 6 7
+</p>
+<p>Jean
+</p>
+<p>{Jean} jean
+</p>
+<p>{abite} habite en outre
+</p>
+<p>{en outre} en_outre
+</p>
+<p>{au} &#224; {au} le {1 , rue de la Pompe} _ADRESSE
+</p>
+<p>FIG. 1 &#8211; DAG associ&#233; &#224; Jean abite en outre au 1 , rue de la Pompe.
+</p>
+<p>Nos exp&#233;riences montrent l&#8217;importance cruciale pour l&#8217;analyse syntaxique d&#8217;une telle cha&#238;ne de
+traitement pr&#233;-syntaxique, en particulier pour ceux des corpus d&#8217;EASy qui sont les plus &#233;loign&#233;s
+du fran&#231;ais &#233;crit standard : les corpus de courrier &#233;lectronique et de transcriptions d&#8217;oral.
+</p>
+<p>3.2 &#201;valuation
+L&#8217;&#233;valuation d&#8217;une telle cha&#238;ne est difficile car nous ne disposons pas d&#8217;un corpus de r&#233;f&#233;rence
+appropri&#233;. Cependant, on peut en avoir un aper&#231;u gr&#226;ce &#224; des tests pr&#233;alablement men&#233;s sur un
+corpus journalistique de 1,1 million de mots. Tout le processus prend 13 minutes 01 seconde,
+soit environ 1400 tokens/sec9. Le tableau 1 indique les taux de d&#233;tection de quelques cat&#233;gories
+d&#8217;entit&#233;s nomm&#233;es manuellement valid&#233;es.
+</p>
+<p>Classe d&#8217;entit&#233;s nomm&#233;es Occurrences Pr&#233;cision Rappel
+URL 174 100% 100%
+adresses (physiques) 35 100% 100%
+Expressions en langue &#233;trang&#232;re10 42 83% 88%
+</p>
+<p>TAB. 1 &#8211; &#201;valuation partielle de la reconnaissance d&#8217;entit&#233;s nomm&#233;es.
+</p>
+<p>L&#8217;&#233;valuation de la segmentation en phrases n&#233;cessite une annotation manuelle. Nous l&#8217;avons
+effectu&#233;e sur les 400 premi&#232;res phrases du corpus, ce qui donne un taux de pr&#233;cision de 100%
+et un taux de rappel de 100%. C&#8217;est tr&#232;s satisfaisant, compte tenu du fait que ce corpus jour-
+nalistique est rempli de citations, de notes de bas de page, de r&#233;f&#233;rences bibliographiques et de
+m&#233;ta-informations qui rendent la d&#233;tection des fronti&#232;res de phrases assez difficile.
+</p>
+<p>L&#8217;&#233;valuation du correcteur orthographique est d&#233;licate. La phase de correction orthographique et
+de segmentation en mots &#233;tant r&#233;alis&#233;e par un composant qui fait appel au correcteur SXSPELL
+tout en g&#233;rant les ph&#233;nom&#232;nes de segmentation et de majuscules, il y a deux sous-composants &#224;
+&#233;valuer : le correcteur SXSPELL et le segmenteur-correcteur qui l&#8217;utilise. De plus, il faut isoler
+leurs performances des qualit&#233;s du lexique et du corpus consid&#233;r&#233;s. Pour ce faire, nous avons
+identifi&#233; automatiquement parmi les 1,1 million de tokens tous ceux qui ne sont pas reconnus
+par le correcteur-segmenteur comme mots connus ou combinaisons valides de mots connus.
+Nous avons alors identifi&#233; parmi ces tokens inconnus ceux qui devraient &#234;tre corrig&#233;s en des
+</p>
+<p>9Le test a &#233;t&#233; r&#233;alis&#233; sur une architecture AMD Athlon ? XP 2100+ (1.7 GHz) et les r&#233;sultats peuvent pa-
+ra&#238;tre lents, compar&#233;, par exemple, aux quelques milliers de mots par seconde que l&#8217;on peut obtenir en faisant
+de l&#8217;analyse syntaxique de surface. Mais la phase de correction orthographique est algorithmiquement tr&#232;s co&#251;-
+teuse (impliquant, pour chaque mot, des intersections dynamiques d&#8217;automates &#224; plusieurs millions d&#8217;&#233;tats). Les
+performances que nous obtenons sont donc excellentes.
+</p>
+<p>10Test r&#233;alis&#233; seulement sur 2000 phrases, car une annotation manuelle est n&#233;cessaire.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Boullier, L. Cl&#233;ment, B. Sagot, &#201;. de la Clergerie
+</p>
+<p>mots ou combinaisons de mots pr&#233;sents dans le lexique, et nous les avons corrig&#233;s manuelle-
+ment (en tenant compte de leur contexte). Puis nous avons compar&#233; cette correction manuelle &#224;
+celle fournie par notre syst&#232;me. 91% des 150 tokens concern&#233;s sont corrig&#233;s (et &#233;ventuellement
+segment&#233;s) correctement. Quelques exemples sont indiqu&#233;s dans le tableau 2.
+</p>
+<p>Token d&#8217;entr&#233;e arisienne barri&#233;re l&#8217;intervent ionnisme n&#8217;aspire-til plrrase
+Correction parisienne barri&#232;re l&#8217; interventionnisme n&#8217; aspire -t-il phrase
+</p>
+<p>TAB. 2 &#8211; Exemples de corrections r&#233;ussies effectu&#233;es par le correcteur-segmenteur.
+</p>
+<p>Par ailleurs, 1846 tokens sont analys&#233;s comme combinaison de mots du lexique avec (au moins)
+un pr&#233;fixe (1712 cas) ou un suffixe (54 cas, seuls -n&#233;, -clef et leurs variantes &#233;tant concer-
+n&#233;s) connu. Ainsi, quasi-parti unique chr&#233;tien-lib&#233;ral-conservateur est transform&#233;e en quasi-
+_ parti unique chr&#233;tien-_ lib&#233;ral-_ conservateur , o&#249; &#171; -_ &#187; est, par convention, la marque des
+pr&#233;fixes. Il nous faut pr&#233;ciser &#224; ce stade deux faits. Tout d&#8217;abord, le corpus consid&#233;r&#233; est de tr&#232;s
+bonne qualit&#233; (150 mots du fran&#231;ais standard mal orthographi&#233;s parmi 1,1 million de mots).
+D&#8217;autre part, cette &#233;valuation du correcteur-segmenteur nous a permis de r&#233;aliser l&#8217;incompl&#233;-
+tude du lexique, en particulier en ce qui concerne les mots d&#8217;emprunt &#224; des langues &#233;trang&#232;res.
+</p>
+<p>4 Analyseurs syntaxiques
+</p>
+<p>Nous avons d&#233;velopp&#233; deux analyseurs utilisant des formalismes, des architectures et des gram-
+maires diff&#233;rents. Le premier, SXLFG, est un analyseur LFG &#224; deux passes. Le second, FRMG,
+est un analyseur TAG &#224; une passe utilisant une grammaire qui est la repr&#233;sentation compacte
+d&#8217;une TAG avec structures de traits et qui est obtenue par compilation d&#8217;une m&#233;ta-grammaire.
+</p>
+<p>4.1 Analyseur SXLFG
+</p>
+<p>Le syst&#232;me SXLFG (Boullier et al., 2005) permet de construire des analyseurs &#224; partir de gram-
+maires &#233;crites dans une variante du formalisme LFG (Lexical-Functional Grammars). Les gram-
+maires sont donc des grammaires non-contextuelles (CFG) dites grammaires support dont les
+r&#232;gles dont d&#233;cor&#233;es par des &#233;quations fonctionnelles dont la r&#233;solution repose sur l&#8217;unification.
+Lors d&#8217;une analyse, les &#233;quations fonctionnelles sont calcul&#233;es sur une repr&#233;sentation compacte
+des arbres d&#8217;analyse provenant de la grammaire support appel&#233;e for&#234;t partag&#233;e.En cas d&#8217;ambi-
+gu&#239;t&#233;, elle partage les sous-structures communes entre plusieurs analyses.
+</p>
+<p>Pour obtenir un analyseur efficace, nous effectuons les calculs d&#8217;&#233;quations fonctionnelles direc-
+tement sur la for&#234;t partag&#233;e, et non sur chaque arbre d&#8217;analyse CFG. Ceci induit la sp&#233;cificit&#233;
+de notre variante de LFG : toute information calcul&#233;e dans les structures fonctionnelles ne peut
+l&#8217;&#234;tre que de mani&#232;re bottom-up. En effet, puisque l&#8217;on effectue ces calculs sur la for&#234;t d&#8217;analyse
+sans la modifier, la structure fonctionnelle associ&#233;e &#224; la racine d&#8217;un sous-arbre ne peut d&#233;pendre
+que des structures associ&#233;es &#224; ses fils. Dans le cas g&#233;n&#233;ral, le r&#233;sultat de ces calculs est un en-
+semble de structures fonctionnelles associ&#233;es &#224; la racine de la for&#234;t. Si cet ensemble contient
+plus d&#8217;un &#233;l&#233;ment, on peut par la suite appliquer des heuristiques de d&#233;sambigu&#239;sation.
+</p>
+<p>Notre analyseur est un analyseur robuste, et ce &#224; plusieurs titres. Tout d&#8217;abord, l&#8217;analyseur CFG
+dispose de m&#233;canismes de rattrapage d&#8217;erreurs, permettant de traiter les cas o&#249; la phrase d&#8217;en-
+tr&#233;e est agrammaticale pour la grammaire support (on parle de phrases non-valides pour la CFG</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Cha&#238;nes de traitement syntaxique
+</p>
+<p>support). Ensuite, en cas d&#8217;&#233;chec du calcul des &#233;quations fonctionnelles, ces &#233;quations peuvent
+&#234;tre assouplies et donner lieu &#224; des r&#233;sultats ayant divers degr&#233;s d&#8217;imperfection. Par exemple, on
+peut obtenir une structure pour toute la phrase d&#8217;entr&#233;e mais qui ne respecte pas n&#233;cessairement
+certaines contraintes comme les cadres de sous-cat&#233;gorisation (on parle d&#8217;analyse sans v&#233;rifica-
+tion de coh&#233;rence, par opposition &#224; une analyse qui se d&#233;roule correctement jusqu&#8217;au bout, dite
+avec v&#233;rification de coh&#233;rence). En cas d&#8217;&#233;chec de cet essai, des structures fonctionnelles cou-
+vrant des portions disjointes de la phrase sont produites, qui sont appel&#233;es structures partielles.
+Au pire, la phrase d&#8217;entr&#233;e peut &#234;tre sur-segment&#233;e, c&#8217;est-&#224;-dire d&#233;coup&#233;e en sous-phrases (avec
+5 niveaux de d&#233;coupage possibles) pour essayer d&#8217;en analyser des portions correctes.
+Pour la campagne d&#8217;&#233;valuation EASy, nous sommes partis d&#8217;une grammaire LFG du fran&#231;ais
+d&#233;velopp&#233;e pour le syst&#232;me XLFG (Cl&#233;ment &amp; Kinyon, 2001), que nous avons modifi&#233;e et com-
+pl&#233;t&#233;e. Sa couverture et le degr&#233; d&#8217;ambigu&#239;t&#233; de sa grammaire support sont encore am&#233;liorables,
+mais elle traite correctement un nombre respectable de ph&#233;nom&#232;nes syntaxiques complexes.
+</p>
+<p>4.2 Analyseur FRMG
+</p>
+<p>L&#8217;analyseur FRMG s&#8217;appuie sur une grammaire d&#8217;arbres adjoints (TAG) avec d&#233;corations engen-
+dr&#233;e &#224; partir d&#8217;un niveau plus abstrait de description, une m&#233;ta-grammaire (MG) (Candito, 1999;
+Thomasset &amp; de la Clergerie, 2005). La grammaire obtenue est tr&#232;s compacte avec seulement
+133 arbres, car elle s&#8217;appuie sur des arbres factoris&#233;s utilisant des disjonctions entre n&#339;uds, des
+r&#233;p&#233;titions de n&#339;uds et, surtout, des n&#339;uds optionnels contr&#244;l&#233;s par des gardes. L&#8217;ancrage des
+arbres par les entr&#233;es lexicales se fait par unification de structures de traits appel&#233;es hypertags.
+</p>
+<p>Un analyseur syntaxique hybride TAG/TIG11 a &#233;t&#233; compil&#233; &#224; partir de la grammaire. Il peut
+prendre en entr&#233;e les treillis produits par la cha&#238;ne d&#8217;entr&#233;e (section 3) modulo quelques conver-
+sions pour construire les hypertags. Au d&#233;marrage de l&#8217;analyse, les arbres sont filtr&#233;s par rapport
+aux mots du treillis d&#8217;entr&#233;e, pour ne garder que ceux dont les n&#339;uds d&#8217;ancrages et les n&#339;uds
+lexicaux sont compatibles avec ces mots. L&#8217;analyseur utilise une strat&#233;gie d&#8217;analyse tabulaire
+descendante gauche-droite en une seule passe : le traitement des d&#233;corations des n&#339;uds n&#8217;est
+pas repouss&#233; dans une seconde passe, contrairement &#224; la strat&#233;gie SXLFG. N&#233;anmoins, les d&#233;-
+corations ne sont pas prises en compte pour les pr&#233;dictions descendantes mais seulement dans
+les propagations de r&#233;ponses. Le parcours des arbres factoris&#233;s se fait sans expansion de ceux-ci
+assurant une bonne efficacit&#233;. L&#8217;analyseur retourne soit une analyse compl&#232;te du treillis d&#8217;en-
+tr&#233;e, soit, en mode robuste, un ensemble d&#8217;analyses partielles couvrant au mieux ce treillis. Les
+analyses sont &#233;mises sous formes de for&#234;ts partag&#233;es de d&#233;rivations TAG indiquant les diverses
+op&#233;rations effectu&#233;es (substitution, adjonction, ancrage,. . .) et ensuite converties en for&#234;ts par-
+tag&#233;es de d&#233;pendances (figure 2) servant de base pour les traitements post-syntaxiques.
+</p>
+<p>E1F1|Jean E1F2|abite
+</p>
+<p>E1F3|en
+E1F3|en E1F4|outre
+</p>
+<p>E1F4|outre E1F5|au
+</p>
+<p>E1F5|au E1F6|1 E1F7|, E1F8|rue E1F9|de E1F10|la E1F11|Pompe
+</p>
+<p>np:50 v:111
+subject
+</p>
+<p>VMod:90
+vmod
+</p>
+<p>adv:39
+v
+</p>
+<p>adv:88vmod
+</p>
+<p>VMod:90vmod
+S:34
+</p>
+<p>S
+</p>
+<p>prep:2
+</p>
+<p>PP
+</p>
+<p>nc:46
+</p>
+<p>N2
+</p>
+<p>prep:40
+N2
+</p>
+<p>prep:2PP
+</p>
+<p>nc:46
+</p>
+<p>N2
+</p>
+<p>N2
+</p>
+<p>det:
+det
+</p>
+<p>end:end
+</p>
+<p>Punct
+</p>
+<p>FIG. 2 &#8211; For&#234;t de d&#233;pendances (FRMG)
+</p>
+<p>11Les TIG (Tree Insertion Grammars) sont une variantes des TAG faiblement &#233;quivalentes aux CFG.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Boullier, L. Cl&#233;ment, B. Sagot, &#201;. de la Clergerie
+</p>
+<p>5 Traitement post-syntaxique
+</p>
+<p>Le format et la nature des informations attendus par les organisateurs de la campagne EASy
+(Gendner &amp; Vilnat, 2004) ne correspondent pas n&#233;cessairement &#224; nos propres formats et choix
+linguistiques (cf. figure 3). D&#8217;autre part, les techniques tabulaires de partage de calculs mises
+en &#339;uvre dans nos analyseurs sont en partie motiv&#233;es par le souci d&#8217;obtenir l&#8217;ensemble des
+analyses pour une phrase, alors que la piste d&#8217;&#233;valuation de base pour EASy concerne des
+analyses syntaxiques non ambigu&#235;s. Il a donc &#233;t&#233; n&#233;cessaire de mettre en place des algorithmes
+de d&#233;sambigu&#239;sation et de conversion travaillant sur les structures partag&#233;es produites par nos
+analyseurs. Ces travaux ont &#233;t&#233; l&#8217;occasion d&#8217;explorer ce type d&#8217;algorithmes avec des approches
+assez diff&#233;rentes dans les cas de SXLFG et de FRMG. Nous avons &#233;galement d&#251; explorer diverses
+r&#232;gles heuristiques de d&#233;sambigu&#239;sation et comprendre comment les exprimer.
+</p>
+<p>GN 1 NV 2 GR 3 GP 4
+Jean abite en outre au 1 , rue de la Pompe
+F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11
+</p>
+<p>sujet verbe
+GN1 NV2
+</p>
+<p>compl&#233;ment verbe
+GP4 NV2
+</p>
+<p>modifieur verbe
+GR3 NV2
+</p>
+<p>FIG. 3 &#8211; Sortie EASy fournie par SXLFG et FRMG pour la m&#234;me phrase que pr&#233;c&#233;demment
+</p>
+<p>Dans le cas de FRMG, la d&#233;sambigu&#239;sation et la conversion s&#8217;appuient sur les for&#234;ts partag&#233;es
+de d&#233;pendances (section 4.2). Les arcs de d&#233;pendance se pr&#234;tent bien &#224; l&#8217;expression d&#8217;heuris-
+tiques de d&#233;sambigu&#239;sation : chaque arc se voit attribuer un poids donn&#233; par la somme des poids
+&#233;l&#233;mentaires associ&#233;s aux contraintes satisfaites par l&#8217;arc, avec, par exemple, un poids &#233;lev&#233;
+pour une d&#233;pendance entre un verbe et un argument et moindre entre un verbe et un modifieur.
+Au niveau global, l&#8217;algorithme retient un ensemble d&#8217;arcs maximisant la somme de leurs poids
+et tels que tout n&#339;ud soit accessible par un et un seul chemin. N&#233;anmoins, pour des raisons
+d&#8217;efficacit&#233;, l&#8217;algorithme a &#233;t&#233; (tardivement) compl&#233;t&#233; par une notion de co&#251;t r&#233;gional associ&#233;
+&#224; un sous-ensemble d&#8217;arcs atteignables &#224; partir d&#8217;un n&#339;ud. Une s&#233;lection born&#233;e des meilleurs
+co&#251;ts r&#233;gionaux est effectu&#233;e pour progressivement calculer un co&#251;t global qui n&#8217;est plus n&#233;ces-
+sairement optimal. Quoique bien plus efficace, l&#8217;algorithme reste encore trop lent dans certains
+cas. Une analyse plus pouss&#233;e du probl&#232;me (en partie aid&#233;e par l&#8217;approche suivie pour SXLFG)
+sugg&#232;re que trop d&#8217;informations sont perdues lors de la conversion des d&#233;rivations en d&#233;pen-
+dances12. En particulier, le format actuel n&#8217;indique pas si deux d&#233;pendances issues d&#8217;un m&#234;me
+mot appartiennent ou non &#224; une m&#234;me analyse, ce qui n&#233;cessite l&#8217;ajout de r&#232;gles co&#251;teuses fa-
+vorisant les bonnes configurations. Nous pr&#233;voyons donc de faire &#233;voluer notre notion de for&#234;t
+partag&#233;e de d&#233;pendances. Malgr&#233; ces probl&#232;mes, nous avons pu constater l&#8217;ad&#233;quation des arcs
+de d&#233;pendance pour exprimer des r&#232;gles de d&#233;sambigu&#239;sation ou de conversion.
+</p>
+<p>Dans le syst&#232;me SXLFG, la phase de d&#233;sambigu&#239;sation se fait par l&#8217;application successive d&#8217;un
+certain nombre de r&#232;gles sur les structures fonctionnelles associ&#233;es &#224; la racine de la for&#234;t d&#8217;ana-
+lyse produite par la grammaire support. Chaque r&#232;gle met en &#339;uvre un crit&#232;re pour &#233;liminer les
+structures fonctionnelles non optimales au sens de ce crit&#232;re. La derni&#232;re r&#232;gle choisit au hasard
+une analyse parmi celles qui restent. La for&#234;t d&#8217;analyse est alors &#233;lagu&#233;e pour n&#8217;y laisser que
+l&#8217;arbre13 support correspondant &#224; la structure fonctionnelle choisie. L&#8217;extraction des constituants
+</p>
+<p>12Ceci est d&#251; au fait que nos for&#234;ts de d&#233;pendances ont initialement &#233;t&#233; con&#231;ues pour une visualisation simplifi&#233;e
+d&#8217;un ensemble important d&#8217;analyses.
+</p>
+<p>13En toute rigueur, plusieurs arbres peuvent subsister s&#8217;ils correspondent &#224; une structure fonctionnelle identique.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Cha&#238;nes de traitement syntaxique
+</p>
+<p>et des d&#233;pendances demand&#233;s par EASy se fait alors en parcourant la structure fonctionnelle et
+son arbre associ&#233;, &#224; la recherche de motifs correspondant aux sp&#233;cifications de la campagne.
+Cette phase est facilit&#233;e par le fait que l&#8217;analyse unique issue de la phase de d&#233;sambigu&#239;sation a
+&#233;t&#233; pr&#233;alablement extraite, &#224; l&#8217;inverse de ce qui se passe dans le syst&#232;me FRMG.
+</p>
+<p>6 Mise en &#339;uvre et r&#233;sultats exp&#233;rimentaux
+</p>
+<p>Le volume de donn&#233;es &#224; analyser pour EASy, le nombre d&#8217;essais que nous voulions effectuer et
+la complexit&#233; de la t&#226;che &#233;taient suffisamment cons&#233;quents pour que nous d&#233;cidions de ventiler
+les analyses sur plusieurs machines, formant ainsi un cluster pour chaque syst&#232;me.
+</p>
+<p>Les tableaux 3 &#224; 5 pr&#233;sentent divers r&#233;sultats concernant EASy mais aussi les corpus EUROTRA
+et TSNLP. Les nombres de phrases diff&#232;rent selon le syst&#232;me, en raison d&#8217;heuristiques diff&#233;-
+rentes de segmentation en phrases. Par ailleurs, le taux d&#8217;ambigu&#239;t&#233; moyen par mot n&#8217;est dispo-
+nible que pour FRMG, car dans SXLFG les heuristiques de d&#233;sambigu&#239;sation sont incorpor&#233;es
+dans l&#8217;analyseur. Ce taux est d&#233;fini comme le nombre moyen d&#8217;arcs de d&#233;pendance atteignant
+un mot moins un14.
+</p>
+<p>Corpus #phrases % couv. temps d&#8217;analyse amb.
+moy. m&#233;d. &#8805; 1s &#8805; 10s
+</p>
+<p>EUROTRA 334 95.80% 1.81s 1.27s 61.68% 1.55% 0.7
+TSNLP 1661 93.38% 0.72s 0.56s 22.03% 0.00% 0.4
+EASy 34438 42.45% 5.55s 1.61s 64.41% 9.32% 0.6
+</p>
+<p>TAB. 3 &#8211; R&#233;sultats pour FRMG, avec un timeout de 100 secondes15
+</p>
+<p>Corpus #phrases couverture (sans couverture (avec temps d&#8217;analyse
+v&#233;rif. de coh.16) v&#233;rif. de coh.) moy. m&#233;d. &#8805; 0.1s &#8805; 1s
+</p>
+<p>EUROTRA 334 94.61% 84.43% 0.33s 0.02s 22.2% 6.0%
+TSNLP 1661 98.50% 79.12% 0.03s 0.00s 2.8% 0.6%
+EASy 40859 66.62% 41.95% n.d.17
+</p>
+<p>TAB. 4 &#8211; R&#233;sultats pour SXLFG, avec un timeout de 15 secondes15.
+</p>
+<p>7 Conclusion
+</p>
+<p>La campagne d&#8217;&#233;valuation EASy nous a permis de mettre en &#233;vidence la diff&#233;rence consid&#233;rable
+qu&#8217;il y a entre le d&#233;veloppement d&#8217;un analyseur syntaxique et le d&#233;veloppement d&#8217;une cha&#238;ne
+compl&#232;te d&#8217;analyse syntaxique. En effet, outre l&#8217;importance de la qualit&#233; de la grammaire et
+de l&#8217;analyseur, cette campagne a montr&#233; le r&#244;le non moins d&#233;terminant de la couverture et de
+la richesse du lexique, de la qualit&#233; de la cha&#238;ne de traitement, de la pr&#233;cision des m&#233;thodes
+d&#8217;exploitation des sorties des analyseurs, ainsi que la tr&#232;s forte interaction entre les diff&#233;rents
+composants, et en particulier entre le lexique et la grammaire.
+</p>
+<p>14Pour une phrase non-ambigu&#235;, chaque mot (sauf la &#171; t&#234;te &#187; de la phrase) est atteint par un seul arc, d&#8217;o&#249; un taux
+d&#8217;ambigu&#239;t&#233; nul. Le nombre maximal d&#8217;analyses pour un taux &#945; et une phrase de longueur n est en O((1 + &#945;)n).
+</p>
+<p>16On notera qu&#8217;un timeout plus &#233;lev&#233; aurait augment&#233; les taux de couverture mais &#233;galement les temps d&#8217;analyse.
+17Nous n&#8217;avons pas conserv&#233; les informations permettant de donner les temps sur le corpus EASy. Toutefois,
+</p>
+<p>(Boullier et al., 2005) donne les temps d&#8217;analyse pour les 87.51% de phrases reconnues par la CFG support.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>P. Boullier, L. Cl&#233;ment, B. Sagot, &#201;. de la Clergerie
+</p>
+<p>Corpus complet Phrases valides pour la CFG support
+Analyse CFG Analyse CFG Analyse compl&#232;te
+</p>
+<p>#phrases 40859 35756
+nmoy - nmax 20.95 - 541 19.06 - 173
+UWmoy - UWmax 0.79 - 97 0.75 - 65
+</p>
+<p>Nombre med - max 32 028 - 3.1073 29 582 - 5.1052 1 - 1
+d&#8217;analyses &#8805; 1012 8.86% 7.84% 0%
+</p>
+<p>TAB. 5 &#8211; Donn&#233;es sur les corpus18 et nombres d&#8217;analyses pour SXLFG, avant application de
+l&#8217;heuristique de sur-segmentation.
+</p>
+<p>Cette forte compl&#233;mentarit&#233; entre les diff&#233;rentes phases des cha&#238;nes d&#8217;analyse syntaxique a
+in&#233;vitablement &#233;largi le champ de la campagne EASy. Ce n&#8217;est pas seulement l&#8217;analyse syn-
+taxique elle-m&#234;me qui a &#233;t&#233; &#233;valu&#233;e lors de cette campagne, mais la capacit&#233; &#224; mettre en place
+des cha&#238;nes d&#8217;analyse syntaxique compl&#232;tes19. Nous comptons exploiter le fait que nous avons
+d&#233;ploy&#233; deux cha&#238;nes de traitement que tout s&#233;pare sauf le lexique et la cha&#238;ne pr&#233;-syntaxique.
+Ceci nous permettra d&#8217;effectuer des comparaisons et d&#8217;am&#233;liorer ainsi grammaires et analyseurs
+(en &#233;tudiant les diff&#233;rences entre nos r&#233;sultats), mais aussi le lexique et la cha&#238;ne de traitement
+pr&#233;-syntaxique (en &#233;tudiant les erreurs communes).
+</p>
+<p>R&#233;f&#233;rences
+BOULLIER P., SAGOT B. &amp; CL&#201;MENT L. (2005). Un analyseur LFG efficace : SXLFG. In Actes de
+TALN&#8217;05, Dourdan, France.
+CANDITO M.-H. (1999). Organisation modulaire et param&#233;trable de grammaires &#233;lectroniques lexica-
+lis&#233;es. PhD thesis, Universit&#233; Paris 7.
+CL&#201;MENT L. &amp; KINYON A. (2001). XLFG-an LFG parsing scheme for French. In Proc. of LFG&#8217;01.
+CL&#201;MENT L. &amp; SAGOT B. (2004). Site internet du Lefff (Lexique des Formes Fl&#233;chies du Fran&#231;ais).
+www.lefff.net.
+CL&#201;MENT L., SAGOT B. &amp; LANG B. (2004). Morphology Based Automatic Acquisition of Large-
+coverage Lexica. In Proceedings of LREC&#8217;04, p. 1841&#8211;1844.
+GENDNER V. &amp; VILNAT A. (2004). Les annotations syntaxiques de r&#233;f&#233;rence PEAS. En ligne sur
+www.limsi.fr/Recherche/CORVAL/easy/PEAS_reference_annotations_v1.6.html.
+GREFENSTETTE G. &amp; TAPANAINEN P. (1994). What is a word, what is a sentence ? Problems of
+tokenization. In Proceedings of the 3rd CCLTR, Budapest, Hungary.
+MAYNARD D., TABLAN V., URSU C., CUNNINGHAM H. &amp; WILKS Y. (2001). Named entity recogni-
+tion from diverse text types. In Proceedings of RANLP 2001, Tzigov Chark, Bulgaria.
+SAGOT B. &amp; BOULLIER P. (2005). From raw corpus to word lattices : robust pre-parsing processing. In
+Actes de L&amp;TC 2005, Poznan&#769;, Pologne.
+SAGOT B., CL&#201;MENT L., &#201;RIC VILLEMONTE DE LA CLERGERIE &amp; BOULLIER P. (2005). Vers un
+m&#233;ta-lexique pour le fran&#231;ais : architecture, acquisition, utilisation. In Journ&#233;e ATALA sur l&#8217;interface
+lexique-grammaire. http ://www.atala.org/article.php3?id_article=240.
+THOMASSET F. &amp; DE LA CLERGERIE E. V. (2005). Comment obtenir plus des m&#233;ta-grammaires. In
+Actes de TALN&#8217;05, Dourdan, France.
+</p>
+<p>18Pour les donn&#233;es sur les corpus, n d&#233;signe un nombre de mots, et UW un nombre de mots inconnus.
+19En outre, l&#8217;harmonisation des r&#233;sultats des diff&#233;rents participants passe par une segmentation commune en
+</p>
+<p>phrases et en mots, diff&#233;rente de celle produite et utilis&#233;e par nos outils, qui a d&#251; &#234;tre conserv&#233;e en permanence.</p>
+
+</div></div>
+</body></html>

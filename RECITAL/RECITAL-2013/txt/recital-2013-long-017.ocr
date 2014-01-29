@@ -1,0 +1,736 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Détection automatique des sessions de recherche par
+similarité des résultats provenant d’une collection de
+documents externe
+
+Simon Leva1 Nicolas Faesselz
+(1) CLLE—ERSS : CNRS et Université de Toulouse CUMR 5263),
+5 allées Antonio Machado, 31058 Toulouse Cedex 9
+(2) IRIT : CNRS et Université de Toulouse CUMR 5505),
+118 route de Narbonne, 31062 Toulouse Cedex 9
+s1eva@univ—t1se2 . fr , nicolas . faesselcirit . fr
+
+RESUME
+Les utilisateurs d’un systeme de recherche d’information mettent en oeuvre des comportements
+de recherche complexes tels que la reformulation de requéte et la recherche multitache aﬁn de
+satisfaire leurs besoins d’information. Ces comportements de recherche peuvent étre observés
+a travers des journaux de requétes, et constituent des indices permettant une meilleure com-
+préhension des besoins des utilisateurs. Dans cette perspective, il est nécessaire de regrouper
+au sein d’une méme session de recherche les requétes reliées a un méme besoin d’information.
+Nous proposons une méthode de détection automatique des sessions exploitant la collection de
+documents WIKIPEDIA, basée sur la similarité des résultats renvoyés par l’interrogation de cette
+collection aﬁn d’évaluer la similarité entre les requétes. Cette méthode obtient de meilleures
+performances que les approches temporelle et lexicale traditionnellement employées pour la
+détection de sessions séquentielles, et peut étre appliquée a la détection de sessions imbriquées.
+Ces expérimentations ont été réalisées sur des données provenant du portail OperLEdition.
+
+ABSTRACT
+Automatic search session detection exploiting results similarity from an external docu-
+ment collection
+
+Search engines users apply complex search behaviours such as query reformulation and mul-
+titasking search to satisfy their information needs. These search behaviours may be observed
+through query logs, and constitute clues allowing a better understanding of users’ needs. In this
+perspective, it is decisive to group queries related to the same information need into a unique
+search session. We propose an automatic session detection method exploiting the WIKIPEDIA
+documents collection, based on the similarity between the results returned for each query pair
+to estimate the similarity between queries. This method shows better performance than both
+temporal and lexical approaches traditionally used for successive session detection, and can be
+applied as well to multitasking search session detection. These experiments were conducted on a
+dataset originating from the OperLEdition Web portal.
+
+MOTS-CLES : Recherche d’informau'on, détection automatique de sessions de recherche, analyse
+de journal de requétes.
+
+KEYWORDS: Information retrieval, automatic search session detection, query log analysis.
+
+217 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+1 Introduction
+
+De plus en plus d’utilisateurs effectuent des recherches d’information sur le Web. Ils utilisent
+pour cela des moteurs de recherche, leur permettant d’exprimer leur besoin d’information sous
+la forme de requétes constituées de mots—clés. Ces systemes atteignent cependant leurs limites
+face a des requétes comportant en moyenne deux ou trois mots-clés, n’exprimant pas un besoin
+d’information sufﬁsamment explicite par rapport a l’ensemble des documents disponibles (Silver-
+stein et al., 1999). En particulier, les requétes soumises par les utilisateurs tendent a étre trop
+génériques ou trop spéciﬁques, nécessitant un certain nombre de reformulations avant d’obtenir
+un ensemble de documents pertinents (Downey et al., 2007). Les requétes d’un utilisateur sont
+donc rarement isolées, mais font essentiellement partie d’une session de recherche. Les sessions
+fournissent de nombreux indices sur l’objectif de l’utilisateur ou son expertise dans le domaine
+considéré, et constituent ainsi une unité qu’il peut étre utile d’identiﬁer en vue d’améliorer les
+performances d’un moteur de recherche.
+
+Nous avons montré dans une précédente étude (Leva, 2013) que la segmentation d’un journal
+de requétes en sessions de recherche n’est pas une tache triviale pour des annotateurs humains,
+aboutissant a un taux d’accord modéré. Nous avons également observé que la réalisation de cette
+tache a nécessité de la part des annotateurs une consultation de plusieurs ressources extemes aﬁn
+de pallier un manque de connaissances encyclopédiques, et ainsi permettre une prise de décision.
+Nous faisons donc l’hypothese qu’il serait possible de développer une méthode de détection
+automatique des sessions basée sur la similarité entre les requétes a partir de leur croisement
+avec une collection de documents.
+
+Nous présentons dans cet article l’élaboration d’une méthode de détection de sessions exploitant
+les documents de la partie francaise de Wikipédia 1. Cette méthode est évaluée sur une collection
+de référence construite a partir d’un journal de requétes issu du portail OpenEdition 2, et les
+résultats obtenus sont compares a deux méthodes de référence.
+
+Dans une premiere section, nous présentons la notion de session a travers ses définitions et les
+différentes approches de détection automatique. Puis, nous présentons les données que nous
+avons utilisées en vue de nos expérimentations. Nous détaillons enfin les différentes méthodes
+de détection que nous avons mises en oeuvre, avant d’en faire une évaluation.
+
+2 Etat de 1’art
+
+Les journaux de requétes (query logs) conservent une trace d’un certain nombre d’interactions
+entre des utilisateurs et un moteur de recherche (soumission et reformulation de requéte,
+navigation sur les pages de résultats, consultation de documents. . .). Ces données permettent
+ainsi d’étudier les comportements de recherche des utilisateurs et fournissent des indices sur
+leurs besoins d’information. Dans cette perspective, la notion de session de recherche est centrale,
+entrainant le développement de diverses méthodes de détection automatique.
+
+1. http : //fr . wikipedia . org
+2. http : //www . openedition . org/
+
+218 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+2.1 Déﬁnitions de la notion de session
+
+Une session de recherche regroupe l’ensemble des requetes soumises par un meme utilisateur aﬁn
+de satisfaire un meme besoin d’information. Si cette idée de regrouper les différentes formulations
+d’un meme besoin informationnel au sein d’une meme unité est partagée dans les déﬁnitions de
+la notion de session, celles—ci font cependant l’objet de nombreuses variations. En effet, selon que
+leur structure soit envisagée de maniere séquentielle ou imbriquée, les sessions vont comporter
+des caractéristiques différentes.
+
+2.1.1 Structure séquentielle des sessions
+
+L’une des premieres déﬁnitions de la notion de session dans le cadre de 1’étude d’un journal de
+requetes a été proposée par (Si1verstein et al., 1999) :
+
+A session is a series of queries by a single user made within a small range of time. A
+session is meant to capture a single user's attempt to ﬁll a single information need.
+
+Ainsi, les requetes appartenant a une meme session se succederaient dans 1’ordre chronologique
+de leur soumission, aboutissant a une organisation des requetes successives en séquences. L’une
+des implications de cette conception est que les sessions sont marquées par une longueur, que
+celle—ci soit exprimée en termes de nombre de requetes ou d’unité de temps. D’une part, une
+session peut contenir une seule ou plusieurs requetes (Gayo Avello, 2009). Dans ce dernier
+cas, la requete initiale est suivie d’une ou plusieurs reformulations (He et al., 2002). D’autre
+part, au niveau temporel, la durée d’une session peut varier de moins d’une minute (Spink
+et al., 2006), quelques minutes (He et Goker, 2000), a quelques heures (Spink et al., 2006).
+Dans ces différents cas, la durée d’une session reste courte et inférieure a une journée. En effet,
+l’identiﬁcation des utilisateurs dans un journal de requete se basant sur l’adresse IB et celle—ci
+pouvant changer toutes les 24 heures, il est difﬁcile de retrouver un utilisateur unique au—dela
+de cette période (Gayo Avello, 2009). Certains auteurs ﬁxent ainsi une fenetre temporelle de
+24 heures sur les requetes provenant d’une meme adresse IP (Jansen et al., 2007; Gayo Avello,
+2009), correspondant a la notion d’e'pisode de recherche. Un épisode peut donc comporter une ou
+plusieurs sessions de recherche.
+
+2.1.2 Structure imbriquée des sessions
+
+Si la vision des sessions en tant que séquences de requetes successives coincide avec les enregis—
+trements temporellement ordonnés constitués par les journaux de requetes, elle ne reﬂete pas la
+complexité des parcours de recherche des utilisateurs. En effet, ces demiers peuvent mener une
+recherche simultanément sur plusieurs themes (par exemple a travers l’utilisation de plusieurs
+onglets dans leur navigateur), ou interrompre momentanément leur recherche en cours pour
+s’intéresser a un nouveau besoin d’information. Ce comportement, correspondant a une recherche
+multiteche multitasking search, peut se traduire par une alternance entre des requetes visant
+chacune un besoin d’information distinct, et donc par des sessions imbriquées entre elles. Comme
+1e montre l’étude de (Spink et al., 2006), les recherches multitaches peuvent etre tres fréquentes
+dans certains environnements : dans un journal de requetes du moteur AltaVista, respectivement
+81 % et 91 % des séquences de 2 et 3 requetes portent sur plusieurs themes a la fois. (Jones
+et Klinkner, 2008) envisagent ainsi que les requetes liées a un meme besoin d’information ne
+
+219 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+sont pas nécessairement contigues, mais peuvent s’intercaler avec des requetes liées a un autre
+besoin d’information, donnant lieu a une imbrication entre sessions. Malgré cette autre maniere
+d’envisager la structure des sessions, la notion d’épisode et son implication temporelle reste
+applicable, car liée a la problématique d’idenu'fication des utilisateurs.
+
+2.2 Méthodes de détection automatique des sessions
+
+Selon la structure des sessions adoptée, les méthodes de détection automatique font appel a des
+caractéristiques des sessions et des ressources différentes. Ces méthodes peuvent ainsi exploiter
+la durée des sessions, le contenu lexical des requetes, et des sources de connaissance externes.
+
+2.2.1 Méthode basée sur la durée des sessions
+
+La premiere méthode de détection automatique des sessions a avoir été développée s’appuie
+sur la dimension temporelle des sessions, et envisage donc leur structure comme séquentielle.
+Cette méthode repose sur l’observation que plus la durée entre deux requetes consécutives est
+longue, moins il est probable que ces requetes renvoient a un meme besoin d’information, et
+donc qu’elles appartiennent a une meme session. Tout l’enjeu réside alors dans le choix d’un seuil
+temporel approprié ﬁxant la durée maximale entre deux requetes successives appartenant a la
+meme session : 5 minutes (Si1verstein et al., 1999), 15 minutes (He et Goker, 2000), ou encore
+30 minutes (Jansen et al., 2007). Malgré sa forte utilisation due a sa simplicité de mise en oeuvre,
+cette approche ne détecte ni les sessions trés courtes résultant d’un changement soudain du
+besoin d’information, ni a l’inverse les sessions tres longues au cours desquelles l’utilisateur peut
+effectuer des pauses importantes entre chaque requete. La prise en compte de ces cas nécessite
+en effet de s’appuyer sur d’autres indices de lien entre les requetes.
+
+2.2.2 Méthode basée sur le contenu lexical des requetes
+
+Aﬁn de dépasser les limites de l’approche temporelle, une méthode de détection automatique
+exploitant le lien lexical entre les requetes Visant un meme besoin d’information a été élaborée.
+L’hypothese est alors que plus les requetes ont un contenu lexical en commun, plus il est probable
+qu’elles appartiennent a une meme session. La détection de ces liens lexicaux a principalement
+été envisagée a travers la tache de détection des reformulations entre des requetes successives.
+Plusieurs types de reformulation ont ainsi été déﬁnis (He et al., 2002; Ozmutlu et Qavdur,
+2005; Jansen et al., 2007) : spécialisation (ajout d’un ou de plusieurs termes), généralisation
+(suppression d’un ou de plusieurs termes), reformulation (ajout et suppression d’un ou de
+plusieurs termes), etc. Si aucun de ces types de reformulation n’est identiﬁé entre des requetes
+successives, il est alors considéré que celles—ci ne sont pas lexicalement reliées, et appartiennent
+donc a des sessions différentes. Cette méthode a également été combinée avec la méthode
+temporelle, que ce soit a travers l’apprentissage automatique (He et al., 2002; Ozmutlu et
+Qavdur, 2005) ou une interpretation géométrique (Gayo Avello, 2009). Néanmoins, l’approche
+lexicale possede deux principaux inconvénients : elle nécessite la présence d’au moins un mot
+commun entre les requetes, et se heurte aux phénomenes de changement sémantique (synonymie,
+hyperonymie, hyponymie. . .). Le lien entre les requetes Visant un meme besoin d’information
+
+220 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+n’étant pas toujours lexicalement explicite mais pouvant étre d’ordre sémantique, de nouvelles
+approches envisagent ainsi d’autres facons de détecter la similarité existant entre ces requétes.
+
+2.2.3 Méthode basée sur des sources de connaissance externes
+
+Les approches temporelle et lexicale de détection automatique se basent sur une Vision séquen-
+tielle des sessions, ne prenant une décision qu’a partir de la comparaison entre les requétes
+successives d’un meme utilisateur. De plus, ces approches ne permettent pas d’exploiter le lien de
+similarité souvent implicite entre les requétes d’une meme session. Plusieurs méthodes exploitent
+ainsi des sources de connaissance externes au journal de requéte aﬁn d’évaluer la similarité entre
+requétes non plus de maniére directe, mais a travers une représentation plus riche du contenu
+de ces requétes. Ce niveau de représentation permet donc d’une part d’envisager la détection
+des sessions imbriquées, et d’autre part de prendre en compte toute la complexité de la tache de
+détection des sessions.
+
+(Jones et Klinkner, 2008) développent une approche basée sur un apprentissage supervisé
+exploitant des traits temporels, lexicaux, de cooccurrence des requétes dans un journal plus
+étendu, et de similarité des requétes avec les 50 premiers documents retournés en résultats.
+(Lucchese et al., 2011) combinent deux mesures de similarité entre les requétes : une similarité
+lexicale associant mesure de Jaccard et distance de Levenstein, ainsi qu’une similarité sémantique
+utilisant la mesure du cosinus sur une expansion des requétes a l’aide des corpus WIKIPEDIA et
+WIKTIONARY. Enﬁn, (Kramar et Bielikova, 2012) exploitent la similarité entre les métadonnées
+des documents pertinents cliqués pour chaque requéte aﬁn d’estimer la similarité entre chaque
+paire de requétes. La pertinence des documents est ici estimée a l’aide d’un retour implicite,
+effectué par le systéme, des actions de l’utilisateur (implicit feedback). Que ce soit au travers des
+documents constituant les résultats de la requéte ou d’une collection de documents externe, ces
+approches présentent de meilleures performances que les approches lexicale et temporelle. En
+effet, elles permettent de prendre en considération la variété des comportements de recherche des
+utilisateurs, tant au niveau de la soumission de requetes non contigués qu’au niveau de la nature
+implicite du theme des requétes. Cela pose également la question de l’évaluation des sessions
+imbriquées obtenues, présentant une perspective différente de celle des sessions séquentielles.
+
+3 Données
+
+Nous avons appliqué et évalué nos méthodes de détection automatique sur une collection de
+référence manuellement annotée en sessions provenant d’un journal de requétes du portail
+OpenEdition. Nous présentons cet environnement de recherche ainsi que le journal de requétes
+original avant de détailler la collection de référence utilisée.
+
+3.1 Le portail OpenEdition
+
+Le portail OpenEdition propose un libre accés a un ensemble de ressources électroniques dans
+le domaine des sciences humaines et sociales. Développé et dirigé par le Centre pour l’édition
+électronique ouverte (Cléo), il se compose de trois plateformes dont chacune est dédiée a une
+
+221 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+ressource électronique spéciﬁque : Revues.org diffuse 363 revues et 16 collections de livres,
+Calenda recense plus de 21 000 évenements scientiﬁques en lettres et en sciences humaines et
+sociales, tandis qu’H_ypotheses.org héberge 613 blogs et camets de recherche.
+
+Plusieurs points d’entrée permettent d’effectuer une recherche dans cet environnement varié.
+D’une part, un moteur de recherche principal est accessible sur la page d’accueil du portail
+OpenEdition et de la plateforme Revues.org. D’autre part, une recherche peut également se faire
+directement a partir du moteur de recherche situé sur le site d’une revue associée a Revues.org.
+Dans ces deux situations, les résultats sont présentés dans une interface commune.
+
+3.2 Journal de requétes initial
+
+Nous avons exploité un journal de requétes provenant du portail OpenEdition contenant une col-
+lection de 1 057 471 requétes soumises par 227 302 utilisateurs durant la période du 07 avril 2010
+au 1°’ février 2012. La langue principale des requétes est le francais, mais certaines sont égale—
+ment en anglais ou en espagnol. A la différence des requétes soumises a un moteur de recherche
+généraliste, l’environnement d’OperLEdition se distingue par le fait que les requétes proviennent
+essentiellement d’acteurs du monde académique et ciblent des revues, des évenements ou des
+blogs dans le domaine des sciences humaines et sociales.
+
+La construction de ce journal de requétes a nécessité la mise en oeuvre de plusieurs traitements
+aﬁn de ne conserver que les informations les plus ﬁables a partir du journal d’acces (access log)
+original. En particulier, les données ont subi plusieurs opérations de nettoyage et de ﬁltrage visant
+a éliminer les informations inexploitables (requétes soumises par des robots d’indexation, suites
+de signes de ponctuation, etc.). Les requétes ont ensuite été regroupées par adresse IP et classées
+par ordre chronologique. Le journal de requétes finalement obtenu comporte un identiﬁant pour
+chaque utilisateur — correspondant a l’adresse IP anonymisée —, la date et l’l1eure de soumission
+de chaque requéte, ainsi que les requétes soumises.
+
+3.3 Collection de référence
+
+Dans une précédente étude (Leva, 2013), nous avons constitué une collection de référence a
+partir d’un échantillon du journal de requétes OpenEdition comportant 947 requétes soumises
+par 216 utilisateurs. Cette collection a été manuellement annotée en sessions aﬁn de servir de
+référence a la fois pour l’évaluation de méthodes de détection automatique des sessions et pour
+des études sur les types de reforrnulations effectuées par les utilisateurs. L’ensemble des requétes
+a été automatiquement segmenté en 349 épisodes de recherche, correspondant pour chaque
+utilisateur a l’ensemble de ses requétes soumises en une joumée au plus. La durée entre chaque
+requéte successive est connue, mais cette information n’est pas présentée aux annotateurs. Trois
+annotateurs non spécialistes dans les domaines représentés par les documents ont été chargés de
+regrouper les requétes de chaque épisode de recherche en une ou plusieurs sessions.
+
+La tache d’annotation des sessions a fait l’objet d’un guide d’annotation. Pour chaque épisode
+de recherche d’un utilisateur, les annotateurs devaient observer l’ensemble des requétes sou-
+mises avant de prendre une décision et d’attribuer une session a chaque requéte a travers un
+identiﬁant numérique unique. La collection de référence contient ainsi des sessions imbriquées.
+Aﬁn d’identiﬁer les requétes visant un méme besoin d’information, les annotateurs pouvaient
+
+222 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+s’appuyer sur plusieurs indices, a la fois textuels, sémantiques, et de proximité thématique, ou
+s’appuyer a défaut sur des ressources extemes permettant de pallier un manque de connaissances
+encyclopédiques. Un accord inter—annotateur a été évalué a l’aide du coefﬁcient Kappa, le taux
+d’accord variant de modéré (O, 47 et 0, 57) a bon (0, 61). La collection de référence ﬁnale contient
+ainsi 406 sessions pour les 947 requétes initiales, résultant des annotations faisant l’objet d’un
+accord entre au moins deux annotateurs.
+
+4 Méthodes de détection automatique de sessions
+
+Nous proposons d’utiliser différentes méthodes de détection automatiques de sessions : une
+méthode temporelle, une méthode lexicale se basant sur les indices lexicaux des requétes pour
+identiﬁer si une requéte est une reformulation de la requéte précédente, et enﬁn une méthode
+exploitant la collection de documents WIKIPEDIA. Les deux premieres méthodes, qui sont des
+méthodes provenant de la littérature, nous serviront de références pour la détection de ruptures
+de sessions dans le contexte d’identiﬁcation de sessions de recherche séquentielles, que nous
+proposons dans la section 5.1.
+
+4.1 Exploitation d’un seuil temporel
+
+A partir d’un seuil ﬁxant la durée maximale entre deux requétes successives pouvant appartenir a
+la meme session, la méthode temporelle détecte les ruptures (durée entre les requétes supérieure
+au seuil) et les continuités (durée entre les requétes inférieure au seuil) de session au sein de
+chaque épisode de recherche d’un méme utilisateur. Chaque requéte se voit ainsi attribuer un
+identiﬁant de session unique au sein d’un méme épisode. Ce type d’approche n’enVisageant les
+requétes que d’un point de vue séquentiel, les sessions imbriquées ne sont pas repérées, et les
+identiﬁants de session sont constamment incrémentés pour chaque nouvelle session d’un épisode.
+
+4.2 Exploitation des liens lexicaux pour la détection de reformulation
+
+Dans leur étude, (Jansen et al., 2007) proposent de détecter différents types de reformulation en
+utilisant les liens lexicaux entre deux requétes. L’idée est de compter le nombre de mots communs
+a deux requétes, et de déterminer ensuite, grace a la longueur de chacune, si l’utilisateur a spéciﬁé
+sa requéte, ou bien l’a généralisée, etc. Dans le cas de sessions séquentielles, sans imbrications,
+on peut faire l’hypothése que si une reformulation est détectée entre deux requétes consécuﬁves,
+c’est que celles—ci font partie d’une méme session. Sinon, la derniére requéte représente une
+nouvelle session : il y a eu une rupture de la session de recherche précédente. Dans le cadre de
+sessions imbriquées, la seule exploitation des liens sémantiques est plus délicate : la temporalité
+est implicitement utilisée dans la reformulation, car une requéte ne peut étre une reformulation
+que d’une requéte antérieure. Ainsi, pour détecter les sessions imbriquées, il faut comparer toutes
+les requétes entre elles en préservant leur ordre temporel.
+
+223 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+4.3 Exploitation de la similarité des requétes a l’aide de Wikipédia
+
+Comme nous l’avons mentionné dans la section 2, l’utilisation de la temporalité et la détection
+des différents types de reformulation ne sont pas sufﬁsantes pour la détection de sessions
+séquentielles, et encore moins dans le cadre des sessions imbriquées. Ainsi, nous proposons
+l’utilisation d’une source d’inforrnation externe qui est une version locale de Wikipédia en francais,
+datant du 28 octobre 2012 3. Ce corpus a été indexé dans un moteur de recherche (Terrier 4),
+perrnettant ainsi son interrogation avec les requétes des épisodes de recherche.
+
+Contrairement aux approches exploitant la sémantique des documents provenant d’une source
+externe (comme par exemple la wikification proposée par (Lucchese et al., 2011; Kramar et
+Bielikova, 2012)), nous exploitons la liste des documents, ainsi que leur score, renvoyés par
+le systéme de recherche. Ainsi, les listes de résultats obtenus pour chaque requéte d’un méme
+épisode sont comparées, aﬁn d’estimer si les requétes forment une session de recherche.
+
+Soit E un épisode de recherche. Soit QE l’ensemble des requétes de l’épisode de recherche. Soit
+Rqa l’ensemble des résultats de la requéte qa E Q E. Rqa est constitué d’un ensemble de documents
+pondérés. Le poids des documents correspond aux scores obtenus par ces documents lors de
+l’interrogation dans un moteur de recherche. Le nombre de documents renvoyés par le moteur de
+recherche est ﬁxé a un maximum de 1 000. Ce paramétre n’a pas été étudié dans le présent article,
+bien que le nombre de documents réellement pertinent dans Wikipédia pour une requéte donnée
+est probablement plus faible. Rqa peut étre représenté comme un vecteur de dimension M, ou M
+correspond a l’espace des documents du corpus, et dont les coordonnées sont données par le score
+des documents appartenant a M, obtenus pour la requéte qa. On peut représenter l’ensemble des
+documents renvoyés pour une requéte comme un vecteur 7a = (s1,qa,s2,qa, . . . ,5,-Au, . . .,sM,qa),
+ou 5% correspond au score du document i pour la requéte qa.
+
+La similarité entre deux requétes qa et qb est donnée par le cosinus de l’angle des vecteurs de
+documents répondant a ces deux requétes :
+
+7 o
+. (1
+51m(Va;Vb) = m (1)
+
+I V al X I V bl
+
+Un épisode peut étre représenté comme un graphe valué non orienté complet £¢g(N,A), dont
+les noeuds N correspondent aux requétes, et les arétes A correspondent a la similarité entre
+deux requétes (ﬁgure 1a). On peut déﬁnir le graphe de sessions ‘.4y(N,A’), comme le sous
+graphe partiel potentiellement non connexe de ‘.43 dont l’ensemble des arétes A’ ont une valeur
+supérieure a un seuil t, dont chaque composante connexe forme une session de recherche.
+
+Les ﬁgure 1b et 1c représentent deux graphes de sessions, déterminés respectivement pour un
+seuil de similarité t = 0, 7 et t = 0, 8.
+
+5 Analyse des résultats
+
+Nous proposons une analyse des résultats de notre méthode de détection automatique (cf.
+section 4.3) en prenant en compte a la fois une perspective séquentielle et imbriquée sur les
+
+3. http : //dumps . wikimedia. org/frwiki/20121028/frwiki— 20121028—pages—artic1es . xml . bz2
+4. http : //terrier . org
+
+224 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+ 
+
+(a) Graphe de l’épisode Q4,» (b) Graphe de sessions pour le seuil (c) Graphe de sessions pour le seuil
+0.7 0.8
+
+FIGURE 1 — Représentation en graphe des épisodes et sessions de recherche
+
+sessions détectées. Au niveau de l’évaluation des sessions séquentielles, nous effectuons une
+comparaison entre notre méthode et celles basées sur une approche temporelle et lexicale.
+
+5.1 Evaluation des sessions séquentielles
+
+Nous avons exploité la collection de référence OPENEDITION pour l’évaluan'on des trois méthodes
+de détection automatique des sessions ainsi que pour le réglage des paramétres internes de
+chacune de ces méthodes. Dans le cadre de sessions séquentielles, cette évaluation peut étre
+réalisée 2 l’aide des mesures de précision, rappel et F—mesure, appliquées au nombre de ruptures
+et de continuations de sessions détectées par chaque systéme. Une rupture peut étre détectée
+entre deux requétes consécutives si, dans la méthode temporelle, le temps entre les deux requéte
+est supérieur 2 un délai donné, et dans le cas de la méthode lexicale, aucun cas de reformulation
+n’est identiﬁé. Ce type d’évaluation ne permet donc pas de reﬂéter entierement les performances
+d’un systeme dans le cadre de la détection de sessions imbriquées.
+
+5.1. 1 Mesures d’évaluation
+
+Les équations suivantes présentent les mesures d’évaluation proposées par (Gayo Avello, 2009)
+dans le cadre d’une comparaison avec une référence manuelle. La précision P correspond au
+nombre de ruptures de session présentant un accord entre le systeme et la référence par rapport
+au nombre de ruptures de session détectées par le systeme. Le rappel R correspond au nombre
+de ruptures de session présentant un accord entre le systéme et la référence par rapport au
+nombre de ruptures de session de la référence. La F—mesure F permet de pondérer rappel et
+précision. Nous avons automatiquement annoté notre collection de référence en ruptures et
+continuations de session, les cas ou deux requétes successives d’un meme épisode possedent un
+méme identiﬁant de session correspondant a une continuation, les cas contraires 2‘: une rupture.
+Nous avons également supprimé les cas triviaux pour lesquels les systémes n’ont aucune décision
+£1 prendre (la premiere requéte de chaque épisode et un épisode ne contenant qu’une seule
+requéte constituent toujours une rupture de session) aﬁn d’éValuer leurs performances réelles,
+
+225 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+réduisant a 598 le nombre de requétes de la collection de référence initiale.
+
+P = NRuptureCorrecte R = NRuptureCorrecte F = 2PR (2)
+Nﬂupturesysteme Nﬂuptureﬂeference P +R
+5.1.2 Méthode temporelle
+Rupt. Cont.
+
+Précision 0, 31
+Rappel 0, 31 5"
+F-mesure 0, 31
+
+Rupt. 22 48 70
+Cont. 49 479 528
+71 527 598
+
+(b) Matrice de confusion
+
+6 .
+
+R
+
+(a) Mesures d’évaluation
+TABLE 1 — Résultats de l’évaluation de la méthode temporelle.
+
+Le tableau 1a présente les performances de la méthode temporelle pour une durée maximale des
+sessions de 640 secondes. Aprés avoir testé cette méthode avec des valeurs de seuil allant de 10
+a 5 120 secondes, ce seuil offre en effet les meilleurs résultats sur notre collection.
+
+Le tableau 1b présente la matrice de confusion des résultats de la méthode temporelle. Cette
+méthode posséde une efﬁcacité de 84 %, correspondant a la proportion des vrais positifs (22)
+et des vrais négatifs (479) par rapport a l’ensemble des cas traités (598). Nous observons que
+la méthode temporelle entraine autant de faux positifs (tableau 2, utilisateur 18) que de faux
+négatifs (tableau 2, utilisateur 32). Cela est directement lié a l’incapacité de cette méthode
+de s’adapter a la durée propre a chaque session. Ainsi, il s’est écoulé 4436 secondes entre les
+requétes de l’utilisateur 18 qui sont explicitement liées au niveau lexical, et 315 secondes entre
+les requétes de l’utilisateur 32 qui portent sur des themes distincts.
+
+| Util. | Requéte | Réf. | Syst. |
+18 loup 1 1
+Le monde agricole confronté au loup
+
+32 Aprés la catastrophe
+
+2
+1
+Recherches sociologiques et anthropologiques 1
+
+N»-I+—I
+
+TABLE 2 — Exemple de faux positif et de faux négatif induits par la méthode temporelle.
+
+5.1.3 Méthode lexicale
+
+Le tableau 3a présente les performances de la méthode lexicale sur notre collection de référence.
+
+Le tableau 3b présente la matrice de confusion des résultats de la méthode lexicale, montrant
+une efﬁcacité de 62 %. La méthode lexicale n’entraine aucun faux négatif. En effet, de par son
+fonctionnement, cette méthode considére par défaut qu’il existe une rupture de session entre
+les requétes si aucun type de reformulation n’est détecté, ce qui explique le taux de rappel de 1
+
+226 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Rupt. Cont.
+Rupt. 70 0 70
+
+Cont. 225 303 528
+295 303 598
+
+(b) Matrice de confusion
+
+Précision 0, 24
+Rappel 1
+F—mesure 0, 38
+
+Réf.
+
+(a) Mesures d’évaluation
+
+TABLE 3 — Résultats de l’évaluation de la méthode lexicale.
+
+observé. Cette méthode est donc sensible au contenu lexical des requétes, et les faux positifs
+proviennent de l’absence de mots communs entre les requétes, des fautes de frappe non palliées
+par la distance d’édiu'on, ainsi que de la non détection des liens sémantiques entre les requétes.
+C’est le cas dans le tableau 4 pour l’utilisateur 35, dont l’ensemble des requétes renvoie au theme
+des produits éclaircissants pour la peau.
+
+Util. Requéte R'f. Syst.
+
+35 éclaircissants 1 1
+peau claire 1 2
+tshoko 1 3
+maquillage afrique 1 4
+dépigtnentation 1 5
+
+TABLE 4 — Exemple de faux positif induit par la méthode lexicale.
+
+5.1.4 Méthode basée sur Wikipédia
+
+Rupt. Cont.
+Rupt. 56 14 70
+
+Cont. 124 404 528
+180 418 598
+
+(b) Matrice de confusion
+
+Précision 0, 31
+Rappel 0, 8
+F—mesure 0, 45
+
+Réf.
+
+(a) Mesures d’évaluation
+
+TABLE 5 — Résultats de l’évaluation de la méthode basée sur Wikipédia.
+
+Le tableau 5a présente les performances de la méthode basée sur Wikipédia pour un seuil de
+similarité entre requétes ﬁxé a 0, 005. Aprés avoir testé cette méthode avec des valeurs de seuil
+allant de 1 - 10‘5 a 0, 5, ce seuil offre en effet les meilleurs résultats sur notre collection.
+
+Le tableau 5b présente la matrice de confusion des résultats de la méthode basée sur Wikipédia,
+montrant une efﬁcacité de 77 %. Cette méthode génére presque neuf fois plus de faux positifs
+que de faux négatifs. Le cas de l’utilisateur 7 dans le tableau 6 est un exemple de faux négatif. Ces
+cas correspondent a des requétes contenant peu de terrnes ou des terrnes génériques, facilitant la
+découverte de liens thématiques entre elles, et constituent également des cas ambigus pour les
+annotateurs. Il aurait ainsi été possible de regrouper l’ensemble des requétes de l’utilisateur 7
+au sein d’une méme session ayant pour theme la ﬁnance. Les perspectives d’améliorations sont
+
+227 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+donc faibles pour ce type d’erreurs. En revanche, les faux positifs sont dﬁs a des fautes de frappe
+et pour l’essentiel aux limites de la collection de documents de Wikipédia, qui contiennent peu
+ou pas d’information concernant certaines requétes tres caractéristiques de l’environnement de
+recherche OperLEdition. C’est le cas de l’utilisateur 71, qui effectue une recherche portant sur un
+auteur de revue spéciﬁque de la plateforme Revues.org. Une solution serait alors d’exploiter la
+collection de documents d’OpenEdition conjointement a ceux de Wikipédia de maniére a avoir
+une couverture a la fois spéciﬁque et générique sur les sujets introduis par les requétes.
+
+Nous pouvons néanmoins observer qu’au niveau de la détection des ruptures de sessions, la
+méthode basée sur Wikipédia donne une précision égale a celle de la méthode temporelle (0, 31)
+tout en améliorant le rappel (0, 8). Les performances globales de cette approche, représentées
+par une F—mesure de 0,45, sont meilleures que celles des approches temporelle et lexicale
+implémentées.
+
+| Util. | Requéte | Réf. | Syst. |
+71 philippe dasseto 2 2
+dasseto
+Dasseto
+7 bank
+
+bank crisis
+China party
+china financial
+bank
+
+r—INL\7+—Ir—|NN
+1-1-+—I+—t+—I Am
+
+TABLE 6 — Exemple de faux positif et de faux négatif induits par la méthode basée sur Wikipédia.
+
+5.2 Evaluation des sessions imbriquées
+
+Les données sur lesquelles nous avons effectué nos expérimentations contiennent des sessions
+de recherche imbriquées. Cette expérimentation permet de valider, non plus la détection des
+points de rupture, mais bien les sessions renvoyées par notre systéme par rapport aux sessions de
+référence annotées manuellement.
+
+Nous utilisons ici certaines des métriques déﬁnies par (Lucchese et al., 2011). Ces mesures sont
+1’index de Rand (Rand, 1971) et l’index de Jaccard (Jaccard, 1901), qui considerent des paires
+de requétes et permettent de vériﬁer la cohérence de répartition de ces paires entre les sessions
+systéme et les sessions de référence d’un méme épisode de recherche.
+
+On considére fu le nombre de paires qui sont dans une méme session calculée et dans une méme
+session de référence, foo le nombre de paires reparties dans des sessions calculées différentes,
+ainsi que dans des sessions de référence, fol le nombre de paires qui sont dans une méme session
+calculée mais dans des sessions de références différentes, fm le nombre de paires qui sont des
+sessions calculées différentes, mais dans une méme session de référence.
+
+L’index de Rand est déﬁni comme suit :
+
+foo+f11
+
+— foo+fo1 +f1o+f11
+228 ©ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+et 1’index de Jaccard :
+
+J: f11
+foi +f1o +f11
+
+Seuil 0, 00001 0, 00005 0, 0001 0, 0005 0, 001 0, 005 0, 01
+Rand 0, 78556 0, 78556 0, 78556 0,78796 0, 78646 0, 75840 0, 72841
+Jaccard 0, 72588 0, 72588 0, 72588 0,72829 0, 72228 0, 66834 0, 62587
+
+TABLE 7 — Similarité des sessions systeme par rapport aux sessions de référence.
+
+Les résultats du tableau 7 montrent que le meilleur seuil de similarité pour la génération
+automatique des sessions est égal a 0, 0005. Ce seuil, trés bas, s’explique par le fait que la liste
+des résultats obtenus pour chaque requéte est tres sensible aux différents types de reformulation.
+En effet, l’ajout ou la suppression d’un mot dans la requéte peut changer totalement les résultats
+renvoyés par le moteur de recherche utilisé. Ainsi, bien que l’utilisation de la similarité entre les
+résultats des requétes puisse aider a détecter des sessions imbriquées, il semble évident que le
+seuil de détection optimal de ces sessions est dépendant de notre jeu de données.
+
+6 Conclusion
+
+Nous avons propose’ une méthode de détection des sessions de recherche basée sur l’uu’lisation
+d’une ressource externe. Cette méthode, exploitant les résultats d’un moteur de recherche sur
+la collection de documents de Wikipédia, a été validée dans le cas de sessions de recherche
+séquentielles. Nous avons également proposé une extension dans le cadre de la recherche
+de sessions imbriquées. Une perspective a court terme est de valider la détection de sessions
+imbriquées par rapport aux autres approches de la littérature utilisées dans ce cadre.
+
+Les résultats préliminaires obtenus sont encourageants, et nous envisageons d’étudier la combi-
+naison des trois approches, a savoir temporelle, lexicale, et basée sur l’ut1'lisation de Wikipédia. En
+effet, il nous semble que ces approches sont complémentaires : l’approche utilisant la similarité
+des requétes calculée au moyen d’une ressource externe est trés sensible aux reformulations
+identiﬁées dans l’approche lexicale. Une idée serait que lorsque la reformulation est identiﬁée
+de maniére triviale, celle—ci prédomine dans la détection de session. Si ce n’est pas le cas, le
+systeme peut utiliser la similarité pour détecter les sessions. Une autre piste que nous envisageons
+concerne l’exploitation de la collection de documents de la plateforme OperLEdition, sans doute
+mieux adaptée au contenu des requétes de notre journal.
+
+Remerciements
+
+Ce travail s’inscrit dans le projet AN R CAAS (Contextual Analysis and Adaptive Search, programme
+Contint) coordonné par Josiane Mothe (IRIT), faisant l’objet d’un partenariat entre l’Institut de
+Recherche en Informatique de Toulouse (IRIT), le Laboratoire Informatique d’Avignon (LIA) et
+l’]§‘.quipe de Recherche en Syntaxe et Sémantique du laboratoire Cognition, Langue, Langage,
+Ergonomie (CLLE—ERSS). Nous adressons également nos plus vifs remerciements a Marin Dacos
+
+229 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+et l’équipe du Centre pour l’édition électronique ouverte (Cléo) pour leur collaboration et la mise
+a disposition des données du portail OpenEdition.
+
+Références
+
+DOWNEY, D., DUMAIs, S. et HORVITZ, E. (2007). Models of searching and browsing : Languages,
+studies, and applications. In Proc. IJCAI, pages 2740-2747.
+
+Gayo AvELLo, D. (2009). A Survey on Session Detection Methods in Query Logs and a Proposal
+for Future Evaluation. Information Sciences, 179(12):1822—1843.
+
+HE, D. et GOKER, A. (2000). Detecting Session Boundaries from Web User Logs. In Proceedings
+of the BCS—IRSG 22nd Annual Colloquium on Information Retrieval Research, pages 57-66.
+
+HE, D., GQKER, A. et HARPER, D. J. (2002). Combining Evidence for Automatic Web Session
+Identiﬁcation. Information Processing and Management, 38 (5):727—742.
+
+JACCARD, P (1901). Etude comparative de la distribution ﬂorale dans une portion des alpes et
+des jura. Bulletin del la Socie'te' Vaudoise des Sciences Naturelles, 37:547-579.
+
+JANSEN, B. J., SPINK, A., BLAKELY, C. et KOSHMAN, S. (2007). Deﬁning a Session on Web Search
+Engines. Journal of the American Society for Information Science and Technology, 58 (6):862—871.
+
+JoNEs, R. et KLINKNER, K. L. (2008). Beyond the Session Timeout : Automatic Hierarchical
+Segmentation of Search Topics in Query Logs. In Proceedings of the 17th ACM Conference on
+Information and Knowledge Management, pages 699-708.
+
+KRAMAR, T. et BIELIKOVA, M. (2012). Detecting Search Sessions Using Document Metadata and
+Implicit Feedback. In Proceedings of the WSCD 2012 Workshop on Web Search Click Data.
+
+LEVA, S. (2013). Les sessions de recherche comme contexte des requétes. In Actes de l’atelier
+Contextualisation de Messages Courts - 139 Conference Francophone sur l’Extraction et la Gestion
+des Connaissances (EGC’13), pages 1-12.
+
+LUCCHESE, C., ORLANDO, S., PEREGO, R., SILVESTRI, F. et ToLoME1, G. (2011). Identifying Task-
+Based Sessions in Search Engine Query Logs. In Proceedings of the 4th ACM International
+Conference on Web Search and Data Mining, pages 277-286.
+
+OZMUTLU, H. C. et CAVDUR, E (2005). Application of Automatic Topic Identiﬁcation on Excite
+Web Search Engine Data Logs. Information Processing and Management, 41 (5):1243-1262.
+
+RAND, W M. (1971). Objective criteria for the evaluation of clustering methods. Journal of the
+American Statistical Association, 66 (336):pp. 846-850.
+
+SILVERSTEIN, C., MARA1s, H., HENZINGER, M. et MORICZ, M. (1999). Analysis of a Very Large Web
+Search Engine Query Log. SIGIR Forum, 33(1):6-12.
+
+SPINK, A., PARK, M., JANsEN, B. J. et PEDERsEN, J . (2006). Multitasking During Web Search
+Sessions. Information Processing and Management, 42(1):264-275.
+
+230 © ATALA
+

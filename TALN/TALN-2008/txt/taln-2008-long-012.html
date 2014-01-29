@@ -1,0 +1,530 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Recherche locale pour la traduction statistique &#224; base de segments</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2008, Avignon, 9&#8211;13 juin 2008
+</p>
+<p>Recherche locale pour la traduction statistique
+&#224; base de segments
+</p>
+<p>Philippe Langlais, Alexandre Patry et Fabrizio Gotti
+D&#233;partement d&#8217;Informatique et de Recherche Op&#233;rationnelle
+</p>
+<p>Universit&#233; de Montr&#233;al,
+C.P. 6128, succursale Centre-Ville
+</p>
+<p>H3C 3J7, Montr&#233;al, Qu&#233;bec, Canada
+{felipe,patryale,gottif}@iro.umontreal.ca
+</p>
+<p>R&#233;sum&#233;. Dans cette &#233;tude, nous nous int&#233;ressons &#224; des algorithmes de recherche locale
+pour la traduction statistique &#224; base de segments (phrase-based machine translation). Les algo-
+rithmes que nous &#233;tudions s&#8217;appuient sur une formulation compl&#232;te d&#8217;un &#233;tat dans l&#8217;espace de
+recherche contrairement aux d&#233;codeurs couramment utilis&#233;s qui explorent l&#8217;espace des pr&#233;fixes
+des traductions possibles. Nous montrons que la recherche locale seule, permet de produire des
+traductions proches en qualit&#233; de celles fournies par les d&#233;codeurs usuels, en un temps nette-
+ment inf&#233;rieur et &#224; un co&#251;t m&#233;moire constant. Nous montrons &#233;galement sur plusieurs directions
+de traduction qu&#8217;elle permet d&#8217;am&#233;liorer de mani&#232;re significative les traductions produites par
+le syst&#232;me &#224; l&#8217;&#233;tat de l&#8217;art Pharaoh (Koehn, 2004).
+Abstract. Most phrase-based statistical machine translation decoders rely on a dynamic-
+programming technique for maximizing a combination of models, including one or several
+language models and translation tables. One implication of this choice is the design of a scoring
+function that can be computed incrementally on partial translations, a restriction a search engine
+using a complete-state formulation does not have. In this paper, we present experiments we
+conducted with a simple, yet effective greedy search engine. We report significant improvements
+in translation quality over a state-of-the-art beam-search decoder, for some configurations.
+</p>
+<p>Mots-cl&#233;s : Traduction statistique, recherche locale, post-traitement.
+Keywords: Statistical Machine Translation, local search, post-processing.
+</p>
+<p>1 Introduction
+</p>
+<p>Au d&#233;but des travaux sur la traduction statistique (TS), plusieurs chercheurs se sont int&#233;ress&#233;s
+au probl&#232;me de la recherche d&#8217;une meilleure traduction, &#233;tant donn&#233; un mod&#232;le de traduction
+bas&#233; sur les mots (Berger et al., 1994; Tillmann et al., 1997; Wang &amp; Waibel, 1997; Niessen
+et al., 1998; Garc&#237;a &amp; Casacuberta, 2001). Avec la mont&#233;e en popularit&#233; des approches &#224; base
+de segments (Koehn et al., 2003), des d&#233;codeurs d&#233;di&#233;s ont commenc&#233; &#224; voir le jour au sein
+de notre communaut&#233;, comme Pharaoh (Koehn, 2004), distribu&#233; sous forme d&#8217;un ex&#233;cutable,</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Langlais et al.
+</p>
+<p>ainsi que diff&#233;rentes variantes logiciel-libre comme Moses1 (Koehn et al., 2006), Ramses2
+(Patry et al., 2006), Phramer3 (Olteanu et al., 2006) ou Marie4 (Crego &amp; Marino, 2007)
+pour des mod&#232;les n-grammes bilingues. De nombreuses &#233;quipes utilisent ces bo&#238;tes &#224; outils
+pour construire leurs propres syst&#232;mes de TS (D&#233;chelotte et al., 2007; Besacier et al., 2007).
+Tous ces d&#233;codeurs partagent la propri&#233;t&#233; de s&#8217;appuyer sur une fonction de score incr&#233;mentale
+de mani&#232;re &#224; pouvoir organiser l&#8217;espace de recherche efficacement &#224; l&#8217;aide de la programmation
+dynamique (DP). Il n&#8217;est pas difficile d&#8217;imaginer des mod&#232;les de traduction o&#249; cette propri&#233;t&#233;
+n&#8217;est pas appropri&#233;e.
+</p>
+<p>Le moteur de traduction ReWrite5 (Germann et al., 2001), qui utilise un mod&#232;le de traduction
+mot-&#224;-mot (Brown et al., 1993) est une exception notable dans ce paysage. Il s&#8217;agit d&#8217;un algo-
+rithme de recherche locale qui tente d&#8217;am&#233;liorer de mani&#232;re it&#233;rative une traduction courante, en
+lui faisant subir un ensemble de perturbations. &#192; chaque it&#233;ration, la meilleure traduction issue
+de ces perturbations devient l&#8217;hypoth&#232;se courante. Le processus se termine lorsqu&#8217;il n&#8217;est plus
+possible d&#8217;am&#233;liorer cette derni&#232;re, ce qui arrive typiquement apr&#232;s quelques it&#233;rations. Une
+version rapide de cet algorithme est d&#233;crite dans (Germann, 2003). Il est cependant accept&#233; que
+cet algorithme produit des traductions de qualit&#233; moindre que les d&#233;codeurs DP faisant usage
+des m&#234;mes mod&#232;les de traduction (Foster et al., 2003).
+&#192; notre connaissance, personne n&#8217;a fait l&#8217;&#233;tude d&#8217;algorithmes de recherche locale pour les mo-
+d&#232;les de traduction &#224; base de segments. Cette &#233;tude est une r&#233;ponse &#224; cette lacune. Nous mon-
+trons qu&#8217;une impl&#233;mentation simple de cette id&#233;e permet d&#8217;obtenir des traductions d&#8217;une qualit&#233;
+proche de celles produites par les d&#233;codeurs standards &#224; un co&#251;t m&#233;moire constant (alors qu&#8217;un
+d&#233;codeur standard requiert un espace m&#233;moire &#224; tout le moins lin&#233;aire avec la taille de la phrase
+&#224; traduire) et en un temps de loin inf&#233;rieur (quelques minutes contre quelques heures).
+Nous montrons &#233;galement que lorsqu&#8217;utilis&#233; en cascade, &#224; la sortie d&#8217;un d&#233;codeur &#224; l&#8217;&#233;tat de
+l&#8217;art, notre algorithme permet d&#8217;en am&#233;liorer les traductions. Diff&#233;rentes exp&#233;riences illustrent
+&#224; la fois la souplesse de l&#8217;approche et son potentiel comme m&#233;thode de post-traitement.
+</p>
+<p>L&#8217;article est organis&#233; comme suit. Dans la section 2, nous d&#233;crivons pr&#233;cis&#233;ment notre approche.
+Le protocole exp&#233;rimental est ensuite pr&#233;sent&#233; en section 3. Nous d&#233;crivons les exp&#233;riences r&#233;a-
+lis&#233;es en section 4 puis concluons cette &#233;tude et proposons des pistes de recherche en section 6.
+</p>
+<p>2 Algorithme glouton
+</p>
+<p>L&#8217;algorithme de recherche (voir figure 1) que nous &#233;tudions est une forme particuli&#232;rement
+simple de recherche locale souvent nomm&#233;e recherche gloutonne. Il utilise une formulation
+compl&#232;te, ce qui signifie qu&#8217;un &#233;tat dans l&#8217;espace de recherche est une traduction possible, &#224;
+contrario des d&#233;codeurs standards qui parcourent plut&#244;t l&#8217;espace des pr&#233;fixes de traductions
+possibles. Plus pr&#233;cis&#233;ment, un &#233;tat, que nous d&#233;signons de mani&#232;re interchangeable par hy-
+poth&#232;se, est la donn&#233;e d&#8217;une traduction du texte source et d&#8217;un alignement entre les segments
+(phrases) source et cibles.
+</p>
+<p>1http://www.statmt.org/moses/
+2http://smtmood.sourceforge.net
+3http://www.phramer.org
+4http://gps-tsc.upc.es/soft/marie
+5http://www.isi.edu/publications/licensed-sw/rewrite-decoder/index.html</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Recherche locale pour la traduction statistique &#224; base de segments
+</p>
+<p>L&#8217;algorithme (d&#233;sign&#233; par feGreedy dans la suite) d&#233;pend de la d&#233;finition de trois op&#233;rateurs :
+le premier (seed) est en charge de produire la premi&#232;re hypoth&#232;se courante, le second (score)
+impl&#233;mente la fonction de score que nous tentons d&#8217;optimiser, le dernier (voisinage) pro-
+pose les hypoth&#232;ses voisines explor&#233;es &#224; partir de l&#8217;hypoth&#232;se courante.
+</p>
+<p>Require: source une phrase &#224; traduire
+courant&#8592; seed(source)
+loop
+s_courant&#8592; score(courant)
+s&#8592; s_courant
+for all h &#8712; voisinage(courant) do
+c&#8592; score(h)
+if c &gt; s then
+s&#8592; c
+meilleur &#8592; h
+</p>
+<p>if s = s_courant then
+return courant
+</p>
+<p>else
+courant&#8592; meilleur
+</p>
+<p>FIG. 1 &#8211; Algorithme de recherche locale glouton.
+</p>
+<p>Ce type de recherche poss&#232;de trois caract&#233;ristiques int&#233;ressantes. Premi&#232;rement, une quantit&#233;
+constante (et r&#233;duite) de m&#233;moire est requise pour repr&#233;senter l&#8217;espace de recherche. Il s&#8217;agit
+de l&#8217;espace n&#233;cessaire &#224; l&#8217;encodage de l&#8217;hypoth&#232;se courante. Deuxi&#232;mement, ce type d&#8217;algo-
+rithme propose souvent des solutions raisonnables (en terme de la fonction de score que l&#8217;on
+cherche &#224; optimiser), en un temps habituellement tr&#232;s court, &#224; des probl&#232;mes n&#233;cessitant une
+recherche combinatoire (Russell &amp; Norvig, 1995). Troisi&#232;mement, aucune hypoth&#232;se n&#8217;est n&#233;-
+cessaire quant &#224; la fonction de score optimis&#233;e. En particulier, elle n&#8217;a pas besoin d&#8217;&#234;tre calcul&#233;e
+de mani&#232;re incr&#233;mentale. Bien s&#251;r, cet inventaire de points positifs est contrebalanc&#233; par le fait
+que cet algorithme ne poss&#232;de aucune propri&#233;t&#233; d&#8217;optimalit&#233;. Nous verrons que ce d&#233;faut n&#8217;est
+pas p&#233;nalisant dans notre cas.
+</p>
+<p>2.1 La fonction de score
+</p>
+<p>Dans ce travail, nous cherchons &#224; maximiser la combinaison habituellement utilis&#233;e en TS &#224;
+base de segments. En particulier, nous nous int&#233;ressons dans un premier temps &#224; maximiser la
+m&#234;me fonction que celle que le d&#233;codeur &#224; l&#8217;&#233;tat de l&#8217;art Pharaoh (Koehn, 2004) maximise :
+</p>
+<p>Score(e, f) = &#955;lm log plm(f) +
+&#8721;
+</p>
+<p>i &#955;
+(i)
+tm log p
+</p>
+<p>(i)
+tm(f |e)&#8722; &#955;dpd(e, f)&#8722; &#955;w|f | (1)
+</p>
+<p>o&#249; les &#955; sont des coefficients contr&#244;lant la contribution de chaque mod&#232;le &#224; la combinaison, plm
+est un mod&#232;le de langue (n-gramme), p(i)tm repr&#233;sente diff&#233;rentes tables de transfert (qui dans nos
+exp&#233;riences partagent les m&#234;mes param&#232;tres), |f | repr&#233;sente la longueur compt&#233;e en mots de la
+traduction et pd(e, f) est un mod&#232;le appel&#233; g&#233;n&#233;ralement mod&#232;le de distorsion (nous utilisons
+le mod&#232;le simple d&#233;crit dans (Koehn et al., 2003)).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Langlais et al.
+</p>
+<p>SRC : le groupe csu au parlement europ&#233;en se r&#233;jouit que le pr&#233;sent projet de charte
+des droits fondamentaux rassemble et rende visibles les droits fondamentaux dont disposent
+les citoyens vis-&#224;-vis des organes et institutions de l &#8217; ue .
+Pharaoh the csu group in the european parliament welcomes the draft charter of fun-
+damental rights lumps together and make visible the fundamental rights enjoyed by the citi-
+zens towards the eu institutions and bodies that . (-43.8823)
+</p>
+<p>FIG. 2 &#8211; Exemple d&#8217;une traduction produite par Pharaoh pour une phrase fran&#231;aise et son
+score. Deux segments sources adjacents sont traduits &#224; tort de mani&#232;re distante.
+</p>
+<p>2.2 Fonction de voisinage
+</p>
+<p>Par inspection de traductions produites par Pharaoh, nous avons d&#233;fini six familles de per-
+turbation d&#8217;une hypoth&#232;se courante. Cet ensemble n&#8217;est en aucun cas exhaustif. En particulier,
+nous n&#8217;autorisons pas encore qu&#8217;un mot ou un segment soit ins&#233;r&#233; ou bien d&#233;truit.
+</p>
+<p>Move Pharaoh (comme nombre de ses clones) s&#8217;autorise &#224; reporter &#224; plus tard la traduction
+d&#8217;un segment source afin de traduire le segment qui le suit (traduction non monotone). Ce
+comportement est souhaitable pour rendre compte de certaines divergences locales entre deux
+langues ; il introduit cependant le probl&#232;me fr&#233;quent o&#249; des segments adjacents sont traduits &#224;
+tort par des segments distants (le plus souvent sur la recommandation du mod&#232;le de langue).
+C&#8217;est par exemple le cas des segments se r&#233;jouit et que de l&#8217;exemple de la figure 2 traduits
+respectivement par welcomes et that. Nous avons donc impl&#233;ment&#233; une op&#233;ration qui autorise
+deux segments cibles distants6 correspondant &#224; la traduction de deux segments sources adjacents
+&#224; &#234;tre rapproch&#233;s (nous tentons tous les rapprochements possibles).
+Swap Lorsqu&#8217;un segment du texte &#224; traduire est absent du mod&#232;le de traduction, ce segment
+est traduit de mani&#232;re compositionnelle &#224; l&#8217;aide de segments plus petits. L&#8217;ordre des segments
+traductions est alors souvent un compromis fragile entre les recommandations du mod&#232;le de
+langue et du mod&#232;le de distorsion habituellement biais&#233; en faveur de traductions monotones.
+Dans le but de corriger certains ordonnancements, nous autorisons deux segments cibles ad-
+jacents &#224; &#234;tre invers&#233;s. La complexit&#233;7 de cette op&#233;ration est lin&#233;aire avec le nombre N de
+segments sources dans l&#8217;hypoth&#232;se courante.
+</p>
+<p>Replace Cette op&#233;ration permet de changer la traduction d&#8217;un segment source par une autre
+traduction valid&#233;e par la table de transfert. Cette op&#233;ration a une complexit&#233; en O(N &#215; T ), o&#249;
+T est le nombre de traductions consid&#233;r&#233;es pour une phrase source (valeur typique de 10).
+Bi-replace De la m&#234;me mani&#232;re, nous autorisons deux segments &#224; changer simultan&#233;ment de
+traduction avec l&#8217;espoir que cela permettra &#224; notre algorithme d&#8217;&#233;chapper &#224; certains maxima
+locaux. La complexit&#233; de cette op&#233;ration est quadratique en T .
+</p>
+<p>Split Un segment source peut &#234;tre scind&#233; en deux parties, pour autant que les sous-parties soient
+pr&#233;sentes dans la table de transfert. Cette op&#233;ration est d&#8217;une complexit&#233; en O(N &#215; S &#215; T 2),
+o&#249; S est le nombre de segments sources dans l&#8217;hypoth&#232;se courante.
+</p>
+<p>Merge Il s&#8217;agit de l&#8217;op&#233;ration inverse de la pr&#233;c&#233;dente. Il convient de noter que ces deux op&#233;-
+rations s&#8217;accompagnent g&#233;n&#233;ralement d&#8217;un changement lexical de la traduction courante (d&#8217;o&#249;
+la d&#233;pendance &#224; T ).
+</p>
+<p>6Sont dits distants dans cette &#233;tude deux blocs s&#233;par&#233;s par au moins 3 mots.
+7Nous mesurons le nombre d&#8217;hypoth&#232;ses voisines engendr&#233;es par une op&#233;ration.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Recherche locale pour la traduction statistique &#224; base de segments
+</p>
+<p>M de plus ,&#8596; furthermore , || in addition , . . . le bon exemple&#8596; a good example
+&#234;tre modernis&#233;s&#8596; modernization || modernized . . . modernis&#233;s&#8596; modernized
+</p>
+<p>F de plus , nos syst&#232;mes administratifs doivent &#234;tre modernis&#233;s . nous devons &#233;galement
+donner le bon exemple .
+</p>
+<p>E in addition , our administrative systems must be modernised , and it is our duty to lead
+by example .
+</p>
+<p>S0 [de plus ,] [nos syst&#232;mes administratifs] [doivent] [&#234;tre modernis&#233;s] [. nous devons
+&#233;galement] [donner le bon exemple .]
+</p>
+<p>T0 [furthermore ,] [our administrative systems] [must] [modernization] [and we also need]
+[set a good example .] -19.5068
+</p>
+<p>S1 [de plus ,] [nos syst&#232;mes administratifs] [doivent] [&#234;tre modernis&#233;s] [.] [nous devons
+&#233;galement] [donner le bon exemple .]
+</p>
+<p>T1 [furthermore ,] [our administrative systems] [must] [modernization] [.] [we must also]
+[set a good example .] SPLIT -17.4382
+</p>
+<p>S2 [de plus ,] [nos syst&#232;mes administratifs] [doivent] [&#234;tre] [modernis&#233;s] [.] [nous devons
+&#233;galement] [donner le bon exemple .]
+</p>
+<p>T2 [furthermore ,] [our administrative systems] [must] [be] [modernized] [.] [we must
+also] [set a good example .] SPLIT -15.8488
+</p>
+<p>S3 [de plus ,] [nos syst&#232;mes administratifs] [doivent] [&#234;tre] [modernis&#233;s] [.] [nous devons
+&#233;galement] [donner] [le bon exemple .]
+</p>
+<p>T3 [furthermore ,] [our administrative systems] [must] [be] [modernized] [.] [we must
+also] [give] [a good example .] SPLIT -15.5885
+</p>
+<p>S4 [de plus ,] [nos syst&#232;mes administratifs] [doivent] [&#234;tre] [modernis&#233;s] [.] [nous devons
+&#233;galement] [donner] [le bon exemple .]
+</p>
+<p>T4 [in addition ,] [our administrative systems] [must] [be] [modernized] [.] [we must
+also] [give] [a good example .] REPLACE -15.5199
+</p>
+<p>FIG. 3 &#8211; It&#233;rations impliqu&#233;es dans la traduction par initialisation GLOSS (section 2.3) d&#8217;une
+phrase fran&#231;aise (F) de traduction de r&#233;f&#233;rence (E). Une segmentation (S0) est premi&#232;rement
+calcul&#233;e &#224; partir des 49 segments sources deM qui couvrent partiellement F. T0 est la traduction
+(GLOSS) associ&#233;e. Les segments en gras sont impliqu&#233;s dans l&#8217;hypoth&#232;se recevant le meilleur
+score &#224; chaque it&#233;ration. Plus de 4,100 hypoth&#232;ses ont &#233;t&#233; &#233;valu&#233;es en un tiers de seconde.
+</p>
+<p>2.3 L&#8217;op&#233;rateur d&#8217;initialisation
+Initialisation GLOSS Dans ReWrite (Germann et al., 2001), l&#8217;hypoth&#232;se courante est initia-
+lis&#233;e en collectant pour chaque mot sa traduction privil&#233;gi&#233;e selon le mod&#232;le lexical (paires de
+mots source/cible). Nous avons adapt&#233; cette id&#233;e aux mod&#232;les de segments (paires de s&#233;quences
+de mots source/cible). Une complication survient dans notre cas, puisque la phrase &#224; traduire S
+n&#8217;est pas pr&#233;-d&#233;coup&#233;e en segments. Plusieurs segmentations &#233;tant possibles, nous avons d&#233;cid&#233;
+de retenir celle qui minimise le nombre de segments sources du mod&#232;le de segmentM, tout en
+couvrant compl&#232;tement S. Notre espoir est ici que des segments longs captureront plus d&#8217;in-
+formation pertinente &#224; leur traduction hors-contexte. Cette segmentation peut &#234;tre impl&#233;ment&#233;e
+efficacement par programmation dynamique (Langlais et al., 2007).
+Une fois la segmentation source effectu&#233;e, nous prenons simplement la traduction privil&#233;gi&#233;e
+(selonM) de chaque segment que nous concat&#233;nons pour former une traduction.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Langlais et al.
+</p>
+<p>Initialisation par Pharaoh Nous avons test&#233; une autre mani&#232;re d&#8217;initialiser la recherche.
+Elle consiste &#224; partir de la meilleure traduction produite par Pharaoh8. Cela revient &#224; dire que
+nous faisons le pari que la recherche locale permet de corriger certaines erreurs faites par le
+premier d&#233;codeur. Nous appelons cette variante CASCADE dans la suite.
+</p>
+<p>La figure 3 montre un exemple d&#8217;application de la recherche locale dans le cas de l&#8217;initialisation
+GLOSS.
+</p>
+<p>3 Protocole exp&#233;rimental
+</p>
+<p>3.1 Corpus
+</p>
+<p>Nous avons r&#233;alis&#233; nos exp&#233;riences en utilisant les ressources de la t&#226;che partag&#233;e du workshop
+sur la traduction statistique qui s&#8217;est tenu en 2006, en marge de l&#8217;ACL (Koehn &amp; Monz, 2006).
+Cette ann&#233;e-l&#224;, les syst&#232;mes participants avaient &#224; traduire des textes en espagnol, en allemand
+et en fran&#231;ais vers et depuis l&#8217;anglais. Les textes disponibles pour l&#8217;entra&#238;nement proviennent du
+corpus Europarl. Une portion d&#8217;environ 700 000 paires de phrases dans chaque langue, train,
+constituait le mat&#233;riel d&#8217;entra&#238;nement ; deux corpus de d&#233;veloppement de 2 000 phrases chacun,
+dev et devtest, &#233;taient destin&#233;s respectivement &#224; ajuster les syst&#232;mes (les &#955; dans l&#8217;&#233;qua-
+tion 1) et &#224; r&#233;aliser des tests &#224; blanc. Nous avons utilis&#233; pour nos tests les 2 000 phrases du jeu
+de test officiel de la t&#226;che partag&#233;e extraites du corpus Europarl9.
+</p>
+<p>3.2 Syst&#232;me de r&#233;f&#233;rence
+</p>
+<p>Le syst&#232;me de base que nous utilisons dans cette &#233;tude est le syst&#232;me &#233;tat-de-l&#8217;art mis &#224; dispo-
+sition par les organisateurs. Il s&#8217;agit d&#8217;un syst&#232;me maintenant classique o&#249; le mod&#232;le de langue
+est un mod&#232;le trigramme entra&#238;n&#233; &#224; l&#8217;aide de SRILM (Stolcke, 2002), les tables de traductions
+(avec des segments d&#8217;au plus 7 mots) sont entra&#238;n&#233;es par les scripts fournis par les organisateurs.
+Chaque paire de segments dans cette table est not&#233;e par quatre scores recevant chacun leur co-
+efficient de pond&#233;ration (&#955;) ainsi qu&#8217;un score permettant de contr&#244;ler (de mani&#232;re passive) la
+longueur des traductions produites (phrase penalty). Le mod&#232;le de distorsion natif &#224; Pharaoh
+ainsi qu&#8217;un second mod&#232;le de contr&#244;le de la longueur des traductions (word penalty) re&#231;oivent &#224;
+leur tour un coefficient. Au total, ce sont huit coefficients qui sont ajust&#233;s sur dev en appliquant
+l&#8217;algorithme de minimisation d&#8217;erreur minimum-error-rate-training.perl.
+</p>
+<p>4 Exp&#233;riences
+</p>
+<p>Nous comparons10 dans un premier temps feGreedy et Pharaoh11 en leur demandant de
+maximiser la m&#234;me fonction (&#233;quation 1). Les deux variantes du premier moteur (GLOSS et
+CASCADE) sont test&#233;es. Les r&#233;sultats sont indiqu&#233;s dans le tableau 1.
+</p>
+<p>8Pharaoh donne acc&#232;s &#224; l&#8217;alignement ayant produit la meilleure traduction gr&#226;ce &#224; l&#8217;option -trace.
+9Des r&#233;sultats similaires sont observ&#233;s sur la partie hors-domaine du jeu de test.
+</p>
+<p>10Par simplicit&#233; nous mesurons dans la suite la qualit&#233; des traductions produites &#224; l&#8217;aide des mesures automa-
+tiques WER (pour word error rate) et BLEU (Papineni et al., 2002) couramment employ&#233;es dans la communaut&#233;.
+</p>
+<p>11Les seuils contr&#244;lant l&#8217;espace de recherche que Pharaoh explore ont &#233;t&#233; laiss&#233;s &#224; leurs valeurs par d&#233;faut.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Recherche locale pour la traduction statistique &#224; base de segments
+</p>
+<p>L=fr L=es L=de
+WER BLEU WER BLEU WER BLEU
+</p>
+<p>Pharaoh 54.85 30.90 54.23 29.64 62.32 17.68
+GLOSS 54.27 29.83 53.22 28.99 62.53 17.03
+</p>
+<p>L&#8594; en CASCADE 53.38 31.42 52.77 30.14 61.73 17.88
+Pharaoh 51.69 29.96 51.04 30.54 60.54 24.45
+GLOSS 50.93 29.13 50.77 29.67 57.55 23.84
+</p>
+<p>en&#8594; L CASCADE 50.46 30.27 50.02 30.87 58.85 24.66
+</p>
+<p>TAB. 1 &#8211; Performances de diff&#233;rents algorithmes de recherche. Les donn&#233;es en gras sont signi-
+ficativement meilleures (&#224; 99%) que celles associ&#233;es &#224; Pharaoh.
+</p>
+<p>La variante GLOSS enregistre des valeurs de BLEU inf&#233;rieures &#224; celles mesur&#233;es pour Pharaoh,
+les diff&#233;rences sont cependant assez faibles. Les taux d&#8217;erreurs au niveau des mots sont en fait
+le plus souvent en faveur de GLOSS. Ceci est d&#8217;autant plus remarquable que notre impl&#233;men-
+tation n&#8217;encode qu&#8217;un nombre restreint d&#8217;op&#233;rations de voisinage. Nous observons avec int&#233;r&#234;t
+que CASCADE permet d&#8217;am&#233;liorer les traductions produites par Pharaoh, ce qui constitue un
+r&#233;sultat tr&#232;s satisfaisant et valide l&#8217;id&#233;e que la recherche locale offre une fa&#231;on simple et ef-
+ficace de corriger les traductions produites par un syst&#232;me natif. Pour toutes les directions de
+traduction, les am&#233;liorations apport&#233;es par CASCADE sont significatives12.
+</p>
+<p>Une analyse plus fine des traces de cette session de traduction permet d&#8217;observer que 40% des
+traductions produites par Pharaoh ont un meilleur score (&#233;quation 1) apr&#232;s application de la
+recherche locale (CASCADE). C&#8217;est donc en terme d&#8217;algorithme de recherche un succ&#232;s. De
+mani&#232;re moins surprenante, 90% des traductions initiales produite par GLOSS sont am&#233;lior&#233;es
+par la recherche locale.
+</p>
+<p>Pas moins de 40% des op&#233;rations remportant une it&#233;ration dans l&#8217;algorithme local sont des
+op&#233;rations de remplacement (replace) d&#8217;une traduction par une autre. L&#8217;op&#233;ration move est
+&#233;galement productive dans la variante CASCADE et illustre bien le pouvoir de post-correction
+qu&#8217;offre la recherche locale. Une fois un probl&#232;me identifi&#233; dans les traductions produites par
+un syst&#232;me natif, il &#8220;suffit&#8221; d&#8217;encoder une op&#233;ration sp&#233;cifique visant &#224; sa correction ; ce que
+nous avons fait pour l&#8217;op&#233;ration move.
+</p>
+<p>Certaines op&#233;rations sont marginalement utiles. C&#8217;est par exemple le cas de l&#8217;op&#233;ration swap
+ce qui s&#8217;explique par le fait que la table de transfert capture d&#233;j&#224; de nombreux r&#233;ordonnan-
+cements locaux. En derni&#232;re observation, soulignons que CASCADE requiert beaucoup moins
+d&#8217;it&#233;rations pour converger que GLOSS, ce qui semble normal. 70% des traductions effectu&#233;es
+par CASCADE n&#233;cessitent au plus 2 it&#233;rations, alors que seulement un peu plus de la moiti&#233; des
+traductions effectu&#233;es par GLOSS requi&#232;rent un maximum de 4 it&#233;rations. Dans les deux cas, les
+deux variantes requi&#232;rent habituellement moins de 10 it&#233;rations avant stabilisation.
+</p>
+<p>Nous tenons &#224; souligner que bien que n&#8217;ayant pas pris la peine d&#8217;impl&#233;menter une version ef-
+ficace de notre moteur de traduction, feGreedy requiert de l&#8217;ordre de 4 minutes de calculs
+pour traduire 1 000 phrases13, contre plus d&#8217;une heure pour Pharaoh. R&#233;duire les temps de
+</p>
+<p>12Selon le test d&#8217;&#233;chantillonnage multiple avec replacement (boostrap resampling) d&#233;crit dans (Zhang &amp; Vogel,
+2004), en &#233;valuant 1 000 &#233;chantillons de 700 phrases chacun. Niveau de confiance fix&#233; &#224; 99%.
+</p>
+<p>13Ce temps ne tient pas compte du calcul de la premi&#232;re hypoth&#232;se courante. Temps approximatifs mesur&#233;s sur
+un ordinateur Pentium &#224; 3 GHz disposant de 4Go de m&#233;moire vive.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Langlais et al.
+</p>
+<p>Pharaoh CASCADE
+pile WER BLEU temps WER BLEU temps
+50 51.82 29.24 40min. 50.26 29.65 &lt;5 min.
+</p>
+<p>100 51.46 29.23 1h. 20min. 50.32 29.62 &lt;5 min.
+200 51.15 29.44 2h. 40min. 50.18 29.69 &lt;5 min.
+500 50.86 29.51 6h. 15min. 50.11 29.74 &lt;5 min.
+</p>
+<p>1000 50.64 29.54 12h. 15min. 50.04 29.74 &lt;5 min.
+</p>
+<p>TAB. 2 &#8211; Performance de Pharaoh et de CASCADE sur les 1 000 premi&#232;res phrases du corpus
+de test en fonction du nombre maximum d&#8217;hypoth&#232;ses stock&#233;es par Pharaoh dans une pile.
+</p>
+<p>calcul de notre impl&#233;mentation serait facile puisqu&#8217;&#224; chaque op&#233;ration de voisinage, une nou-
+velle hypoth&#232;se est temporairement construite puis &#233;valu&#233;e au complet, alors qu&#8217;une op&#233;ration
+n&#8217;introduit en g&#233;n&#233;ral que peu de modifications dans le calcul de l&#8217;&#233;quation 1.
+</p>
+<p>Nous concluons cette exploration de la recherche locale par une exp&#233;rience o&#249; nous augmentons
+le nombre d&#8217;hypoth&#232;ses que Pharaoh est autoris&#233; &#224; manipuler par pile. Les r&#233;sultats de cette
+exp&#233;rience sont consign&#233;s en tableau 2 pour des syst&#232;mes traduisant du fran&#231;ais vers l&#8217;anglais.
+</p>
+<p>Nous observons d&#8217;une part qu&#8217;augmenter l&#8217;espace de recherche est payant, puisque plus d&#8217;un
+point en WER peut &#234;tre gagn&#233; de cette fa&#231;on. Ce gain ne doit pas nous faire oublier cependant
+que le temps mis pour obtenir les traductions passe de 40 minutes &#224; plus de 12 heures lors-
+qu&#8217;on passe d&#8217;une limite de 100 hypoth&#232;ses par pile &#224; 1 000. De mani&#232;re plus int&#233;ressante, nous
+constatons surtout que CASCADE permet syst&#233;matiquement d&#8217;am&#233;liorer la meilleure traduction
+produite par Pharaoh, que l&#8217;on mesure cette am&#233;lioration par WER ou par BLEU. L&#8217;am&#233;liora-
+tion en BLEU apport&#233;e par CASCADE &#224; la meilleure traduction produite par la premi&#232;re version
+de Pharaoh (la plus rapide) est sup&#233;rieure &#224; celle enregistr&#233;e par la version la plus longue de
+Pharaoh (+.4 versus +.3). Moins de 5 minutes ont &#233;t&#233; n&#233;cessaires pour obtenir cette am&#233;lio-
+ration, contre presque 12 heures dans le second cas.
+</p>
+<p>5 Travaux reli&#233;s
+</p>
+<p>L&#8217;id&#233;e de composer des moteurs de traduction en cascade a &#233;t&#233; propos&#233;e initialement par (Berger
+et al., 1994) dans le cadre du syst&#232;me Candide ; syst&#232;me &#224; base de mod&#232;les de traduction mot
+&#224; mot (Brown et al., 1993). Malheureusement, les auteurs ne d&#233;crivent ni leur algorithme de
+recherche locale, ni n&#8217;en fournissent une &#233;valuation. D&#8217;autres travaux ont &#233;t&#233; men&#233;s sur cette
+id&#233;e. Notamment (Marcu, 2001) et (Watanabe &amp; Sumita, 2003) o&#249; un algorithme de recherche
+locale bas&#233; sur les mots tente d&#8217;am&#233;liorer une traduction produite par un syst&#232;me de m&#233;moires
+de traductions (sous-phrastique dans le premier cas, phrastique dans le second).
+Plus r&#233;cemment, (Simard et al., 2007) et (Chen et al., 2007) pr&#233;sentaient simultan&#233;ment la
+m&#234;me id&#233;e qui consiste &#224; entra&#238;ner un mod&#232;le de traduction statistique &#224; partir d&#8217;un bitexte dont
+la partie source est produite par un syst&#232;me natif (le syst&#232;me Systran dans ces &#233;tudes) et la partie
+cible est une traduction de r&#233;f&#233;rence (manuelle) ; l&#8217;espoir &#233;tant que le mod&#232;le de traduction
+r&#233;sultant saura corriger des erreurs commises par le syst&#232;me natif. Il est important de souligner
+que notre approche, bien qu&#8217;elle puisse &#234;tre utilis&#233;e comme une &#233;tape de post-traitement, ne
+requiert aucun entra&#238;nement d&#8217;un mod&#232;le de traduction suppl&#233;mentaire.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Recherche locale pour la traduction statistique &#224; base de segments
+</p>
+<p>6 Conclusions et perspectives
+</p>
+<p>Dans cette &#233;tude, nous avons d&#233;velopp&#233; un algorithme de recherche locale pour un syst&#232;me de
+traduction statistique bas&#233; sur les segments. Nous avons discut&#233; les avantages de notre approche
+et avons r&#233;alis&#233; des exp&#233;riences la validant. Nous avons montr&#233; qu&#8217;une variante de cet algo-
+rithme permet d&#8217;am&#233;liorer les traductions produites par le syst&#232;me &#224; l&#8217;&#233;tat de l&#8217;art Pharaoh.
+</p>
+<p>Cette &#233;tude ouvre plusieurs perspectives. Nous souhaitons en particulier comparer diff&#233;rents
+algorithmes de recherche locale, et &#233;tudier l&#8217;influence du processus de segmentation permet-
+tant d&#8217;initialiser l&#8217;hypoth&#232;se courante. Notre motivation initiale &#233;tait d&#8217;explorer des approches
+souples &#224; la post-&#233;dition de traductions qui peuvent identifier des erreurs syst&#233;matiques dans les
+traductions produites par un syst&#232;me donn&#233;. Un pas dans cette direction consiste &#224; augmenter
+le nombre de mod&#232;les utilis&#233;s dans la fonction de score et d&#8217;en ajuster les contributions via les
+coefficients qui leur sont associ&#233;s.
+</p>
+<p>Remerciements
+Nous remercions les relecteurs pour leur commentaires pertinents.
+</p>
+<p>R&#233;f&#233;rences
+BERGER A. L., BROWN P. F., PIETRA S. A. D., PIETRA V. J. D., GILLETT J. R., LAF-
+FERTY J. D., MERCER R. L., PRINTZ H. &amp; URE&#352; L. (1994). The Candide system for
+machine translation. In HLT, p. 157&#8211;162, Morristown, NJ, USA.
+BESACIER L., MAHDHAOUI A. &amp; LE V.-B. (2007). The LIG Arabic/English speech trans-
+lation system at IWSLT 07. In 4th IWSLT, p. 137&#8211;140, Trento, Italy.
+BROWN P. F., PIETRA S. A. D., PIETRA V. J. D. &amp; MERCER R. L. (1993). The mathematics
+of statistical machine translation : Parameter estimation. Computational Linguistics, 19(2),
+263&#8211;311.
+CHEN Y., EISELE A., FEDERMANN C., HASLER E., JELLINGHAUS M. &amp; THEISON S.
+(2007). Multi-engine machine translation with an open-source SMT decoder. In 2nd Workshop
+on SMT, p. 193&#8211;196, Prague, Czech Republic.
+CREGO J. M. &amp; MARINO J. B. (2007). Extending MARIE : a N-gram-based smt decoder. In
+ACL, Demo and Poster Sessions, p. 213&#8211;216, Prague.
+D&#201;CHELOTTE D., SCHWENK H., BONNEAU-MAYNARD H., ALLAUZEN A. &amp; ADDA G.
+(2007). A state-of-the-art statistical machine translation system based on Moses. In XIth MT
+Summit, p. 127&#8211;133, Copenhagen, Denmark.
+FOSTER G., GANDRABUR S., LANGLAIS P., PLAMONDON P., RUSSEL G. &amp; SIMARD M.
+(2003). Statistical machine translation : Rapid development with limited resources. In MT
+Summit IX, p. 110&#8211;117, New Orleans.
+GARC&#205;A I. &amp; CASACUBERTA F. (2001). Search algorithms for statistical machine translation
+based on dynamic programming and pruning techniques. In 8th MT Summit, p. 115&#8211;120,
+Santiago de Compostela, Spain.
+GERMANN U. (2003). Greedy decoding for statistical machine translation in almost linear
+time. In HLT-NAACL, p. 72&#8211;79, Edmonton, Canada.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Langlais et al.
+</p>
+<p>GERMANN U., JAHR M., KNIGHT K., MARCU D. &amp; YAMADA K. (2001). Fast decoding
+and optimal decoding for machine translation. In 39th ACL, p. 228&#8211;235, Toulouse, France.
+KOEHN P. (2004). Pharaoh : a Beam Search Decoder for Phrase-Based SMT. In 6th AMTA,
+p. 115&#8211;124, Washington, DC.
+KOEHN P., FEDERICO M., SHEN W., BETOLDI N., HOANG H., CALLISON-BURCH C.,
+COWAN B., ZENS R., DYER C., BOJAR O., C.MORAN, CONSTANTIN A. &amp; HERBST E.
+(2006). Open Source Toolkit for Statistical Machine Translation : Factored translation models
+and confusion network decoding. University summer worskhop, Johns Hopkins University.
+KOEHN P. &amp; MONZ C. (2006). Manual and automatic evaluation of machine translation
+between European languages. In 1st Workshop on SMT, p. 102&#8211;121, New York City.
+KOEHN P., OCH F. J. &amp; MARCU D. (2003). Statistical Phrase-Based Translation. In HLT, p.
+127&#8211;133.
+LANGLAIS P., PATRY A. &amp; GOTTI F. (2007). A greedy decoder for statistical phrase-based
+machine translation. In 11th TMI, p. 104&#8211;113, Sk&#246;vde, Sweden.
+MARCU D. (2001). Towards a unified approach to memory- and statistical-based machine
+translation. In 39th ACL, p. 378&#8211;385, Toulouse, France.
+NIESSEN S., VOGEL S., NEY H. &amp; TILLMANN C. (1998). A DP-based search algorithm
+for statistical machine translation. In 36th ACL and 17th COLING, p. 960&#8211;966, Montr&#233;al,
+Canada.
+OLTEANU M., DAVIS C., VOLOSEN I. &amp; MOLDOVAN D. (2006). Phramer &#8211; an open source
+statistical phrased-based translator. In 1st Workshop on SMT, p. 150&#8211;153, New York, USA.
+PAPINENI K., ROUKOS S., WARD T. &amp; ZHU W.-J. (2002). Bleu : a method for automatic
+evaluation of machine translation. In Proceedings of the 40th ACL, p. 311&#8211;318, Philadelphia,
+Pennsylvania.
+PATRY A., GOTTI F. &amp; LANGLAIS P. (2006). Mood : A modular object-oriented decoder for
+statistical machine translation. In 5th LREC, p. 709&#8211;714, Genoa, Italy.
+RUSSELL S. &amp; NORVIG P. (1995). Artificial Intelligence. A Modern Approach. Prentice Hall.
+SIMARD M., UEFFING N., ISABELLE P. &amp; KUHN R. (2007). Rule-based translation with
+statistical phrase-based post-editing. In 2nd Workshop on SMT, p. 203&#8211;206, Prague, Czech
+Republic.
+STOLCKE A. (2002). SRILM - an extensible language modeling toolkit. In ICSLP, Denver,
+Colorado.
+TILLMANN C., VOGEL S., NEY H. &amp; ZUBIAGA A. (1997). A DP-based search using mono-
+tone alignments in statistical translation. In 35th ACL, p. 289&#8211;296, Madrid, Spain.
+WANG Y.-Y. &amp; WAIBEL A. (1997). Decoding algorithm in statistical machine translation. In
+35th ACL, p. 366&#8211;372, Madrid, Spain.
+WATANABE T. &amp; SUMITA E. (2003). Example-based decoding for statistical machine trans-
+lation. In MT Summit IX, p. 410&#8211;417, New Orleans, Louisiana.
+ZHANG Y. &amp; VOGEL S. (2004). Measuring confidence intervals for the machine translation
+evaluation metrics. In 10th TMI, p. 85&#8211;94, Baltimore, Maryland, USA.</p>
+
+</div></div>
+</body></html>

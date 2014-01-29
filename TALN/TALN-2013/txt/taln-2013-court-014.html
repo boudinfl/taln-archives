@@ -1,0 +1,461 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Influence des annotations s&#233;mantiques sur un syst&#232;me de d&#233;tection de cor&#233;f&#233;rence &#224; base de perceptron multi-couches</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Influence des annotations s&#233;mantiques sur un syst&#232;me de
+d&#233;tection de cor&#233;f&#233;rence &#224; base de perceptron multi-couches
+</p>
+<p>Eric Charton Michel Gagnon Ludovic Jean-Louis
+&#201;cole Polytechnique de Montr&#233;al, Montr&#233;al, QC, Canada
+</p>
+<p>{eric.charton, michel.gagnon,ludovic.jean-louis}@polymtl.ca
+</p>
+<p>R&#201;SUM&#201;
+La s&#233;rie de campagnes d&#8217;&#233;valuation CoNLL-2011/2012 a permis de comparer diverses proposi-
+tions d&#8217;architectures de syst&#232;mes de d&#233;tection de co-r&#233;f&#233;rences. Cet article d&#233;crit le syst&#232;me de
+r&#233;solution de cor&#233;f&#233;rence Poly-co d&#233;velopp&#233; dans le cadre de la campagne d&#8217;&#233;valuation CoNLL-
+2011 et &#233;value son potentiel d&#8217;am&#233;lioration en introduisant des propri&#233;t&#233;s s&#233;mantiques dans son
+mod&#232;le de d&#233;tection. Notre syst&#232;me s&#8217;appuie sur un classifieur perceptron multi-couches. Nous
+d&#233;crivons les heuristiques utilis&#233;es pour la s&#233;lection des paires de mentions candidates, ainsi que
+l&#8217;approche de s&#233;lection des traits caract&#233;ristiques que nous avons utilis&#233;e lors de la campagne
+CoNLL-2011. Nous introduisons ensuite un trait s&#233;mantique compl&#233;mentaire et &#233;valuons son
+influence sur les performances du syst&#232;me.
+</p>
+<p>ABSTRACT
+Semantic annotation influence on coreference detection using perceptron approach
+</p>
+<p>The ConLL-2011/2012 evaluation campaign was dedicated to coreference detection systems.
+This paper presents the coreference resolution system Poly-co submitted to the closed track of
+the CoNLL-2011 Shared Task and evaluate is potential of evolution when it includes a semantic
+feature. Our system integrates a multilayer perceptron classifier in a pipeline approach. We
+describe the heuristic used to select the candidate coreference pairs that are fed to the network
+for training, and our feature selection method. We introduce a complementary semantic feature
+and evaluate the performances improvement.
+</p>
+<p>MOTS-CL&#201;S : Cor&#233;f&#233;rence, Perceptron multi-couches.
+KEYWORDS: Coreference, Multilayer perceptron.
+</p>
+<p>1 Introduction
+</p>
+<p>La r&#233;solution de cor&#233;f&#233;rence a pour objet de d&#233;terminer si deux s&#233;quences textuelles (par
+exemple une entit&#233; nomm&#233;e, un pronom, un syntagme nominal) font r&#233;f&#233;rence &#224; une m&#234;me
+entit&#233; s&#233;mantique (par exemple une personne ou un &#233;v&#232;nement). Le principe de r&#233;solution
+consiste &#224; d&#233;tecter au sein d&#8217;un texte des s&#233;quences intitul&#233;es mentions cor&#233;f&#233;rentes et &#224; les
+regrouper au sein de cha&#238;nes de cor&#233;f&#233;rences. Cette t&#226;che du TAL fait l&#8217;objet d&#8217;un ensemble de
+propositions algorithmiques r&#233;cemment revisit&#233;es par deux campagnes d&#8217;&#233;valuation CoNLL
+Shared Tasks propos&#233;es en 2011 et 2012. Ces campagnes ont d&#233;montr&#233; la pr&#233;dominance des
+syst&#232;mes de r&#233;solution de co-r&#233;f&#233;rence par apprentissage automatique appliqu&#233;s sur des paires
+candidates. Le syst&#232;me pr&#233;sent&#233; dans cet article est une &#233;volution de celui que nous avons
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>612 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>pr&#233;sent&#233; dans le cadre de notre participation &#224; l&#8217;&#233;dition 2011 de cette campagne (Pradhan et al.,
+2011). Notre approche tente de d&#233;finir un vecteur de traits d&#8217;apprentissage original reposant sur
+des informations issues d&#8217;un processus d&#8217;extraction d&#8217;information et d&#8217;analyse linguistique. Dans
+cette communication, nous compl&#233;tons ces travaux ant&#233;rieurs en int&#233;grant un trait s&#233;mantique
+dans le vecteur d&#8217;apprentissage.
+</p>
+<p>Cet article est organis&#233; comme suit. Nous commentons l&#8217;&#233;tat de l&#8217;art &#233;tabli par les campagnes
+CoNLL en section 2. Puis nous pr&#233;sentons notre syst&#232;me de d&#233;tection de cor&#233;f&#233;rences en section 3.
+Nous d&#233;crivons comment nous proposons d&#8217;enrichir son vecteur en lui adjoignant un trait de
+nature s&#233;mantique, c&#8217;est &#224; dire d&#233;finissant pr&#233;cis&#233;ment l&#8217;identit&#233; de certaines des mentions
+candidates utilis&#233;es dans le processus de classification par paires. Cette am&#233;lioration induit une
+progression int&#233;ressante du syst&#232;me tel qu&#8217;&#233;valu&#233; lors de la campagne CoNLL. Nous commentons
+les r&#233;sultats de ce syst&#232;me modifi&#233; en section 4.1 puis nous concluons.
+</p>
+<p>2 Propositions existantes
+</p>
+<p>De nombreux syst&#232;mes fond&#233;s sur l&#8217;apprentissage automatique ont &#233;t&#233; propos&#233;s pour traiter
+la r&#233;solution de cor&#233;f&#233;rences. Les approches les plus r&#233;centes &#224; base de r&#233;seaux logiques de
+Markov (MLNs) (Poon et Domingos, 2008), ou fond&#233;es sur une approche de partitionnement
+de graphe (Sapena et al., 2010) sont prometteuses et demeurent peu explor&#233;es. Le mod&#232;le de
+classification propos&#233; par Soon (Soon et al., 2001) est pr&#233;dominant et tr&#232;s largement impl&#233;ment&#233;.
+Dans cette approche, les mentions cor&#233;f&#233;rentes potentielles, contenues dans un document
+d&#8217;entra&#238;nement, sont localis&#233;es via diff&#233;rents modules dits de d&#233;tection de mentions. Les exemples
+d&#8217;entrainements sont ensuite g&#233;n&#233;r&#233;s sous la forme de vecteurs de traits qui repr&#233;sentent une
+paire de mentions potentiellement cor&#233;f&#233;rentes.
+</p>
+<p>En mode applicatif toutes les paires de mentions potentiellement cor&#233;f&#233;rentes d&#8217;un document
+sont soumises sous forme d&#8217;un vecteur au classifieur, qui valide ou non leur relation en donnant
+une r&#233;ponse binaire ou probabilis&#233;e. Un processus d&#8217;assemblage, post&#233;rieur &#224; la classification,
+regroupe ensuite au sein de cha&#238;nes toutes les mentions cor&#233;f&#233;rentes. L&#8217;atout principal de la
+m&#233;thode de Soon est sa grande flexibilit&#233; : la r&#233;duction du probl&#232;me de construction de cha&#238;nes
+de cor&#233;f&#233;rences &#224; la reconnaissance pr&#233;alable de paires cor&#233;f&#233;rentes laisse une grande latitude
+de conception de syst&#232;me. Cette approche rend aussi la m&#233;thode de Soon compatible avec des
+familles de classifieurs tr&#232;s vari&#233;es : (Versley et al., 2008) a montr&#233; qu&#8217;un mod&#232;le de type SVM
+permet d&#8217;obtenir un syst&#232;me efficace et lors de la campagne CoNLL 2012, (Fernandes et al., 2012)
+a montr&#233; le potentiel d&#8217;un perceptron multicouche pour cette t&#226;che.
+</p>
+<p>Le contenu du vecteur de trait utilis&#233; dans l&#8217;architecture de Soon offre &#233;galement un champ
+de recherche fertile : on a pu ainsi voir dans la proposition de (Stamborg et Medved, 2012)
+que des d&#233;pendances syntaxiques utilis&#233;es en tant que traits pouvaient offrir un bon niveau de
+performance. Certains travaux soulignent la souplesse de l&#8217;approche de Soon en ne retenant que
+le principe de ses paires et vecteurs de traits qu&#8217;ils associent non plus &#224; des classifieurs, mais
+&#224; des m&#233;thodes heuristiques. C&#8217;est le cas de la proposition de (Lee et al., 2011) qui a obtenu
+les meilleures performances lors de la campagne CoNLL 2011. Le principe est de remplacer
+l&#8217;apprentissage automatique et la classification par une approche incr&#233;mentale &#224; base de r&#232;gles
+pr&#233;-&#233;tablies dites tamis. Au cours de 13 &#233;tapes successives, ces tamis trient les diff&#233;rentes paires
+de cor&#233;f&#233;rences candidates et les assemblent au sein de cha&#238;nes. On notera que (Huang et al.,
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>613 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#1;&#2;&#3;&#4;&#5;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#9;&#11;&#4;&#8;&#12;&#4;&#9;&#4;&#3;&#9;&#10;&#4;&#9;&#8;&#7;&#13;&#14;&#12;&#4;
+</p>
+<p>&#15;&#8;&#3;&#12;&#16;&#6;&#8;&#4;&#13;&#4;&#8;&#3;&#9;&#17;&#4;&#12;&#5;&#4;&#18;&#3;&#12;&#7;&#8;
+</p>
+<p>&#19;&#2;&#8;&#2;&#12;&#16;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#20;&#9;&#3;&#12;&#16;&#6;&#3;&#20;
+&#21;&#22;&#16;&#20;&#20;&#6;&#23;&#5;&#16;&#3;&#6;&#7;&#8;&#9;&#17;&#4;&#12;&#5;&#4;&#18;&#3;&#12;&#7;&#8;
+</p>
+<p>&#1;&#2;&#3;&#4;&#5;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#20;&#9;&#16;&#22;&#6;&#16;&#20;
+</p>
+<p>&#24;&#7;&#10;&#25;&#22;&#4;&#9;&#10;&#4;&#9;&#10;&#2;&#3;&#4;&#5;&#3;&#6;&#7;&#8;&#9;
+&#10;&#4;&#20;&#9;&#13;&#4;&#8;&#3;&#6;&#7;&#8;&#20;&#9;&#5;&#16;&#8;&#10;&#6;&#10;&#16;&#3;&#4;&#20;
+</p>
+<p>&#24;&#4;&#20;&#25;&#12;&#4;&#20;&#9;&#10;&#4;&#9;&#20;&#6;&#13;&#6;&#22;&#16;&#12;&#6;&#3;&#2;&#9;
+</p>
+<p>&#24;&#7;&#10;&#26;&#22;&#4;
+</p>
+<p>&#21;&#7;&#12;&#18;&#25;&#20;&#9;&#10;&#4;&#9;&#8;&#7;&#13;&#14;&#12;&#4;
+&#4;&#3;&#9;&#11;&#4;&#8;&#12;&#4;
+</p>
+<p>&#27;&#2;&#22;&#4;&#5;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#9;&#5;&#7;&#28;&#12;&#4;&#29;&#4;&#12;&#4;&#8;&#5;&#4;&#9;
+</p>
+<p>Corpus de test
+</p>
+<p>&#24;&#7;&#10;&#25;&#22;&#4;&#9;&#10;&#30;&#4;&#31;&#3;&#12;&#16;&#5;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#20;&#9;
+&#13;&#4;&#8;&#3;&#6;&#7;&#8;&#20;
+&#5;&#16;&#8;&#10;&#6;&#10;&#16;&#3;&#4;&#20;
+</p>
+<p>Corpus d'entrainement
+</p>
+<p>Corpus &#233;tiquet&#233;
+</p>
+<p> &#8;&#8;&#7;&#3;&#16;&#3;&#6;&#7;&#8;&#9;&#20;&#2;&#13;&#16;&#8;&#3;&#6;!&#25;&#4;&#20;
+</p>
+<p>&#19;&#2;&#8;&#2;&#12;&#16;&#3;&#6;&#7;&#8;&#9;&#10;&#4;&#20;&#9;&#3;&#12;&#16;&#6;&#3;&#20;
+</p>
+<p>FIGURE 1 &#8211; Architecture du syst&#232;me Poly-co.
+</p>
+<p>2009) propose aussi de ne conserver que les paires de vecteurs de traits de l&#8217;architecture de Soon,
+mais utilise un mod&#232;le MLN pour assembler les cha&#238;nes.
+</p>
+<p>3 Syst&#232;me propos&#233;
+</p>
+<p>La qualit&#233; des d&#233;tecteurs de mentions potentielles jouant un r&#244;le essentiel dans le processus
+de d&#233;tection de cor&#233;f&#233;rence (Lee et al., 2011), des efforts d&#8217;ing&#233;nierie importants sont n&#233;ces-
+saires pour &#233;laborer les composants d&#8217;un syst&#232;me complet. Notre syst&#232;me n&#8217;&#233;chappe pas a cette
+contrainte et une part importante de son impl&#233;mentation concerne la d&#233;tection des &#233;l&#233;ments
+textuels utilis&#233;s pour produire les vecteurs de traits. Nous avons choisi ici de conserver l&#8217;architec-
+ture de (Soon et al., 2001), aliment&#233;e par des vecteurs contenant de nombreux traits de degr&#233;s
+sup&#233;rieurs. Le corpus Ontonotes (Pradhan et al., 2007) propos&#233; pour entrainer et &#233;valuer les
+syst&#232;mes de d&#233;tection de cor&#233;f&#233;rences contenant d&#233;j&#224; de nombreuses informations telles que la
+relation syntaxique, la nature syntagmatique, les entit&#233;s nomm&#233;es (voir figure 2), nos efforts
+se sont concentr&#233;s sur l&#8217;ajout de propri&#233;t&#233;s &#233;volu&#233;es (par exemple les similarit&#233;s lexicales entre
+mentions ou les genres des mentions). L&#8217;architecture globale pr&#233;sent&#233;e dans la figure 1 contient
+deux parties, la premi&#232;re est d&#233;di&#233;e &#224; l&#8217;entrainement du syst&#232;me, la seconde &#224; la r&#233;solution de
+cor&#233;f&#233;rence avec un syst&#232;me entrain&#233;.
+</p>
+<p>3.1 Modules de d&#233;tection et de construction des traits
+</p>
+<p>Les traits des vecteurs de notre syst&#232;me reprennent directement depuis le corpus Ontonotes
+les cat&#233;gories morpho-syntaxiques, les syntagmes nominaux et les types d&#8217;entit&#233;s nomm&#233;es.
+Nous compl&#233;tons ces traits en utilisant des modules suppl&#233;mentaires pour la d&#233;tection des
+genres et des nombres, &#233;valuons la d&#233;tection des alias entre mentions, les similarit&#233;s entre
+mentions et introduisons une annotation s&#233;mantique. Cinq modules de pr&#233;paration de vecteurs
+d&#8217;apprentissage sont int&#233;gr&#233;s &#224; notre syst&#232;me :
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>614 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>FIGURE 2 &#8211; Exemple de corpus Ontonotes avec en derni&#232;re colonne l&#8217;annotation s&#233;mantique.
+</p>
+<p>1. Module de d&#233;tection des mentions candidates, fond&#233; sur des r&#232;gles d&#8217;extraction utilisant
+les annotations issues de Ontonotes. Il exploite ces annotations pour remplir certains traits
+(notamment syntaxiques).
+</p>
+<p>2. Module de d&#233;tection des alias entre entit&#233;s nomm&#233;es, qui fait intervenir une version
+pr&#233;c&#233;dente du syst&#232;me Poly-co pr&#233;sent&#233;e dans (Charton et al., 2010). L&#8217;objectif de ce
+module est d&#8217;identifier les diff&#233;rentes variations lexicales d&#8217;une m&#234;me entit&#233; en comparant
+des formes de surface.
+</p>
+<p>3. Module de calcul de similarit&#233;, qui sert &#224; mesurer la similarit&#233; de deux mentions en
+comparant les cha&#238;nes de caract&#232;res qui leur sont associ&#233;es.
+</p>
+<p>4. Module de d&#233;tection en genre et en nombre, d&#233;termine le genre et le nombre pour
+toutes les mentions candidates &#224; l&#8217;aide de la ressource fournie par (Bergsma, 2005).
+</p>
+<p>5. Module de d&#233;tection s&#233;mantique, d&#233;termine par un identifiant unique l&#8217;identit&#233; de l&#8217;objet
+annot&#233;. Nous &#233;valuons l&#8217;influence de ce param&#232;tre dans cette communication.
+</p>
+<p>Lors de la phase d&#8217;entrainement, les modules de d&#233;tection des mentions candidates et de
+d&#233;tection des alias sont remplac&#233;s par un seul module d&#8217;extraction des mentions candidates
+qui s&#8217;appuie directement sur les mentions cor&#233;f&#233;rentes d&#233;j&#224; annot&#233;es dans le corpus d&#8217;entraine-
+ment. On obtient ainsi pour entrainer le classifieur un ensemble de paires de mentions candidates
+positives dont on est certain de la qualit&#233; et que l&#8217;on compl&#232;te par un ensemble de paires n&#233;-
+gatives s&#233;lectionn&#233;es al&#233;atoirement (cet aspect est d&#233;taill&#233; en section 3.3). On se reportera &#224;
+(Charton et Gagnon, 2011) pour une d&#233;finition plus pr&#233;cise des modules 1 &#224; 4. Nous d&#233;crivons
+ci-dessous le param&#232;tre s&#233;mantique que nous introduisons dans le syst&#232;me Poly-co.
+</p>
+<p>3.1.1 Module de d&#233;tection s&#233;mantique
+</p>
+<p>Nous ajoutons au syst&#232;me Poly-co un trait dit s&#233;mantique. Ce trait consiste en une annotation
+compos&#233;e d&#8217;une URI vers DBPedia. Ce trait vient en compl&#233;ment des annotations fournies sur
+le corpus Ontonotes 1, tel que pr&#233;sent&#233; dans la figure 2. Le protocole utilis&#233; pour attribuer ces
+annotations consiste, pour chaque entit&#233; nomm&#233;e candidate, &#224; rechercher son lien correspondant
+en utilisant un annotateur s&#233;mantique 2. Les corpus d&#8217;apprentissage et de test sont trait&#233;s avec
+cette m&#233;thode. Une correction des erreurs apr&#232;s &#233;tiquetage est r&#233;alis&#233;e visuellement sur le
+seul corpus d&#8217;apprentissage pour limiter l&#8217;influence des erreurs d&#8217;annotation sur le processus
+d&#8217;entrainement.
+</p>
+<p>Ce lien unique attribu&#233; aux entit&#233;s nomm&#233;es (GPE, ORG, PERS,LOC, PROD) d&#233;finit pr&#233;cis&#233;ment
+leur identit&#233;. Pour l&#8217;introduire dans le vecteur de trait sous forme de valeur num&#233;rique, nous
+</p>
+<p>1. conll.cemantix.org/2012/data.html
+2. Nous utilisons pour cette communication www.wikimeta.org
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>615 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Nom Type&#8211;valeur Valeur de
+trait prise
+</p>
+<p>Propri&#233;t&#233;s de (A,B)
+IsAlias vrai/faux 1/0
+IsSimilar r&#233;el 0,00 /1,00
+Distance entier 0/d
+Sent entier 0/x
+R&#233;f&#233;rence A
+ISNE vrai/faux 1/0
+ISPRP vrai/faux 1/0
+ISNP vrai/faux 1/0
+NE_SEMANTIC TYPE null / EN 0 / 1-18
+PRP_NAME null / PRP 0 / 1-30
+NP_DET null / DT 0 / 1-15
+NP_TYPE null / TYPE 0 / 1-3
+GENDER M/F/N/U 1/2/3/0
+NUMBER S/P/U 1/2/0
+S&#201;MANTIQUE 0/URI 0 - 1 &#224; n
+R&#233;f&#233;rence B
+Identique &#224; la r&#233;f&#233;rence A
+</p>
+<p>TABLE 1 &#8211; Param&#232;tres des vecteurs d&#8217;apprentissage. Les propri&#233;t&#233;s communes aux mentions A et
+B sont d&#233;taill&#233;es dans la section Propri&#233;t&#233;s de (A,B). Les traits de la mention A sont d&#233;taill&#233;s dans
+la section R&#233;f&#233;rence A. Les traits de la mention B sont identiques &#224; ceux de la mention A.
+</p>
+<p>&#233;tablissons un index de tous les liens s&#233;mantiques contenus dans le document dans lequel nous
+cherchons les cha&#238;nes de cor&#233;f&#233;rences et lui attribuons un num&#233;ro d&#8217;ordre (dans l&#8217;exemple de
+la figure 2, par exemple, le num&#233;ro 1 est attribu&#233; &#224; Iraq et 2 &#224; Georges Bush. La valeur 0 est
+attribu&#233;e en l&#8217;absence de liens.
+</p>
+<p>3.2 Construction des vecteurs de traits
+</p>
+<p>Le vecteur d&#8217;entrainement du syst&#232;me Poly-co (voir tableau 1) est constitu&#233; de 24 traits qui
+d&#233;crivent, conform&#233;ment &#224; l&#8217;architecture de Soon, une paire de mentions, (A,B), dans laquelle
+B est l&#8217;ant&#233;c&#233;dent potentiel et A est l&#8217;anaphore. Les param&#232;tres sont extraits en utilisant les
+diff&#233;rents modules de d&#233;tection. Le r&#244;le du classifieur est ici de fournir une r&#233;ponse binaire ou
+probabilis&#233;e : A et B co-r&#233;f&#232;rent ou non. Quatre param&#232;tres d&#233;finissent la paire (A,B) (section
+Propri&#233;t&#233;s de (A,B) du tableau 1) :
+</p>
+<p>&#8211; IsAlias : il s&#8217;agit d&#8217;une variable binaire retourn&#233;e par le module alias. La variable prend la
+valeur vrai lorsque A et B sont identifi&#233;s comme d&#233;crivant la m&#234;me entit&#233;.
+</p>
+<p>&#8211; IsSimilar : il s&#8217;agit du score de similarit&#233; calcul&#233;e par le module de calcul de similarit&#233;.
+&#8211; Distance : cette valeur repr&#233;sente la distance, c&#8217;est-&#224;-dire la diff&#233;rence entre les deux rangs
+</p>
+<p>occup&#233;es par A et B dans la liste des mentions candidates.
+&#8211; Sent : indique le nombre de marqueurs de fin de phrases (ex : &#171; . ! ? &#187;) qui s&#233;parent les mentions
+A et B.
+</p>
+<p>Pour chacun des candidats A et B, un ensemble de neuf traits est ajout&#233; au vecteur. Dans un
+premier temps, trois variables binaires d&#233;terminent si la mention est une entit&#233; nomm&#233;e (IsNE),
+s&#8217;il s&#8217;agit d&#8217;un pronom personnel (IsPRP) ou d&#8217;un syntagme nominal (IsNP). Ensuite, les variables
+ci-dessous d&#233;finissent les caract&#233;ristiques d&#8217;une mention :
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>616 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#8211; NE_SEMANTIC TYPE est un des 18 types d&#8217;entit&#233; nomm&#233;e pr&#233;d&#233;fini (PERSON, ORG, TIME, etc).
+&#8211; PRP_NAME s&#8217;applique aux pronoms et correspond &#224; une valeur num&#233;rique attribu&#233;e &#224; chacun
+des 30 pronoms pr&#233;d&#233;termin&#233;s (ex. : my, she, it, etc).
+</p>
+<p>&#8211; NP_DET est une valeur qui indique quel d&#233;terminant accompagne un syntagme nominal (par
+exemple, the, this, these, etc).
+</p>
+<p>&#8211; NP_TYPE pr&#233;cise si un syntagme nominal est d&#233;monstratif, d&#233;finitif ou quantificateur.
+&#8211; GENDER et NUMBER indiquent, lorsque les valeurs sont connues, le genre de la mention parmi
+Masculin, F&#233;minin ou Neutre et son nombre (Singulier or Pluriel). Lorsque les valeurs sont
+inconnues les variables prennent la valeur U.
+</p>
+<p>&#8211; S&#201;MANTIQUE : la valeur du trait est d&#233;finie selon les modalit&#233;s pr&#233;sent&#233;es en section 3.1.1.
+</p>
+<p>Une valeur null (ou 0) est utilis&#233;e lorsqu&#8217;il n&#8217;est pas n&#233;cessaire de d&#233;finir une variable : par
+exemple, la variable PRP_NAME est positionn&#233;e sur 0 lorsque la mention est une entit&#233; nomm&#233;e.
+</p>
+<p>3.3 Entra&#238;nement et application du classifieur
+</p>
+<p>Pour entrainer le classifieur, nous utilisons l&#8217;algorithme suivant pour pr&#233;parer les paires. Sup-
+posons que la liste des mentions candidates contient k mentions M1,M2, . . . ,Mk, apparaissant
+dans cet ordre dans le document. L&#8217;algorithme commence par la derni&#232;re mention du document,
+c&#8217;est-&#224;-dire Mk. Il compare de fa&#231;on s&#233;quentielle Mk avec les mentions pr&#233;c&#233;dentes en remontant
+la liste et s&#8217;arr&#234;te lorsque (i) une mention en situation de cor&#233;f&#233;rence Mc est trouv&#233;e (ii) il a
+trait&#233; un nombre maximum de n mentions (ici n est fix&#233; &#224; 10). Lorsqu&#8217;une mention cor&#233;f&#233;rente
+Mc a &#233;t&#233; d&#233;tect&#233;e, un vecteur est construit pour toutes les paires de mentions &#9001;Mk,Mi&#9002; o&#249; Mi
+est une mention qui a &#233;t&#233; trait&#233;e. Ces vecteurs sont ajout&#233;s &#224; l&#8217;ensemble d&#8217;entra&#238;nement : Mc est
+consid&#233;r&#233; comme exemple positif et tous les autres sont consid&#233;r&#233;s comme n&#233;gatifs. Le processus
+est r&#233;p&#233;t&#233; avec Mk&#8722;1, et ainsi de suite, jusqu&#8217;&#224; ce que chaque mention soit trait&#233;e. Si aucune des
+n mentions pr&#233;c&#233;dentes n&#8217;a de lien de cor&#233;f&#233;rence avec Mk, l&#8217;ensemble des n paires est &#233;cart&#233; et
+n&#8217;est pas utilis&#233; pour les donn&#233;es d&#8217;entra&#238;nement.
+</p>
+<p>Pour l&#8217;application, le processus de d&#233;tection de cor&#233;f&#233;rence s&#8217;appuie sur un algorithme similaire.
+La mention Mk est compar&#233;e aux n mentions pr&#233;c&#233;dentes jusqu&#8217;&#224; ce que l&#8217;on en trouve une
+pour laquelle le mod&#232;le perceptron multi-couches retourne une probabilit&#233; sup&#233;rieure au seuil
+de 0,5 (ou une valeur binaire dans le cas du classifieur SVM). Si aucun r&#233;f&#233;rent n&#8217;est trouv&#233;
+dans la limite des n mentions, Mk est consid&#233;r&#233;e comme une mention non cor&#233;f&#233;rente. Une fois
+cette proc&#233;dure appliqu&#233;e &#224; toutes les mentions d&#8217;un document, les cor&#233;f&#233;rences d&#233;tect&#233;es sont
+utilis&#233;es pour construire les cha&#238;nes de cor&#233;f&#233;rences.
+</p>
+<p>4 Exp&#233;riences
+</p>
+<p>Le syst&#232;me complet d&#8217;annotation de cor&#233;f&#233;rences Poly-Co 3 est entrain&#233; sur le corpus d&#8217;entraine-
+ment Ontonotes 4 sur lequel les annotations s&#233;mantiques compl&#233;mentaires ont &#233;t&#233; appos&#233;es. Il
+est ensuite test&#233; sur le corpus de d&#233;veloppement gold dev-set. Le tableau 2 pr&#233;sente les r&#233;sultats
+obtenus lors de ConLL 2011, sans que le classifieur n&#8217;exploite les traits s&#233;mantiques, le tableau
+3 pr&#233;sente les r&#233;sultats en int&#233;grant les traits s&#233;mantiques. Notre syst&#232;me est entrain&#233; avec
+</p>
+<p>3. Poly-co est t&#233;l&#233;chargeable sur https://code.google.com/p/polyco-2/
+4. Le corpus Ontonotes est diffus&#233; par LDC. Un &#233;chantillon est t&#233;l&#233;chargeable sur le site de la conf&#233;rence ConNLL
+</p>
+<p>http://conll.cemantix.org/2012/data.html
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>617 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Scores Poly-co Mentions B3 CEAF MUC
+R P F R P F R P F R P F
+</p>
+<p>Perceptron multi-couches (MLP) 65,91 64,84 65,37 66,61 62,09 64,27 50,18 50,18 50,18 54,47 50,86 52,60
+SVM 65,06 66,11 65,58 65,28 57,68 61,24 46,31 46,31 46,31 53,30 50,00 51,60
+Arbres de d&#233;cision (J48) 66,06 64,57 65,31 66,53 62,27 64,33 50,59 50,59 50,59 54,24 50,60 52,36
+</p>
+<p>TABLE 2 &#8211; R&#233;sultats du syst&#232;me, obtenus en appliquant diff&#233;rents classifieurs utilisant les m&#234;mes
+vecteurs de param&#232;tres sur les donn&#233;es &#171; gold dev-set &#187; du corpus Ontonotes.
+</p>
+<p>Scores Poly-co Mentions B3 CEAF MUC
+R P F R P F R P F R P F
+</p>
+<p>Perceptron multi-couches (MLP) 66,50 65,81 66,15 66,70 62,18 64,36 52,31 52,31 52,31 54,97 51,86 53,36
+SVM 65,46 66,60 66,02 65,37 58,79 61,90 48,03 48,03 48,03 54,35 51,00 52,61
+Arbres de d&#233;cision (J48) 66,56 64,97 65,75 67,01 62,5 64,67 52,19 52,19 52,19 54,64 51,30 52,91
+</p>
+<p>TABLE 3 &#8211; R&#233;sultats du syst&#232;me avec les traits s&#233;mantiques, obtenus en appliquant diff&#233;rents
+classifieurs sur les donn&#233;es &#171; gold dev-set &#187; du corpus Ontonotes.
+</p>
+<p>trois types de classifieurs : perceptron multi-couches (MLP), SVM, arbres de d&#233;cision (J48). Les
+m&#233;triques d&#8217;&#233;valuation retenues sont celles adopt&#233;es par la campagne ConLL 2011-12, &#224; savoir
+une mesure de la capacit&#233; des syst&#232;mes &#224; d&#233;tecter des mentions d&#8217;une part (une simple F-Mesure
+est retenue), et une moyenne non pond&#233;r&#233;e des m&#233;triques B3, CEAF, et MUC.
+</p>
+<p>4.1 R&#233;sultats
+</p>
+<p>Pour la phase d&#8217;&#233;valuation de la campagne CoNLL ST 2011, nous avons retenu le mod&#232;le MLP qui
+obtient les meilleures performances sur l&#8217;ensemble de donn&#233;es sans annotation s&#233;mantique. En
+raison des faibles diff&#233;rences entre les mod&#232;les MLP et J48 il &#233;tait difficile de d&#233;finir clairement
+lequel &#233;tait le plus adapt&#233; avec le mod&#232;le de classification retenu. L&#8217;introduction de traits
+s&#233;mantiques am&#233;liore les performances du mod&#232;le Perceptron en regard des deux autres mod&#232;les
+de classification. On observe que l&#8217;utilisation d&#8217;un identifiant s&#233;mantique pour les entit&#233;s nomm&#233;es
+permet d&#8217;am&#233;liorer d&#8217;un point les capacit&#233;s de d&#233;tection de mentions du syst&#232;me : ceci s&#8217;explique
+par le fait que l&#8217;introduction de cet identifiant am&#233;liore la robustesse de classification lorsque
+les paires sont constitu&#233;es d&#8217;entit&#233;s nomm&#233;es. Il en r&#233;sulte moins de paires mal s&#233;lectionn&#233;es et
+donc une augmentation du nombre de mentions correctement d&#233;tect&#233;es. De mani&#232;re globale,
+l&#8217;introduction de traits s&#233;mantiques am&#233;liore les performances du classifieur.
+</p>
+<p>5 Conclusions
+</p>
+<p>Cet article pr&#233;sente Poly-co, un syst&#232;me de r&#233;solution de cor&#233;f&#233;rence pour l&#8217;anglais, facile &#224;
+adapter &#224; d&#8217;autres langues. La version initiale de Poly-co a &#233;t&#233; construite dans le cadre de la cam-
+pagne d&#8217;&#233;valuation CoNLL ST 2011. Le corpus d&#8217;&#233;valuation propos&#233;, Ontonotes, d&#8217;un haut niveau
+de complexit&#233;, nous a donn&#233; l&#8217;opportunit&#233; d&#8217;&#233;valuer nos algorithmes de d&#233;tection de mentions
+dans le cadre d&#8217;une t&#226;che compl&#232;te, regroupant des cor&#233;f&#233;rences entre des entit&#233;s nomm&#233;es, des
+syntagmes nominaux et des pronoms. En introduisant de nouveaux traits s&#233;mantiques dans les
+vecteurs d&#8217;apprentissage, nous observons un gain global de performance et soulignons que notre
+approche &#224; base perceptron multi-couches est une solution int&#233;ressante pour la reconnaissance
+de cha&#238;nes de cor&#233;f&#233;rence.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>618 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;f&#233;rences
+</p>
+<p>BERGSMA, S. (2005). Automatic acquisition of gender information for anaphora resolution.
+Advances in Artificial Intelligence, pages 342&#8211;353.
+</p>
+<p>CHARTON, E. et GAGNON, M. (2011). Poly-co : a multilayer perceptron approach for coreference
+detection. In CoNLL : Shared Task.
+</p>
+<p>CHARTON, E., GAGNON, M. et OZELL, B. (2010). Poly-co : an unsupervised co-reference detection
+system. In BELZ, A. et KOW, E., &#233;diteurs : INLG 2010-GREC, Dublin. ACL SIGGEN.
+</p>
+<p>FERNANDES, E., dos SANTOS, C. et MILIDI&#218;, R. (2012). Latent structure perceptron with feature
+induction for unrestricted coreference resolution. Proceedings of the Joint Conference on EMNLP
+and CoNLL : Shared Task, pages 41&#8211;48.
+</p>
+<p>HUANG, S., ZHANG, Y., ZHOU, J. et CHEN, J. (2009). Coreference Resolution using Markov Logic
+Network. In The 10th International Conference on Intelligent Text Processing and Computational
+Linguistics, volume 41, pages 157&#8211;168.
+</p>
+<p>LEE, H., PEIRSMAN, Y., CHANG, A., CHAMBERS, N., SURDEANU, M. et JURAFSKY, D. (2011). Stanford&#8217;s
+Multi-Pass Sieve Coreference Resolution System at the CoNLL-2011 Shared Task. In CoNLL
+Shared Task, num&#233;ro June, page 73.
+</p>
+<p>POON, H. et DOMINGOS, P. (2008). Joint unsupervised coreference resolution with Markov logic.
+In Proceedings of the Conference on Empirical Methods in Natural Language Processing - EMNLP
+&#8217;08, page 650, Morristown, NJ, USA. Association for Computational Linguistics.
+</p>
+<p>PRADHAN, S., RAMSHAW., L., MARCUS, M., PALMER, M., WEISCHEDEL, R. et NIANWEN, X. (2011).
+CoNLL-2011 Shared Task : Modeling Unrestricted Coreference in OntoNotes. In Proceedings of
+the Fifteenth Conference on Computational Natural Language Learning (CoNLL 2011), Portland,
+Oregon.
+</p>
+<p>PRADHAN, S., RAMSHAW, L., WEISCHEDEL, R., MACBRIDE, J. et MICCIULLA, L. (2007). Unrestricted
+coreference : Identifying entities and events in OntoNotes. In International Conference on
+Semantic Computing, 2007. ICSC 2007., pages 446&#8211;453. IEEE.
+</p>
+<p>SAPENA, E., PADR&#211;, L. et TURMO, J. (2010). RelaxCor : A global relaxation labeling approach to
+coreference resolution. In Proceedings of the 5th International Workshop on Semantic Evaluation,
+num&#233;ro July, pages 88&#8211;91. Association for Computational Linguistics.
+</p>
+<p>SOON, W. M., NG, H. T. et LIM, D. C. Y. (2001). A Machine Learning Approach to Coreference
+Resolution of Noun Phrases. Computational Linguistics, 27(4):521&#8211;544.
+</p>
+<p>STAMBORG, M. et MEDVED, D. (2012). Using syntactic dependencies to solve coreferences.
+Proceedings of the Joint Conference on EMNLP and CoNLL : Shared Task, pages 64&#8211;70.
+</p>
+<p>VERSLEY, Y., PONZETTO, S., POESIO, M., EIDELMAN, V., JERN, A., SMITH, J., YANG, X. et MOSCHITTI,
+A. (2008). BART : A modular toolkit for coreference resolution. In Proceedings of the Sixth Inter-
+national Language Resources and Evaluation (LREC&#8217;08), num&#233;ro 2006, pages 9&#8211;12, Marrakech.
+European Language Resources Association (ELRA).
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>619 c&#65535; ATALA</p>
+
+</div></div>
+</body></html>

@@ -1,0 +1,404 @@
+Etude de différentes stratégies d’adaptation £1 un nouveau
+domaine en fouille d’opinion
+
+Anne Garcia—Femandez Olivier Ferret
+CEA, LIST, Laboratoire Vision et Ingénierie des Contenus
+Gif—sur—Yvette, F-91191 France.
+
+prénom . nomfﬁcea . fr
+
+RESUME
+Le travail présenté dans cet article se situe dans le contexte de la fouille d’opinion et se focalise sur
+la déterminaﬁon de la polarité d’un texte en adoptant une approche par apprentissage. Dans ce
+cadre, son objet est d’étudier différentes stratégies d’adaptation 5 un nouveau domaine dans le cas
+de ﬁgure fréquent ou des données d’entrainement n’existent que pour un ou plusieurs domaines
+différents du domaine cible. Cette étude montre en particulier que l’ut1'lisation d’une forme
+d’auto-apprentissage par laquelle un classiﬁeur annote un corpus du domaine cible et modiﬁe son
+corpus d’entrainement en y incorporant les textes classés avec la plus grande conﬁance se révéle
+comme la stratégie la plus performante et la plus stable pour les différents domaines testés. Cette
+stratégie s’avére méme supérieure dans un nombre signiﬁcatif de cas 5 la méthode proposée par
+(Blitzer et al., 2007) sur les mémes jeux de test tout en étant plus simple.
+
+AB STRACT
+Study of various strategies for adapting an opinion classiﬁer to a new domain
+
+The work presented in this article takes place in the ﬁeld of opinion mining and aims more
+particularly at ﬁnding the polarity of a text by relying on machine learning methods. In this
+context, it focuses on studying various strategies for adapting a statistical classiﬁer to a new
+domain when training data only exist for one or several other domains. This study shows more
+precisely that a self-training procedure consisting in enlarging the initial training corpus with
+texts from the target domain that were reliably classiﬁed by the classiﬁer is the most successful
+and stable strategy for the tested domains. Moreover, this strategy gets better results in most
+cases than (Blitzer et aL, 2007)’s method on the same evaluation corpus while it is more simple.
+
+MOTS-CLES : fouille d’opinion, adaptation 21 un nouveau domaine, auto-apprentissage.
+
+KEYWORDS: opinion mining, domain adaptation, self-training.
+
+1 Introduction
+
+Le travail présenté dans cet article part de deux constats bien connus en Traitement Automatique
+des Langues, et notamment en fouille d’opinion, lorsqu’une approche par apprentissage supervisé
+est mise en place. D’une part, la constitution de ressources annotées est un processus trés
+coﬁteux. D’autre part, un systeme ayant de bonnes performances dans un domaine donné
+n’est pas nécessairement adapté ‘a un autre domaine. De nombreux travaux ont été menés en
+
+Actes de la conférence onjointe JEP-TALN-RECITAL 2012, volume 2: TALN, pages 391-398,
+Grenoble, 4 an 8 juin 2012. ©2012 ATAI.A 8: AFCP
+
+391
+
+fouille d’opinion, en particulier sur la problématique de l’adaptation a un nouveau domaine. Les
+approches ainsi développées vont de l’identiﬁcation des correspondances terminologiques entre
+domaines a l’utilisation de ressources externes telles que des lexiques d’opinion, lexiques au sein
+desquels chaque terme se voit typiquement associer une polarite’ positive, négative voire méme
+neutre. Mais que se passe-t-il si l’on ne dispose pas de telles ressources ? Comment procéder en
+n’ayant accés qu’a quelques données annotées ne relevant pas du domaine ciblé?
+
+Nous nous attachons dans cet article a étudier des stratégies d’apprentissage automatique pour
+la classiﬁcation de textes n’utilisant pas de ressources extemes. Différentes conﬁgurations de
+données annotées pour la tache de classiﬁcation de textes en polarité positive ou négative sont
+testées aﬁn de déterminer celles permettant d’obtenir les meilleures performances lorsqu’il s’agit
+de classer des textes relevant d’un nouveau domaine. En particulier, nous exposons une approche
+d’apprentissage dit itératif par laquelle un corpus annoté manuellement est enrichi au cours de
+boucles successives par des données annotées automatiquement.
+
+2 Fouille d’opinion et classiﬁcation de textes multi-domaine
+
+La fouille d’opinion regroupe un grand nombre de travaux centrés sur l’exploration de textes
+aﬁn d’en déterminer le caractére objectif ou subjectif ou encore d’extraire les avis qui y sont
+exprimés par leurs auteurs. Une des caractéristiques de ce type d’analyses est leur caractére
+transversal : leur nature ne dépend pas le plus souvent du domaine des textes considérés. Ainsi,
+dans le travail considéré ici, qui se focalise sur une tache de classiﬁcation de textes subjectifs, en
+l’occurrence des critiques issues du site AMAZON, les deux classes considérées, polarité positive ou
+négative, sont générales et non dépendantes des différents domaines qu’abordent ces critiques.
+En revanche, les moyens pour effectuer cette classiﬁcation peuvent étre plus ou moins liés ‘a
+un domaine, ce qui rend la problématique de l’adaptation ‘a un nouveau domaine de ce type
+d’analyses particuliérement importante. Dans ce qui suit, nous illustrerons d’abord le caractére
+contextuel de la détermination de la polarité d’un énoncé avant de passer en revue les principales
+approches pour l’adaptation d’une telle classiﬁcation a un nouveau domaine.
+
+2.1 Classer des textes selon leur polarité
+
+Une des principales approches pour déterminer la polarité d’un texte consiste ‘a se focaliser
+sur des termes porteurs d’opinion. De tels termes peuvent étre trouvés dans des ressources de
+référence, telles que SENTIWORDNET (Esuli et Sebastiani, 2006). Néanmoins, la disponibilité de
+ces ressources n’est pas sufﬁsante pour déterminer la polarité d’un texte. En effet, la polarité
+d’un terme peut dépendre de son contexte. Cette dépendance existe d’abord ‘a un niveau local.
+Ainsi, la présence d’une négation dans une phrase peut inverser la polarité de celle-ci alors
+méme qu’elle contient un ou plusieurs termes négatifs (“Cela dit le réalisateur sait y faire et c’est
+bien pour ca que le ﬁlm n’est pas mauvais du tout, ni ennuyeux, ni lent."). Cette dimension est
+prise en compte par de nombreux travaux. Taboada et al. (2011) utilisent ainsi un lexique de
+termes porteurs d’opinion mais pondérent l’importance de ces termes en fonction du caractére
+subjectif ou objectif des paragraphes dans lesquels ils apparaissent. Ils intégrent par ailleurs les
+négations, les modiﬁeurs (notamment les modiﬁeurs d’intensité) et la modalité (en particulier
+les suppositions). Choi et Cardie (2009) proposent au travers de l’algorithme Vote & Flip de
+
+392
+
+prendre en compte la présence d’une ou plusieurs négations dans le contexte d’un terme porteur
+d’opinion modiﬁant ainsi sa polarité. L’objet auquel un terme porteur d’opinion se rapporte peut
+également inﬂuer sur la valeur de ce terme. Ainsi mortel est porteur d’opinion négative dans un
+ennui mortel mais d’opinion positive dans cette féte e’tait vraiment mortelle. Enﬁn, la polysémie des
+termes peut aussi jouer un role puisque certains termes n’ont pas la méme valeur d’opinion selon
+leur sens. C’est le cas par exemple de navet qui, dans la phrase “C’est un navet.“, n’est pas porteur
+d’opinion si l’on fait référence au légume mais renvoie ‘a une opinion négative s’il qualifie un
+ﬁlm. La polarité d’un terme dans un texte est alors inﬂuencée plus globalement par le domaine
+auquel ce texte se rattache. Dans cette perspective, Harb et al. (2008) proposent d’acquérir un
+lexique d’opinion lié 21 une thématique en sélectionnant dans des corpus liés 21 cette thématique
+des termes cooccurrents avec des termes dont la polarité est déj‘a connue et en utilisant une
+mesure de similarité entre les termes candidats et les termes connus.
+
+2.2 D’un domaine :31 l’autre
+
+Dans le prolongement des travaux de la section précédente fondés sur des lexiques d’opinion, une
+premiere voie pour aborder le probléme de la dépendance par rapport au domaine en matiére
+de fouille d’opinion consiste 21 déﬁnir des capacités d’adaptation automatique de ces lexiques a
+un domaine donné. Dans cette optique, Jijkoun et al. (2010) proposent d’adapter un lexique
+d’opinion général ‘a un domaine spéciﬁque en caractérisant les termes de ce lexique par des
+profils de contextes syntaxiques obtenus ‘a partir d’un corpus général. Ces profils sont ensuite
+utilisés pour identiﬁer les termes porteurs d’opinion perﬁnents pour ce domaine ‘a par11'r de
+corpus représentatifs de celui-ci. Gindl et al. (2010) adaptent pour leur part un lexique d’opinion
+en fonction du domaine considéré en supprimant les termes de ce lexique dont la polarité varie
+selon le contexte.
+
+Outre l’utilisation de lexiques d’opinion, la détermination de la polarité d’un texte peut bénéﬁcier
+de l’utilisation de corpus annotés. La dépendance de ceux-ci par rapport ‘a un domaine donné
+rend néanmoins leur usage délicat et conduit :21 déﬁnir différentes approches pour compenser
+cette dépendance. Denecke (2009) associent ainsi le lexique général SENTIWORDNET et un corpus
+d’entrainement relevant de différents domaines autres que le domaine cible pour classer des
+textes comme subjectifs ou objectifs. Pour la méme tache, Aue et Gamon (2005) s’affranchissent
+de lexiques d’opinion et comparent différentes approches utilisant des corpus d’apprentissage
+d’un domaine autre que le domaine cible. La disponibilité de corpus annotés relevant de diffé-
+rents domaines est ainsi un élément clef dans la tache de classiﬁcation de textes d’un nouveau
+domaine. Blitzer et al. (2007) construisent un tel corpus, le Multi-domain Sentiment Dataset
+(MDSD), en s’appuyant pour minimiser les coﬁts d’annotation sur les critiques rédigées sur le site
+AMAZON portant sur des objets variés appartenant a 25 grands domaines. Par ailleurs, Blitzer et al.
+(2007) proposent également de chercher des correspondances entre domaines par la technique
+du Structural Correspondence Learning (SCL) en s’appuyant sur des traits et des prédicteurs
+pivots. Li et Zong (2008) réutilisent ce corpus et proposent deux approches. L’approche par
+fusion de traits (ou feature fusion) se fonde sur le regroupement des corpus d’apprentissage
+de différents domaines en un seul. L’approche par fusion de classiﬁeurs (ou classifier fusion)
+consiste a construire autant de classiﬁeurs que de domaines sources disponibles et a entrainer un
+classiﬁeur (un méta-classiﬁeur) sur les soru'es de ces modéles.
+
+Quelle que soit la méthode, les performances obtenues pour des textes relevant d’un nouveau
+domaine cible sont moins bonnes que celles obtenues en disposant de données annotées dans le
+
+393
+
+domaine cible. Pour réduire le coﬁt de cette annotation, des approches dites d’Active learning ont
+été proposées. L’idée est de détecter les exemples classés avec un faible score de conﬁance par le
+modéle, d’annoter ces exemples manuellement et d’intégrer ces nouvelles données aux données
+d’apprentissage. Si ces méthodes permettent de limiter 1a quantité d’annotation manuelle a effec-
+tuer, elles restent tout de méme coﬁteuses. De ce fait, des méthodes dites d’auto-apprentissage
+(self-training) proposent, ‘a l’image de (Drury et al., 2011), de s’appuyer sur des données non
+annotées manuellement mais classées avec un fort score de conﬁance par un classiﬁeur pour
+enrichir le corpus d’apprentissage de ce demier et élargir ainsi sa couverture. C’est l’approche
+que nous privilégierons ici en la transposant au cas de textes appartenant a d’autres domaines.
+
+3 Stratégies d’adaptation
+
+L’étude que nous présentons dans cet article aborde la classification de textes en termes de
+polarité positive ou négative selon une approche supervisée fondée sur un corpus d’entrainement
+annoté manuellement, sans s’appuyer sur un lexique d’opinion constitué a priori. Dans ce cadre,
+qui reprend celui de (Blitzer et al., 2007) et de (Li et Zong, 2008), son objectif est de déterminer,
+partant de corpus d’entrainement dans un ou plusieurs domaines sources et d’un corpus non
+annoté dans un domaine cible (corpus dit de développement), la stratégie la plus adaptée de
+constitution d’un nouveau corpus d’entrainement a partir de ces corpus disponibles aﬁn d’obtenir
+les meilleures performances possibles sur le domaine cible. Les différentes stratégies considérées
+se différencient selon deux facteurs principaux : l’utilisation de corpus appartenant a un seul ou a
+plusieurs domaines sources; l’utilisation ou non d’un corpus du domaine cible non annoté. Nous
+avons plus précisément testé les stratégies suivantes, chacune reposant sur le méme volume de
+textes annotés manuellement pour consﬁtuer leur corpus d’entrainement :
+
+Un corpus source [BASELINE] Cette stratégie baseline utilise un corpus annoté d’un unique
+domaine source autre que le domaine cible.
+
+Apprenﬁssage itératif 51 partir d’un corpus source [ITE-FIXE, ITE-SEUIL] Dans cette approche,
+nous entrainons un modéle sur un seul corpus source, comme précédemment, classiﬁons les textes
+du corpus du domaine cible, sélectionnons les exemples ayant le meilleur score de conﬁance et
+intégrons ces exemples au corpus d’entrainement. Cette boucle est réitérée jusqu’a épuisement
+du corpus du domaine cible. La sélection des meilleurs exemples peut se faire en fonction d’un
+seuil sur le score de conﬁance (approche dite ITE-SEUIL) ou bien en fonction d’un nombre ﬁxe
+d’exemples intégrés a chaque itération (ITE-FIXE).
+
+Plusieurs corpus sources [MULTI-DOMAINE] Dans cette conﬁguration, les corpus de plusieurs
+domaines sources sont associés pour construire le corpus d’entrainement. Nous prenons ici tous
+les domaines sources, ce qui représente une autre forme de baseline.
+
+Méthode par vote [MULTI-VOTE] Dans cette stratégie, elle aussi classique, nous entrainons un
+modéle par corpus source et procédons ‘a une classiﬁcation ﬁnale par vote : un exemple donné
+est ainsi classé en fonction de la décision majoritaire observée parrni les classiﬁeurs associés ‘a
+chaque domaine source.
+
+Apprenﬁssage itératif 51 partir de plusieurs corpus sources [ITE-MULTI-VOTE] Cette stratégie
+est une hybridation de la méthode par vote et de l’apprenu'ssage itératif. A partir d’un corpus
+source, nous entrainons plusieurs modéles (un par domaine source) ; puis nous sélectionnons les
+meilleurs exemples qui sont ensuite intégrés dans chacun des corpus sources de départ. Nous
+sélectionnons alors les exemples classés unanimement par tous les modéles.
+
+394
+
+4 Mise en oeuvre et résultats
+
+Nos expériences ont été menées sur le corpus MDSD évoqué précédemment, corpus composé de
+critiques portant sur des produits variés et triées par domaine (livre, cuisine et articles ménagers,
+vétements ...). Une critique est composée d’un texte, d’un titre et d’une note. Les textes sont
+courts, quelques phrases seulement, et rédigés en anglais. Les notes varient de 1 a 5, 1 indiquant
+l’avis le plus négatif sur le produit et 5 l’avis le plus positif. L’exemple présenté a la ﬁgure 1 est
+une critique issue du sous-corpus "Book". Nous avons utilisé la méme conﬁguration de données
+
+<review>
+
+(...)
+
+<rating>5.0</rating>
+
+<review_text>
+I read Les Miserables after I saw the opera, and it has inspired
+in me more than any book I’ve ever read. I don’t believe one
+
+could ever find a better novel anywhere. For everyone (...)
+</review_text>
+</review>
+
+FIG. 1 — Exemple de critique issue du MDSD relevant du domaine BOO
+
+que celle de (Blitzer et al., 2007) aﬁn de pouvoir comparer nos résultats aux leurs a la différence
+pres que les corpus de test ont été scindés en corpus de développement et corpus de test. Le
+tableau 1 présente une description générale du corpus utilisé, organisé en quatre domaines. Les
+données d’apprentissage sont équilibrées entre critiques positives et négativesl et sont présentes
+en méme quantité dans les quatre domaines.
+
+ 
+
+TAB. 1 — Description générale du corpus
+
+A l’instar de ('I'orres-Moreno et al., 2007), nous avons utilisé un modéle de classiﬁcation 21 base
+de boosting pour effectuer nos tests, modéle mise en oeuvre grace 21 l’outil BoosTexter (Shapire
+et Singer, 2000). Le modéle produit est composé d’un ensemble de régles binaires (ou weak
+learners) portant chacune sur la présence d’un n-gramme et se voyant associer une probabilité
+par rapport ‘a chaque classe considérée. Lors de la phase de classiﬁcation, un score est calculé
+pour chaque classe en fonction des régles déclenchées par le texte traité et la classe de plus
+haut score est attribuée au texte. La conﬁguration utilisée a été sélectionnée empiriquement en
+optimisant les paramétres pour notre approche baseline. Le nombre de tours a ainsi été ﬁxé a
+50. Les régles utilisent des n-grammes de taille 1 et les textes ne sont pas lemmatisés.
+
+Les résultats de classiﬁcation sont donnés en termes d’exactitude (accuracy) aﬁn de pouvoir
+comparer nos résultats avec ceux de (Blitzer et aL, 2007). Le tableau 2 présente les résultats pour
+
+1Comme Blitzer, nous considérons une critique comme positive si sa note est > 3 et negative si elle est < 3.
+
+395
+
+l’ensemble des approches. Si l’on se concentre en premier lieu sur les stratégies ne mettant en jeu
+qu’un seul domaine source, on peut observer que l’approche baseline donne des exactitudes
+supérieures a 70% quels que soient les domaines d’entrainement ('I'RN) et les domaines de test
+(TEST). L’approche ite—fixe est simple mais ne prend pas en compte le score de conﬁance
+donné par BoosTexter. Elle ne dispose donc pas de critére naturel d’arrét de prise en compte
+de nouveaux exemples, ce qui la conduit a << consommer » tout le corpus de développement.
+Elle obtient en pratique des performances trés inférieures ‘a celles de baseline et se révéle
+étre la moins bonne de nos stratégies. Ia prise en compte du score de conﬁance de BoosTexter
+(approche ite—seuil) donne en revanche la meilleure exactitude (notée par *) pour la plupart
+des couples (domaine source, domaine cible). Il est ‘a noter que les cas o1‘1 cette approche ne
+donne pas de meilleurs résultats que baseline font tous intervenir les données du domaine
+ELE (matériel électronique).
+
+75,61’
+
+81,41’
+
+69,1 64,7 77,5!’
+
+75,4 71,0 81,41’
+
+ 
+
+TAB. 2 — Résultats en termes d’exactitude pour l’ensemble des approches
+
+Les résultats des stratégies utilisant des données annotées relevant de plusieurs domaines sont
+présentés dans les 3 derniéres colonnes du tableau 2. L’approche multi—domaine constitue dans
+ce cas notre baseline. La comparaison de ses résultats avec ceux de l’approche baseline (un
+unique domaine source) est clairement en défaveur de l’approche multi—domaine dans tous les
+cas de ﬁgure. Ce constat tend a montrer qu’utiliser un corpus d’entrainement composé de données
+sources hétérogénes du point de vue thématique (approche multi—domaine) est une moins
+bonne option pour classer des textes dans un domaine cible qu’utiliser un corpus d’entrainement
+source thématiquement homogéne. Il est néanmoins possible qu’une telle observation soit a
+nuancer en fonction de la taille des corpus et du nombre de domaines. L’approche par vote
+(multi—vote) ne permet pas quant a elle d’obtenir une performance de classification plus
+élevée que la baseline. Cette approche, tout comme l’approche ite—fixe, ne prend pas en
+compte le score de conﬁance accordé par le modéle lors de la classiﬁcation et le fait que la
+majorité des modéles catégorisent un exemple dans une classe donnée n’est apparemment
+pas un indice sufﬁsant pour compenser cette insufﬁsance. Cependant, la encore, le nombre
+de domaines considérés peut avoir une inﬂuence. L’approche ite—multi—vote est celle des
+trois approches utilisant plusieurs corpus annotés donnant les meilleurs résultats (notés par
+T) et ce, quel que soit le domaine cible. La méthode d’apprentissage itérative se révéle donc
+particuliérement intéressante dans ce cas de ﬁgure comme elle l’est dans le cas d’un domaine
+source unique. L’exactitude moyenne de ite—multi—vote, égale 51 79,0, est méme légérement
+supérieure ‘a l’exactitude moyenne de ite—seuil, égale ‘a 77,2, en particulier du fait d’un
+
+396
+
+meilleur comportement pour le domaine cible ELE.
+
+   
+
+I |te—fI><e 4/ mIra—domaIne
+I |le—seuI| --o- baseline
+8 I blltzev  
+an %
+2 o _  . ,, ___  _ __  , ,,
+Lu o
+O I |
+L37
+9* I
+DVD ELE KWT BOO ELE KIT BOO DVD KWT BOO DVD ELE
+Dnmaine [€51 BOO Domaine tesi DVD Domaine lest ' ELE Domame Iesl ' KIT
+
+FIG. 2 — Exactitude obtenue par les approches utilisant un seul domaine d’apprentissage2
+
+La ﬁgure 2 propose une comparaison de nos résultats avec ceux de (Blitzer et al., 2007). Les
+barres horizontales pleines indiquent l’exactitude obtenue par une approche intra-domaine (les
+corpus source et cible relévent du méme domaine). Les barres horizontales pointillées indiquent
+l’exactitude obtenue par notre approche baseline. Pour chaque couple de domaines sources et
+cibles sont indiqués nos résultats ainsi que ceux de Blitzer. On peut observer que notre meilleure
+approche (ite—seuil) obtient de meilleurs résultats que ceux de Blitzer en dehors du domaine
+ELE (qu’il soit source ou cible). L’approche proposée dans (Blitzer et aL, 2007) permet de mettre
+en correspondance des termes supposés équivalents d’un domaine a un autre, termes prenant la
+forme de n-grammes tels que must read (BOO) ou excellent product (KIT). I1 semble néanmoins
+que ces correspondances concernent essentiellement des termes constitués de mots pleins. Nous
+expliquons la performance de notre approche par le fait que nos rnodeles ne favorisent pas un
+type d’unités plutot qu’un autre, ce qui leur permet d’utiliser aussi bien des mots outils, qui
+se retrouvent dans tous les domaines, que des mots pleins, plus spécifiques ‘a un domaine. Or
+les rnots outils jouent un r6le dans l’expression des opinions puisqu’ils permettent notamment
+d’eXprimer la négation et l’intensité ('I'aboada et aL, 2011).
+
+5 Conclusion et perspectives
+
+Dans cet article, nous avons présenté une étude sur différentes stratégies possibles pour construire
+un classiﬁeur statistique pour un domaine cible en ne disposant de données annotées pour son
+entrainement que pour un ou plusieurs autres domaines. Nous avons en parﬁculier montré
+l’efﬁcacité pour cette tache d’une stratégie d’apprentissage itératif assimilable a une forme d’auto-
+apprentissage et consistant a incorporer progressivement dans le corpus d’entrainement du
+classiﬁeur les textes d’un corpus du domaine cible que ce classiﬁeur annote avec la plus grande
+conﬁance. Cette stratégie se révéle méme dans un nombre signiﬁcatif de cas plus efﬁcace que la
+méthode présentée dans (Blitzer et al., 2007) tout en étant plus simple. Une des prolongaﬁons
+les plus immédiates de ce travail est sa généralisation ‘a d’autres types de classiﬁeurs que le
+
+2L’approche int'ra—domairLe correspond 51 la méme conﬁguration que notre approche BASELINE 51 la différence que les
+corpus d’entrainement et de test relévent du mérne domaine.
+
+397
+
+boosting utilisé ici. Au-dela, nous envisageons la transposition a notre contexte inter-domaine de
+la démarche d’auto-apprentissage présentée dans (Wiebe et Riloff, 2005), démarche fondée sur
+l’utilisation d’un classiﬁeur supplémentaire, de nature différente du classiﬁeur initial, pour la
+constitution non supervisée du corpus d’entrainement.
+
+Remerciements
+
+Ce travail a été ﬁnancé par la Fondation Jean-Luc Lagardére. Nous tenons également a remercier
+Morgane Marchand et Romaric Besancon pour leur contribution aux prémices de ce travail.
+
+Références
+
+AUE, A. et GAMoN, M. (2005). Customizing sentiment classiﬁers to new domains : a case study.
+In RANLP 2005.
+
+BLITZER, J., DREDZE, M. et PEREIRA, F. (2007). Biographies, Bollywood, Boom-boxes and Blenders :
+Domain Adaptation for Sentiment Classiﬁcation. In ACL 2007, Prague, Czech Republic.
+
+CHOI, Y. et CARDIE, C. (2009). Adapting a Polarity lexicon using Integer Linear Programming
+for Domain-Speciﬁc Sentiment Classiﬁcation. In EMNLP 2009, pages 590-598, Singapore.
+DENECKE, K. (2009). Are SentiWordNet scores suited for multi-domain sentiment classiﬁcation ?
+In 4th International Conference on Digital Information Management (ICDIM 2009), Pages 1-6.
+DRURY, B., ToRGo, L. et ALMEIDA, J. J. (2011). Guided self training for sentiment classiﬁcation.
+In Workshop on Robust Unsupervised and Semisupervised Methods in Natural Language Processing.
+EsUL1, A. et SEBASTIANI, E (2006). SentiWordNet : A Publicly Available Lexical Resource for
+Opinion Mining. In 5 "‘ Conference on Language Resources and Evaluation (LREC 2006).
+
+GINDL, S., WEICHSELBRAUN, A. et SCHARL, A. (2010). Cross-Domain Contextualization of Senti-
+ment lexicons. In 19th European Conference on Artificial Intelligence, pages 771-776.
+
+HARB, A., DRAY, G., PLANTIE, M., PONCELET, R, ROCHE, M. et TROUSSET, E (2008). Detection
+d’opinion : Apprenons les bons adjectifs! In INFORSID’08 - Atelier FODOP’08, pages 59-66.
+JIJKOUN, V, de RIJKE, M. et WEERKAMP, W. (2010). Generating focused topic-speciﬁc sentiment
+lexicons. In 48th Annual Meeting of the Association for Computational Linguistics, pages 585-594.
+L1, S. et ZONG, C. (2008). Multi-domain sentiment classiﬁcation. In 46th Annual Meeting of the
+Association for Computational Linguistics on Human Language Technologies, pages 257-260.
+SHAPIRE, R. E. et SINGER, Y. (2000). BoosTexter : A boosting-based system for text categorization.
+Machine Learning, 39(1):135—168.
+
+TABOADA, M., BROOKE, J., To1=1LosK1, M., VOLL, K. et STEDE, M. (2011). Lexicon-based methods
+for sentiment analysis. Computational Linguistics, 37(2):267—307.
+
+TORRES-MORENO, J.-M., EL-BEZE, M., BECHET, F. et CAMELIN, N. (2007). Comment faire pour que
+l’opinion forgée ‘a la sortie des urnes soit la bonne ? Application au déﬁ DEFT 2007. In Atelier
+DEFT’07 - Plate-forme AFIA 2007, Grenoble, France.
+
+WIEBE, J. et RILOFF, E. (2005). Creating subjective and objective sentence classiﬁers from
+unannotated texts. In CICLing-2005.
+
+398
+

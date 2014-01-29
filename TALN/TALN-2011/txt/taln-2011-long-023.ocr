@@ -1,0 +1,777 @@
+TALN2011, Montpellier, 27 juin — 1"’juiIIet 2011
+
+Segmentation et induction de lexique non-supervisées
+du mandarin
+
+Pierre Magistry Benoit Sagot
+Alpage, INRIA Paris—Rocquencourt & Université Paris 7,
+Rocquencourt, BP 105, 78153 Le Chesnay Cedex, France
+{pierre.magistry,benoit.sagot} @inria.fr
+
+Réslllné. Pour la plupart des langues utilisant l'alphabet latin, le decoupage d'un texte selon les espaces et les
+symboles de ponctuation est une bonne approximation d'un decoupage en unites lexicales. Bien que cette approxi-
+mation cache de nombreuses diﬂicultes, elles sont sans comparaison avec celles que l'on rencontre lorsque l'on
+veut traiter des langues qui, comme le chinois mandarin, n'utilisent pas l'espace. Un grand nombre de systemes de
+segmentation ont ete proposes parrni lesquels certains adoptent une approche non— supervisee motivee linguistique-
+ment. Cependant les methodes d'evaluation communement utilisees ne rendent pas compte de toutes les proprietes
+de tels systemes. Dans cet article, nous montrons qu'un modele simple qui repose sur une reformulation en termes
+d'entropie d'une hypothese independante de la langue enoncee par Harris (1955), permet de segmenter un corpus et
+d'en extraire un lexique. Teste sur le corpus de l'Acadernia Sinica, notre systeme permet l'induction d'une segmen-
+tation et d'un lexique qui ont de bonnes proprietes intrinseques et dont les caracteristiques sont similaires a celles
+du lexique sous—jacent au corpus segmente manuellement. De plus, on constate une certaine correlation entre les
+resultats du modele de segmentation et les structures syntaxiques fournies par une sous—partie arboree corpus.
+
+Abstract. For most languages using the Latin alphabet, tokenizing a text on spaces and punctuation marks
+is a good approximation of a segmentation into lexical units. Although this approximation hides many diﬂiculties,
+they do not compare with those arising when dealing with languages that do not use spaces, such as Mandarin
+Chinese. Many segmentation systems have been proposed, some of them use linguistitically motivated unsuper-
+vized algorithms. However, standard evaluation practices fail to account for some properties of such systems. In
+this paper, we show that a simple model, based on an entropy—based reformulation of a language-independent hy-
+pothesis put forward by Harris (1955), allows for segmenting a corpus and extracting a lexicon from the results.
+Tested on the Academia Sinica Corpus, our system allows for inducing a segmentation and a lexicon with good in-
+trinsic properties and whose characteristics are similar to those of the lexicon underlying the manually—segmented
+corpus. Moreover, the results of the segmentation model correlate with the syntactic structures provided by the
+syntactically annotated subpart of the corpus.
+
+M0tS-CléS 3 Segmentation non-supervisee, entropie, induction de lexique, unite lexicale, chinois mandarin.
+
+Keywords: Non-supervized segmentation, entropy, lexicon induction, Mandarin Chinese.
+
+1 Introduction
+
+La segmentation d'un texte en formesl est la premiere etape de presque tout traitement automatique de donnees
+textuelles. Pour la plupart des langues utilisant l'alphabet latin, dont le frangais ou l'anglais, un decoupage selon
+les espaces et les symboles de ponctuation est une bonne approximation d'une segmentation en unites lexicales.
+A l'inverse, dans le cas des systemes d'ecriture utilises par exemple pour ecrire le chinois, le japonais, le thai,
+le khmer ou le vietnamien, la typographie n'est pas utilisee pour indiquer des frontieres entre les memes unites
+linguistiques : en vietnamien, qui utilise une variante de l'alphabet latin, l'espace separe des unites sous-lexicales.
+En chinois ou japonais, seuls les signes de ponctuation indiquent des frontieres entre unites lexicales; ailleurs, les
+caracteres, qui representent aussi des unites sous—lexicales, sont directement juxtaposes. L'etape de segmentation en
+unites lexicales est donc un probleme delicat pour ces langues dites rron—segmente’es, et donne lieu a une litterature
+
+1. Dans cet article, une forme est un segment continu de texte venant occuper de facon autonome une position syntaxique. Travaillant sur
+le mandarin, nous pouvons faire l'approximation qu'il y a identité entre la notion de forme et celle d'u11ité1ex1'cale, Pour une discussion plus
+détaillées de l'unité lexicale en mandarin, se reporter a Packard (2000) ou en francais a Nguyen (2006).
+
+PIERRE MAGISTRY BENOTT SAGOT
+
+abondante (Zhao & Liu, 2010), y compris dans la communaute francophone (Seng et al., 2009; Wu, 2010). Mais
+de tels travaux peuvent aussi etre utiles pour les langues segmente’es, en raison des cas de non—correspondance
+entre separateurs et frontieres d'unités lexicales, lesquelles restent diﬁiciles a deﬁnir eta repérer quelle que soit la
+langue (Zhikov et al., 2010).
+
+Parmi les methodes de segmentation, nous nous intéressons en particulier aux methodes non supervisees qui
+cherchent une deﬁnition implicite du mot en faisant emerger la segmentation a partir des proprietes non—aleatoires
+de la distribution des formes en corpus. Ces methodes sont diﬂiciles a evaluer car elles ne s'adaptent pas a un
+standard donne. En contrepartie, elles présentent un plus grand potentiel d'adaptation a la dynamique d'une langue
+(changement de domaine, variantes geographiques, evolution diachronique, traitement des neologismes), et peuvent
+etre utilisées pour la segmentation de langues peu ou pas dotees.
+
+Nous decrivons ici une série d'experiences de segmentation en unites lexicales realisees sur le chinois mandarin au
+moyen d'un systeme non—supervise qui repose sur une hypothese motivee linguistiquement formulee par (Harris,
+1955), en adaptant sa modelisation presentee par (Tanaka—Ishii, 2005) dans le meme but (Jin & Tanaka—Ishii,
+2006). Nous insistons en particulier sur l'evaluation des resultats obtenus, tache rendue delicate par la nature non-
+supervisee de l'approche et par la variete des conventions de segmentation qui existent pour le chinois mandarin.
+
+Dans la section suivante nous presentons la tache de segmentation et les problemes que posent la methode tradi-
+tionnellement utilisee pour son evaluation. Les sections 3 et 4 presentent les systemes dont nous nous inspirons et
+celui que nous avons developpe. Nous utilisons ensuite notre systeme de segmentation pour extraire un lexique, dont
+nous proposons une evaluation (section 5). Enﬁn nous cherchons a correler la sortie du systeme de segmentation
+etudie avec des informations syntaxiques extraites d'un corpus arbore.
+
+2 La segmentation du chinois
+
+La segmentation est la premiere etape de tout systeme d'analyse automatique du chinois ecrit. En frangais et dans la
+majorité des langues utilisant l'alphabet latin, un decoupage sur les espaces (et autour des signes de ponctuation),
+souvent appele tokenisation et dont la sortie est un ﬂux de tokens, constitue une premiere etape raisonnable, que
+l'on peut ensuite aﬂiner pour identiﬁer les cas de non—alignement entre tokens et formes (qui peuvent par exemple
+etre des formes composees). A l'inverse, l'ecriture chinoise ne comporte pas de separateur typographique comme
+l'espace. Un decoupage effectué uniquement autour des caracteres de ponctuation produirait des tokens bien plus
+longs que des formes. A l'inverse, un decoupage isolant chaque caractere chinois (ci—apres sinogramme) ressem—
+blerait plutot a une segmentation en morph(em)es qu'en formes. Il faut donc considerer un texte en chinois comme
+un ﬂux de sinogrammes, la tache de segmentation consistant a identiﬁer entre quels sinogrammes il faut segmenter
+le texte aﬁn de delimiter les formes, que l'on peut, en mandarin, assimiler a des unite’s lexicales.
+
+2.1 Etat de l'art, enjeux actuels
+
+Un grand nombre de methodes ont ete proposees pour effectuer une segmentation automatique. Certaines re-
+posent sur des regles et des lexiques, d'autres utilisent des methodes d'apprentissage automatique supervise ou
+non—supervisé. Cinq campagnes du « Chinese Word Segmentation Bakeoﬁ» ont ete organises par l'ACL, dont la
+demiere s'est tenue a l'ete 2010. Zhao & Liu (2010) donnent un resume des performances obtenues par les systemes
+en competition. Ils soulignent que si la precision peut sembler satisfaisante, la tolerance au changement de domaine
+et la reconnaissance des mots inconnus restent les limitations majeures.
+
+Notons que lors de cette campagne, le systeme de base (baseline) et le meilleur systeme (topline) sont obtenus avec
+le meme algorithme, un simple maXimum—matcl1ing (minimisation du nombre de mots) reposant sur un inventaire
+d'unites lexicales, et ne se distinguent que par le lexique utilise : la baseline utilise un lexique extrait a partir du
+corpus d'entrainement, tandis que la topline utilise un lexique extrait a partir de la totalite du corpus et connait
+donc tous les formes attendues. Xue (2003), qui presentait un systeme d'apprentissage supervise reposant sur une
+classiﬁcation IOB (Inside, Outside, Begin) des sinogrammes, commente les résultats d'une autre heuristique simple
+qui repose sur un lexique, celle dite du longest—matcl1 gauche—droite (plus longue cliaine d 'abord) : cette heuristique
+fournit de tres bons résultats (f—mesure 0,952) si le lexique est exhaustif mais se degrade tres rapidement lorsque
+le corpus de test contient des mots inconnus (f—mesure de 0,898). Le maximum-matching utilise lors du bakeoﬁ
+obtient quant a lui des scores (f—mesure) superieurs a 0,98 sur differents corpus (la topline) avec un lexique exhaustif,
+
+SEGMENTATION ET INDUCI‘ ION DE LEXIQUE NON-SUPERVISI-[IE5 POUR LE CHINOIS MANDARIN
+
+et des scores de 0,72 a 0,88 selon les domaines dans la conﬁguration baseline. Les 18 systemes presentes lors du
+segmentation bakeoﬁ ont tous obtenu des resultats intermediaires entre ces deux niveaux. I1 faut donc souligner
+l'i1nportance pour cette tache des ressources lexicales.
+
+Parmi ces systemes, et en general parmi les systemes de segmentation du chinois mandarin, les deux principaux
+paradigmes d'apprentissage automatique ont ete utilises. Chacun presente des avantages et des inconvenients.
+
+Les methodes supervisees necessitent un corpus d'entrainement constitue d'un ensemble de textes dej a segmentes
+(la reponse attendue, consideree comme « bonne »). A partir de ce j eu d'exemples, l'algorith1ne effectue une genera-
+lisation qui lui permet ensuite d'imiter la prise de decision effectuee par l'humain lors de la segmentation manuelle
+du corpus. De nombreuses methodes d'apprentissage supervise existent et les systemes de segmentation actuels
+tendent ales combiner (cf. par exemple celui decrit par (Wu et al., 2010), tres bien classe au dernier segmentation
+bakeoﬁ] qui repose sur un « conditional support Markov model»). Les methodes supervisees sont celles qui ob-
+tiennent les meilleurs resultats, mais elles necessitent l'utilisation d'un corpus d'entrainement dont la construction
+est longue et coﬁteuse. Ce corpus inﬂue sur le comportement des systemes qui dependent de choix linguistiques
+particuliers, ainsi que de la nature du corpus (l'etat de la langue a une epoque donnee et pour un domaine donne).
+L'adaptation a d'autres domaines est un enjeu de recherche pour ce type de systeme.
+
+Les methodes non—supervisees n'utilisent pas de corpus pre-armote mais se contentent d'une grande quantite de don-
+nees brutes non—segmentees. L'hypothese sous—jacente est que les donnees ne sont pas distribuees aleatoirement
+mais possedent une certaine structure que l'on cherche a faire emerger par l'analyse de leur distribution. Parmi les
+methodes utilisees pour la segmentation du chinois, on peut citer des approches utilisant l'information mutuelle,
+comme dans les travaux pionniers de Sproat et a1. (1996), puis plus recemment des methodes reposant sur l'al-
+gorithme Expectation Maximization (Peng & Schuurmans, 2001), ou sur la Minimum Description Length (Hua,
+2000). La complexite contextuelle, inspiree des hypotheses de Harris (Harris, 1955) et utilisee dans les travaux de
+(Tanaka-Ishii & Jin, 2006; Jin & Tanaka-Ishii, 2006) est presentee plus en detail a la section 3. Les methodes non
+supervisees presentent l'avantage de s'adapter a un corpus brut peu coﬁteux et plus facile a obtenir que des corpus
+segmentes manuellement. Mais elles sont diﬁiciles a evaluer : il n'existe pas a priori de raison pour que la sortie
+d'un tel systeme corresponde a un guide de segmentation plutot qu'a un autre.
+
+2.2 Méthodes d'évaluati0n des systémes de segmentation
+
+Les differents systemes de segmentation sont entraines et evalues sur des parties de corpus dits « de reference »
+en utilisant les mesures classiques en apprentissage automatique (rappel, precision, f-mesure sur les formes ou
+sur les frontieres), mais ce mode d'evaluation sous—esti1ne une realite linguistique complexe. Les differents corpus
+disponibles segmentes manuellement ne suivent pas les memes guides d'annotation. Ainsi le corpus de l'Universite
+de Pekin suit le guide de Yu (1999) tandis que le corpus equilibre de l'Acaden1ia Sinica suit Huang et a1. (1996) et
+que le Chinese Treebank respecte les conventions de Xia (2000).
+
+11 a ete plusieurs fois observe que le taux d'accord entre locuteurs natifs non linguistes a qui il etait demande de
+segmenter un texte est assez faible ((Sproat et al., 1996) rapportent 76% de moyenne entre rappel et precision
+sur les mots, Jin (2007) rapporte une f-mesure de 0,839) . Ceci peut s'expliquer en partie par le fait que la tache
+de segmentation recouvre differents problemes qui ne sont speciﬁques ni au mandarin ni a l'ecriture chinoise : la
+deﬁnition des unites lexicales n'est triviale pour aucune langue et Packard (2000) propose 8 deﬁnitions differentes
+du « mot» : il fait remarquer que les criteres phonologiques, syntaxiques, semantiques, sociologiques, et autres
+ne coincident pas toujours. La question de la segmentation souleve en effet des problemes relatifs aux expressions
+multi-mots, au traitement des entites nommees et aux phenomenes de ﬁgement et de collocation (des exemples
+sont donnes a la section 5.3). Certains desaccords sur la segmentation relevent d'une difference d'analyse morpho-
+syntaxique systematique et sont explicables, motives et le plus souvent homogeneisables (Xia, 2000). C'est le cas
+par exemple du traitement de la marque du pluriel sur les nom humains ( {F5 men ) analysee en tant que suﬁixe
+([N {F5 ] = une unite) ou en tant que postposition (N + {F5 = deux unites). 11 en va de meme pour les marques
+aspectuelles et resultatives sur les verbes. Les desaccords autour de ﬁgements lexicaux sont eux bien plus diﬂicile
+a trancher (exemple : é$2l?H§1'/E, qudnqiﬁnudnhud terre—entiere—chaleur—devenir, re’chau1TementpIane’taire)
+
+Enﬁn, dans un contexte applicatif, Wu (2003) note que differentes applications de TAL necessitent differents cri-
+teres de segmentation en amont. Dans notre cas, notre obj ectif premier est la construction de ressources lexicales
+a des ﬁns de linguistique experimentale sur corpus. Les contraintes et besoins que cela implique different donc
+legerement des besoins poses par la conception d'applications TAL a visee plus industrielle.
+
+PIERRE MAGISTRY BENOTT SAGOT
+
+2.3 Contexte et motivations
+
+L'objectif de notre travail est notamment l'induction de lexiques et le pre—traitement de corpus a des ﬁns d'etudes
+
+linguistiques. Ces corpus sont susceptibles de manifester une importante variation liée a trois facteurs au moins :
+
+— l'espace : au travers des differentes variantes du mandarin pratiquees a Pekin, Hong Kong, Singapour ou Taiwan ;
+
+— le temps : la publication recente des n—grammes de GoogleBooks ouvre de nouvelles possibilites pour une
+etude du lexique a la fois diachronique et quantitative, mais pose le probleme de la segmentation sous un angle
+different; il est en effet exclu d'utiliser un systeme entraine sur un corpus de la ﬁn du XXe siecle pour segmenter
+des textes bien plus anciens 2 ;
+
+— le domaine : des corpus de natures differentes, voire des corpus de specialite, utiliseront des lexiques differents
+et en partie speciﬁques, signiﬁcativement differents de ce que l'on peut trouver dans les corpus d'apprentissage
+utilises par les systemes supervises.
+
+Les methodes classiques de segmentation et d'evaluation exploitant des lexiques pre-existants ou des corpus seg-
+
+mentes manuellement semblent donc peu appropriees pour nos recherches ou les mots inconnus et la tolerance a
+
+la variation nous intéressent particulierement. D'un autre cote, les analyses proposees dans des travaux de linguis-
+
+tiques portant sur la deﬁnition de l'unite lexicale (Nguyen, 2006; Magistry, 2008) sont diﬂiciles a automatiser.
+
+Cette motivation a la fois linguistique et quantitative a nourri notre interét pour les méthodes non supervisees et
+particulierement celles qui reposent sur l'hypothese, motivee linguistiquement, de Harris (1955). Un exemple en
+est notamment les experimentations menees sur corpus par Jin & Tanaka-Ishii (2006).
+
+3 L'hypothése harrissienne et sa reformulation entropique
+
+Dans son article « From phoneme to mozpheme », Harris (1955) formule l'hypothese de l'existence d'un lien entre
+les frontieres de morphemes ou de mots et le nombre de successeurs possibles a une suite de phonemes dans la
+chaine parlee. Il effectue ensuite differentes experiences visant a conﬁrmer cette hypothese et a preciser la procedure
+de segmentation.
+
+A l'epoque, ces experiences ne pouvaient pas tirer parti de grands volumes de textes ou d'enregistrements et furent
+realisees sous forme d'enquetes. Plus recemment, cette idee a ete declinee pour realiser differentes taches telles que
+la detection de collocations (Frantzi & Ananiadou, 1996) ou la segmentation du chinois (Jin & Tanaka-Ishii, 2006).
+Les experiences sur le chinois reposent sur la reformulation de l'hypothese de Harris dans le cadre de la theorie de
+l'information proposee par Tanaka-Ishii (2005), qui repose sur la notion d'entmp1'e (notee H) : la distribution des
+successeurs possibles d'une suite de tokens, modelisee ici par un n-gramme 1:” (de phonemes ou de sinogrammes),
+permet de deﬁnir et de calculer une entropie h(ar:n), dite entropie de branchement, comme suit :
+
+h(1:n) =  = — Z P(1:|1:n).logP(1:|1:n),
+
+ou X est l'ensemble de tous les sinogrammes connus, mais aussi des lettres latines (en raison des expressions ou
+noms etrangers) et des chiffres arabes, et P est la probabilite conditionnelle de trouver le caractere £17 a la
+suite du n—gramme 1:”. Cette reformulation a ainsi servi a tester l'hypothese de Harris en corpus (Tanaka-Ishii &
+Jin, 2006).
+
+Le modele de Jin & Tanaka-Ishii (2006), qui est plus proche de l'article de Harris que notre systeme (decrit ci-
+dessous), est aussi beaucoup plus complexe. Il repose sur cinq modeles de langue (reposant sur des 1 a 5—gra1nmes
+de sinogrammes) utilises conjointement. Ceci permet de calculer une entropie de branchement apres une sequence
+de longueur variable. Cependant a chaque intervalle entre deux sinogrammes, son systeme applique une serie
+de criteres qui lui permettent de decider de fagon binaire si il faut segmenter ou non. La condition principale
+correspondant a l'hypothese de Harris est qu'une frontiere d'unite linguistique correspond a un point ou l'entropie
+branchante atteint un maximum local. L'ecriture chinoise produisant de nombreuses occurrences de mot d'un seul
+sinogramme, Jin et Tanaka-Ishii considerent qu'il existe une frontiere a chaque point ou l'entropie est croissante.
+Leur systeme est ensuite evalue de fagon classique par rappel/precision/f—mesure sur un extrait du corpus segmente
+manuellement (celui de l'Universite de Pekin suivant Yu (1999)).
+
+2. Les n-grammes de Google ont toutefois été extraits apres segmentation des textes, mais aucune information n'est donnée sur la méthode
+utilisée, ce qui pose probleme pour l'exploitation de ces données.
+
+SEGMENTATION ET INDUCI‘ ION DE LEXIQUE NON-SUPERVISI-[IE5 POUR LE CHINOIS MANDARIN
+
+Notre travail est motive par l'idee que ce type de resultat binaire et ce mode d'evaluation ne revele pas tout le
+potentiel de l'hypothese et des modeles sous—jacents. Le systeme est evalue a chaque point du corpus alors que
+des generalisations pertinentes peuvent etre obtenues a partir de l'ensemble des mesures de variation d'entropie
+effectuees, meme bruites. Par ailleurs, les mesures de variations d'entropie ont des valeurs continues qui semblent
+a meme de rendre compte plus ﬁnement du probleme linguistique que les modes d'evaluation standard reduisent a
+une teche de classiﬁcation binaire.
+
+Dans la section suivante nous presentons un systeme d'analyse qui conserve l'information sur les variations d'en—
+tropie aﬁn de pouvoir utiliser celle—ci pour induire un lexique (section 5) ou correler la variation d'entropie a la
+syntaxe sans la discretiser (section 6).
+
+4 Architecture de notre systeme de segmentation
+
+Le modele presente ci—dessus peut etre decline en divers systemes ayant en commun l'utilisation d'une mesure de
+« surprise » pour detecter les frontieres. Contrairement aux travaux de J in et Tanaka—Ishii, notre obj ectif n'est pas la
+segmentation en elle meme mais l'induction de lexiques. I1 nous est donc possible de ne pas prendre une decision
+binaire sur la segmentation a chaque intervalle er1tre deux sinogrammes mais de propager la mesure de « surprise »
+a un systeme qui prend une decision sur l'integration ou non une suite de sinogrammes donnee a notre lexique.
+
+Aﬁn d'obtenir des resultats plus lisibles, nous avons choisi dans un premier temps d'utiliser un systeme simpliﬁe
+ne reposant que sur un seul modele de langue (4—gra1nmes) qui calcule l'entropie branchante h(ar:3) a chaque inter-
+sinogramme et propage celle—ci pour en observer la variation.
+
+Pour la sequence §‘3ll_’.ﬂ7lEZWTH’l5 El  .. Tdibéishizhéngfﬁ zuéri kaihui juéyi. .. (La municipalite’ de Taipei
+.2‘: decide hier en reunion. . .), notre chaine de traitement produit la sortie suivante :
+
+3‘ —4,98 it 1,11 FE 1,53 E5: —4,51 H‘? 4,77 H13 -4,26 El 1,55 Ex? —0,06 @ —0,77 25% —0,92 %
+
+Segmenter lorsque l'entropie est croissante produit donc le decoupage : EH13 (Taipei) TE (ville) LEW‘? (gouver—
+nement) H13 El (hier) Eﬁﬁﬂeﬁ (au lieu de 33%/}‘9E% tenir une re’union/ decider).
+
+5 Induction de lexique : methodologie et evaluation comparative
+
+Dans cette section nous cherchons a induire un lexique a partir des informations sur la variations d'entropie et a
+deﬁnir une mesure de conﬁance dans les unites lexicales induites.
+
+Une chaine w = c1c2...cn est une unite lexicale candidate s'il en existe au moins une occurrence w, dont les va-
+riations d'entropie inter—sinogrammes sont notees ewho, . . . , ewm avec em,’ 1, la variation d'entropie apres le k-eme
+sinogramme de la i—eme occurrence de 112 qui veriﬁe Cwhg > 0, em,” > 0 (l'entropie est croissante avant et apres
+la chaine) et Vk E [1, n — 1] , ewik 3 0 (l'entropie est decroissante ou constante a l'interieur de la chaine).
+
+Nous avons applique notre segmenteur au corpus de l'Acaden1ia Sinica (Chen et al., 1996), qui contient environ
+7, 7 millions d'occurrences de 198 236 unites lexicales (segmentees manuellement) pour environ 12 millions de
+sinogrammes. Nous en avons ainsi extrait 193 714 unites lexicales candidates. Pour chaque unite lexicale candidate,
+nous disposons donc d'un ensemble d'occurrences auxquelles sont associees des variations d'entropie aux frontieres
+et intemes. Le corpus utilise, qui compte 12 millions de sinogrammes, produit 193 714 unites lexicales candidates.
+
+5.1 Metriques de conﬁance
+
+Nous avons deﬁni puis compare differentes metriques pour ﬁltrer le bruit parn1i les unites lexicales candidates, qui
+combinent de fagons differentes leur frequence et une mesure de conﬁance, deﬁnie ci—dessous. La frequence d'une
+unite lexicale candidate w est directement estimee a partir du nombre d'occurrence de celle—ci dans le corpus, note
+N occ(w). Pour tirer parti de l'information sur la variation d'entropie, nous deﬁnissons pour chaque unite lexicale
+candidate une mesure de conﬁance deﬁnie a partir des variations d'entropie comme suit :
+
+— pour chaque occurrence 112,- de 112, on deﬁnit une conﬁance locale cw, = n1in(eu,,.,,,, em, in, —ew,.,1, . . . , —ew, ,n_1) ;
+
+— on associe a la chaine candidate 112 la conﬁance (globale) cw = max ,.Z:’1w(w) (cw, 
+
+PIERRE MAGISTRY BENOTT SAGOT
+
+En d'autres termes, la conﬁance accordee a une occurrence est deﬁnie par Valeur de Variation d'entropie la moins
+ﬁable parmi celles ayant abouti a cette segmentation, et la conﬁance accordee a une unite lexicale est egale a la
+conﬁance de l'occurrence a laquelle on fait le plus conﬁance.
+
+Differentes combinaisons de l'indice de conﬁance et du nombre d'occurrence sont alors possibles. Nous avons
+retenu les quatre combinaisons suivantes :
+
+fréquence seule : N occ(w). Cette metrique simple presente l'aVantage de cibler les unites lexicales couvrant le
+plus grand nombre d'occurrences en corpus, mais n'utilise pas l'information sur la Variation d'entropie que
+nous conservons et se comporte ainsi comme les systemes de segmentation binaires.
+
+produit : cm x N occ(w). Cette metrique introduit la mesure de conﬁance, en lui conferant une importance iden-
+tique a celle de la frequence.
+
+log : cm x log(Nocc(w)). Cette metrique diminue l'impact des hautes frequences.
+
+conﬁance seule : cw. Cette metrique ignore la mesure de frequence et n'utilise que les informations extraites du
+modele d'entropie.
+
+Ces metriques sont choisies arbitrairement mais de maniere a donner une importance croissante a la mesure de
+conﬁance aﬁn d'eValuer sa pertinence.
+
+5.2 Filtrage et évaluation du lexique de facon semi-supervisée.
+
+Chacune des metriques presentees a la section precedente permet de deﬁnir un ordre de conﬁance sur les entrees
+lexicales, et donc de trier le lexique induit. On peut alors choisir par exemple de ne conserver que les 12 premieres
+entrees. Pour un meme n, chaque metrique conduit donc a un lexique ﬁltre distinct. ll reste a choisir la meilleure
+metrique, puis un seuil sur cette metrique en dessous duquel ﬁltrer le lexique, aﬁn d'obtenir le meilleur compromis
+entre couverture et bruit.
+
+Ces choix sont delicats a effectuer a priori, de meme que l'eValuation de la qualite du lexique obtenu. Nous avons
+donc commence par utiliser notre systeme dans une conﬁguration semi—superVisee aﬁn de pouvoir le comparer a
+une reference etablie manuellement, et comprendre notamment quelle metrique semble se comporte le mieux.
+
+Aﬁn d'aVoir une idee de la qualite d'un lexique Li induit (ﬁltre ou non), nous le comparons au lexique Lm extrait a
+partir de la segmentation effectuee manuellement a l'Academia Sinica. Rappelons qu'il ne s'agit pas d'un standard
+mais d'une analyse possible des donnees, motivee linguistiquement, mais qui n'est pas la seule. Pour comparer
+les deux lexiques nous avons utilise l'1'ndice de Jaccard et la f—mesure (qui donnent des resultats similaires). En
+l'absence de « bonne » ou de « mauvaise » reponse, ces indicateurs donnent tout de meme une idee de la coherence
+entre le resultat de notre systeme non—supervise et une analyse effectuee manuellement. Ces deux mesures sont
+deﬁnies classiquement comme suit.
+
+L- (‘I L L- (‘I L ,
+saVecp(-Lia-Lm) =  etr(L.-,L.) =  ; Jaccard(Lz-,Lr)
+’L TH;
+
+|L7lULm|
+
+21>?"
+L-L =
+f( 17 7') 10+?
+
+Le lexique Lm obtenu a partir de la segmentation manuelle est trie par nombre d'occurrences (on considere que
+l'on a une conﬁance egale en toutes les entrees de ce lexique et l'on cherche a detecter en priorite les formes
+les plus frequentes). Les differentes metriques decrites ci—dessus, qui combinent de diverses fagons le nombre
+d'occurrences N occ et l'indice de conﬁance c permettent de moduler l'importance respective de ces deux quantites,
+depuis l'utilisation du nombre d'occurrence seul jusqu'a l'utilisation du seul indice de conﬁance.
+
+Pour chacune des quatre metriques retenues, nous avons calcule le J accard et la f—mesure entre lexique induit ﬁltre
+a differentes Valeurs de la metrique et lexique manuel ﬁltre a differents niveaux de frequence. La ﬁgure 1 montre
+les resultats obtenus avec la f—mesure, en en indiquant les lignes de niveaux. Ceci nous permet de choisir un seuil
+en fonction d'un taux d'accord avec la reference. On observe que la qualite du tri par la frequence se degrade plus
+rapidement que les autres. A l'inVerse, l'utilisation du seul indice de conﬁance ne semble pas accorder suﬂi samment
+d'i1nportance aux formes frequentes (le sommet est plus eloigne de l'origine du graphique).
+
+Aﬁn de nous faire une idee plus precise du contenu des lexiques induits par rapport a celui sous-jacent au corpus
+de l'Academia Sinica, nous avons choisi de les ﬁltrer de la fagon suivante : nous avons choisi le seuil de fagon a
+maximiser la taille du lexique ﬁltre tout en preservant une f—mesure d'au moins 0.6 par comparaison avec le lexique
+
+SEGMENTATION ET INDUCI‘ ION DE LEXIQUE NON-SUPERVISI-[IE5 POUR LE CHINOIS MANDARIN
+
+   
+   
+
+Nooc(w) cxNoodw)
+8 8
+$ E
+V V
+8 ‘3 8 ‘3
+E 3 E 3
+¢ ¢
+'~§ <r '~§ <r
++2 3 3 E
+3 ‘° 3 ‘°
+.9’ .9’
+5 EL 5 EL
+8 3 8 3
+2 2
+Ti <r Ti <r
+1- E 1- E
+N N
+2e+O4 4e+04 6e+04 8e+04 1e+O5 2e+O4 4e+04 6e+04 8e+O4 1e+O5
+Taille du Iexique induil Taille du Iexique induil
+cxIog(Nooc(w)) o
+$ $
+.9 .9
+V V
+8 93 8 93
+E 3 E 3
+8 .. 8 ..
+S 93 S 93
+§} §}
+'2 V "E V
+2 2 2 2
+1?. 3 1?. 3
+2 2
+"a v "a v
+1- E 1- E
+N N
+2e+O4 4e+04 6e+04 8e+04 1e+O5 2e+O4 4e+04 6e+04 8e+O4 1e+O5
+Taille du Iexique induil Taille du Iexique induil
+
+FIGURE 1 — comparaison des lexiques induits avec differentes mesures de conﬁance avec le lexique obtenu apres
+segmentation manuelle (f—mesure)
+
+mesure de conﬁance taille formes validées occurrences couverture nombres
+|L| |L ﬂ Lm| couvertes de caractéres
+
+Iexique manue1Lm | 116 844 | 116 844 | 7 584 040 100 % 5 861
+Nocc(w) 27 500 16 929 6 719 083 89 ‘7o 3 421
+c X Nocc(w) 38 000 24 045 6 901 992 91 ‘7o 4 016
+c X log(Nocc(w)) 38 000 24 571 6 892 594 91 ‘7o 4 070
+c 31 000 23 620 6 695 416 88 We 4 097
+
+TABLE 1 — Comparaison des lexiques induits Li. Pour chaque mesure de conﬁance, le lexique est de taille maximale
+parmi ceux ayant une f—mesure de 0.6 par rapport au lexique Lm extractible du corpus de l'Academia Sinica.
+
+manuel Lm (sur les graphiques de la ﬁgure 1, le seuil correspond donc a l'abscisse du point le plus a droite de la
+ligne a f—mesure de 0.6). Pour chacun des quatre lexiques ainsi extraits, nous avons effectue les mesures suivantes :
+— nombre d'unites lexicales (|L,- |) ;
+
+nombre d'unités lexicales presentes dans la reference manuelle (|L,- (‘I Lm |)
+
+nombre d'occurrences dans le corpus des unites lexicales communes (celles de Li (‘I Lm) ;
+
+couverture de Li (‘I Lm, c'est—a—dire proportion du corpus couverte par les unites lexicales communes;
+
+— nombre de sinogrammes distincts utilises dans le lexique.
+
+Les resultats sont donnees dans le tableau 1, ou nous donnons egalement les Valeurs correspondantes pour le lexique
+manuel Lm. On constate que l'utilisation de notre indice de conﬁance ameliore bien la proportion de formes Valides
+tandis que la frequence reste une Valeur interessante pour optimiser la couverture du corpus.
+
+Remarquons que les formes Valides capturées par nos lexiques different sensiblement. Le tableau 2 donne les indices
+de J accard er1tre nos lexiques calculees 2 a 2 et conﬁrme l'interét de combiner les deux informations de conﬁance
+et de frequence.
+
+PIERRE MAGISTRY BENOTT SAGOT
+
+N occ(w)
+c X Nocc(w) 0,64 c X Nocc(w)
+c X log(Nocc(w)) 0,59 0,92 c X log(Nocc(w))
+c 0,46 0,71 0,76 |
+
+TABLE 2 — Indices de Jaccard entre les quatre lexiques induits ﬁltres, en se restreignant aux unites lexicales egale—
+ment presentes dans le lexique manuel.
+
+| type d'erreur | quantite | type d'erreur | quantite
+
+suﬂixation 37 ecriture non-chinoise 14
+dates et nombres 35 conjonction 14
+verbes 27 adverbes 10
+expressions ﬁgee 21 entite nommee 4
+translitteration 2 autre 36
+
+TABLE 3 — Repartition des faux negatifs
+
+5.3 Analyse d'erreur
+
+Dans cette section, nous presentons les resultats d'un analyse d'erreur, ou de divergence, entre le lexique de re-
+ference et le lexique construit a la section precedente au moyen de la mesure cm X log(Nocc(w)). Nous avons
+concentre notre analyse sur deux axes : les unites lexicales de haute frequence absentes de notre lexique induit
+mais presentes dans le lexique de reference (faux negatifs) et les chaines considerees comme des unites lexicales
+avec un haut niveau de conﬁance mais absentes du lexique de reference (faux positifs). Pour chaque groupe, nous
+avons consideres les 200 premiers cas.
+
+Le systeme mis en oeuvre pour cet article est volontairement simpliste pour etablir un systeme de base auquel se
+comparer. Les erreurs observees dans cette section suggerent differentes pistes d'a1nelioration en amont (modiﬁ-
+cation sur le modele de langue utilise) et en aval (ajout de regles linguistiques basees sur les categories fermees).
+
+5.3.1 Analyse des faux négatifs
+
+Nous avons classe les faux negatifs suivant leur morphologie lorsque leur construction interne etait transparente,
+dans le cas contraire nous avons les avons classe en parties du discours, mais le mandarin etant tres ambigu sur ce
+point (le phenomene de conversion est frequent), de nombreux cas sont restes non classes. Les resultats de cette
+analyse sont donnes dans le tableau 3 dont nous detaillons la moitie gauche ci—dessous.
+
+Le type d'erreur le plus represente concerne des unites lexicales, essentiellement nominales, construite sur le mo-
+dele base+suﬂixe. C'est la un phenomene de morphologie constructionnelle tres productif en mandarin modeme
+dont on peut donner l'exemple 7‘£Z"%-313% fdwflbﬁzhdng ministre de la justice construit sur la base 735‘i'%%13 fdwflbﬁ
+ministere de la justice a laquelle on ajoute le suﬂixe E zhdng pour tete/chef ( -E13 bu etant lui méme un suﬂixe
+indiquant un ministere) . Dans (Magistry, 2008), des methodes quantitatives ont permis d'estimer la productivite
+de ce procede et ont ainsi montre que les régles tres productives correspondent aux cas ou le statut morphologique
+ou syntaxique de la composition est le plus discutable. C'est aussi un des points sur lesquels les guides de segmen-
+tation manuelle peuvent diverger. La grande proportion de ce type d'erreur n'est donc pas etonnante mais un soin
+particulier devra etre apporte au traitement de ce phenomene dans des travaux futurs.
+
+Les dates et nombres sont aussi une erreur attendue, la distribution des tokens qui les composent etant particuliere.
+
+Le cas des verbes est moins clair. cependant la presence de marques d'aspect (formant une petite classe fermee)
+directement a la suite du verbe peuvent induire notre systeme en erreur. ll coupera apres le marqueur d'aspect. 11 en
+va de meme (mais dans une moindre mesure) des constructions verbe+re’suItatif (ex : 132% chiwdn manger—ﬁnir,
+avoir ﬁni de manger) qui bien que secables (ex : I3‘Z.Z?% chibuwdn manger—negation—ﬁnir, ne pas pouvoir ﬁnir de
+manger) n'ont pas toujours un sens compositionnel. Certaines combinaisons sont lexicalisees et peuvent donner
+lieu a debat concernant leur bonne segmentation.
+
+Parmi les 200 premiers nous avons compte 21 cas qui nous semblent etre des ﬁgements a differents degres, comme
+Ejﬁﬁiéilﬁiﬁ gc'1o'érfﬁ—qi1’1chdng golf—terrain, terrain de golf, l'unite pour golf etant autonome et celle pour terrain
+pouvant concemer tout type de terrain sport utilisant une balle. Mais ceci inclut aussi des « expressions en quatre
+
+SEGMENTATION ET INDUCI‘ ION DE LEXIQUE NON-SUPERVISEES POUR LE CHINOIS MANDARIN
+
+Type d'erreur | Qnt | Type d'erreur | Qnt |
+nom 17 verbe+DE 8
+adverbe+verbe 15 adverbe+copu1e 8
+suﬂixe+DE 14 adverbe+adverbe 8
+nombre+c1assiﬁcateur 14 adverbe+avoir 7
+verbe+aspect 13 adverbe+auxi1iaire 7
+demonstratif+classiﬁcateur 9 pronom+DE 6
+
+TABLE 4 — Repartition des faux positifs
+
+caracteres » dont la concision et la structure inteme relevent d'un etat anterieur de la langue (ex : FJ‘ﬁJ3)f§E7§ avantl
+ce que/pas encore/avoir, sans precedent). Ce type d'erreurs regroupe ainsi des expressions ﬁgees dont certaines
+sont idiomatiques et d'autres compositionnelles (en quantites equivalentes).
+
+5.3.2 Analyse des faux positifs
+
+Nous avons ensuite analyse les faux positifs en observant leur composition interne. Une premiere remarque est que
+sur les 200 premiers, 198 sont des bigrammes et 2 sont des unigrammes (cette preference disparait a mesure que
+la conﬁance diminue). Nous avons donc classiﬁe les erreurs en fonction des deux sinogrammes qui les composent.
+La dispersion est plus grande, nous ne donnons donc dans le tableau 4 que les types les plus importants.
+
+Les 17 noms sont des unites lexicales dont le statut est discutable. 13 comportent en seconde position un element
+appartenant a une classe tres fermee de « mots » indiquant un lieu ou une direction ( J:,_F,l7‘l JEFF‘ shdng, xid, nei,
+H, zhéng sur, sous, dans, 53, au milieu) et en premiere position un nom monosyllabique.
+
+Les adverbe+verbe sont des combinaisons d'adverbe monosyllabique (tres, Ie plus, lrop, aussi, relativement) et de
+verbes d'etat (rapide, grand, petit, suﬂlsant, nombreux, difﬁcile).
+
+Suﬂlxe+DE designe un groupe compose en premiere position d'un suﬂixe nominal tres productif (voir plus haut)
+et en seconde de E14] DE qui marque une relative ou la possession. Il s'agit ici d'une double erreur de segmentation
+dﬁe au fait que de nombreuses bases peuvent commuter devant ces suﬂixes et qu'il viennent terminer une large
+classe de nom et peuvent donc frequemment se trouver devant le DE.
+
+Les sequences nombre+cIass1'ﬁcateur et démonstratif+cIassiﬁcateur sont liees a la structure des groupes nominaux
+(non nus) en mandarin dans lesquels un classiﬁcateur est requis et doit obligatoirement etre precede d'un element
+denotant une quantite ou d'un demonstratif. Il est donc peu etonnant que notre systeme tende ales regrouper.
+
+Remarquons aussi les 6 sequences pronom+DE qui se traduiraient par des possessifs mon/Ie mien, ton/Ie tien, son/
+Ie sien. .. auxquels s'ajoutent deux variantes avec un possesseur non—humain. On ne compte que 6 erreurs de ce
+type, mais c'est la une liste exhaustive des pronoms singuliers + DE.
+
+Une analyse de ces erreurs realisee sur les caracteres et non sur couples de caracteres errones montre que toutes
+ces erreurs incluent une unite lexicale qui est un unigramme tres frequent ou appartenant a une classe tres fermee.
+
+5.4 Caractéristiques générales du lexique
+
+Chen et a1. (1993) fournissent des informations sur la distribution globale d'un lexique du chinois mandarin et des
+occurrences en corpus. On peut ainsi veriﬁer si notre lexique induit possede bien les meme proprietes que le lexique
+obtenu manuellement.
+
+Tout d'abord, en observant le nombre d'occurrence des unites lexicale ordonnees par frequence decroissante, on
+obtient une courbe zipﬁenne qui se superpose bien avec celle obtenue en utilisant le lexique manuel.
+
+Les observations plus speciﬁques au mandarin concernent la repartition des unites lexicales et de leurs occurrences
+en fonction de leur longueur en nombre de sinogrammes. Sur les 38 000 unites lexicales « de conﬁance » (ou les
+plus frequentes pour le lexique manuel), le lexique induit est bien constitue principalement de bigrammes et de
+trigrammes (respectivement 65,8°7o et 27,3°7o) tandis que les unigrames constituent 6,5°7o du lexique. Le lexique
+manuel compte lui 7°70 d'unigrammes, 67,7°7o de bigrammes et 19% de trigrammes. Concemant le nombre d'oc—
+currence observees dans le corpus, on obtient 37% d'unigramme, 54% de bigrammes et 7% de trigrammes (pour
+le corpus segmente manuellement, on obtient respectivement 45%, 49% et 4%)
+
+PIERRE MAGISTRY BENOiT SAGOT
+
+1 1
+I I I I I I I Rép....'." gloliale des occ'urrenc'es '1 ' ' ' ' ' ' Répalrtition 'g|oba|'e des'unités'|exica'|es 3 '
+p....'.' des occurrences couvertes par la lexique induit 1 Répartition des unités Iexlcales dans la Iexique induit j
+
+0.1 — 0.1 — —
+
+0.01 —
+
+0.001 - 0.001 - -
+
+Proportion (échelle Iogarithmique)
+Proportion (échelle Iogarithmique)
+o
+9
+.
+
+0.0001
+
+ 
+
+0.0001
+
+ 
+
+Adj Adv classifconj DE Det Interj Nbre Mom ParticPostp Prep Pro Verbe VOU Adj Adv Classifconj DE Det Interj Nbre Mom ParticPostp Prep Pro Verbe VOU
+Catégorie principale dans Ie corpus Catégorie principale dans Ie corpus
+(a) (b)
+
+FIGURE 2 — Comparaison des repartitions en categories entre les occurrences de formes segmentees a l'identique
+par notre systeme et par le corpus lui—meme (a), et entre les unites lexicales correspondantes 0)).
+
+6 Evaluation de la segmentation par comparaison avec les informations
+morphosyntaxiques et syntaxiques
+
+Apres avoir evalue notre modele de segmentation au travers du lexique qu'elle permet d'extraire du corpus de
+l'Academia Sinica, nous avons poursuivi nos experiences d'eValuation en cherchant a tirer parti des armotations
+morphosyntaxiques et syntaxiques que fournit le Sinica Treebank (Chen et al., 1996), qui en couvre une partie.
+
+6.1 Répartition en categories
+
+L'etude de la distribution du lexique induit L, en fonction de sa frequence, bien qu'importante, ne sufﬁt pas a montrer
+que ses proprietes sont coherentes avec celles du lexique motive linguistiquement Lm qui est sous—jacent au corpus
+de l'Academia Sinica. Nous avons donc cherche a comparer la repartition en categories de ces deux lexiques.
+Nous avons donc identiﬁe dans le treebank de l'Academia Sinica les occurrences de formes communes entre la
+segmentation du corpus et celle de notre systeme. Nous avons alors compare la repartition de ces occurrences en
+parties du discours par rapport a celle de l'ensemble des occurrences de formes dans le corpus de l'Academia Sinica
+(ﬁgure 2a). Nous avons effectue la meme chose avec unites lexicales correspondantes (ﬁgure 2b). Les categories
+que nous avons utilisees sont les suivantes : Adj (adjectii), Adv (adverbe), Classif (classiﬁeur), Conj (conjonction),
+DE (particules E14] ,Z,f§¢ et iﬂl ), Det (determinant), Interj (interjection), Nbre, Nom, Partic (particule), Postp
+(postposition), Prep (preposition), Pro (pronom), Verbe et YOU (Verbe 7% , avoir).
+
+Nous discuterons de fagon plus detaillee ces ﬁgures a la section suivante, mais on constate globalement une bonne
+correlation entre les deux repartitions, tant pour les categories les plus frequentes que pour celles qui le sont moins.
+
+6.2 Correlation entre variation d'entropie et structure syntaxique
+
+Notre modele de segmentation reposant sur les Variations d'entropie, il ne produit pas simplement pour chaque
+paire de sinogrammes adjacents une decision binaire (segmenter ou non), mais bien une mesure quantitative de
+la separabilite des deux sinogrammes concernes. Nous avons cherche a confronter ce degre’ de separation lineaire
+S’; avec les informations syntaxiques (arbres en constituants) fournies par le Sinica Treebank. L'intuition sous-
+jacente est que l'on pourrait constater une correlation entre la separabilite lineaire produite par notre modele de
+segmentation et un degre’ de separation syntaxique, mesure qui serait d'autant plus elevee que les deux sinogrammes
+etudies appartiennent a des unites lexicales eloignees l'une de l'autre au sein de la structure en constituants.
+
+Pour effectuer cette experience, nous avons deﬁni le degre de separation syntaxique S3 entre deux unites lexicales
+adjacentes comme etant la longueur (en arcs) du plus court chemin permettant de les relier entre elles dans l'arbre
+de constituance. Il resulte de cette deﬁnition que 33 est necessairement au moins egal a 2, ce qui est le cas lorsque
+
+SEGMENTATION ET INDUCI‘ ION DE LEXIQUE NON-SUPERVISEES POUR LE CHINOIS MANDARIN
+
+' Sépératlion Iinéaire médilane : ' '
+Séparation Iinéaire (meme quantile) j
+
+Degré de separation Iinéaire (variation d’entropie)
+
+ 
+
+Degré de separation syntaxique
+
+FIGURE 3 — Evolution de la separation lineaire .5’; (Variation d'entropie) en fonction de la separation syntaxique .5’,
+sur les frontieres communes au corpus de l'Academia Sinica et a la segmentation induite par notre systeme.
+
+les unites lexicales ont un meme noeud pere.
+
+La ﬁgure 3 montre pour chaque valeur de la separation syntaxique S3 quelle est la valeur mediane de la separation
+lineaire Sl, ainsi que son soixante—djxieme quantile. On constate deux choses. Tout d'abord, lorsque le degre de
+separation syntaxique est de 4 ou moins, il y a une nette correlation entre S’; et S3. Autrement dit, le modele
+de segmentation utilise reussit a capturer une partie des informations syntaxiques locales, de niveau terme voire
+chunk. En revanche, au—dela d'une separation syntaxique de 4, la separation lineaire mediane n'evolue quasiment
+plus. Deux hypotheses, non-exclusives l'une de l'autre, viennent a l'esprit. Tout d'abord, le modele utilise est 4-
+gramme, et il est diﬂicile de capturer des frontieres er1tre longs constituants avec un modele local de ce type. Par
+ailleurs, le modele simple que nous utilisons, inspire de Harris, est un modele tres surfacique qui n'a aucune raison
+de pouvoir capturer des informations sur la macro-structure de l'arbre syntaxique d'une phrase.
+
+Ce resultat, bien qu'obtenu a l'echelle de tout le corpus au moyen d'un calcul de mediane, est neanmoins prometteur :
+il ne semble pas exclu de pouvoir utiliser notre modele de segmentation non—supervise, tel quel ou sous une forme
+raﬂinee, non seulement pour induire une segmentation en unites lexicales et un lexique associe mais egalement
+pour identiﬁer des collocations, termes, locutions et autres unites lexicales complexes, et de tenter de leur associer
+une structure interne. On peut ainsi esperer avoir acces a un moyen objectif, qui n'utilise pas de connaissance a
+priori et qui est donc independant de la langue, pour mettre en evidence le continuum qui relie les unites lexicales
+les plus classiques aux expressions semi—compositionnelles ou collocationnelles.
+
+7 Conclusion et perspectives
+
+Dans cet article, nous montrons sur le chinois mandarin qu'un modele simple utilisant une hypothese linguisti-
+quement motivee mais independante de toute connaissance a prion’ sur une langue particuliere donne des resultats
+prometteurs pour la segmentation non supervisee de textes et l'induction d'unites lexicales coherentes avec des an-
+notations de niveau syntaxique. De plus, certains resultats pouvant apparaitre comme des erreurs de segmentation
+sont susceptible de questionner de fagon constructive des analyses linguistiques traditionnelles parfois inﬂuencees
+par les etats anterieurs de la langue.
+
+Certaines erreurs resultent toutefois des limites de notre systeme dans son etat actuel. En particulier, un traitement
+plus ﬁn des categories fermees (demonstratifs, DE,. . .) pourrait nettement ameliorer les resultats tout en demandant
+une quantite d'analyse bornee par la taille de ces categories. Mais d'autres ameliorations destinees a rendre le modele
+plus proche de considerations linguistiques pourront egalement etre testees. Le modele lui—meme peut egalement
+faire l'objet de raﬂinements, par exemple pour comprendre si la prise en compte du mot situe a dmite de l'inter—
+sinogramme considere est de nature a ameliorer les resultats.
+
+Nous prevoyons de tester notre systeme sur des corpus relevant de diﬂ"erentes varietes du chinois mandarin, pour
+en etudier notarnment les variations des distributions lexicales, mais egalement de le tester sur d'autres langues
+non—segmentees, pour valider l'approche sur un echantillon plus large de langues. Nous souhaitons egalement me-
+
+PIERRE MAGISTRY BENOiT SAGoT
+
+ner des experimentations sur diverses langues, y compris le frangais, pour segmenter non seulement des ﬂux de
+sinogrammes mais ainsi, par exemple, des ﬂux de phonemes (en vue d'une segmentation en morphemes) ou de
+tokens (en vue de l'identiﬁcation d'unites lexicales multi—mots et de termes).
+
+Références
+
+CHEN C. Y., TsENG S. F., HUANG C. R. & CHEN K. J. (1993). Some distributional properties of Mandarin Chinese
+— A study based on the academia sinica corpus. In Proceedings of Paciﬁc Asia Conference on Formal and
+Computational Linguistics I, p. 81-95.
+
+CHEN K. J ., HUANG C. R., CHANG L. P. & HsU H. L. (1996). Sinica corpus : Design methodology for balanced
+corpora. In Proceedings of PACLIC 11th Conference, p. 167--176.
+
+FRANTZI K. T. & ANAN1ADoU S. (1996). Extracting nested collocations. In Proceedings of the 16th conference
+on Computational linguistics—Volume 1, p. 41-46.
+
+HARRIS Z. S. (1955). From phoneme to morpheme. Language, 31(2), 190-222.
+
+HUA Y. (2000). Unsupervised word induction using MDL criterion. In Proceedings of ISCSL.
+
+HUANG C. R., CHEN K. J. & CHANG L. L. (1996). Segmentation standard for chinese natural language processing.
+In Proceedings of the 16th conference on Computational linguistics—Volume 2, p. 1045-1048.
+
+JIN Z. (2007). A Study on Unsupervised Segmentation of Text Using Contextual Complexity. PhD thesis, Uni-
+versity of Tokyo, Graduate School of Information Science and Technology, Tokyo, J apon.
+
+JIN Z. & TANAKA-IsH11 K. (2006). Unsupervised segmentation of chinese text by use of branching entropy. In
+Proceedings of the COLING/ACL on Main conference poster sessions, p. 428-435.
+
+MAGISTRY P. (2008). Productivite morphologique : Etude sur le chinois mandarin. Master's thesis, Universite
+Paris Diderot, UFR de Linguistique, Paris, France.
+
+NGUYEN . (2006). Unite’ lexicale et morphologie en chinois mandarin. PhD thesis, Universite de Montreal,
+Montreal.
+
+PACKARD J . L. (2000). The morphology of Chinese : A linguistic and cognitive approach. Cambridge Univ Pr.
+PENG F. & ScHUURMANs D. (2001). Self—supervised chinese word segmentation. Advances in Intelligent Data
+Analysis, p. 238-247.
+
+SENG S., BIGI B., BEsAc1ER L. & CAsTELL1 E. (2009). Segmentation multiple d'un ﬂux de données textuelles pour
+la modelisation statistique du langage. In Actes de la confe’rence TALN 2009, Senlis, France.
+
+SPROAT R., GALE W., SHIH C. & CHANG N. (1996). A stochastic ﬁnite—state word—segmentation algorithm for
+chinese. Computational linguistics, 22(3), 377-404.
+
+TANAKA-IsH11 K. (2005). Entropy as an indicator of context boundaries : An experiment using a web search
+engine. Natural Language Processing-IJCNLP 2005, p. 93-105.
+
+TANAKA-IsH11 K. & J IN Z. (2006). From phoneme to morpheme : Another veriﬁcation using a corpus. Computer
+Processing of Oriental Languages. Beyond the Orient : The Research Challenges Ahead, p. 234-244.
+
+WU A. (2003). Customizable segmentation of morphologically derived words in chinese. International Journal
+of Computational Linguistics and Chinese Language Processing, 8(1), 1-27.
+
+WU L.—C. (2010). Outils de segmentation du chinois et textométrie. In Actes de la conference TALN 2010,
+Montreal, Canada.
+
+WU Y. C., YANG J . C. & LEE Y. S. (2010). Chinese word segmentation with conditional support vector inspired
+markov models. In Proceedings of the Joint Conference on Chinese Language Processing.
+
+XIA F. (2000). The segmentation guidelines for the penn chinese treebank (3.0). IRCS Technical Reports Series.
+XUE N. (2003). Chinese word segmentation as character tagging. International Jourrnal of Computational Lin-
+guistics and Chinese Language Processing.
+
+YU S. (1999). Guidelines for the armotation of contemporary chinese texts : word segmentation and POS—tagging.
+Institute of Computational Linguistics, Beijing University, Beijing.
+
+H. ZHAo & Q. LIU, Eds. (2010). The CIPS—SIGHAN CLP 2010 Chinese Word Segmentation Bakeoﬁ.
+
+ZH1Kov V., TAKAMURA H. & OKUMURA M. (2010). An eﬂicient algorithm for unsupervised word segmentation
+with branching entropy and MDL. In Proceedings of the 2010 Conference on Empirical Methods in Natural
+Language Processing, p. 832-842.
+

@@ -1,0 +1,500 @@
+TALN 2010, Montreal, 19-23 juillet 2010
+
+Utilisation d’indices temporels pour la segmentation événementielle
+de textes
+
+Ludovic J ean-Louis Romaric Besancon Olivier Ferret
+CEA, LIST, Laboratoire Vision et Ingénierie des Contenus
+Fontenay-aux-Roses, F-92265, France.
+{ludovic.jean-louis,romaric.besancon,olivier.ferret} @cea.fr
+
+Resume. Dans le domaine de l’Extraction d’Information, une place importante est faite a l’extraction
+d’evenements dans des depeches d’actualite, particulierement justiﬁee dans le contexte d’applications de
+veille. Or il est frequent qu’une depéche d’actualite evoque plusieurs evenements de meme nature pour
+les comparer. Nous proposons dans cet article d’etudier des methodes pour segmenter les textes en sepa-
+rant les evenements, dans le but de faciliter le rattachement des informations pertinentes a l’evenement
+principal. L’ idee est d’utiliser des modeles d’apprentissage statistique exploitant les marqueurs temporels
+presents dans les textes pour faire cette segmentation. Nous presentons plus precisement deux modeles
+(HMM et CRF) entraines pour cette tache et, en faisant une evaluation de ces modeles sur un corpus de
+depeches traitant d’evenements sismiques, nous montrons que les methodes proposees permettent d’obte-
+nir des resultats au moins aussi bons que ceux d’une approche ad hoc, avec une approche beaucoup plus
+generrque.
+
+Abstract. One of the early application of Information Extraction, motivated by the needs for intel-
+ligence tools, is the detection of events in news articles. But this detection may be difﬁcult when news
+articles mention several occurrences of events of the same kind, which is often done for comparison pur-
+poses. We propose in this article new approaches to segment the text of news articles in units relative to
+only one event, in order to help the identiﬁcation of relevant information associated to the main event
+of the news. We present two approaches that use statistical machine learning models (HMM and CRF)
+exploiting temporal information extracted from the texts as a basis for this segmentation. The evaluation
+of these approaches in the domain of seismic events show that with a robust and generic approach, we can
+achieve results at least as good as results obtained with an ad hoc approach.
+
+M0tS-CléS I Extraction d’information, extraction d’evenements, segmentation de textes, indices
+temporels, apprentissage statistique.
+
+Keywords: Information extraction, event extraction, text segmentation, temporal cues, statistical
+machine learning.
+
+LUDOVIC JEAN-LOUIS, ROMARIC BESANCON, OLIVIER FERRET
+
+1 Introduction
+
+Des les premiers travaux en extraction d’information, tels que ceux realises dans le cadre des conferences
+MUC (Message Understanding Conference) (Grishman & Sundheim, 1996) et plus tard des evaluations
+ACE (Automatic Content Extraction), l’extraction des evenements d’un texte s’est averee une tache cen-
+trale. Elle constitue en effet le point de declenchement du processus d’extraction d’information visant a
+completer des templates predeﬁnis associes a un nombre restreint de types d’evenements. Dans le contexte
+des attaques terroristes par exemple, un tel processus consiste a identiﬁer le type de l’attaque (explosion,
+etc.), sa date, ainsi que le lieu concerne. Les informations associees aux evenements dans les templates
+sont en general reperees par des entites nommees, et selon les cas, la notion d’evenement se materia-
+lise par une relation qui peut soit etre directe entre entites nommees (par exemple, <Hurricane>l’ouragan
+Hugo</Hurricane> de <Date>1989</Date>), soit mediee par un verbe ou un deverbal (par exemple, <Hur-
+ricane>l’ouragan Hugo</Hurricane> qui a dévasté <Location>les Antilles</Location>) ou encore s’etendre au-
+dela d’un contexte phrastique. La plupart des travaux en extraction d’information se concentrent sur les
+deux premiers cas dans la mesure o1‘1 l’identiﬁcation d’une relation entre un evenement et une entite nom-
+mee s’appuie le plus souvent sur des patrons lexico-syntaxiques ou des relations syntaxiques. Neanmoins,
+comme le souligne (Stevenson, 2006), une part signiﬁcative de ces relations ne peuvent etre identiﬁees
+qu’a un niveau discursif. Jusqu’a present, cette voie a surtout ete exploree au travers de la resolution de
+coreferences ou de l’utilisation de connaissances sur le domaine. Dans cet article, nous abordons cette pro-
+blematique par le biais de la segmentation du discours. Plus precisement, nous proposons de segmenter les
+textes suivant les evenements qu’ils evoquent aﬁn de diminuer les ambigu'1'tes de rattachement des entites.
+
+Une telle segmentation evenementielle des textes se retrouve dans quelques travaux. Elle repose sou-
+vent sur l’identiﬁcation des differents constituants d’un type d’evenements deﬁnis comme connaissance a
+priori sur le domaine et peut aussi integrer des informations sur l’organisation discursive des textes. (Ki-
+tani et al., 1994) distinguent ainsi deux types de structures discursives dans les articles de joumaux qu’ils
+considerent : l’une se presente comme une succession d’evenemenents distincts tandis que l’autre s’arti-
+cule autour d’un evenement principal avec des references courtes a differents evenements secondaires lies
+au premier. Cette distinction rejoint en partie celle operee dans (Lucas, 2004), qui propose de differencier
+les textes a structure simple et les textes a structure complexe : les premiers sont centres sur un seul evene-
+ment decrit selon un seul point de vue; les seconds font reference a plusieurs evenements parmi lesquels
+se distingue un evenement principal auquel se subordonnent les autres evenements. (Crowe, 1995) a teste
+quant a lui plusieurs heuristiques de nature discursive concernant le rattachement d’une proposition a un
+evenement dans une perspective proche de la theorie du Centrage. Enﬁn, (Naughton, 2007) represente une
+tendance un peu differente dans la mesure o1‘1 l’objectif principal de la segmentation des textes y est de
+delimiter des segments faisant reference a des evenements et des segments a caractere non evenementiel.
+Cette segmentation est realisee par un modele statistique d’etiquetage des phrases en quatre types (nou-
+vel evenement, continuation d’un evenement, reference a un evenement deja mentionne, sans evenement)
+implemente par un automate probabiliste.
+
+Compte tenu de l’etroite dependance existant entre les dimensions temporelle et evenementielle des textes
+(Pustejovsky et al., 2005), l’utilisation d’indices temporels pour mettre en evidence la segmentation des
+textes en evenements apparait comme une voie interessante. Les relations entre temps et segmentation
+du discours ont en fait ete principalement abordes dans le domaine de la linguistique textuelle et de la
+psycho-linguistique au travers de l’etude du role discursif des adverbes de temps places a l’initiale des
+propositions. Dans le domaine de la psycho-linguistique, (Bestgen & Vonk, 2000) montrent ainsi l’exis-
+
+UTILISATION D’INDICES TEMPORELS POUR LA SEGMENTATION EVENEMENTIELLE DE TEXTES
+
+tence d’une correlation entre la presence de tels adverbes et des changements de theme tandis que du point
+de vue linguistique, (Ho—Dac & Péry—Woodley, 2008) décrivent une situation plus complexe dans laquelle
+le role discursif de ces adverbes est dependant du type des textes.
+
+Dans cet article, nous nous focaliserons sur l’utilisation d’indices temporels pour la segmentation evene-
+mentielle en nous intéressant particulierement au cas de textes a structure complexe. Nous présenterons
+d’abord les principes généraux de l’approche que nous utilisons pour l’extraction d’événements en sec-
+tion 2. Dans la section 3, nous détaillerons les techniques utilisées pour la segmentation de textes en
+évenements avant de rendre compte de l’evaluation de ces techniques en section 4 pour des événements
+dans le domaine sismique.
+
+2 Principes et objectifs
+
+L’extraction d’évenements que nous opérons prend place dans un contexte de veille au sein duquel les uti-
+lisateurs sont essentiellement intéressés par les événements les plus recents : le but est alors de fournir a ces
+utilisateurs une information synthétique relative a ces événements récents a partir de leur evocation dans
+des dépeches d’actualité1. Or, une des caracteristiques des dépeches de presse est de faire frequemment
+reference a plusieurs événements de meme nature, en general pour donner des points de comparaison par
+rapport a l’événement faisant l’objet de l’actualité. Dans notre cas, les autres événements rapportés dans
+les dépeches ne nous intéressent pas en tant que tels et sont vus comme des sources de perturbation de
+l’extraction des informations relatives a l’evenement principal.
+
+La démarche que nous proposons pour aborder ce probleme distingue deux étapes :
+
+— segmenter le texte en fonction des différents évenements qui y sont évoques. Comme il est frequent
+dans les structures des depeches d’actualité de faire des allers—retours entre des évenements passes et
+presents, les segments ne sont pas forcément contigus ;
+
+— rattacher a l’événement d’un segment les entités nommées de ce segment qui lui sont associées. Dans
+notre cas, ce rattachement est operé seulement pour les segments lies a l’evenement principal.
+
+Cette demarche est illustrée au niveau de la ﬁgure 1 sur un exemple de texte concernant un événement
+
+sismique. L’étude que nous présentons ici se focalise principalement sur la segmentation des textes en
+
+Un <E>5eisme </E> d’une magnitude de <M>5,5</M> degrés sur /’e’che//e ouverte de Richter a e'te’ enregistre’ <D> vendredi
+soir</D> dans la region d’<L> Oran </L> <L>(430 km a /’ouest d’A/ger)</L>, a annonce’ la radio pub/ique.
+
+ 
+
+lwran, /amrrnetropo/e de /'0ue51’ a/gérienfai/air déjareté secouee en jam’/ier par Unwtrembiernient de terre d’une magnitzjiierde 5,3 VVVVVVVV 
+isur /'e'c/7e//e de Richter. Cette secousse n'avait fair ni victime, ni dégéts. 1
+
+§A/ger et sa region avaient ere’ frappées, /e 2] mai 2003, par un violent séisme qui avail‘ fail’ 2.300 morts er plus de 10.000
+jb/essés.
+
+<E> : entité sismique <M>: magnitude <D>: date <L>: lieu P3 EVé“ement Pfincipal  EVénement Secmdaire  CI Contexte
+FIG. 1 — Annotation des textes en entités nommées et en événements
+
+évenements. Dans ce cadre, un texte est vu comme une sequence de phrases ou chaque phrase est associée
+
+1Nous nous différencions en cela des approches classiques d’extraction générale d’événements ou l’on cherche £1 associer
+des informations 21 tous les événements évoqués dans un texte.
+
+LUDOVIC J EAN-LOUIS, ROMARIC BESANCON, OLIVIER FERRET
+
+a un événement ou a une absence d’événement2. Comme nous nous intéressons au repérage des entités
+associées au seul événement principal de la dépéche, nous ne distinguons pas les autres événements. Ainsi,
+nous proposons de classer les phrases selon les trois catégories suivantes :
+
+— Evénement principal : toutes les phrases faisant reference a l’événement principal du texte;
+
+— Evénement secondaire : toutes les phrases en rapport avec une information associée a un événement
+
+différent de l’événement principal ;
+
+— Contexte : toutes les phrases n’appartenant ni a l’Eve’nement principal ni a un Evénement secondaire.
+Pour réaliser cette classiﬁcation, nous supposons que les criteres les plus intéressants reposent non sur la
+seule nature des phrases mais sur leur enchainement dans le cadre d’une structure textuelle. Au niveau lin-
+guistique, le passage d’une catégorie d’événement a une autre peut s’observer de plusieurs facons : l’usage
+d’un marqueur temporel différent de celui de l’événement principal (nouvelle date par exemple) ou l’em-
+ploi d’un temps grammatical différent (antérieur) a celui de l’événement principal. Ainsi, dans l’exemple
+donné a la ﬁgure 1, les successions de temps passe’ compose’/plus-que-pazfait/present/playque-pazfait cor-
+respondent a des changements de contexte événementiel principal/secondaire/contexte/secondaire. Ces
+changements sont de plus renforcés par une mention explicite de la date de ces événements dans les
+deuxieme et derniere phrases, qui correspondent a un événement secondaire, et dans la troisieme phrase
+par l’expression temporelle de périodicité régulierement. Nous souhaitons capturer la dépendance entre
+ces changements de cadre temporel et d’événement par des techniques d’apprentissage automatique aﬁn
+d’effectuer une segmentation événementielle.
+
+3 Méthodes de segmentation en événements
+
+Nous avons choisi de traiter la problématique de la segmentation de textes en événements comme un
+probleme de classiﬁcation de séquences, dans lequel l’objectif est d’attribuer un type d’événement a
+chaque phrase ou proposition. Un modele graphique d’annotation de séquences parait donc particulie-
+rement adapté : nous décrivons ici deux approches de segmentation en événements fondées respective-
+ment sur les modeles de Markov Cachés (Hidden Markov Model, ou HMM) et les Champs Aléatoires
+Conditionnels (Conditional Random Fields, ou CRF).
+
+3.1 Pré-traitement des dépéches
+
+Une étape préliminaire a la segmentation des textes en événements est le repérage des informations tempo-
+relles a la base de notre approche. Pour ce repérage nous appliquons a chaque texte la chaine de traitements
+linguistiques suivante : tokenisation, détection des ﬁns de phrases, désambigu'1'sation morphosyntaxique,
+reconnaissance des temps de verbes, reconnaissance des entités nommées. Cette chaine de traitement est
+Inis en oeuvre par l’analyseur linguistique LIMA présenté dans (Besancon et al., 2010 a paraitre).
+
+3.2 Modéle HMM
+
+Le modele HMM est un modele de classiﬁcation de séquences (Rabiner, 1989) tres largement utilisé en
+
+TAL (reconnaissance d’entités nommées, désambigu'1'sation morpho-syntaxique) et qui a deja eté appliqué
+
+2L’hypothése << une phrase = un événement » est bien entendu simpliﬁcatrice mais ne s’avere en pratique pas trop réductrice
+dans les domaines d’applications que nous avons testés.
+
+UTILISATION D’INDICES TEMPORELS POUR LA SEGMENTATION EVENEMENTIELLE DE TEXTES
+
+pour segmenter de textes, par exemple pour la segmentation thematique (Yamron et al., 1998). Les HMM
+sont des automates stochastiques a etats ﬁnis permettant de deduire des sequences d’etats non observables
+(ou etats caches) a partir de sequences de donnees observees (observables). Dans notre cas, nous cherchons
+a determiner la sequence d’evenements qui est associee a un texte donne, considere comme sequence de
+phrases.
+
+Nous faisons l’hypothese que la segmentation est un processus markovien, c’est-a-dire que l’etat associe
+a l’observable courant ne depend que des observables precedents et de l’etat precedent : nous proposons
+d’utiliser les marqueurs temporels (temps grammaticaux) comme observables, les categories d’evene-
+ments constituant les etats caches. Les matrices de transitions (une pour les etats, une pour les observables)
+sont obtenues a partir d’un corpus de textes annotes manuellement. Une illustration du modele HMM que
+nous utilisons est proposee dans la ﬁgure 2.
+
+Un séisme a été enrgistré vendredi soir a Oran. Passe-compose < Evénement Principal
+La ville avait déja ete secouée en jan\/ier par une secousse. Plus que Parfait < Evénement secondaire
+Le pays e_st réguliérement affecté par des séismes. Observations Present < Contexte Etats cachés
+
+FIG. 2 — Illustration de la segmentation de textes en evenements avec le modele HMM
+
+Une contrainte due al’uti1isation des HMM est que pour une sequence d’observation donnee, le calcul de la
+sequence d’ etat correspondant ne considere que l’etat precedent et ne prend pas en compte les dependances
+qui existent entre l’etat precedent et la sequence d’observation et ne permet pas d’integrer des criteres plus
+varies. Pour y remedier, nous avons essaye un modele utilisant les CRF, decrit dans la section suivante.
+
+3.3 Modéle CRF
+
+Depuis leur introduction en 2001, les CRF (Lafferty et al., 2001) ont ete tres largement utilises dans le
+domaine du TAL. Dans le cadre de la segmentation de textes avec categorisation de segments, dont releve
+notre travail, (Hirohata et al., 2008) ont ainsi obtenu de tres bons resultats en appliquant un modele CRF
+pour classiﬁer les phrases contenues dans les resumes d’articles scientiﬁques, selon quatre categories :
+objectzf méthode, résultat, conclusion.
+
+Les modeles HMM et les modeles CRF se differencient sur le fait que l’objectif des premiers est de maxi-
+miser la probabilite jointe P(a:, y) entre une sequence d’observations  et une sequence d’etats caches
+(y), alors que les seconds utilisent une approche conditionnelle (on calcule P(y|a:)) pour attribuer une
+sequence d’etats a une sequence d’observations. L’ avantage de l’approche conditionnelle est de permettre
+la representation de la sequence d’observations sous forme d’un vecteur dont les composantes sont issues
+de traits caracteristiques (ou features). Ces traits offrent la possibilite d’integrer des connaissances variees
+dans les modeles. Une deﬁnition plus formelle des CRF est donnee par (en reprenant (Hirohata et al.,
+2008)) :
+
+Pm) = f@)exp<A.F<y,x>> <1)
+F(y,w) = Z_f(y,m') <2)
+
+Z)‘(.'I3) = :eJ:p()\.F(y,J:)) (3)
+
+LUDOVIC J EAN-LOUIS, ROMARIC BESANCON, OLIVIER FERRET
+
+o1‘1 F(y, 1:) est un vecteur ayant pour composantes les valeurs des traits pour chaque sequence 1' de la
+sequence d’entree, A est un vecteur de ponderation des traits, et Z)‘  est un facteur de normalisation
+qui depend de toutes les sequences d’etats possibles. Un algorithme de programmation dynamique est
+generalement utilise pour reduire la complexite du calcul de Z)‘  De meme que pour les modeles HMM,
+l’algorithme de Viterbi est utilise pour calculer la sequence d’etats la plus probable en fonction d’une
+sequence d’observations.
+
+Nous proposons d’integrer les traits suivants a notre modele de segmentation en evenements :
+
+— le temps des verbes : comme avec notre modele HMM, nous faisons l’hypothese que les change-
+ments de temps grammaticaux, en particulier lorsqu’ils concement des temps du passe, sont correles
+aux changements d’evenements dans le type de textes que nous considerons. Nous prenons en compte
+cette dimension dans notre modele CRF en utilisant un trait binaire pour chaque temps grammatical
+possible, le trait valant I si au moins un verbe de la phrase est conjugue au temps considere, 0 sinon;
+
+— la presence d’une date : si une phrase contient une date anterieure a la date de l’evenement principal,
+il est probable qu’elle fasse reference a un evenement secondaire. Nous exploitons cette caracteristique
+de facon limitee en utilisant un trait pour indiquer la presence ou l’absence d’une entite nommee de type
+date dans la phrase (dans le modele actuel, la valeur de la date n’est pas utilisee) ;
+
+— les expressions temporelles : ce trait est utilise pour prendre en compte la presence d’une expression de
+localisation temporelle dans une phrase. Pour cela, nous utilisons un dictionnaire d’ expressions que nous
+avons constitue manuellement a partir du corpus presente dans (Laporte et al., 2008). Le dictionnaire
+contient des expressions telles que : au début de l ’anne’e, ces derniéres années.
+
+4 Evaluation
+
+Cette section presente les resultats que nous avons obtenus en appliquant les modeles HMM et CRF a la
+segmentation des textes en evenements. Pour la Ir1ise en oeuvre de ces modeles, nous avons utilise deux im-
+plementations de reference : NLTK3 (HMM) et CRF++4 (CRF). L’ evaluation est proposee en deux volets :
+d’une part, une evaluation intrinseque de la segmentation (les segments trouves par la methode sont-ils
+bons ?); d’autre part, une evaluation ﬁnale sur l’application visee, c’est-a-dire l’impact de la qualite de la
+segmentation sur l’extraction des informations de l’evenement principal dans les depeches.
+
+4.1 Données
+
+Pour l’evaluation des modeles, nous avons utilise un corpus de 501 depeches de presse en langue fran-
+caise concemant les evenements sismiques. Ces depeches ont ete collectees entre ﬁn fevrier 2008 et debut
+septembre 2008, en provenance pour partie d’un ﬂux de depeches AFP (1/3 du corpus), et pour partie
+de depeches collectees sur Google Actualites (2/3 du corpus). Ces depeches evoquent 142 evenements
+sismiques principaux differents. On y retrouve a la fois des depeches ayant une structure simple (1 seul
+evenement) et une structure complexe (plusieurs evenements) : 252 depeches (50%) mentionnent au moins
+un evenement secondaire. Le corpus a ete manuellement annote en entites nommees par des analystes du
+domaine, uniquement pour les entites liees a l’evenement principal; en revanche, les annotateurs pou-
+
+3http ://www.nltk.org/
+4http ://crfpp.sourceforge.net/
+
+UTILISATION D’INDICES TEMPORELS POUR LA SEGMENTATION EVENEMENTIELLE DE TEXTES
+
+vaient annoter plusieurs entités du meme type s’ils jugeaient qu’elles étaient identiquement acceptables
+comme information associée a l’événement (ces alternatives concement par exemple plusieurs niveaux
+de granularité de l’information; par exemple pour des noms de lieux, la ville ou le pays). Les informa-
+tions associées a un événement sisIr1ique sont présentées dans le tableau 1, avec leur distribution dans le
+corpus. On remarque que la distribution des entités nommées n’est pas homogene : il y a beaucoup de
+noms de lieux (28,64%) et tres peu de coordonnées géographiques (0,91 %). Pour évaluer notre approche
+
+Type d’entité Nombre Nature
+
+EVENT_TYPE 499 type d’éVénement (séisme, tsunami ...)
+LOCATION 947 lieu de l’événement
+
+DATE 470 date de l’événement
+
+TIME 345 heure de l’événement
+
+MAGNITUDE 484 magnitude
+
+DAMAGES 531 dégats causés par l’événement
+GEO_COORDINATES 30 coordonnées géographiques
+
+TAB. 1 — Distribution des entités nommées dans le corpus de référence : 3306 entités dans 501 dépéches
+
+de segmentation en événements, nous avons annoté une sous-partie du corpus, composée de 140 dépéches
+principalement sélectionnées parmi les dépéches évoquant au moins un événement secondaire. Le tableau
+2 montre la distribution des événements sur la sous-partie annotée. On remarque que la catégorie d’évé-
+nements la plus représentée est Evénemem,‘ principal (70%), ce qui est cohérent avec l’aspect tres factuel
+des dépéches de presse. La catégorie Evénemem,‘ secondaire regroupe sans distinction tous les événements
+différents de l’événement principal : notons que parmi les dépéches sélectionnées, le nombre réel d’évé-
+nements secondaires distincts évoqués peut monter jusqu’a 4, avec un nombre moyen de 1,66 événements
+secondaires évoqués par article.
+
+1659 événements sismiques dans 140 dépéches
+Type d’éVénement Nombre de phrases Représentativité
+Evénement principal 1168 70%
+Evénement secondaire 287 17%
+Contexte 213 13%
+
+TAB. 2 — Distribution des types d’événements dans le corpus de référence
+
+4.2 Evaluation intrinséque de la segmentation en événements
+
+Nous reportons dans le tableau 3 les résultats en termes de précision-rappel (notés P. et R.) pour la seg-
+mentation des textes en événements en utilisant les modeles HMM et CRF. Ces résultats sont obtenus par
+validation croisée en exploitant 4/5 du corpus pour la phase d’apprentissage et 1/5 pour la phase de test.
+Ils sont complétés par les résultats d’une heuristique ad hoc de segmentation, HeurSeg, issue d’une ap-
+plication existante d’extraction d’information dans le domaine des événements sismiques5 et développée
+
+5Cette application est actuellement utilisée par les analystes du Laboratoire de Détection et de Géophysique du CEA.
+
+LUDOVIC J EAN-LOUIS, ROMARIC BESANCON, OLIVIER FERRET
+
+spéciﬁquement pour ce domaine. Cette heuristique utilise comme critere principal la présence et la valeur
+des dates selon les principes suivants : des dates ayant des valeurs différentes correspondent a des seg-
+ments différents (le segment principal étant celui de date la plus récente); les ruptures de segments entre
+deux dates différentes s’appuient sur la structure du texte en phrases et paragraphes ainsi que la présence
+d’autres entités caractéristiques du domaine entre les dates. Pour sa part, le modele HMM exploite les
+seules séquences des temps des verbes contenus dans les textes. Le modele CRF integre tous les traits pre-
+sentés a la section 3.3 ainsi que les dépendances entre la catégorie de l’événement courant et la catégorie
+de l’événement précédent. I1 faut noter que les résultats obtenus par les modeles HMM et CRF ne sont
+pas directement comparables puisque les deux modeles utilisent des caractéristiques différentes pour la
+classiﬁcation (respectivement des observations et des traits). Néanmoins, les modeles HMM et CRF ob-
+tiennent tous deux des meilleurs résultats que l’heuristique ad hoc, excepté le HMM pour les événements
+secondaires. On remarque que pour le HMM le seul critere utilisé n’est pas sufﬁsant pour discriminer les
+événements : si l’événement principal est correctement reconnu (82,95% rappel et 93,56% de précision),
+les autres types d’événements le sont nettement moins. De facon globale, on peut noter que le modele CRF
+permet d’obtenir une meilleure segmentation en événements, notamment de par sa capacité a intégrer un
+plus large ensemble d’informations.
+
+HeurSeg HMM CRF
+
+Type d’éVénement R. (%) P. (%) R. (%) P. (%) R. (%) P. (%)
+Evénement principal 82,8 64,68 82,95 93,56 98,69 87,39
+Evénement secondaire 23,53 43,42 37.84 9,63 52,65 95,76
+Contexte 16,87 21,72 49,15 39,97 69,31 92,96
+
+TAB. 3 — Résultats de la segmentation en événements
+
+4.3 Evaluation de la segmentation pour l’extraction d’information
+
+L’objectif de la segmentation en événements est de constituer des segments de texte faisant reference a
+un seul événement. Les segments établis sont ensuite utilisés pour rattacher les entités aux événements
+(le rattachement se fait a l’intérieur d’un segment). L’heuristique simple que nous appliquons pour le rat-
+tachement se fonde sur l’hypothese que les informations contenues dans les dépéches sont organisées en
+fonction de leur importance dans l’actualité : les informations les plus pertinentes (généralement associées
+a l’événement principal) sont citées avant les informations subordonnées (associées a un événement secon-
+daire ou au contexte). Nous utilisons donc l’heuristique suivante : pour chaque type d ’entite’, on choisit la
+premiere entite’ tr0uve’e dans le segment. Pour démontrer l’intérét de la segmentation en événements, nous
+reportons dans le tableau 4 les résultats du rattachement des entités a l’événement principal dans le cas ou
+il n’y a pas de segmentation en événements (dans ce cas, on considere le document comme un seul seg-
+ment) et lorsque la segmentation est réalisée par l’heuristique de segmentation HeurSeg de la Section 4.2
+ainsi que par les modeles HMM et CRF. I1 faut d’abord souligner que l’approche sans segmentation permet
+d’obtenir un niveau de rattachement déja élevé (et meme supérieur au HMM : +2,73% en F1-mesure) que
+la segmentation fondée sur l’heuristique HeurSeg améliore de facon signiﬁcative (+6,22% en F1-mesure
+par rapport a l’approche basique). Moyennant les variations selon les types d’entités, le modele a base de
+CRF donne pour sa part des résultats aussi bons (et méme un peu meilleurs) que ceux obtenus avec la
+segmentation heuristique tout en offrant une approche ne dépendant pas du domaine considéré.
+
+UTILISATION D’INDICES TEMPORELS POUR LA SEGMENTATION EVENEMENTIELLE DE TEXTES
+
+Sans segmentation HeurSe g HMM CRF
+
+Type d’entité R. (%) P. (%) R. (%) P. (%) R. (%) P. (%) R. (%) P. (%)
+DAMAGES 83,51 77,88 76,29 74,37 69,85 65,14 80,15 75,3
+
+DATE 38,41 35,87 69,31 64,99 48,93 45,6 64,38 60,12
+EVENT_TYPE 82,09 81,6 79,28 78,8 59,15 58,8 76,66 76,2
+
+GEO_COORDINATES 86,67 96,3 66,67 74,07 86,67 96,3 83,33 92,59
+LOCATION 41,00 40,92 56,00 55,89 61,2 61,08 57,4 57,29
+MAGNITUDE 93,54 92,96 86,25 85,89 66,67 66,25 86,67 86,13
+TIME 61,05 51,22 56,4 49,24 78,78 71,5 63,37 55,47
+Tous 66,58 63,5 71,02 68,63 63,44 61,15 71,65 68,82
+
+TAB. 4 — Résultats du rattachement des entités a l’événement principal
+5 Conclusion
+
+L’objectif de cet article est l’étude de la segmentation des textes en événements, dans le but de faciliter
+le rattachement des entités pertinentes a l’événement principal. Dans notre approche, nous avons traité
+la problématique de la segmentation des textes en événements comme un probleme de classiﬁcation de
+séquences o1‘1 l’objectif est de déterminer un type d’événement associé a chaque phrase. Nous avons pro-
+pose et évalué deux modeles : un modele HMM, qui utilise comme seul critere de décision la succession
+des temps des verbes dans un texte et un modele CRF, qui pour sa décision integre en plus des indices
+temporels supplémentaires (expressions temporelles, dates). En évaluant les différents modeles sur un cor-
+pus de dépéches concemant les événements sismiques, nous avons montré que le modele CRF obtient de
+meilleurs résultats pour la segmentation des textes en événements. De plus, nous avons vériﬁé l’impact de
+la segmentation des textes en événements sur l’identiﬁcation des entités pertinentes rattachées a l’événe-
+ment principal de la dépéche, et nous avons montré que le modele a base d’apprentissage par CRF permet
+d’avoir des résultats équivalents (et méme un peu meilleurs) a ceux obtenus avec un systeme utilisant une
+heuristique ad hoc, avec une approche a priori beaucoup plus générique.
+
+Concernant la généricité de l’approche, nous avons fait des premiers tests encourageants sur l’applica-
+tion du modele pour une autre langue (l’anglais), en utilisant directement les modeles appris du francais.
+Concernant le domaine, nous avons utilisé un corpus de dépéches dans le domaine des événements sis-
+miques o1‘1 l’information est bien structurée. Néanmoins, nous pensons que l’approche peut donner de bons
+résultats dans d’autres domaines et nous pensons faire des tests dans ce sens prochainement. Enﬁn, une
+analyse plus ﬁne des erreurs d’identiﬁcation d’entités sur notre corpus d’évaluation nous a montré que la
+principale source d’erreur est maintenant la technique de rattachement des entités aux événements, pour
+laquelle une heuristique simple a été utilisée. Nous allons donc focaliser notre recherche future sur cette
+problématique, en exploitant a la fois des criteres de densité des entités et des criteres linguistiques (liens
+explicites de dépendance syntaxique entre les entités).
+
+Remerciements
+
+Nous remercions les analystes du Laboratoire de Détection et de Géophysique du CEA (au sein du Dépar-
+tement Analyse, Surveillance, Environnement) pour l’annotation du corpus.
+
+LUDOVIC J EAN-LoUIS, RoMARIc BESANCON, OLIVIER FERRET
+
+Références
+
+BESANCON R., DE CHALENDAR G., FERRET 0., GARA F. & SEMMAR N. (2010, a paraitre). LIMA : A
+Multilingual Framework for Linguistic Analysis and Linguistic Resources Development and Evaluation.
+In 7”‘ Conference on Language Resources and Evaluation (LREC 2010), Malta.
+
+BESTGEN Y. & VONK W. (2000). Temporal Adverbials as Segmentation Markers in Discourse Com-
+prehension. Journal of Memory and Language, 42(1), 74-87.
+
+CROWE J. (1995). Constraint-based Event Recognition for Information Extraction. In 33"’ Annual Mee-
+ting of the Association for Computational Linguistics (ACL’95), p. 296-298, Cambridge, Massachusetts,
+USA.
+
+GRISHMAN R. & SUNDHEIM B. (1996). Message Understanding Conference-6 : A Brief History. In
+I 6”‘ International Conference on Computational linguistics (COLING’96), p. 466-471, Copenhagen,
+Denmark.
+
+HIROHATA K., OKAZAKI N., ANANIADOU S. & ISHIZUKA M. (2008). Identifying Sections in Scien-
+tiﬁc Abstracts using Conditional Random Fields. In Third International Joint Conference on Natural
+Language Processing (IJCNLP 2008), p. 381-388, Hyderabad, India.
+
+H0-DAC L.-M. & PERY-WOODLEY M.-P. (2008). Temporal adverbials and discourse segmentation
+revisited. In 7”‘ International Workshop on Multidisciplinary Approaches to Discourse 2008 (MAD 08)
+- Linearisation and Segmentation in Discourse, p. 65-77, Lysebu, Oslo, Norway.
+
+KITANI T ., ERIGUCHI Y. & HARA M. (1994). Pattern Matching and Discourse Processing in Informa-
+tion Extraction from Japanese Text. Journal of Artiﬁcial Intelligence Research, 2, 89-110.
+
+LAFFERTY J. D., MCCALLUM A. & PEREIRA F. C. N. (2001). Conditional Random Fields : Probabi-
+listic Models for Segmenting and Labeling Sequence Data. In Eighteenth International Conference on
+Machine Learning (ICML’0I), p. 282-289, USA.
+
+LAPORTE E. , NAKAMURA T. & VOYATZI S. (2008). A French Corpus Annotated for Multiword Expres-
+
+sions with Adverbial Function. In 6”‘ Conference on Language Resources and Evaluation (LREC’08),
+p. 48-51, Marrakech, Maroc.
+
+LUCAS N. (2004). La rhétorique des dépéches de presse a travers les marques énonciatives du temps, du
+lieu et de la personne. In Journe’e ATALA .' Modéliser et décrire l’organisation discursive a l’heure du
+document nume’rique, La Rochelle, France.
+
+NAUGHTON M. (2007). Exploiting Structure for Event Discovery Using the MDI Algorithm. In 45”‘
+Annual Meeting of the Association for Computational Linguistics (ACL 2007), p. 31-36, Prague.
+PUSTEJOVSKY, JAMES, KNIPPEN, RoBERT, LITTMAN, JESSICA, SAURI & RoSER (2005). Temporal
+and Event Information in Natural Language Text. Computers and the Humanities, 39(2-3), 123-164.
+
+RABINER L. (1989). A tutorial on Hidden Markov Models and selected applications in speech recogni-
+tion. Readings in Speech Recognition, p. 267-290.
+
+STEVENSON M. (2006). Fact distribution in Information Extraction. Language Resources and Evalua-
+tion, 40(2), 183-201.
+
+YAMRoN J. P., CARP I., GILLICK L., LowE S. & VAN MULBREGT P. (1998). A Hidden Markov Model
+Approach to Text Segmentation and Event Tracking. In IEEE International Conference on Acoustics,
+Speech, and Signal Processing (ICASSP’98), p. 333-336.
+

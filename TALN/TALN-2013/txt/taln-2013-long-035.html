@@ -1,0 +1,794 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Pr&#233;-segmentation de pages web et s&#233;lection de documents pertinents en Questions-R&#233;ponses</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Pr&#233;-segmentation de pages web
+et s&#233;lection de documents pertinents
+</p>
+<p>en Questions-R&#233;ponses
+</p>
+<p>Nicolas Foucault Sophie Rosset Gilles Adda
+</p>
+<p>LIMSI-CNRS - 508 rue John von Neumann - Plateau du Moulon
+Universit&#233; de Paris-Sud - B.P. 133 - 91403 Orsay Cedex - France
+</p>
+<p>prenom.nom@limsi.fr
+</p>
+<p>R&#201;SUM&#201;
+</p>
+<p>Dans cet article, nous pr&#233;sentons une m&#233;thode de segmentation de pages web en blocs
+de texte pour la s&#233;lection de documents pertinents en questions-r&#233;ponses. La segmentation des
+documents se fait pr&#233;alablement &#224; leur indexation en plus du d&#233;coupage des segments obtenus
+en passages au moment de l&#8217;extraction des r&#233;ponses. L&#8217;extraction du contenu textuel des pages
+est faite &#224; l&#8217;aide d&#8217;un extracteur maison. Nous avons test&#233; deux m&#233;thodes de segmentation.
+L&#8217;une segmente les textes extraits des pages web uniform&#233;ment en blocs de taille fixe, l&#8217;autre les
+segmente par TextTiling (Hearst, 1997) en blocs th&#233;matiques de taille variable. Les exp&#233;riences
+men&#233;es sur un corpus de 500K pages web et un jeu de 309 questions factuelles en fran&#231;ais, issus
+du projet Quaero (Quintard et al., 2010), montrent que la m&#233;thode employ&#233;e tend &#224; am&#233;liorer la
+pr&#233;cision globale (top-10) du syst&#232;me RITEL&#8211;QR (Rosset et al., 2008) dans sa t&#226;che.
+</p>
+<p>ABSTRACT
+</p>
+<p>Web pages segmentation for document selection in Question Answering
+</p>
+<p>In this paper, we study two different kinds of web pages segmentation for document selection
+in question answering. The segmentation is applied prior to indexation in addition to the
+traditionnal passage retrieval step in question answering. In both cases, the segmentation is
+textual and processed once the web pages textual content has been extracted using our own
+extraction system. In the first case, a document is tilled homogeneously in text blocs of fixed size
+while in the second case the segmentation is based on the TextTiling algorithm (Hearst, 1997).
+Evaluation on 309 factoid questions and a collection of 500K French web pages, coming from the
+Quaero project (Quintard et al., 2010), showed that such approaches tend to support properly
+the RITEL&#8211;QR system (Rosset et al., 2008) in this task.
+</p>
+<p>MOTS-CL&#201;S : pages web, TextTiling, s&#233;lection de documents, questions-r&#233;ponses, Quaero, Ritel,
+segmentation textuelle, segmentation th&#233;matique.
+</p>
+<p>KEYWORDS: web pages, TextTiling, document selection, question answering, Quaero, Ritel,
+textual segmentation, topic segmentation.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>479 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>1 Introduction
+</p>
+<p>C&#8217;est un truisme de nos jours de dire qu&#8217;Internet est une mine d&#8217;information, de ressources et
+de savoirs qui peuvent sembler infinis. Ces informations sont utiles &#224; toute personne souhaitant
+s&#8217;informer ou se distraire, mais &#233;galement aux chercheurs de nombreux domaines (biologie,
+sciences sociales, informatique, . . .) pour qui Internet est devenu un objet de recherches. Cepen-
+dant, malgr&#233; les progr&#232;s li&#233;s, par exemple par le passage au WEB 2.0, on ne peut que constater
+que les informations sur le Web ne sont pas fiables, ni m&#234;me accessibles ais&#233;ment.
+</p>
+<p>Les syst&#232;mes de r&#233;ponses aux questions sont un moyen efficace de rendre cette information &#224; la
+fois plus accessible et plus fiable. Plus accessible, car ces syst&#232;mes r&#233;pondent de fa&#231;on pr&#233;cise,
+rapide et concise aux questions qui leur sont pos&#233;es en langue naturelle (&#224; l&#8217;instar des moteurs de
+recherche usuels 1). Plus fiable, car les r&#233;ponses sont valid&#233;es par le syst&#232;me (Pe&#241;as et al., 2007).
+</p>
+<p>Une &#233;tape primordiale (dans toutes les acceptions du terme) pour les syst&#232;mes de questions-
+r&#233;ponses (QR) est l&#8217;op&#233;ration qui consiste &#224; extraire le contenu textuel des pages. Pour cela, il est
+n&#233;cessaire (Grau, 2004) de nettoyer, restructurer et filtrer leur contenu (par exemple de corriger
+les balises HTML et les erreurs d&#8217;encodage, d&#8217;&#233;liminer les codes javascript r&#233;siduels et les spams).
+</p>
+<p>La qualit&#233; (au sens de leur ad&#233;quation &#224; la t&#226;che QR) des textes obtenus d&#233;pend fortement de
+l&#8217;extracteur employ&#233; (Baroni et al., 2008) et de la qualit&#233; intrins&#232;que de l&#8217;information contenue
+dans les documents &#224; l&#8217;origine. Une t&#226;che cruciale, mais souvent m&#233;sestim&#233;e, pour un syst&#232;me
+QR est de pouvoir filtrer les documents dont la qualit&#233; intrins&#232;que est faible, afin d&#8217;augmenter la
+pr&#233;cision de la s&#233;lection des meilleurs candidats lors de l&#8217;extraction de r&#233;ponses.
+</p>
+<p>Au cours de travaux pr&#233;c&#233;dents (Foucault et al., 2011), nous avons mis en place une strat&#233;gie
+de s&#233;lection des documents pertinents pour un syst&#232;me QR en fran&#231;ais, en compl&#233;ment de la
+s&#233;lection de documents traditionnelle effectu&#233;e par le moteur de recherche du syst&#232;me. Cette
+s&#233;lection repose sur une mesure de la qualit&#233; intrins&#232;que des documents en utilisant un mod&#232;le
+de langue, qui nous fournit a priori des mesures objectives sur le degr&#233; d&#8217;informativit&#233; d&#8217;un texte.
+Cette strat&#233;gie permet d&#8217;&#233;carter de la liste des candidats s&#233;lectionn&#233;s par le moteur de recherche
+du syst&#232;me, les documents les plus bruit&#233;s (c&#8217;est-&#224;-dire de faible qualit&#233;) pour la t&#226;che QR. Ici,
+un texte est consid&#233;r&#233; comme pertinent ou non dans sa globalit&#233;.
+</p>
+<p>Il est de coutume en QR (Ligozat, 2006) de d&#233;couper les documents en passage soit au moment
+de leur indexation, soit au cours des recherches. L&#8217;id&#233;e est de r&#233;duire la variabilit&#233; naturelle
+des documents en taille et en contenu. En effet, avec des segments textuels plus petits, on peut
+esp&#233;rer une variabilit&#233; plus faible, et un contenu informationnel (corr&#233;l&#233; au contenu linguistique,
+en particulier lexical et s&#233;mantique) plus coh&#233;rent, ce qui en retour doit permettre l&#8217;extraction
+de r&#233;ponses plus pertinentes que celles issues de la globalit&#233; du texte. Cette strat&#233;gie a fait
+ses preuves par le pass&#233; et des travaux r&#233;cents autour du d&#233;coupage de textes en passages
+(Tiedemann, 2007; Khalid et Verberne, 2008) l&#8217;ont consolid&#233;e.
+</p>
+<p>A notre connaissance, personne n&#8217;a tent&#233; de segmenter les documents pr&#233;alablement &#224; leur
+indexation, tout en d&#233;coupant les segments obtenus en passages au moment des recherches dans
+le but de r&#233;duire plus fortement la variabilit&#233; des documents. Dans cet article, nous d&#233;taillons
+plusieurs exp&#233;riences visant &#224; mesurer l&#8217;impact d&#8217;une telle pr&#233;-segmentation sur la t&#226;che QR.
+</p>
+<p>1. e.g. Google http://www.google.fr
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>480 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>2 Travaux connexes
+</p>
+<p>L&#8217;id&#233;e de segmenter des documents textuels (article de journaux, livres, . . .) en blocs de texte
+est un axe de recherche activement explor&#233; dans les ann&#233;es 90 en Recherche d&#8217;Information
+(RI) textuelle. Pour r&#233;duire la variabilit&#233; linguistique d&#8217;un texte, une premi&#232;re id&#233;e, explor&#233;e
+notamment par Salton (Salton et al., 1996) et Hearst (Hearst, 1997) consiste &#224; op&#233;rer une
+segmentation en blocs th&#233;matiques, les fronti&#232;res de blocs &#233;tant les endroits o&#249; on d&#233;tecte un
+changement de th&#232;me. Des calculs de proximit&#233; lexicale entre blocs adjacents permettent de
+r&#233;organiser le texte d&#8217;origine en segments plus homog&#232;nes (mais toujours de taille variable). Chez
+Salton, la proximit&#233; lexicale est obtenue &#224; l&#8217;aide de mesures de distances vectorielles, chaque
+bloc &#233;tant repr&#233;sent&#233; par un vecteur lexical. En fonction de valeurs seuils sur ces distances, des
+fusions entre paragraphes sont op&#233;r&#233;es. (Salton et al., 1996) effectue une fusion it&#233;rative, chaque
+it&#233;ration fusionnant les paragraphes jug&#233;s similaires selon cette distance, le document &#233;tant
+explor&#233; du d&#233;but &#224; la fin, de gauche &#224; droite. L&#8217;it&#233;ration s&#8217;arr&#234;te lorsque le texte ne contient
+plus que des blocs th&#233;matiquement homog&#232;nes. A partir de cette segmentation, Salton d&#233;rive
+un graphe des relations th&#233;matiques qu&#8217;entretiennent les blocs au sein du document. Dans le
+m&#234;me esprit, (Hearst, 1997) fusionne des blocs de textes entre eux, mais de mani&#232;re plus fine.
+Elle se fonde sur une analyse plus linguistique du texte que Salton. En effet, l&#8217;algorithme de
+segmentation de Hearst (TextTiling) utilise la structure du discours (ici la th&#233;orie des cha&#238;nes
+lexicales) et se fonde sur une segmentation en unit&#233;s lexicales &#233;l&#233;mentaires (tokens). Ces tokens
+forment les unit&#233;s de base pour la repr&#233;sentation de chaque bloc textuel. Cet algorithme utilise
+une mesure de distance fond&#233;e sur les statistiques de co-occurence. TextTiling ne fonctionne pas
+sur les paragraphes d&#8217;origine du texte contrairement &#224; l&#8217;algorithme de Salton, mais sur des blocs
+de pseudo-phrases construits sur la base de ces paragraphes.
+</p>
+<p>Plus r&#233;cemment, des travaux dans le contexte de la RI dans des documents multim&#233;dia ont
+propos&#233; une nouvelle m&#233;thode d&#8217;indexation de pages web (Faessel, 2008). Celle-ci s&#8217;appuie sur
+l&#8217;information des repr&#233;sentations DOM2 et CSS des pages web pour segmenter ces derni&#232;res
+avant indexation ; (Bruno et al., 2009) d&#233;montrent que l&#8217;utilisation de ces informations conduit &#224;
+une augmentation des performances d&#8217;un moteur de recherche dans sa t&#226;che. D&#8217;autres travaux
+de segmentation pour la classification automatique de pages web en th&#232;me (Qi et Davison, 2009)
+utilisent la repr&#233;sentation DOM. Dans (Gupta et al., 2003) l&#8217;extraction du contenu textuel des
+pages se fait automatiquement &#224; l&#8217;aide de la structure des arbres DOM. Dans (Asirvatham et al.,
+2001), l&#8217;&#233;chantillonnage des couleurs des images est utilis&#233; pour cat&#233;goriser les pages qui les
+contiennent. Dans (Kovacevic1 et al., 2004), pour la m&#234;me t&#226;che, on utilise le rendu visuel. (Guo
+et al., 2007) utilise des indices visuels (le rendu des pages fourni par le moteur de Mozilla 3),
+g&#233;om&#233;triques (les coordonn&#233;es des &#233;l&#233;ments de l&#8217;arbre DOM au sein du rendu des pages) et
+le style des pages (la r&#233;p&#233;tition d&#8217;information) pour d&#233;finir les blocs d&#8217;information pertinents
+trouv&#233;s dans les pages et les annoter s&#233;mantiquement. Dans (Feng et al., 2005), les auteurs
+&#233;tudient l&#8217;impact d&#8217;indices visuels et structurels sur la segmentation en blocs au travers d&#8217;une
+t&#226;che de cat&#233;gorisation fonctionnelle (blocs de type menu, titre, contenu, etc.). Dans (Vadrevu
+et al., 2005), les auteurs utilisent des crit&#232;res de d&#233;coupage fond&#233;s sur l&#8217;homog&#233;n&#233;it&#233; locale
+du contenu informationnel des pages web (i.e. mod&#232;le de segmentation bas&#233; sur le concept de
+path entropy) et d&#8217;indices visuels d&#233;riv&#233;s de leur repr&#233;sentation DOM. Certains syst&#232;mes comme
+VIPS (Cai et al., 2003) se fondent essentiellement sur ce type d&#8217;indices pour segmenter les pages.
+</p>
+<p>2. Document Object Model (DOM) www.w3.org/DOM
+3. www.mozilla.org
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>481 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>A notre connaissance, aucune tentative d&#8217;application de ces techniques comme proc&#233;dure de
+segmentation de pages web n&#8217;a &#233;t&#233; faite en QR. Nous avons choisi dans un premier temps
+d&#8217;utiliser un algorithme de premi&#232;re g&#233;n&#233;ration : le TextTiling de Hearst. Ce dernier a montr&#233;
+son int&#233;r&#234;t pour la s&#233;lection de document pertinent en RI et se fonde sur une philosophie sous-
+jacente commune &#224; notre domaine en TAL (Traitement Automatique des langues). De plus, on en
+trouve des impl&#233;mentations en libre acc&#232;s (contrairement &#224; certains des algorithmes &#233;voqu&#233;s
+plus haut). Par ailleurs, TextTiling pr&#233;sente l&#8217;avantage de fournir une segmentation en blocs
+th&#233;matiques qui pourrait &#234;tre mise &#224; contribution par la suite pour renforcer l&#8217;analyse s&#233;mantique
+des documents par un syst&#232;me QR. Dans la perspective de travaux futurs en segmentation
+de pages web autour de leur repr&#233;sentation visuelle en QR, le TextTiling nous permettra de
+b&#233;n&#233;ficier d&#8217;une segmentation TAL de r&#233;f&#233;rence &#224; comparer &#224; des approches de RI non textuelles.
+C&#8217;est dans cette optique que le travail pr&#233;sent&#233; dans cet article se positionne.
+</p>
+<p>Dans la section 3, nous pr&#233;sentons notre m&#233;thode de segmentation textuelle d&#233;velopp&#233;e sur
+la base du TextTiling de Hearst ; dans la section 4 nous &#233;valuons cette m&#233;thode sur la t&#226;che
+Questions-R&#233;ponses. Nous concluons et pr&#233;sentons les perspectives de ce travail dans la section 5.
+</p>
+<p>3 Segmentation textuelle de pages web
+</p>
+<p>Dans cette section, nous pr&#233;sentons la m&#233;thode de segmentation de pages web que nous avons
+mise en place pour la s&#233;lection de documents pertinents en QR.
+</p>
+<p>La figure 1 pr&#233;sente les &#233;tapes-cl&#233;s de la cha&#238;ne de traitement qui correspond &#224; cette m&#233;tode : de
+l&#8217;extraction du contenu textuel des pages &#224; l&#8217;obtention de blocs de textes normalis&#233;s. Chaque
+&#233;tape cl&#233; de cette cha&#238;ne est d&#233;crite successivement dans les sections 3.2, 3.3 et 3.4.
+</p>
+<p>3.1 Pr&#233;sentation g&#233;n&#233;rale
+</p>
+<p>&#1;&#2;&#3;&#4;&#5;&#6;&#3;&#7;&#8;&#9;&#10;
+</p>
+<p>&#11;&#12;&#13;&#14;&#12;&#9;&#3;&#5;&#3;&#7;&#8;&#9;
+</p>
+<p>&#15;&#8;&#4;&#14;&#5;&#16;&#7;&#17;&#5;&#3;&#7;&#8;&#9; &#1;&#2;&#3;&#4;&#5;&#3;&#6;
+</p>
+<p>&#2;&#3;&#4;&#5;&#3;&#6;
+</p>
+<p>&#1;&#2;&#3;&#3;&#4;&#5;&#6;&#7;&#2;&#8;&#9;&#10;&#4;
+&#11;&#12;&#13;&#4;&#14;&#9;&#15;&#4;&#16;
+</p>
+<p>&#2;&#3;&#4;&#5;&#3;&#6;
+</p>
+<p>&#1;
+FIGURE 1 &#8211; Notre proc&#233;dure de segmentation de pages web en lien avec les (pr&#233;-)traitements QR.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>482 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>En th&#233;orie, nous aurions d&#251; inverser les &#233;tapes de normalisation et de segmentation afin que
+la segmentation b&#233;n&#233;ficie des traitements de normalisation (voir section 3.4). Cependant, une
+telle inversion n&#233;cessite certaines modifications de notre cha&#238;ne de normalisation : en effet, cette
+derni&#232;re supprime l&#8217;indentation des textes utile &#224; l&#8217;algorithme de TextTiling (voir section 3.3.1).
+Nous n&#8217;avons malheureusement pas eu le temps de mettre en place les modifications ad&#233;quates.
+</p>
+<p>3.2 Extraction
+</p>
+<p>Notre proc&#233;dure d&#8217;extraction se d&#233;roule en deux temps : pr&#233;-traitement (section 3.2.1) puis
+repr&#233;sentation et extraction du contenu textuel des pages web (section 3.2.2). La phase de pr&#233;-
+traitement des pages web est prise en charge par Kitten (Falco et al., 2012), un outil de traitement
+de documents web d&#233;velopp&#233; au LIMSI. La repr&#233;sentation et l&#8217;extraction du contenu textuel des
+pages web se fait sur les versions des pages pr&#233;-trait&#233;es par Kitten &#224; l&#8217;aide du navigateur textuel
+de pages web Lynx 4.
+</p>
+<p>3.2.1 Pr&#233;-traitement des pages web
+</p>
+<p>Le pr&#233;-traitement des documents web est r&#233;alis&#233; &#224; l&#8217;aide de Kitten. Ce choix est motiv&#233; par les
+performances &#233;tat de l&#8217;art que ce dernier a obtenu en qualit&#233; d&#8217;extracteur textuel (Falco et al.,
+2012) dans le cadre d&#8217;&#233;valuations QR sur le syst&#232;me Fidji (Moriceau et Tannier, 2010).
+</p>
+<p>Kitten est un outil d&#233;velopp&#233; au LIMSI, d&#233;di&#233; aux traitements et &#224; la normalisation de donn&#233;es
+Html. Les pages web fournies en entr&#233;e sont trait&#233;es et de nouvelles pages web au format Xhtml
+valide W3C (encod&#233;es en UTF8) sont produites en sortie. Ces pages sont bien form&#233;es (correction
+de leur squelette Html via jTidy 5), sans erreurs d&#8217;encodage (correction de leur encodage via
+jChardet 6 et conversion des caract&#232;res Html sp&#233;ciaux dans une base Unicode via HTMLCleaner 7).
+</p>
+<p>Kitten produit des pages web exploitables en Extraction d&#8217;Information (EI) (Baroni et al., 2008)
+sans appliquer d&#8217;heuristiques de nettoyage pr&#233;d&#233;finies contrairement &#224; des outils classiques
+de nettoyage de contenu comme Boilerpipe (Kohlsch&#252;tter et al., 2010) ou Ncleaner (Evert,
+2008) ; par exemple Ncleaner pr&#233;serve pour l&#8217;essentiel le texte des balises &lt;title&gt;, &lt;h1&gt;,
+&lt;h2&gt;, &lt;h3&gt;, &lt;div&gt; et &lt;p&gt; contenus dans le corps des pages, toute autre balise &#233;tant jug&#233;e
+non pertinente pour l&#8217;extraction. Par ailleurs, Kitten dispose de nombreuses fonctions et filtres
+configurables qui le rendent flexible. Ainsi, il est possible de conserver le contenu des attributs
+&lt;title&gt; associ&#233; &#224; un lien tout en supprimant le lien ou au contraire conserver ce lien tout en
+supprimant les attributs &lt;title&gt; qui lui sont associ&#233;s. Kitten se rapproche donc plut&#244;t d&#8217;outils
+de d&#233;veloppement populaires dans le domaine de l&#8217;EI web comme la librairie Python Beautiful
+Soup 8 et le framework de crawling web Scrapy 9.
+</p>
+<p>Kitten dispose de son propre module d&#8217;extraction de pages web et d&#8217;un syst&#232;me d&#8217;extraction
+back-off bas&#233; sur Lynx. Celui-ci sert d&#8217;extracteur principal dans notre syst&#232;me de segmentation.
+</p>
+<p>4. lynx.browser.org
+5. http://jtidy.sourceforge.net
+6. portage Java de la d&#233;tection automatique d&#8217;encodage d&#8217;une page du moteur de Mozilla
+7. http://htmlcleaner.sourceforge.net
+8. http://www.crummy.com/software/BeautifulSoup
+9. scrapy.org
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>483 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>3.2.2 Repr&#233;sentation des pages web et extraction textuelle
+</p>
+<p>La repr&#233;sentation des pages utilis&#233;e par notre moteur d&#8217;extraction se fait gr&#226;ce &#224; Lynx. Ce
+dernier est un navigateur d&#8217;informations distribu&#233;es &#224; port&#233;e g&#233;n&#233;rale pour Internet. Il permet
+de naviguer sur le Web depuis une console, en mode textuel uniquement. C&#8217;est un outil libre
+int&#233;gr&#233; automatiquement dans la plupart des distributions Linux grand public comme Ubuntu,
+qui int&#232;gre de nombreuses fonctionnalit&#233;s web, dont l&#8217;extraction du contenu textuel de pages
+web.
+</p>
+<p>Nous avons retenu Lynx pour deux raisons. La premi&#232;re raison est qu&#8217;il fournit une extraction
+textuelle de pages web qui refl&#232;te leur rendu visuel. La seconde raison est que Lynx peut fournir
+une d&#233;composition lin&#233;aire du contenu des pages web en blocs de texte, adapt&#233;e &#224; la plupart des
+traitements d&#8217;analyses de documents en QR.
+</p>
+<p>Si Lynx produit des extractions textuelles fid&#232;les au rendu visuel des pages web, l&#8217;agencement des
+blocs d&#8217;extraction diff&#232;re de celui observ&#233; dans un navigateur web classique du type Firefox 10. En
+effet, Lynx effectue une travers&#233;e gauche-droite descendante des pages web. En cons&#233;quence, les
+blocs d&#8217;information textuelle rencontr&#233;s le long du parcours sont mis bout &#224; bout dans le fichier
+d&#8217;extraction r&#233;sultant. Ainsi, on trouve souvent dans les extractions textuelles de Lynx la suite
+de blocs suivant (donn&#233;s ici selon leur contenu visuel) : bandeau, menus, colonne gauche, bloc
+de contenu principal, colonne droite, puis pied de page. On peut aussi trouver des agencements
+moins st&#233;r&#233;otypiques selon le design des pages et trouver des s&#233;ries de blocs de contenu principal
+qui s&#8217;encha&#238;nent. L&#8217;&#233;tape d&#8217;extraction textuelle est r&#233;alis&#233;e par Lynx via le syst&#232;me d&#8217;extraction
+back-off de Kitten.
+</p>
+<p>3.3 Strat&#233;gie de segmentation
+</p>
+<p>Nous avons utilis&#233; deux strat&#233;gies de segmentation en blocs de texte. La premi&#232;re strat&#233;gie
+consiste &#224; segmenter les textes extraits par Lynx en blocs th&#233;matiques de taille variable par
+l&#8217;algorithme de TextTiling de Hearst (Hearst, 1997). La seconde strat&#233;gie vise &#224; contr&#244;ler la
+pr&#233;c&#233;dente et segmente les textes extraits par Lynx de fa&#231;on uniforme en blocs de taille identique.
+</p>
+<p>3.3.1 Segmentation par TextTiling
+</p>
+<p>L&#8217;algorithme de TextTiling de Hearst (Hearst, 1997) segmente un texte en unit&#233;s appel&#233;es
+multi-paragraphes en fonction des th&#233;matiques abord&#233;es dans le texte. Traditionnellement, il
+est utilis&#233; pour d&#233;tecter les th&#233;matiques dans des textes fortement structur&#233;s (e.g. articles de
+journaux, textes issus de livres . . .) et de grande taille (i.e. de plusieurs pages). Une des questions
+sous-jacente aux exp&#233;riences que nous avons men&#233;es &#233;tait de savoir si cet algorithme pourrait
+&#234;tre utile pour la segmentation de pages web.
+</p>
+<p>L&#8217;algorithme, pr&#233;sent&#233; en d&#233;tail dans (Hearst, 1997) s&#8217;articule autour des 3 &#233;tapes suivantes :
+</p>
+<p>&#8211; tokenisation ;
+&#8211; calcul de scores lexicaux ;
+&#8211; identification de fronti&#232;res.
+</p>
+<p>10. http://www.mozilla.org
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>484 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>La proc&#233;dure de segmentation d&#233;marre par une &#233;tape de tokenization du texte qui lui est fourni
+en entr&#233;e. Les mots qui sont des stopwords ne sont pas tokenis&#233;s et sont &#233;cart&#233;s. Les autres
+subissent une &#233;tape de stemming bas&#233;e sur une fonction d&#8217;analyse morphologique. Le texte est
+tokeniz&#233; en pseudo-phrases de longueur pr&#233;d&#233;finie cens&#233;e repr&#233;senter la longueur moyenne d&#8217;un
+paragraphe (20 pseudo-phrases par d&#233;faut). Les paragraphes d&#8217;origine du texte servent de point
+d&#8217;ancrage pour la tokenization, qui elle-m&#234;me d&#233;pend de l&#8217;indentation dans le texte.
+</p>
+<p>L&#8217;algorithme &#233;value ensuite la proximit&#233; lexicale qui existe entre toutes les paires de blocs
+adjacents possibles, et fournit un score fond&#233; sur des co-occurences lexicales de tokens qui
+mesure l&#8217;&#233;cart entre deux blocs. Les blocs sont constitu&#233;s des pseudo-phrases obtenues lors de
+la phase de tokenization. La d&#233;termination des scores lexicaux varie selon la strat&#233;gie utilis&#233;e.
+TextTiling dispose de 2 strat&#233;gies de comparaison de blocs diff&#233;rentes. La premi&#232;re (block
+comparison), compare deux blocs adjacents de texte et calcule leur &#233;cart sur la base du nombre
+de tokens qu&#8217;ils ont en commun. La seconde m&#233;thode (vocabulary introduction) &#233;value ce m&#234;me
+&#233;cart sur la base des tokens issus des pseudo-phrases qui bordent la fronti&#232;re entre deux blocs.
+</p>
+<p>Enfin, l&#8217;algorithme proc&#232;de au marquage des fronti&#232;res de blocs pertinentes sur la base des
+&#233;carts mesur&#233;s &#224; l&#8217;&#233;tape pr&#233;c&#233;dente. Ceci est fait &#224; l&#8217;aide d&#8217;une fen&#234;tre glissante sur les blocs.
+Les fronti&#232;res de blocs pr&#233;sentant les plus forts &#233;carts sont s&#233;lectionn&#233;es comme fronti&#232;res
+th&#233;matiques.
+</p>
+<p>L&#8217;impl&#233;mentation que nous avons utilis&#233;e du TextTiling est fournie par le package Python NLTK
+sans la fonction d&#8217;analyse morphologique. Le calcul des scores lexicaux se fait par block comparison.
+</p>
+<p>3.3.2 Segmentation uniforme
+</p>
+<p>Cette segmentation repr&#233;sente la condition contr&#244;le dans nos exp&#233;riences. Elle se contente de
+segmenter chaque fichier texte qui lui est pr&#233;sent&#233; en 8 blocs, c&#8217;est-&#224;-dire la moyenne du nombre
+de blocs de segmentation obtenus par TextTiling sur notre corpus d&#8217;exp&#233;rimentation au cours de
+tests pr&#233;liminaires ; ceci revient &#224; fixer la taille moyenne des blocs en nombre de lignes (voir la
+section 4.3).
+</p>
+<p>La segmentation se fait selon un parcours lin&#233;aire du texte d&#8217;entr&#233;e, du d&#233;but jusqu&#8217;&#224; la fin, les
+points de coupe sont d&#233;termin&#233;s &#224; l&#8217;avance selon le nombre total de lignes dans le texte et le
+nombre maximum de blocs fix&#233; en sortie (8). Les textes trop petits (ceux de moins de 8 lignes)
+ne sont pas segment&#233;s et sont consid&#233;r&#233;s comme des blocs uniques.
+</p>
+<p>3.4 Normalisation
+</p>
+<p>La normalisation est une &#233;tape durant laquelle un texte brut est trait&#233; afin qu&#8217;une unit&#233; lexicale
+soit explicitement d&#233;finie. Au cours de la normalisation, le texte est transform&#233; dans une forme
+o&#249; les mots et les nombres sont clairement d&#233;limit&#233;s, la ponctuation est s&#233;par&#233;e des mots, et des
+phrases ou pseudo-phrases sont clairement form&#233;es.
+</p>
+<p>Notre normalisation passe par plusieurs &#233;tapes : s&#233;paration des mots et nombres de la ponctuation,
+reconstruction de la casse sur les mots, ajout de la ponctuation le cas &#233;ch&#233;ant et s&#233;paration en
+phrases ou pseudo-phrases du texte d&#8217;entr&#233;e. Elle s&#8217;appuie sur des lexiques, des dictionnaires de
+r&#232;gles et des mod&#232;les de langue (D&#233;chelotte et al., 2007).
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>485 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>4 Evaluation Questions-R&#233;ponses
+</p>
+<p>4.1 Hypoth&#232;ses de travail et conditions exp&#233;rimentales
+</p>
+<p>Les exp&#233;riences pr&#233;sent&#233;es ont pour but d&#8217;examiner l&#8217;hypoth&#232;se selon laquelle une fen&#234;tre
+d&#8217;analyse plus r&#233;duite pour traiter les documents web permettrait une s&#233;lection du syst&#232;me QR
+plus pr&#233;cise (c&#8217;est-&#224;-dire obtenir des r&#233;ponses plus pertinentes et en plus grand nombre). &#192; cette
+fin, nous r&#233;alisons une segmentation avant l&#8217;indexation des documents en plus du d&#233;coupage
+habituel en passages r&#233;alis&#233; lors de l&#8217;extraction des r&#233;ponses. La segmentation des documents est
+effectu&#233;e par TextTiling ou uniform&#233;ment par notre algorithme de segmentation contr&#244;le.
+</p>
+<p>Les &#233;valuations de l&#8217;impact de ces algorithmes de segmentation sur le syst&#232;me RITEL&#8211;QR (voir
+section 4.2) sont pr&#233;sent&#233;es section 4.5 selon 3 conditions exp&#233;rimentales :
+</p>
+<p>&#8211; condition 1 : condition sans segmentation ou baseline (bsln) ;
+&#8211; condition 2 : condition en segmentation par TextTiling (TT) ;
+&#8211; condition 3 : condition en segmentation contr&#244;le (ctrl).
+</p>
+<p>4.2 Syst&#232;me d&#8217;exp&#233;rimentation : RITEL&#8211;QR
+</p>
+<p>Le syst&#232;me RITEL&#8211;QR que nous utilisons dans les exp&#233;riences est compl&#232;tement d&#233;crit dans (Ber-
+nard et al., 2009) et (Galibert, 2009). Il s&#8217;agit d&#8217;un syst&#232;me qui a &#233;t&#233; con&#231;u &#224; l&#8217;origine comme
+un syst&#232;me de dialogue (Toney et al., 2008). D&#8217;un point de vue g&#233;n&#233;ral, on peut dire que le
+syst&#232;me s&#8217;appuie sur une analyse multi-niveaux, appliqu&#233;e sur les questions et sur les documents.
+Les documents sont totalement analys&#233;s et index&#233;s d&#8217;apr&#232;s les r&#233;sultats d&#8217;analyse. La recherche
+est effectu&#233;e dans l&#8217;index complet des documents. L&#8217;analyse permet de rep&#233;rer et typer des
+&#233;l&#233;ments pertinents d&#8217;information qui peuvent prendre la forme d&#8217;entit&#233;s nomm&#233;es, complexes
+et structur&#233;es, de chunks morpho-syntaxiques, d&#8217;actes de dialogue et de marqueurs th&#233;matiques.
+</p>
+<p>La premi&#232;re &#233;tape de RITEL&#8211;QR consiste &#224; cr&#233;er un descripteur de recherche (DDR) qui contient
+toutes les informations utiles pour la recherche de documents, l&#8217;extraction de passages pertinents
+et l&#8217;extraction de r&#233;ponses. Ces informations sont les &#233;l&#233;ments de la question, leurs transforma-
+tions possibles (d&#233;rivations morphologiques, synonymes etc. et les poids associ&#233;s), et les types
+attendus de la r&#233;ponse (avec les poids associ&#233;s). Ces types sont le plus souvent des types d&#8217;entit&#233;s
+nomm&#233;es (personne, lieu . . .) et refl&#232;tent la taxonomie d&#8217;entit&#233;s utilis&#233;e au moment de l&#8217;analyse.
+</p>
+<p>La s&#233;lection des documents consiste &#224; fournir, &#224; partir de l&#8217;index, les n documents les plus
+pertinents, c&#8217;est-&#224;-dire ceux contenant le plus d&#8217;informations pr&#233;sentes dans le DDR. En fonction
+de ces informations et de leur densit&#233;, les documents obtiennent un score. Ensuite, des passages
+sont extraits de chaque document. Ces passages sont de tailles variables (une fen&#234;tre d&#8217;analyse
+diff&#233;rente est appliqu&#233;e selon la cat&#233;gorie de la question) et sont scor&#233;s selon le m&#234;me principe
+que les documents. L&#8217;extraction et l&#8217;&#233;valuation des candidats r&#233;ponses s&#8217;appuient sur la redon-
+dance de ces derniers dans les documents et les passages. On consid&#232;re que les &#233;l&#233;ments de
+passages qui correspondent &#224; un type possible de r&#233;ponse du DDR et qui ne sont ni des &#233;lements
+ni des sous-&#233;l&#233;ments d&#233;finis dans le DDR, sont des candidats r&#233;ponses potentiels. A chacun d&#8217;eux
+est finalement attribu&#233; &#224; un score de pertinence (Bernard et al., 2009).
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>486 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>4.3 Corpus
+</p>
+<p>Le corpus de pages web utilis&#233; dans nos exp&#233;rimentations (ci-apr&#232;s Q07fr) est compos&#233; de
+499 734 pages web (5Gbytes) tout venant (i.e. journal, Wikip&#233;dia, blog, site de vente, forum,
+etc.) et en fran&#231;ais. Il nous est fourni par le projet Quaero 11 et sert de corpus standard dans
+le cadre des &#233;valuations QR au sein du projet (Quintard et al., 2010). Les questions de test et
+d&#8217;entra&#238;nement utilis&#233;es (309 et 722 questions) proviennent du m&#234;me projet. Elles ont &#233;t&#233; cr&#233;&#233;es
+&#224; partir de logs utilisateurs (Quintard et al., 2010) du moteur de recherche fran&#231;ais Exalead 12 et
+sont compos&#233;es de questions factuelles (e.g. Qui est Gandhi ?, Combien p&#232;se la tour Eiffel ?, O&#249; se
+situe Pondich&#233;ry ? et Que signifie CSDPTT ?).
+</p>
+<p>Etape/Cond bsln ctrl TT
+extraction 497 228 497 228 497 228
+</p>
+<p>segmentation - 3 686 749 3 857 585
+(a) normalisation 485 037 3 660 264 3 686 875
+</p>
+<p>annotation 485 037 3 660 264 3 686 875
+indexation 484 060 3 658 988 3 686 857
+</p>
+<p>dur&#233;e totale 1,1j (26,5h) 2,38j (57,3h) 5,3j (127,5h)
+</p>
+<p>Stat/Index nbB nbL nbB nbL nbB nbL
+Min 1 1 1 1 1 1
+</p>
+<p>(b) Max 1 461 075 8 1 262 186 9 277
+Sd 0 7 646,5 0,01 18,7 8,4 32,61
+</p>
+<p>Mean 1 295,4 8 19,4 7,3 20,9
+</p>
+<p>TABLE 1 &#8211; (a) Nombre de blocs par condition exp&#233;rimentale (Cond) selon leur type : segment&#233; (ctrl et TT)
+ou non (bsln), selon les &#233;tapes n&#233;cessaires &#224; les cr&#233;er (Etape) et la dur&#233;e totale de traitement correspondant.
+(b) Statistiques (Stat) du nombre de blocs (nbB) et de lignes (nbL) moyens (Mean), minimum (Min),
+maximum (Max) et d&#233;viation standard (Std) des index (Index) relatifs &#224; chaque condition exp&#233;rimentale.
+</p>
+<p>Le tableau 1 (a) pr&#233;sente les r&#233;sultats des traitements (en terme de nombre de fichiers trait&#233;s) de
+chacune des &#233;tapes de notre cha&#238;ne de segmentation, ainsi que des &#233;tapes de pr&#233;-traitements
+QR (annotation et indexation), pour chacune des conditions d&#8217;exp&#233;rimentations (Cond) &#224; partir
+de Q07fr. Ces r&#233;sultats suivent le sch&#233;ma de la figure 1. Chaque sortie d&#8217;une &#233;tape d&#233;pend du
+r&#233;sultat qui pr&#233;c&#232;de pour une condition donn&#233;e. On peut noter que le nombre de fichiers issus de
+la segmentation dans les conditions contr&#244;le (ctrl) et TextTiling (TT) sont proches (environ 20K
+blocs de diff&#233;rence). Les blocs index&#233;s dans ces 2 conditions correspondent aux 484 060 textes
+index&#233;s en condition baseline (bsln). La dur&#233;e des traitements (parall&#232;les/m&#234;mes serveurs) dans
+ces conditions est respectivement de 2 &#224; 5 fois plus longue qu&#8217;en condition sans segmentation.
+</p>
+<p>Le tableau 1 (b) pr&#233;sente le nombre moyen de blocs (nbB) et de lignes par bloc (nbL) obtenus en
+conditions contr&#244;le et TextTiling. Ces informations sont aussi donn&#233;es pour la condition baseline
+&#224; titre indicatif (un bloc par fichier). On constate que l&#8217;algorithme de TextTiling et le contr&#244;le se
+comportent de fa&#231;on tr&#232;s similaire : en moyenne, le nombre de blocs produits (ctrl : 8 et TT :
+7,3) ainsi que leur taille (ctrl : 19,4 et TT : 20,9) sont semblables. Le TextTiling produit une
+l&#233;g&#232;re sur-segmentation : la d&#233;viation standard est 2 fois plus &#233;lev&#233;e que celle du contr&#244;le (ctrl)
+en nombre de lignes, le maximum de blocs pour un m&#234;me document &#233;tant &#233;galement plus grand.
+</p>
+<p>11. http://www.quaero.org
+12. http://www.exalead.com
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>487 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>4.4 M&#233;triques d&#8217;&#233;valuation
+</p>
+<p>Dans ce travail, nous employons les m&#233;triques habituellement utilis&#233;es en QR :
+</p>
+<p>&#8211; la pr&#233;cision d&#233;finie &#233;quation (1), est le ratio entre le nombre de r&#233;ponses correctes et le nombre
+total de questions. Si le syst&#232;me est capable de fournir plusieurs r&#233;ponses par question, on ne
+consid&#232;re que la premi&#232;re. CRi est le rang de la premi&#232;re r&#233;ponse correcte pour la question i.
+CRi prend pour valeur +&#8734; si aucune r&#233;ponse correcte n&#8217;a &#233;t&#233; trouv&#233;e.
+</p>
+<p>&#8211; Le top-n d&#233;fini &#233;quation (2), mesure la pr&#233;cision selon les r&#233;ponses correctes de rang 1 &#224; n.
+&#8211; Le Mean Reciprocal Rank (Moyenne des R&#233;ciproques des Rangs ou MRR) d&#233;fini &#233;quation (3),
+permet de mesurer la qualit&#233; du classement des r&#233;ponses (10 par question) effectu&#233; par le
+syst&#232;me. La r&#233;ponse correcte la mieux class&#233;e est pond&#233;r&#233;e par l&#8217;inverse de son rang initial.
+Une absence de r&#233;ponse correcte entra&#238;ne une contribution nulle. Le score final correspond &#224;
+la moyenne des contributions.
+</p>
+<p>pr&#233;cision=
+#CRi = 1
+#questions
+</p>
+<p>(1) top-n=
+#CRi &#8804; n
+#questions
+</p>
+<p>(2) MRR=
+</p>
+<p>&#65535; 1
+CRi
+</p>
+<p>#questions
+(3)
+</p>
+<p>4.5 R&#233;sultats
+</p>
+<p>Les r&#233;sultats sont pr&#233;sent&#233;s dans les parties (a) et (b) du tableau 2. On a utilis&#233; le test de
+McNemar (McNemar, 1947; Agresti, 1990) de R 13 pour juger de la significativit&#233; des r&#233;sultats
+pr&#233;sent&#233;s tableau 2 (a). Les r&#233;sultats du test sont donn&#233;s tableau 3 14.
+</p>
+<p>On constate, tableau 2 (a), que les deux conditions de segmentation test&#233;es sont proches de la
+condition baseline sugg&#233;rant ainsi que la segmentation n&#8217;apporte pas de r&#233;els b&#233;n&#233;fices &#224; notre
+syst&#232;me QR. Les performances du syst&#232;me sont tr&#232;s proches en terme de pr&#233;cision (0,6 point
+de diff&#233;rence au plus entre bsln et TT). Mais le MRR pr&#233;sente un &#233;cart plus important entre les
+conditions (2 points entre les conditions bsln et ctrl, et 1 point entre les conditions bsln et TT).
+La segmentation ctrl semble donc permettre au syst&#232;me de trouver de meilleures r&#233;ponses (i.e.
+des r&#233;ponses plus pr&#233;cises) qu&#8217;en condition baseline ou TextTiling. Toutefois, d&#8217;apr&#232;s les tests
+statistiques des performances QR pr&#233;sent&#233;s tableau 3, ceci n&#8217;est qu&#8217;une tendance.
+</p>
+<p>Le test de McNemar (McNemar, 1947), que nous avons utilis&#233; dans nos exp&#233;riences, &#233;tablit la
+significativit&#233; des r&#233;sultats observ&#233;s entre 2 conditions A et B et une mesure M donn&#233;e, selon
+des variations observ&#233;es entre A et B, synth&#233;tis&#233;es dans une table de contingence 2x2. De l&#224;, le
+test (bilat&#233;ral) estime une valeur Q (i.e. khi&#178; de McNemar) pour un degr&#233; de libert&#233; d f donn&#233; et
+d&#233;rive une valeur p. Si p est inf&#233;rieure (ou &#233;gale) au seuil critique &#945;, l&#8217;hypoth&#232;se nulle H0 est
+rejet&#233;e et la diff&#233;rence observ&#233;e entre A et B est jug&#233;e significative. Dans notre cas, une table
+de contingence comptabilise le total de questions (#q) pour lesquelles RITEL-QR trouve une
+r&#233;ponse de m&#234;me exactitude en conditions A et B. Il y a 4 types de compte, nombre total de
+questions avec une r&#233;ponse : correcte (r) selon A et selon B (#rr), fausse (w, xs ou xl) selon A et
+selon B (#WW), correcte selon A et fausse selon B (#rW) et inversement (#Wr).
+</p>
+<p>13. http://www.r-project.org
+14. Ces derniers sont les m&#234;mes sur le top-10 et le MRR, puisque ce test ne distingue pas les r&#233;ponses selon leur rang.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>488 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Ainsi, on peut constater que l&#8217;hypoth&#232;se H0 selon laquelle la diff&#233;rence observ&#233;e entre les
+conditions bsln et ctrl n&#8217;est pas significative pour les performences QR en top-10, est &#224; peine
+rejet&#233;e : la valeur de p obtenue dans ces conditions n&#8217;&#233;tant pas inf&#233;rieure mais tout juste align&#233;e
+sur le seuil critique de significativit&#233; &#945; 15.
+</p>
+<p>L&#8217;&#233;tude du nombre total de bonnes r&#233;ponses fournies par le syst&#232;me selon leur position au sein
+du top-10 tableau 2 (b) (bsln : 178, TT : 183 et ctrl : 190) confirme cette tendance. On voit
+aussi dans ce tableau que les r&#233;ponses apport&#233;s par le syst&#232;me en condition ctrl (jusqu&#8217;&#224; 12
+r&#233;ponses supppl&#233;mentaires, soit 3,9% de r&#233;ponses en plus) se trouvent dans le top-3, l&#224; o&#249; la
+segmentation par TextTiling a tendance &#224; apporter de nouvelles r&#233;ponses &#224; des rangs inf&#233;rieurs.
+</p>
+<p>Nous avons pu constat&#233; que la segmentation des documents acc&#233;l&#233;rait les (pr&#233;-)traitements QR.
+</p>
+<p>Cond P MRR top-10 #q
+bsln 31.4 39.6 57.6 309
+ctrl 31.7 41.6 61.5 309
+TT 32.0 40.5 59.2 309
+Cond #r #xs #xl #w
+bsln 97 6 8 198
+ctrl 98 11 5 195
+TT 99 11 2 197
+</p>
+<p>Cond
+rang bsln ctrl TT
+1 97 98 99
+2 26 32 26
+3 17 26 19
+4 9 7 7
+5 8 7 11
+6 6 4 6
+7 7 5 3
+8 6 5 4
+9 2 2 8
+10 0 4 0
+</p>
+<p>Total 178 190 183
+</p>
+<p>(a) (b)
+</p>
+<p>TABLE 2 &#8211; (a) R&#233;sultats QR globaux par condition exp&#233;rimentale (Cond). P : pr&#233;cision ; MRR : rang moyen
+r&#233;ciproque ; top-10 : pr&#233;cision sur 10 rangs. #q : nombre total de questions &#233;valu&#233;es. #r, #xs, #xl et #w :
+nombre total de r&#233;ponses justes, trop courtes, trop longues et fausses, selon le top-1. (b) Focus sur les r&#233;sultats
+du top-10 pr&#233;sent&#233;s en (a), selon chaque position (rang) dans le classement (r&#233;ponses justes uniquement).
+</p>
+<p>d f =1,&#945;=.05 ctrl (A) / bsln (B) bsln (A) / TT (B) ctrl (A) / TT (B)
+mesure #q r W Q p H0 r W Q p H0 r W Q p H0
+</p>
+<p>P r 77 21 0 1 &#10005; 80 17 .02 .86 &#10005; 80 18 0 1 &#10005;
+W 20 191 19 193 19 192
+</p>
+<p>top-10 r 167 23 3.55 .05 &#10003; 164 14 .48 .48 &#10005; 174 16 1.44 .23 &#10005;
+(MRR) W 11 108 19 112 9 110
+</p>
+<p>TABLE 3 &#8211; R&#233;sultats de significativit&#233; du test (bilat&#233;ral) de McNeamr pour les r&#233;sultats QR du tableau 2 (a).
+Q : khi&#178; de McNemar. d f : degr&#233; de libert&#233;. p : p-valeur. &#945; : seuil critique. H0 : hypoth&#232;se nulle (rejet : &#10003;).
+#q : nombre total de questions pour lesquelles on a une r&#233;ponse de m&#234;me nature ou non entre 2 conditions
+A et B. r : r&#233;ponse juste. W : r&#233;ponse fausse. Les rectangles rW/rW repr&#233;sentent des tables de contingence.
+</p>
+<p>15. p=0,059 si on augmente la pr&#233;cision du test de McNemar fournie tableau 3
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>489 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>5 Conclusion et perspectives
+</p>
+<p>Au cours de travaux pr&#233;c&#233;dents (Foucault et al., 2011) nous avons mis en place une strat&#233;gie
+de s&#233;lection de documents pertinents pour un syst&#232;me QR sur le fran&#231;ais. Elle s&#8217;appuie sur
+un mod&#232;le de langue qui fournit a priori une mesure objective du degr&#233; d&#8217;informativit&#233; d&#8217;un
+texte. Cette mesure de la qualit&#233; intrins&#232;que des documents sert &#224; filtrer les documents non
+pertinents pour la t&#226;che QR. L&#8217;effet d&#8217;un tel filtrage appliqu&#233; &#224; l&#8217;&#233;chelle globale des documents,
+c&#8217;est av&#233;r&#233; assez limit&#233;. La variabilit&#233; naturelle des pages web en taille et en contenu (comme leur
+caract&#232;re multi-th&#233;matique) p&#233;nalise vraisemblablement le syst&#232;me dans sa t&#226;che. Nous avons
+donc cherch&#233; &#224; d&#233;velopper un syst&#232;me de segmentation qui permette d&#8217;appliquer ce filtrage &#224;
+une &#233;chelle non plus globale mais locale, sur des sous-parties de document. Le travail pr&#233;sent&#233;
+dans cet article avait pour objectif de mettre un tel syst&#232;me de segmentation en place.
+</p>
+<p>La question &#224; laquelle nous avons voulu r&#233;pondre dans cette article est la suivante : segmenter
+les documents avant l&#8217;indexation, en plus du d&#233;coupage habituel des documents en passages lors
+de l&#8217;extraction des r&#233;ponses, am&#233;liore-t-il les performances d&#8217;un syst&#232;me de questions-r&#233;ponses ?
+</p>
+<p>Pour r&#233;pondre &#224; cette question, nous avons test&#233; deux types de pr&#233;-segmentation support&#233;e par
+une extraction de contenu textuel de pages web maison. L&#8217;une segmente les textes extraits via un
+algorithme de texttiling classique (TextTiling) en blocs th&#233;matiques de taille variable. L&#8217;autre les
+segmente uniform&#233;ment en blocs de taille fixe, sans d&#233;coupage th&#233;matique.
+</p>
+<p>Les r&#233;sultats obtenus ne nous permettent pas de trancher nettement en faveur de l&#8217;une ou l&#8217;autre
+de ces approches de segmentation. Cependant, les tendances observ&#233;es sugg&#232;rent qu&#8217;une pr&#233;-
+segmentation des pages web comme nous l&#8217;avons d&#233;finie peut servir un syst&#232;me QR ; segmenter
+les documents avant l&#8217;indexation afin de renforcer l&#8217;effet du d&#233;coupage de ces derniers en
+passages lors de l&#8217;extraction des r&#233;ponses, am&#233;liore la pr&#233;cision du syst&#232;me en terme de top-10
+sans pour autant diminuer cette derni&#232;re en terme de top-1. Cette tendance est plus marqu&#233;e
+pour la segmentation uniforme de pages web que pour une segmentation plus &#171; intelligente &#187; &#224;
+l&#8217;aide de l&#8217;algorithme de TextTiling (sans analyse morphologique, le calcul des scores lexicaux se
+faisant par block comparison). Ce constat est contradictoire avec d&#8217;autres travaux, mais confirme
+certaines conclusions apport&#233;es par Hearst dans ses travaux de segmentation th&#233;matique de
+textes en Recherche d&#8217;Information (Hearst, 1997). Il serait int&#233;ressant de d&#233;terminer les raisons
+amenant &#224; ce constat. Si la nature des documents (page web versus texte), est l&#8217;une des raisons
+qui pourrait l&#8217;expliquer, qu&#8217;en est-il par exemple de la longueur des documents et de la version
+du TextTiling que nous avons utilis&#233; dans nos exp&#233;riences ?
+</p>
+<p>En perspective des travaux pr&#233;sent&#233;s dans cet article, nous projetons d&#8217;abord d&#8217;&#233;tudier l&#8217;impact
+d&#8217;une pr&#233;-segmentation uniforme des pages web sur notre strat&#233;gie de s&#233;lection de documents
+pertinents d&#233;velopp&#233;e dans (Foucault et al., 2011). Concernant nos travaux de segmentation
+de pages web en QR &#224; partir de la repr&#233;sentation visuelle des pages, nous comptons &#233;valuer la
+pertinence de la proc&#233;dure d&#8217;extraction mise en place au sein du syst&#232;me de segmentation de
+pages web pr&#233;sent&#233; dans cet article.
+</p>
+<p>Remerciements
+</p>
+<p>Ce travail a &#233;t&#233; financ&#233; partiellement par l&#8217;OSEO, dans le contexte du programme Quaero.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>490 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;f&#233;rences
+</p>
+<p>AGRESTI, A. (1990). Categorical data analysis. New York : Wiley, London.
+</p>
+<p>ASIRVATHAM, A. P., RAVI, K. K., PRAKASH, A., KRANTHI, A. et RAVI, K. (2001). Web page classification
+based on document structure.
+</p>
+<p>BARONI, M., CHANTREE, F., KILGARRIFF, A. et SHAROFF, S. (2008). Cleaneval : a competition for
+cleaning web pages. In LREC. European Language Resources Association.
+</p>
+<p>BERNARD, G., ROSSET, S., GALIBERT, O., BILINSKI, E. et ADDA, G. (2009). The limsi participation
+in the qast 2009 track : experimentating on answer scoring. In CLEF&#8217;09, Corfu, Grece.
+</p>
+<p>BRUNO, E., FAESSEL, N., GLOTIN, H., MA&#206;TRE, J. L. et MICHEL., S. (2009). Ir web search based on
+presentation and multimedia content. In Actes des 25emes Journees Bases de Donnees Avancees
+(BDA 2009), pages 408&#8211;407.
+</p>
+<p>CAI, D., YU, S., WEN, J.-R. et MA, W.-Y. (2003). VIPS : a vision-based page segmentation
+algorithm. Rapport technique, Microsoft (MSR-TR-2003-79).
+</p>
+<p>D&#201;CHELOTTE, D., SCHWENK, H., ADDA, G. et GAUVAIN, J.-L. (2007). Improved machine translation
+of speech-to-text outputs. In Interspeech&#8217;07, Antwerp. Belgium.
+</p>
+<p>EVERT, S. (2008). A lightweight and efficient tool for cleaning web pages. In LREC. European
+Language Resources Association.
+</p>
+<p>FAESSEL, N. (2008). Indexation de blocs extraits de pages web en utilisant le rendu visuel. In
+CORIA, pages 393&#8211;400. Universit&#233; de Renne 1.
+</p>
+<p>FALCO, M.-H., MORICEAU, V. et VILNAT, A. (2012). Kitten : a tool for normalizing html and
+extracting its textual content. In CHAIR), N. C. C., CHOUKRI, K., DECLERCK, T., DOG&#774;AN, M. U.,
+MAEGAARD, B., MARIANI, J., ODIJK, J. et PIPERIDIS, S., &#233;diteurs : Proceedings of the Eight Interna-
+tional Conference on Language Resources and Evaluation (LREC&#8217;12), Istanbul, Turkey. European
+Language Resources Association (ELRA).
+</p>
+<p>FENG, J., HAFFNER, P. et GILBERT, M. (2005). A learning approach to discovering web page
+semantic structures. In Proceedings of the Eighth International Conference on Document Analysis
+and Recognition, ICDAR&#8217;05, pages 1055&#8211;1059, Washington, DC, USA. IEEE Computer Society.
+</p>
+<p>FOUCAULT, N., ADDA, G. et ROSSET, S. (2011). Language modeling for document selection in
+question answering. In RANLP&#8217;11, pages 716&#8211;720, Hissar, Bulgaria.
+</p>
+<p>GALIBERT, O. (2009). Approches et m&#233;thodologies pour la r&#233;ponse automatique &#224; des questions
+adapat&#233;es &#224; un cadre int&#233;ractif en domaine ouvert. Th&#232;se de doctorat, Paris-Sud11, LIMSI/CNRS.
+</p>
+<p>GRAU, B. (2004). M&#233;thodes Avanc&#233;es pour les Syst&#232;mes de Recherche d&#8217;Informations. In
+Visualisation d&#8217;Information et Interaction, chapitre 10 : Syst&#232;mes de question-r&#233;ponse, pages
+189&#8211;218. Herm&#232;s. Dir. M. Ihadjadene.
+</p>
+<p>GUO, H., MAHMUD, J., BORODIN, Y., STENT, A. et RAMAKRISHNAN, I. (2007). A general approach
+for partitioning web page content based on geometric and style information. In Proceedings of
+the Ninth International Conference on Document Analysis and Recognition - Volume 02, ICDAR
+&#8217;07, pages 929&#8211;933, Washington, DC, USA. IEEE Computer Society.
+</p>
+<p>GUPTA, S., KAISER, G., NEISTADT, D. et GRIMM, P. (2003). Dom-based content extraction of html
+documents. In Proceedings of the 12th international conference on World Wide Web, WWW &#8217;03,
+pages 207&#8211;214, New York, NY, USA. ACM.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>491 c&#65535; ATALA</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>HEARST, M. A. (1997). Texttiling : Segmenting text into multi-paragraph subtopic passages.
+Computational Linguistics, 23:33&#8211;64.
+</p>
+<p>KHALID, M. A. et VERBERNE, S. (2008). Passage retrieval for question answering using sliding
+windows. In In Proceedings of COLING 2008, Workshop IR4QA.
+</p>
+<p>KOHLSCH&#220;TTER, C., FANKHAUSER, P. et NEJDL, W. (2010). Boilerplate detection using shallow text
+features. In Proc. of 3rd ACM International Conference on Web Search and Data Mining New York
+City, NY USA (WSDM 2010).
+</p>
+<p>KOVACEVIC1, M., DILIGENTI, M., GORI, M. et MILUTINOVIC1, V. (2004). Visual adjacency mul-
+tigraphs . a novel approach for a web page classification. In Proceedings of the Workshop on
+Statistical Approaches to Web Mining (SAWM), pages 38&#8211;49.
+</p>
+<p>LIGOZAT, A. L. (2006). Exploitation et fusion de connaissances locales pour la recherche d&#8217;informa-
+tions prec&#769;ises. Th&#232;se de doctorat, Paris-Sud11, LIMSI/CNRS.
+MCNEMAR, Q. (1947). Note on the sampling error of the difference between correlated propor-
+tions or percentages. Psychometrika, 12(2):153&#8211;157.
+</p>
+<p>MORICEAU, V. et TANNIER, X. (2010). Fidji : using syntax for validating answers in multiple
+documents. Information Retrieval, 13(5):507&#8211;533.
+</p>
+<p>PE&#209;AS, A., RODRIGO, &#193;. et VERDEJO, F. (2007). Overview of the answer validation exercise 2007.
+In CLEF, pages 237&#8211;248.
+</p>
+<p>QI, X. et DAVISON, B. D. (2009). Web page classification : Features and algorithms. ACM
+Computing Surveys, 41(2):12 :1&#8211;12 :31.
+</p>
+<p>QUINTARD, L., GALIBERT, O., ADDA, G., GRAU, B., LAURENT, D., MORICEAU, V., ROSSET, S., TANNIER,
+X. et VILNAT, A. (2010). Question answering on web data : The QA evaluation in Qu&#230;ro. In
+LREC&#8217;10, Valletta, Malta.
+</p>
+<p>ROSSET, S., GALIBERT, O., BERNARD, G., BILINSKI, E. et ADDA, G. (2008). The limsi participation
+to the qast track. In Working Notes of CLEF 2008 Workshop, Aarhus, Denmark.
+</p>
+<p>SALTON, G., SINGHAL, A., BUCKLEY, C. et MITRA, M. (1996). Automatic text decomposition using
+text segments and text themes. In Proceedings of the the seventh ACM conference on Hypertext,
+HYPERTEXT &#8217;96, pages 53&#8211;65, New York, NY, USA. ACM.
+</p>
+<p>TIEDEMANN, J. (2007). Comparing document segmentation strategies for passage retrieval in
+question answering. In Proceedings of the Conference on Recent Advances in Natural Language
+Processing (RANLP&#8217;07), Borovets, Bulgaria.
+</p>
+<p>TONEY, D., ROSSET, S., MAX, A., GALIBERT, O. et BILINSKI, E. (2008). An Evaluation of Spoken and
+Textual Interaction in the RITEL Interactive Question Answering System. In (ELRA), E. L. R. A.,
+&#233;diteur : Proceedings of the Sixth International Language Resources and Evaluation (LREC&#8217;08),
+Marrakech, Morocco.
+</p>
+<p>VADREVU, S., GELGI, F. et DAVULCU, H. (2005). Semantic partitioning of web pages. In Proceedings
+of the 6th international conference on Web Information Systems Engineering, WISE&#8217;05, pages
+107&#8211;118, Berlin, Heidelberg. Springer-Verlag.
+</p>
+<p>TALN-R&#201;CITAL 2013, 17-21 Juin, Les Sables d&#8217;Olonne
+</p>
+<p>492 c&#65535; ATALA</p>
+
+</div></div>
+</body></html>

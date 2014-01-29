@@ -1,0 +1,480 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>D&#233;sambigu&#239;sation par proximit&#233; structurelle</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2004, F&#232;s, 19&#8211;21 avril 2004
+</p>
+<p>D&#233;sambigu&#239;sation par proximit&#233; structurelle
+</p>
+<p>Bruno Gaume (1), Nabil Hathout (2) &amp; Philippe Muller (1)
+(1) IRIT &#8211; CNRS, UPS &amp; INPT
+</p>
+<p>{gaume,muller}@irit.fr
+(2) ERSS &#8211; CNRS &amp; UTM
+</p>
+<p>hathout@univ-tlse2.fr
+</p>
+<p>R&#233;sum&#233; - Abstract
+</p>
+<p>L&#8217;article pr&#233;sente une m&#233;thode de d&#233;sambigu&#239;sation dans laquelle le sens est d&#233;termin&#233; en uti-
+lisant un dictionnaire. La m&#233;thode est bas&#233;e sur un algorithme qui calcule une distance &#171; s&#233;-
+mantique &#187; entre les mots du dictionnaire en prenant en compte la topologie compl&#232;te du dic-
+tionnaire, vu comme un graphe sur ses entr&#233;es. Nous l&#8217;avons test&#233;e sur la d&#233;sambigu&#239;sation des
+d&#233;finitions du dictionnaire elles-m&#234;mes. L&#8217;article pr&#233;sente des r&#233;sultats pr&#233;liminaires, qui sont
+tr&#232;s encourageants pour une m&#233;thode ne n&#233;cessitant pas de corpus annot&#233;.
+</p>
+<p>This paper presents a disambiguation method in which word senses are determined using a
+dictionary. We use a semantic proximity measure between words in the dictionary, taking into
+account the whole topology of the dictionary, seen as a graph on its entries. We have tested the
+method on the problem of disambiguation of the dictionary entries themselves, with promising
+results considering we do not use any prior annotated data.
+</p>
+<p>Mots-clefs &#8211; Keywords
+</p>
+<p>D&#233;sambigu&#239;sation s&#233;mantique, r&#233;seaux petits mondes hi&#233;rarchiques, dictionnaires.
+Word sense desambiguation, hierarchical small words, dictionaries.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Bruno Gaume, Nabil Hathout &amp; Philippe Muller
+</p>
+<p>1 Introduction
+</p>
+<p>De nombreuses t&#226;ches impliquant le traitement de donn&#233;es en langue naturelle sont rendues
+difficiles par l&#8217;existence de sens diff&#233;rents pour un m&#234;me item lexical : traduction automatique,
+recherche de documents ou extraction d&#8217;informations. Ce probl&#232;me, tr&#232;s ancien en TAL, est
+loin d&#8217;&#234;tre r&#233;solu, et l&#8217;&#233;valuation de ses m&#233;thodes est difficile et relativement r&#233;cente, pour des
+raisons pr&#233;sent&#233;es notamment dans (Resnik &amp; Yarowsky, 2000). On peut distinguer plusieurs
+familles d&#8217;approches1, selon que le sens d&#8217;un mot en contexte est d&#233;termin&#233; en apprenant auto-
+matiquement les caract&#233;ristiques du contexte qui d&#233;termine ce sens (de fa&#231;on supervis&#233;e, ou non
+supervis&#233;e, quand l&#8217;&#233;tude des contextes sert elle-m&#234;me &#224; d&#233;gager des familles d&#8217;usage) ou bien
+que le sens soit d&#233;termin&#233; en utilisant des ressources lexicales &#171; ext&#233;rieures &#187; : dictionnaires,
+th&#233;saurus. Le premier type d&#8217;approche n&#233;cessite des donn&#233;es volumineuses difficiles &#224; anno-
+ter (pour les approches supervis&#233;es ; les approches non supervis&#233;es sont par ailleurs sensibles
+au corpus choisi, qui doit &#234;tre repr&#233;sentatif). Le deuxi&#232;me type d&#8217;approche tente d&#8217;utiliser la
+connaissance lexicale rassembl&#233;e dans les dictionnaires, les th&#233;saurus (WordNet, par exemple),
+avec une longue tradition, (Lesk, 1986; Banerjee &amp; Pedersen, 2003) et des r&#233;sultats mitig&#233;s.
+Dans tous les cas, on cherche &#224; &#233;tablir une relation de distance entre mots, susceptible de d&#233;-
+terminer un sens en contexte. Dans le cas des dictionnaires, les seules m&#233;thodes ayant pr&#233;sent&#233;
+des r&#233;sultats chiffr&#233;s se concentrent seulement sur les mots qui apparaissent dans la d&#233;finition
+d&#8217;un mot cible2.
+</p>
+<p>Nous pr&#233;sentons ici un algorithme qui utilise un dictionnaire comme source d&#8217;information sur
+les relations entre items lexicaux (cf. section 3). L&#8217;algorithme calcule une distance &#171; s&#233;man-
+tique &#187; entre les mots du dictionnaire en prenant en compte la topologie compl&#232;te du diction-
+naire, ce qui lui donne une plus grande robustesse. Nous avons commenc&#233; &#224; tester cette approche
+sur la d&#233;sambigu&#239;sation des d&#233;finitions du dictionnaire elles-m&#234;mes (section 2), mais nous mon-
+trons pourquoi cette m&#233;thode est plus g&#233;n&#233;rale. La section 6 pr&#233;sente nos r&#233;sultats pr&#233;liminaires,
+qui sont tr&#232;s encourageants pour une m&#233;thode ne n&#233;cessitant pas de corpus annot&#233; (en dehors
+de l&#8217;&#233;valuation), et qui comporte de nombreux param&#232;tres d&#8217;ajustement.
+</p>
+<p>2 Le graphe du dictionnaire
+</p>
+<p>L&#8217;id&#233;e de base de notre m&#233;thode est de consid&#233;rer qu&#8217;un dictionnaire est un graphe non orient&#233;
+dont les mots sont les sommets et tel qu&#8217;il existe un arc entre deux sommets si l&#8217;un appara&#238;t dans
+la d&#233;finition de l&#8217;autre. Plus pr&#233;cis&#233;ment, le graphe du dictionnaire encode deux types d&#8217;infor-
+mations lexicographiques : les d&#233;finitions qui d&#233;crivent les diff&#233;rentes acceptions de chaque
+vedette au moyen de s&#233;quences langagi&#232;res ; la structure des articles qui organise ces sous-
+sens3. Deux types de sommets sont ainsi n&#233;cessaires : les sommets-w qui repr&#233;sentent les mots
+qui apparaissent dans les d&#233;finissants, et les sommets-&#8710; qui correspondent aux sous-sens des
+vedettes. La construction du graphe se fait en trois temps :
+</p>
+<p>1. Pour chaque vedette, on cr&#233;e un sommet-&#8710; qui correspond &#224; l&#8217;article entier et autant
+de sommets-&#8710; qu&#8217;il y a de sous-sens pour lesquels il existe un d&#233;finissant. On cr&#233;e un
+</p>
+<p>1On peut se r&#233;f&#233;rer au num&#233;ro sp&#233;cial de Computationnal Linguistics de 1998 et son introduction (Ide &amp;
+V&#233;ronis, 1998) ; cf. aussi (Manning &amp; Sch&#252;tze, 1999, chap. 7).
+</p>
+<p>2On peut citer aussi les propositions non quantifi&#233;es de (H.Kozima &amp; Furugori, 1993).
+3Nous adoptons ici la terminologie de (Martin, 1983) et (Henry, 1996)</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>D&#233;sambigu&#239;sation par proximit&#233; structurelle
+</p>
+<p>arc entre chaque sommet-&#8710; et les sommets-&#8710; qui repr&#233;sentent des sous-sens de niveau
+imm&#233;diatement inf&#233;rieur.
+</p>
+<p>2. Pour chaque mot qui appara&#238;t dans un d&#233;finissant du dictionnaire, on cr&#233;e un sommet-
+w. On cr&#233;e un arc entre chaque couple de sommets &#12296;w,&#8710;&#12297; si le mot repr&#233;sent&#233; par le
+sommet-w appara&#238;t dans le d&#233;finissant du sous-sens correspondant au sommet-&#8710;.
+</p>
+<p>3. On cr&#233;e un arc entre chaque couple de sommets &#12296;w,&#8710;&#12297; si le sommet-&#8710; repr&#233;sente l&#8217;article
+dont la vedette est le mot correspondant au sommet-w.
+</p>
+<p>Consid&#233;rons, &#224; titre d&#8217;exemple, l&#8217;article de &#171; daim, n. m. &#187; (issue du dictionnaire Le Robert) :
+</p>
+<p>1. Mammif&#232;re ruminant ongul&#233;.
+2. [a] Peau pr&#233;par&#233;e de cet animal.
+</p>
+<p>[b] Cuir su&#233;d&#233; (veau retourn&#233;).
+3. Corne de daim [...]
+4. Bell&#226;tre.
+</p>
+<p>Le graphe contiendra un premier sommet (appelons le &#8710;0) qui repr&#233;sente l&#8217;article dans sa to-
+talit&#233;. &#8710;0 est reli&#233; par un arc &#224; chacun des sommets &#8710;1, &#8710;2, &#8710;3et &#8710;4 qui repr&#233;sentent respec-
+tivement les sous-sens 1., 2., 3. et 4. &#192; son tour &#8710;2 est connect&#233; &#224; deux sommets &#8710;2.1 et &#8710;2.2
+correspondant aux sous-sens 2.[a] et 2.[b]. Le graphe contient ensuite des arcs qui vont de &#8710;1
+vers trois sommets w1, w2 et w3 qui repr&#233;sentent les mots mammif&#232;re, ruminant et ongul&#233;. En-
+fin, il y aura un arc entre w1 et le sommet-&#8710; qui repr&#233;sente l&#8217;article de &#171; mammif&#232;re, adj. et
+n. &#187;, etc.
+</p>
+<p>L&#8217;exp&#233;rience que nous pr&#233;sentons a &#233;t&#233; r&#233;alis&#233;e au moyen d&#8217;un graphe construit &#224; partir de
+d&#233;finitions issues du dictionnaire Le Robert. Ce graphe est restreint aux seuls substantifs : il
+n&#8217;inclut que des d&#233;finissants de vedettes nominales dans lesquelles n&#8217;ont &#233;t&#233; conserv&#233;es que les
+occurrences nominales.
+</p>
+<p>Dans les articles, les sous-sens s&#8217;inscrivent dans des structures hi&#233;rarchiques qui peuvent com-
+porter jusqu&#8217;&#224; cinq niveaux : 1, 2, 3... pour les homographes ; I, II, III... ; A, B, C... ; 1, 2, 3...
+et a, b, c... pour les acceptions. Les positions de ces sous-sens peuvent ainsi &#234;tre repr&#233;sent&#233;es
+de mani&#232;re uniforme au moyen de s&#233;quences de cinq nombres correspondant aux cinq niveaux.
+Par exemple, le sous-sens 2.[a] de l&#8217;article de daim est d&#233;crit par 0_0_0_2_1 (les trois premiers
+niveaux n&#8217;&#233;tant pas utilis&#233;s, ils sont repr&#233;sent&#233;s par des z&#233;ros).
+</p>
+<p>3 PROX : une m&#233;thode pour la mesure de similarit&#233; lexicale
+</p>
+<p>PROX est une m&#233;thode stochastique pour l&#8217;&#233;tude de la structure des r&#233;seaux petits mondes
+hi&#233;rarchiques (voir section suivante). Cette m&#233;thode consiste &#224; transformer un graphe en une
+cha&#238;ne de Markov dont les &#233;tats sont les sommets du graphe en question et ses ar&#234;tes les tran-
+sitions possibles : une particule en partant &#224; l&#8217;instant t = 0 d&#8217;un sommet s0, se d&#233;place en
+un pas sur s1 l&#8217;un des voisins de s0 s&#233;lectionn&#233; al&#233;atoirement ; la particule se d&#233;place alors &#224;
+nouveau en un pas sur s2, l&#8217;un des voisins de s1 s&#233;lectionn&#233; al&#233;atoirement etc. Si au t-i&#232;me
+pas la particule est sur le sommet st elle se d&#233;place alors en un pas sur le sommet st+1 qui est
+s&#233;lectionn&#233; al&#233;atoirement parmi les voisins de st tous &#233;quiprobables. Une trajectoire s1, s2, ...</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Bruno Gaume, Nabil Hathout &amp; Philippe Muller
+</p>
+<p>st, ... ainsi s&#233;lectionn&#233;e est une &#171; balade &#187; al&#233;atoire sur le graphe, et ce sont les dynamiques de
+ces trajectoires qui nous donnent les propri&#233;t&#233;s structurelles des graphes &#233;tudi&#233;s.
+Posons PROX(G, i, r, s) la probabilit&#233; qu&#8217;en partant &#224; l&#8217;instant t = 0 du sommet r la particule
+soit &#224; l&#8217;instant t = i sur le sommet s :
+</p>
+<p>1. Un graphe non orient&#233; G = (V,E) est la donn&#233;e d&#8217;un ensemble non vide fini V de
+sommets, et d&#8217;un ensemble E de paires de sommets formant des ar&#234;tes. Si l&#8217;ar&#234;te {r, s} &#8712;
+E on dit que les sommets r et s sont voisins, le nombre de voisins d&#8217;un sommet r est d(r)
+son degr&#233; d&#8217;incidence ;
+</p>
+<p>2. Soit un Graphe &#224; n sommets G = (V,E), on notera [G] la Matrice carr&#233;e n&#215; n telle que
+pour tout r, s &#8712; V &#215; V , [G]r,s = 1 si {r, s} &#8712; E et [G]r,s = 0 si {r, s} /&#8712; E ; On appellera
+[G] la matrice d&#8217;adjacence de G. C&#8217;est-&#224;-dire que [G]r,s (la valeur situ&#233;e &#224; la r-i&#232;me ligne
+et la s-i&#232;me colone de la matrice [G]) est &#233;gale &#224; 1 s&#8217;il existe une ar&#234;te entre les sommet
+r et s, 0 sinon.
+</p>
+<p>3. Soit G = (V,E) un graphe &#224; n sommets. Posons [G&#770;] la matrice n&#215; n de transition de la
+cha&#238;ne de Markov homog&#232;ne dont les &#233;tats sont les sommets du graphe en question telle
+que la probabilit&#233; de passer d&#8217;un sommet r &#8712; V &#224; l&#8217;instant i vers un sommet s &#8712; V &#224;
+l&#8217;instant i+ 1 est &#233;gale &#224; :
+</p>
+<p>[G&#770;]r,s=0 si {r, s} /&#8712; E (s n&#8217;est pas un voisin de r) [G&#770;] = 1/d(r) si {r, s} &#8712; E (s est un
+des d(r) voisins de r qui sont tous &#233;quiprobables)
+Nous dirons que [G&#770;] est la matrice Markovienne du graphe G et que G est le graphe des
+transitions possibles de cette cha&#238;ne de Markov.
+</p>
+<p>4. Soit G = (V,E) un graphe r&#233;flexif &#224; n sommets et [G&#770;] sa matrice Markovienne, pour tout
+r, s &#8712; V &#215; V , on a donc :
+PROX(G, i, r, s) = [G&#770;i]r,s
+o&#249; Ai est la matrice A multipli&#233;e i fois par elle-m&#234;me.
+</p>
+<p>C&#8217;est-&#224;-dire que pour tout r, s, PROX(G, i, r, s) est la probabilit&#233; que la particule en partant
+du sommet r &#224; l&#8217;instant t = 0 soit &#224; l&#8217;instant t = i sur le sommet s quand elle se d&#233;place
+al&#233;atoirement de sommet en sommet dans le graphe en empruntant les ar&#234;tes du graphe.
+</p>
+<p>Si PROX(G, i, r, s) &gt; PROX(G, i, r, u) cela veut donc dire que dans sa trajectoire la particule
+en partant du sommet r, &#224; plus de chance d&#8217;&#234;tre &#224; l&#8217;instant i sur le sommet s que sur le sommet
+u, et c&#8217;est la structure du graphe qui d&#233;termine ces probabilit&#233;s.
+</p>
+<p>PROX construit ainsi une mesure de similarit&#233; entre sommets d&#8217;un graphe, en &#171; rapprochant &#187;
+les sommets d&#8217;une m&#234;me zone dense4 en ar&#234;tes, ce qui permet d&#8217;envisager une exploitation
+originale et novatrice des dictionnaires &#233;lectroniques (Gaume et al., 2002) avec un outil de vi-
+sualisation du sens (Gaume &amp; Ferr&#233;, 2004), mais aussi de construire des outils pour le TAL, par
+exemple la d&#233;sambigu&#239;sation des entr&#233;es dans un dictionnaire. Pour une pr&#233;sentation d&#233;taill&#233;e
+de PROX voir (Gaume, &#224; para&#238;tre).
+</p>
+<p>4En effet plus il existe un grand nombre de chemins courts entre deux sommets r et s, plus la probabilit&#233;
+PROX(G, i, r, s) que la particule en partant du sommet r &#224; l&#8217;instant t = 0 soit &#224; l&#8217;instant t = i sur le sommet s est
+grande.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>D&#233;sambigu&#239;sation par proximit&#233; structurelle
+</p>
+<p>4 Les graphes de dictionnaires sont des petits mondes hi&#233;rar-
+chiques
+</p>
+<p>Des recherches r&#233;centes en th&#233;orie des graphes ont mis au jour un ensemble de caract&#233;ris-
+tiques statistiques que partagent la plupart des grands graphes de terrain ; ces caract&#233;ristiques
+d&#233;finissent la classe des graphes de type &#171; r&#233;seaux petits mondes hi&#233;rarchiques &#187; (RPMH ; en
+anglais hierarchical small world) (Watts &amp; Strogatz, 1998; Newman, 2003). Les RPMH pr&#233;-
+sentent quatre propri&#233;t&#233;s fondamentales :
+</p>
+<p>D : ils sont peu denses, c&#8217;est-&#224;-dire qu&#8217;ils ont relativement peu d&#8217;ar&#234;tes au regard du nombre
+de leurs sommets ;
+</p>
+<p>L : la moyenne des plus courts chemins entre les sommets est petite ;
+C : le taux de clustering ou d&#8217;agr&#233;gation, est d&#233;fini de la mani&#232;re suivante : Supposons qu&#8217;un
+</p>
+<p>sommet S ait Ks voisins, alors il y a Ks(Ks-1)/2 ar&#234;tes au maximum qui peuvent exister
+entre ses Ks voisins (ce qui arrive quand chacun des voisins de S est connect&#233; &#224; tous les
+autres voisins de S). Soit As le nombre d&#8217;ar&#234;tes qu&#8217;il y a entre les voisins de S (ce nombre
+est donc n&#233;cessairement plus petit ou &#233;gal &#224; Ks(Ks-1)/2). Posons Cs= As/( Ks(Ks-1)/2)
+qui est donc pour tout sommet S inf&#233;rieur ou &#233;gal &#224; un. Le C d&#8217;un graphe est la moyenne
+des Cs sur ses sommets. Le C d&#8217;un graphe est donc toujours compris entre 0 et 1. Plus le
+C d&#8217;un graphe est proche de 1, plus il forme des agr&#233;gats ou clusters (des zones denses
+en ar&#234;tes). Dans un RPMH le C est fort, deux voisins d&#8217;un m&#234;me sommet ont tendance &#224;
+&#234;tre connect&#233;s entre eux par une ar&#234;te (&#171; mes amis sont amis entre eux &#187;). Par exemple,
+sur Internet5, deux pages qui sont li&#233;es &#224; une m&#234;me page ont une probabilit&#233; relativement
+&#233;lev&#233;e d&#8217;inclure des liens l&#8217;une vers l&#8217;autre ;
+</p>
+<p>I : la distribution des degr&#233;s d&#8217;incidence des sommets suit une loi de puissance (power law) :
+certains n&#339;uds tr&#232;s peu nombreux ont beaucoup plus de voisins que d&#8217;autres plus nom-
+breux, eux-m&#234;mes ayant plus de voisins que d&#8217;autres qui eux-m&#234;mes... La probabilit&#233;
+P (k) qu&#8217;un sommet du graphe consid&#233;r&#233; ait k voisins d&#233;cro&#238;t comme une loi de puis-
+sance P (k) = k &#955;.
+</p>
+<p>Le tableau 1 pr&#233;sente une comparaison des RPMH avec d&#8217;autres types de graphes pour ces diff&#233;-
+rentes caract&#233;ristiques : des graphes al&#233;atoires (construit en partant d&#8217;un ensemble de sommets
+isol&#233;s, puis en ajoutant al&#233;atoirement un certains nombre d&#233;termin&#233; d&#8217;ar&#234;tes entre ses sommets),
+et des graphes r&#233;guliers (des graphes classiquement &#233;tudi&#233;s en th&#233;orie des graphes, dont tous
+les sommets ont le m&#234;me degr&#233; d&#8217;incidence).
+Les graphes d&#8217;origine linguistique et notamment ceux qui sont construits &#224; partir de diction-
+naires sont de type RPMH. Par exemple le graphe G1 des noms construit &#224; partir du diction-
+naire Le Robert (les sommets sont les entr&#233;es qui sont des noms, et il existe une arr&#234;te entre
+deux sommets si l&#8217;un est dans la d&#233;finition de l&#8217;autre - on ne tient pas compte ici de la structure
+hi&#233;rarchique des d&#233;finitions) est un RPMH typique (voir table 2) . Dans le graphe G2 qui est
+construit comme indiqu&#233; &#224; la section 2, chaque sommet est remplac&#233; par l&#8217;arbre refl&#233;tant la
+structure hi&#233;rarchique de l&#8217;entr&#233;e qui lui correspond, ce qui a pour cons&#233;quence d&#8217;affaiblir le C
+et d&#8217;allonger le L. Dans le tableau ci-dessous, * indique que les mesures sont calcul&#233;es sur la
+plus grande partie connexe.
+</p>
+<p>5Les sommets en sont les 800 millions de pages disponibles sur internet, et une ar&#234;te est trac&#233;e entre A et B si
+un lien hypertexte vers la page B appara&#238;t dans la page A ou si un lien hypertexte vers la page A appara&#238;t dans la
+page B.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Bruno Gaume, Nabil Hathout &amp; Philippe Muller
+</p>
+<p>&#224; densit&#233; &#233;gale L : Moyenne des
+plus courts chemins
+</p>
+<p>C : Taux de cluste-
+ring
+</p>
+<p>I : distribution des
+degr&#233;s d&#8217;incidences
+</p>
+<p>Graphes al&#233;atoires L petit
+(chemins courts)
+</p>
+<p>C petit
+(pas d&#8217;agr&#233;gats)
+</p>
+<p>loi de Poisson
+</p>
+<p>Graphes de terrain
+(RPMH)
+</p>
+<p>L petit
+(chemins courts)
+</p>
+<p>C grand
+(des agr&#233;gats)
+</p>
+<p>loi de puissance
+</p>
+<p>Graphes r&#233;guliers L grand
+(chemins longs)
+</p>
+<p>C grand
+(des agr&#233;gats)
+</p>
+<p>constante
+</p>
+<p>TAB. 1 &#8211; Comparaison de trois types de graphes en fonction des param&#232;tres L, C et I.
+</p>
+<p>Graphe Nb. sommets Nb. arcs Nb. sommets* Nb. Arcs* Diam&#232;tre* C* L*
+G1 51 559 392 161 51 511 392 142 7 0,182 9 3,32
+G2 140 080 399 969 140 026 399 941 11 0,008 1 5,21
+</p>
+<p>TAB. 2 &#8211; Quelques caract&#233;ristiques des graphes G1 et G2
+</p>
+<p>Nous pensons que la nature hi&#233;rarchique des dictionnaires (distribution des degr&#233;s d&#8217;incidence
+des sommets en loi de puissance) est une cons&#233;quence du r&#244;le de l&#8217;hyperonymie associ&#233;e &#224;
+la polys&#233;mie de certains sommets, alors que le fort C (existence de zones denses en ar&#234;tes)
+refl&#232;te le r&#244;le de la cohyponymie6 (Duvignau, 2002; Duvignau, 2003; Gaume et al., 2002). Par
+exemple, le mot corps se trouve dans de nombreux d&#233;finissants (t&#234;te, chimie, peau, division). De
+ce fait, le sommet corps a une forte incidence. D&#8217;autre part on constate qu&#8217;il existe de nombreux
+triangles par exemple : {&#233;corce, enveloppe}, {&#233;corce, peau}, {peau, enveloppe}, ce qui favorise
+les zones denses en ar&#234;tes et plus pr&#233;cis&#233;ment un fort taux de clustering C. Ce sont ces zones
+denses en ar&#234;tes qui orientant la dynamique des trajectoires de la particule vont permettre la
+d&#233;sambigu&#239;sation.
+</p>
+<p>5 Un algorithme de d&#233;sambigu&#239;sation bas&#233; sur PROX
+</p>
+<p>Nous allons maintenant pr&#233;senter une m&#233;thode pour d&#233;sambigu&#239;ser une entr&#233;e de dictionnaire
+en utilisant la notion de distance s&#233;mantique introduite plus haut. On peut d&#233;finir la t&#226;che comme
+suit : on consid&#232;re un lemme &#945; qui appara&#238;t dans la d&#233;finition de l&#8217;un des sens d&#8217;un mot, consi-
+d&#233;r&#233; comme un n&#339;ud du graphe, &#946;. Nous voulons donc associer &#945; avec le sense le plus probable
+qu&#8217;il a dans ce contexte. Chaque entr&#233;e du dictionnaire est cod&#233; par un arbre de sous-sens dans le
+graphe du dictionnaire, avec une liste de nombres correspondants &#224; chaque niveau de sous-sens
+caract&#233;ristique.
+</p>
+<p>6Par exemple &#171; enveloppe &#187;, &#171; peau &#187;, &#171; bogue &#187;, &#171; &#233;caille &#187;, &#171; &#233;pluchure &#187;, &#171; &#233;corce &#187;, &#171; vernis &#187;, &#171; cro&#251;te &#187;,
+&#171; enduit &#187;, &#171; faux-semblant &#187;, &#171; aspect &#187;, &#171; apparence &#187;, &#171; manteau &#187;, &#171; fourrure &#187;, &#171; toison &#187;, &#171; pelure &#187;
+sont rattach&#233;s &#224; un m&#234;me concept ENVELOPPE-APPARENCE constituant pour chacun d&#8217;entre eux, un noyau de
+sens commun. De tels mots constituent, de ce fait, des co-hyponymes, dont on peut distinguer deux types : - les
+co-hyponymes intra domaine : [&#171; broue &#187;, &#171; bogue &#187;, &#171; cosse &#187;, ] ou [&#171; pelage &#187;, &#171; toison &#187;, &#171; fourure &#187;, ] ou
+encore [&#171; robe &#187;, &#171; habit &#187;, &#171; v&#234;tement &#187;, ] qui rel&#232;vent d&#8217;un m&#234;me domaine, &#224; savoir respectivement dans ces
+exemples : VEGETAL ou ANIMAL ou HUMAIN. - les co-hyponymes inter-domaines : &#171; &#233;corce &#187; et &#171; pelage &#187;
+sont des co-hyponymes inter-domaines car ils rel&#232;vent de domaines diff&#233;rents, respectivement le VEGETAL et
+l&#8217;ANIMAL. Le point commun de tous les hyponymes c&#8217;est leur potentialit&#233; &#224; pouvoir exprimer la m&#234;me id&#233;e en
+&#171; intension &#187;. C&#8217;est pourquoi ils peuvent &#234;tre consid&#233;r&#233;e comme co-hyponymes.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>D&#233;sambigu&#239;sation par proximit&#233; structurelle
+</p>
+<p>Soit G = (V,E) un graphe &#224; n sommets construit comme pr&#233;sent&#233; section 2. L&#8217;algorithme
+suivant a &#233;t&#233; appliqu&#233;.
+</p>
+<p>1. on supprime les voisins de &#946; dans G &#8704;x &#8712; V [G]&#946;,x = [G]x,&#946; = 0 ;
+</p>
+<p>2. on calcule [G&#770;]i ; nous avons pris i = 6 (cf. l&#8217;explication plus bas) :
+3. soit L, le vecteur ligne de &#946; alors &#8704;k, L[k] = [G&#770;]i&#946;,k ;
+4. Soit F = {x1, x2, ..., xn} les n&#339;uds correspondant &#224; tous les sous-sens de la d&#233;finition de
+</p>
+<p>&#945;.
+</p>
+<p>On prend alors xk = argmaxx&#8712;F (L[x])
+</p>
+<p>Nous avons alors que xk est le sous-sens le plus &#171; proche &#187; du n&#339;ud &#946;, par rapport &#224; la mesure
+Prox. Deux &#233;tapes demandent un peu plus d&#8217;explication :
+</p>
+<p>1. les voisins sont supprim&#233;s pour ne pas laisser un biais favorable aux sous-sens de &#946;, qui
+formeraient alors une sorte de cluster artificiel par rapport &#224; la t&#226;che donn&#233;e. Ainsi la
+&#171; marche al&#233;atoire &#187; dans le graphe peut vraiment avoir lieu dans le graphe plus g&#233;n&#233;ral
+des autres sens.
+</p>
+<p>2. choisir une bonne valeur pour la longueur de la marche al&#233;atoire n&#8217;est pas simple, et est le
+facteur essentiel de la r&#233;ussite de la proc&#233;dure. Si elle est trop petite, seules les relations
+locales vont appara&#238;tre (synonymes proches, etc) et ils peuvent ne pas appara&#238;tre dans les
+contextes &#224; d&#233;sambigu&#239;ser (c&#8217;est notamment le probl&#232;me de la m&#233;thode de (Lesk, 1986)) ;
+si la valeur de i est trop grande par contre, les &#171; distances &#187; entre tous les mots tendent
+&#224; converger vers une constante, faisant dispara&#238;tre les diff&#233;rences. Cette valeur doit donc
+&#234;tre reli&#233;e d&#8217;une fa&#231;on ou d&#8217;une autre &#224; la distance moyenne entre deux sens quelconques
+du graphe. Une hypoth&#232;se raisonable est donc de rester proche de cette valeur, et nous
+avons donc pris le nombre 6, la moyenne calcul&#233;e &#233;tant de 5,21 (sur le graphe contenant
+tous les sous-sens, pas sur celui-ne contenant que les entr&#233;es, pour lequel L = 3,3) 7.
+</p>
+<p>6 &#201;valuation
+Pour chaque couple de sommets (&#945;, &#946;) &#8712; V &#215; V tel que &#946; repr&#233;sente un d&#233;finissant &#8710; et &#945;
+le lemme d&#8217;une forme qui appara&#238;t dans &#8710;, l&#8217;algorithme pr&#233;c&#233;dent propose un sommet &#947; tel
+que &#947; appartient &#224; la structure hi&#233;rarchique de l&#8217;article dont le mot-vedette est &#945; et tel que &#947;
+permet d&#8217;identifier le sous-sens principal8 de &#945; qui s&#233;mantiquement est le plus proche de son
+occurrence dans &#8710;.
+</p>
+<p>L&#8217;&#233;valuation de la d&#233;sambigu&#239;sation s&#233;mantique a &#233;t&#233; r&#233;alis&#233;e comme suit : Nous avons s&#233;-
+lectionn&#233; al&#233;atoirement 27 d&#233;finissants de substantifs dans le dictionnaire Le Robert. Deux per-
+sonnes ont annot&#233; s&#233;mantiquement les formes nominales qui y apparaissent. 82 triplets ont ainsi
+&#233;t&#233; constitu&#233;s, dont il est rest&#233; 72 apr&#232;s avoir &#233;limin&#233; les mots ayant un seul sens dans le dic-
+tionnaire. Nous avons constat&#233; que les d&#233;saccords entre les deux annotateurs ont &#233;t&#233; tr&#232;s rares
+et qu&#8217;un consensus a pu &#234;tre trouv&#233; rapidement dans les cas litigieux. Parall&#232;lement, nous avons
+</p>
+<p>7La valeur de L est calcul&#233;e en appliquant une variante de l&#8217;algorithme de Dijkstra partant d&#8217;un n&#339;udvers tous
+les autres, r&#233;p&#233;t&#233;e pour chaque n&#339;uddu graphe.
+</p>
+<p>8Le sous-sens principal correspond &#224; la premi&#232;re sous-division hi&#233;rarchique d&#8217;une entr&#233;e, choisie parmi I, II ou
+III, ou bien A, B, ... suivant les cas, cel&#224; n&#8217;&#233;tant pas homog&#232;ne dans le dictionnaire.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Bruno Gaume, Nabil Hathout &amp; Philippe Muller
+</p>
+<p>appliqu&#233; l&#8217;algorithme pr&#233;c&#233;dent aux 72 couples form&#233;s par les deux premiers &#233;l&#233;ments des tri-
+plets annot&#233;s. Nous avons ensuite compar&#233; les r&#233;sultats de l&#8217;algorithme avec les annotations
+manuelles. Ont &#233;t&#233; compt&#233;s comme corrects les solutions telles que le num&#233;ro d&#8217;homographie
+et le num&#233;ro de la premi&#232;re division hi&#233;rarchique sont identiques &#224; ceux qui ont &#233;t&#233; propos&#233;s par
+les annotateurs. C&#8217;est le cas par exemple pour les couples des deux premi&#232;res lignes du tableau
+suivant :
+</p>
+<p>&#946; &#945; &#947; annotateurs
+correct bal#n._m.*0_0_0_3_0 lieu 1_1_0_3_0 1_1_0_1_0
+correct van#n._m.*2_0_0_0_0 voiture 0_2_0_0_0 0_2_0_3_0
+erreur phon&#233;tisme#n._m.*0_0_0_0_0 moyen 1_1_0_1_0 2_0_0_1_0
+erreur cr&#233;ativit&#233;#n._f.*0_0_0_0_0 pouvoir 2_0_0_3_0 2_0_0_1_0
+erreur acm&#233;#n._m._ou_f.*0_0_0_1_0 phase 0_0_0_1_0 0_0_0_4_0
+</p>
+<p>Pour les trois derniers couples, l&#8217;algorithme a propos&#233; des solutions erron&#233;es : mauvais num&#233;ro
+d&#8217;homographe et / ou mauvais sous-sens principal.
+</p>
+<p>Pour avoir une id&#233;e de la difficult&#233; de la t&#226;che, nous avons aussi calcul&#233; la moyenne des sous-
+sens principaux sur les entr&#233;es consid&#233;r&#233;es, la moyenne du nombre d&#8217;homographes ayant la
+m&#234;me cat&#233;gorie grammaticale (nom commun) et la moyenne des sous-sens de niveau le plus fin
+des entr&#233;es consid&#233;r&#233;es. Les r&#233;sultats sont r&#233;sum&#233;s dans la table 3. Le score de d&#233;sambigu&#239;sation
+</p>
+<p>hasard algorithme
+homographes 0,5 0,8 (8/10)
+polys&#233;mie principale 0,37 0,542 (39/72)
+polys&#233;mie fine 0,125 0,292 (21/72)
+</p>
+<p>TAB. 3 &#8211; Premiers r&#233;sultats de l&#8217;&#233;valuation de l&#8217;algorithme, avec une baseline al&#233;atoire
+</p>
+<p>des homographes n&#8217;est pas tr&#232;s significatif vu le petit nombre relev&#233; dans les entr&#233;es choisies.
+Nous pouvons remarquer que les autres scores, sans &#234;tre tr&#232;s bons, sont plut&#244;t encourageants.
+Pour donner une id&#233;e de leur valeur, (Banerjee &amp; Pedersen, 2003) applique des notions de
+distance lexicale vari&#233;es issues de dictionnaire, appliqu&#233;es &#224; la d&#233;sambiguisation (en anglais)
+de mots s&#233;lectionn&#233;s, avec des r&#233;sultats qui vont de 0,2 &#224; 0,4 par rapport aux sous-sens fournis
+par WordNet (et une moyenne de sous-sens par noms qui &#233;quivaudrait &#224; 0,2 pour le score au
+hasard).
+</p>
+<p>7 Conclusion
+</p>
+<p>Nous avons pr&#233;sent&#233; ici un algorithme donnant une mesure de similarit&#233; lexicale &#224; partir d&#8217;un
+dictionnaire g&#233;n&#233;ral. Cet algorithme est non supervis&#233;. Il ne n&#233;cessite pas de corpus annot&#233;
+et n&#8217;utilisant pas d&#8217;autres donn&#233;es qu&#8217;un dictionnaire g&#233;n&#233;ral dont la couverture lexicale est
+la seule restriction sur le vocabulaire. La m&#233;thode donne des r&#233;sultats prometteurs pour la
+d&#233;sambigu&#239;sation sur les noms seuls. Nous envisageons bien s&#251;r d&#8217;&#233;tendre les tests &#224; d&#8217;autres
+cat&#233;gories grammaticales, mais aussi d&#8217;affiner la m&#233;thode pour les substantifs en consid&#233;rant
+par exemple &#233;galement les occurrences verbales dans les d&#233;finissants des noms. Pour &#233;tendre
+cette m&#233;thode au cas g&#233;n&#233;ral de la d&#233;sambigu&#239;sation, nous pensons par ailleurs consid&#233;rer un</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>D&#233;sambigu&#239;sation par proximit&#233; structurelle
+</p>
+<p>contexte qui contient un mot &#224; d&#233;sambigu&#239;ser comme une d&#233;finition virtuelle que l&#8217;on ajouterait
+au graphe des mots pour appliquer ensuite exactement la m&#234;me m&#233;thode. Nous envisageons
+&#233;galement de r&#233;aliser des mesures plus fines des performances en tenant compte des degr&#233;s de
+confiance attribu&#233;s &#224; chaque candidat &#224; la d&#233;sambigu&#239;sation (Resnik &amp; Yarowsky, 2000).
+</p>
+<p>R&#233;f&#233;rences
+BANERJEE S. &amp; PEDERSEN T. (2003). Extended gloss overlaps as a measure of semantic relatedness. In
+Proceedings of the Eighteenth International Conference on Artificial Intelligence (IJCAI-03), Acapulco,
+Mexico.
+DUVIGNAU K. (2002). La m&#233;taphore berceau et enfant de la langue. Th&#232;se de doctorat, Universit&#233;
+Toulouse - Le Mirail.
+DUVIGNAU K. (2003). M&#233;taphore verbale et approximation. Revue d&#8217;Intelligence Artificielle, 17(5/6),
+869&#8211;881. Regards crois&#233;s sur l&#8217;analogie.
+GAUME B. (&#224; para&#238;tre). Balades al&#233;atoires dans les petits mondes lexicaux. I3 Information Interaction
+Intelligence.
+GAUME B., DUVIGNAU K., GASQUET O. &amp; GINESTE M.-D. (2002). Forms of meaning, meaning of
+forms. Journal of Experimental and Theoretical Artificial Intelligence, 14(1), 61&#8211;74.
+GAUME B. &amp; FERR&#201; L. (2004). Repr&#233;sentation de graphes par acp granulaire. In Actes d&#8217;EGC 2004 :
+4&#232;mes journ&#233;es d&#8217;Extraction et de Gestion des Connaissances, Clermont-Ferrand.
+HENRY F. (1996). Pour l&#8217;informatisation du TLF. In D. PIOTROWSKI, Ed., Lexicographie et informa-
+tique. Autour de l&#8217;informatisation du Tr&#233;sor de la Langue Fran&#231;aise, Paris: Didier &#201;rudition.
+H.KOZIMA &amp; FURUGORI T. (1993). Similarity between words computed by spreading activation on an
+english dictionary. In Proceedings of the conference of the European chapter of the ACL, p. 232&#8211;239.
+IDE N. &amp; V&#201;RONIS J. (1998). Introduction to the special issue on word sense disambiguation: The state
+of the art. Computational Linguistics, 24(1).
+LESK M. (1986). Automatic sense disambiguation using machine readable dictionaries: how to tell a
+pine code from an ice cream cone. In Proceedings of the 5th annual international conference on Systems
+documentation, p. 24&#8211;26, Toronto, Canada.
+MANNING C. &amp; SCH&#220;TZE H. (1999). Foundations of Statistical Natural Language Processing. MIT
+Press.
+MARTIN R. (1983). Pour une logique du sens. Paris: Presses Universitaires de France.
+NEWMAN M. E. J. (2003). The structure and function of complex networks. SIAM Review, volume 45,
+167&#8211;256.
+RESNIK P. &amp; YAROWSKY D. (2000). Distinguishing systems and distinguishing senses: New evaluation
+methods for word sense disambiguation. Natural Language Engineering, 5(2), 113&#8211;133.
+WATTS D. &amp; STROGATZ S. (1998). Collective dynamics of &#8216;small-world&#8217; networks. Nature, (393),
+440&#8211;442.</p>
+
+</div></div>
+</body></html>

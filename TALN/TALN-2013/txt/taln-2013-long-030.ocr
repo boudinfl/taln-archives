@@ -1,0 +1,787 @@
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Extension dynamique de lexiques morphologiques
+pour le francais a partir d’un ﬂux textuel
+
+Benoit Sagotl Damien Nouvell Virginie Mouilleronl Marion Baranes2:1
+(1) Alpage, INRIA 8: Université Paris-Diderot, 75013 Paris
+(2) viavoo, 92100 Boulogne Billancourt
+{prenom. nom}@inria. fr
+
+RESUME
+L’incomplétude lexicale est un probléme récurrent lorsque l’on cherche a traiter le langage
+naturel dans sa variabilité. Effectivement, il semble aujourd’hui nécessaire de vériﬁer et compléter
+réguliérement les lexiques utilisés par les applications qui analysent d’importants volumes de
+textes. Ceci est plus particuliérement vrai pour les ﬂux textuels en temps réel. Dans ce contexte,
+notre article présente des solutions dédiées au traitement des mots inconnus d’un lexique. Nous
+faisons une étude des néologismes (linguistique et sur corpus) et détaillons la mise en oeuvre
+de modules d’analyse dédiés a leur détection et a l’inférence d’informations (forme de citation,
+catégorie et classe ﬂexionnelle) a leur sujet. Nous y montrons que nous sommes en mesure, grace
+notamment a des modules d’analyse des dérivés et des composés, de proposer en temps réel des
+entrées pour ajout aux lexiques avec une bonne précision.
+
+ABSTRACT
+Dynamic extension of a French morphological lexicon based a text stream
+
+Lexical incompleteness is a recurring problem when dealing with natural language and its
+variability. It seems indeed necessary today to regularly validate and extend lexica used by tools
+processing large amounts of textual data. This is even more true when processing real—time text
+ﬂows. In this context, our paper introduces techniques aimed at addressing words unknown to a
+lexicon. We ﬁrst study neology (from a theoretic and corpus—based point of view) and describe the
+modules we have developed for detecting them and inferring information about them (lemma,
+category, inﬂectional class). We show that we are able, using among others modules for analyzing
+derived and compound neologisms, to generate lexical entries candidates in real—time and with a
+good precision.
+
+MOTS-CLES : Néologismes, analyse morphologique, lexiques dynamiques.
+KEYWORDS: Neologisms, Morphological Analysis, Dynamic Lexica.
+
+1 L’incomp1étude lexicale et les néologismes
+
+Tout comme les dictionnaires de langues, par déﬁnition lacunaires, les lexiques utilisés pour des
+applications en Traitement Automatique du langage (TAL) doivent étre réguliérement complétés
+aﬁn de reﬂéter au plus pres les réalités linguistiques et limiter ainsi l’incomplétude lexicale.
+Cependant ce processus continu de mise a jour ne peut sufﬁre a lui seul, ne serait—ce que par
+le coﬁt humain d’une telle tache. Il est donc utile de disposer de modules d’analyse permettant
+
+407 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+d’extraire automatiquement de nouvelles entrées lexicales et les ajouter, apres validation ma-
+nuelle ou automatique, dans des ressources lexicales. La mise au point de tels outils est plus
+particuliérement intéressante pour le traitement des données textuelles récentes, voire des corpus
+dynamiques comme un ﬂux de dépéches d’agence, produites en temps quasi—réel.
+
+Etant donné un outil de TAL et un texte a traiter, certains tokens 1 sont inconnus : a partir du
+lexique, l’outil ne parvient pas a les analyser comme mots—formes simples ou combinaisons
+réguliéres de tels mots—formes (par exemple, donne—moi est inconnu en tant que tel des lexiques
+de référence mais analysable comme combinaison typographique des mots—formes donne et —moi).
+Dans cet article, nous utilisons comme référence le Leﬁﬁ‘ (Sagot, 2010) et l’ensemble des mentions
+d’entités nommées répertoriées dans la base Aleda (Sagot et Stern, 2012) 2.
+
+Méme en se restreignant au niveau morphologique (ou une entrée, ou lemme, peut étre réduite a
+une forme de citation, une catégorie et une classe ﬂexionnelle), construire automatiquement de
+nouvelles entrées lexicales candidates n’est pas une tache simple. Outre la non-correspondance
+systématique entre tokens et formes, traiter des tokens inconnus est rendu complexe par leur
+grande variabilité, comme décrit par de nombreux auteurs. Adaptant ainsi la typologie des
+inconnus proposée par Blancafort San José et al. (2010), nous pouvons distinguer :
+
+les tokens invalides, induits notamment par des erreurs de tokenisation;
+
+les inconnus orthographiques, produits de facon consciente (économie scripturale), par
+erreur (mauvaise connaissance de l’orthographe), ou en raison d’instabilités orthographiques
+(notamment pour les emprunts, les constructions préﬁxales ou les associations : co-fondateur,
+coproducteur, microalgues, micro—ondes, e’lectro—me'canique, électroencéphalogramme) ;
+
+— les inconnus typographiques (absence de tirets ou de blancs typographiques obligatoires) ;
+les nombres, sigles et autres unités de ce type (A380, L—334—1) ;
+
+— les emprunts non-adaptés, qui ne sont pas encore rentrés dans le systéme morphologique de
+la langue et ne disposent pas encore de paradigmes morphologiques complets
+
+les inconnus lexicaux, formes correctes absentes des ressources de référence (emprunts
+adaptés, créations lexicales, entités nommées nouvelles ou rares, mentions inconnues d’entités
+connues, etc.) ; parmi eux, il convient de distinguer les mentions d’entités nommées d’une part
+et le reste d’autre part, que nous qualiﬁerons de néologismes dans la suite de cet article 3.
+En fonction de leur nature, les néologismes peuvent étre considérés comme analysables (au moins
+une partie de l’inconnu est reconnaissable a travers sa morphologie) ou non analysables (leur
+forme n’est pas reconnaissable a travers leur morphologie ou leur orthographe). Dans les faits,
+presque tous les néologismes devraient pouvoir étre analysables hors contexte, en s’appuyant sur
+des dictionnaires, ou en contexte, en s’appuyant sur les dépendances syntaxiques auxquelles il
+prend part (Han et Baldwin, 2011).
+
+En TAL, les néologismes analysables hors—contexte a travers leur morphologie peuvent étre traités
+a partir d’algorithmes de racinisation (Lovins, 1968). Ceci perrnet de rattacher un néologisme a
+d’autres unités lexicales connues des ressources de référence (par exemple, zippable a zipper). I1
+
+1. Un token est déﬁni comme une unité typographique constituée d’un caractére de ponctuation ou d’une séquence
+d’au moins un caractére ne comportant pas d’espace et délimitée par des espaces et/ou des caractéres de ponctuation.
+
+2. Dans ce travail, nous laissons de coté les inconnus contextuels, c’est-a-dire les tokens qui ne sont connus de la
+référence que comme composants de composés mais qui apparaissent dans d’autres contextes que ces composés (par
+exemple, instar si on le trouvait ailleurs que dans le composé ('1 Z’instar de/du.
+
+3. Nous considérons donc comme étant un néologisme toute unité lexicale valide qui est nouvelle par rapport aux
+lexiques de référence, et non, comme c’est souvent le cas, par rapport a un usage supposé connu et vériﬁable. Puisqu’il
+ne s’agit pas d’inconnus, nous ne traitons pas non plus des cas ou une forme graphique connue est employée avec une
+catégorie inconnue du lexique (conversion) ou avec un sens nouveau (néologie sémantique).
+
+408 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+est également possible de déduire les catégories morphosyntaxiques des néologismes a partir
+de propriétés de ses afﬁxes morphologiques, si l’on parvient a les identiﬁer. Dans le cas de
+zippable, par exemple, le sufﬁxe —able est un bon indicateur de la catégorie adjectif et de
+la classe ﬂexionnelle marquant le pluriel par un sufﬁxe —s. Enﬁn, le lemme d’un néologisme
+peut étre obtenu par analogie avec les entrées de la référence, par consultation de ressources
+complémentaires, ou a l’aide de lemmatiseurs (Schmid, 1994; Chrupala et al., 2008).
+
+Ces méthodes d’identiﬁcation et d’analyse peuvent étre combinées a d’autres systémes de ﬁltrage
+ou de traitement qui prennent en compte ou non le contexte. En linguistique de corpus, il s’agit
+généralement de descriptions formalisées sous forme de dictionnaires, et de transducteurs a
+états ﬁnis (Maurel et Piton, 1998; Dister et Fairon, 2004). Ces formalismes sont plus ou moins
+puissants en fonction de l’organisation des transducteurs, des types de dictionnaires associés et
+de la variété des traits qu’il est possible d’utiliser a travers eux.
+
+Mais de telles approches supposent que l’on ait su identiﬁer les néologismes parmi l’ensemble
+des inconnus. Si dans certains cas il s’agit d’une tache aisée (sigles, nombres), distinguer un
+néologisme d’un inconnu orthographique ou d’un emprunt non—adapté est moins immédiat. Dans
+cet article, notre objectif est triple : (1) mettre en évidence les phénomenes constructionnels
+dont procédent les néologismes, (2) montrer qu’il est possible d’idenu'ﬁer et d’analyser automati-
+quement ces néologismes, et (3) étendre ainsi automatiquement le lexique morphologique de
+référence, ici le Leﬁﬁ‘ .
+
+Nous présentons en partie 2 l’architecture que nous adoptons pour étudier les tokens inconnus.
+Parmi ces derniers, la partie 3 étudie les mécanismes morphologiques de construction des
+néologismes que nous relevons. Nous décrivons en partie 4, aprés un état de l’art, les modules
+TAL qui nous permettent de traiter ces éléments. Enﬁn, nous conduisons une évaluation dont les
+résultats sont présentés en partie 5.
+
+2 Traitement des inconnus dans le corpus
+
+2.1 Architecture d’identiﬁcation et d’analyse des inconnus
+
+Traiter automatiquement les tokens inconnus aﬁn d’enrichir le lexique nécessite au préalable la
+mise en place d’une architecture logicielle robuste. La ﬁgure 1 présente l’organisau'on générale
+des traitements utilisés et, pour certains, développés spéciﬁquement au sein de la chaine de
+traitement SxPipe (Sagot et Boullier, 2008). Nous réalisons en préliminaire une étape de ﬁltrage
+(Filtres), que nous évoquerons a la section suivante lors de la description du corpus.
+
+Nous appliquons ensuite certains modules de prétraitement de SxPipe 4 (Sagot et Boullier, 2008).
+Nous nous restreignons ici a la tokenisation du texte, a la détection de motifs par automates
+(nombres, dates, sigles) et a la reconnaissance d’entités nommées a l’aide de la base Aleda (Sagot
+et Stern, 2012) et de quelques motifs contextuels. Nous obtenons ﬁnalement des treillis de formes
+a partir desquels les modules implémentés pour le traitement des inconnus peuvent opérer. On
+peut noter que les ambiguités d’analyse ainsi créées ne concernent jamais les tokens inconnus
+qui font 1’objet des traitements ultérieurs.
+
+4. Parmi les options disponibles, nous désactivons celles qui cherchent z‘1 corriger les fautes d’orthographe ou qui
+décomposent la reconnaissance des tokens (par dérivation ou par composition).
+
+409 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+i 1 i
+Lexiques Dérivation Composition
+- Wikipedia - analogie . semi.soudées
+- Morphalou - motifs - altérées
+- Prolex I
+
+1;:
+
+V
+- >| Analyses et proposition d’entrées lexicales I4
+
+ 
+
+FIGURE 1 — Chaine de traitement des inconnus
+
+Le module Inconnus identiﬁe les tokens inconnus et les étiquette comme tels. Comme nous
+l’avons évoqué, ces derniers peuvent relever de nombreuses catégories. Le module Emprunts (Ba-
+ranes, 2012) permet d’écarter les tokens empruntés a l’anglais non—adaptés 5. Parrni les inconnus
+restants, nous cherchons a repérer les forrnes qui auraient intérét a étre ajoutées au lexique, soit
+parce que ce dernier n’est pas sufﬁsamment complet (Lexique s), soit parce que ce sont des
+créations lexicales (en particulier ceux créés par Dérivat ion, ou par Composition).
+
+2.2 Données : le ﬂux de dépéches AFP
+
+Nous conduisons nos études, expériences et évaluations sur un volumineux corpus de dépéches
+AFP (francophones), collectées entre 2007 et 2013. Nous en sélectionnons trois sous—parties
+aﬁn de mener nos expériences : des dépéches entre le 24 juin et le 3 juillet 2009 (AFP—a.nnot),
+l’intégralité des dépéches de l’année 2009 (AFP—2009) et 200 dépéches tirées au hasard entre le
+1°‘ et le 14 janvier 2013 (AFP-eval). L’opération de ﬁltrage consiste a écarter les énoncés ne
+comportant pas assez de caracteres en minuscules ou pas assez de mots. Cela permet d’éliminer
+les tableaux de résultats sportifs, sommaires, agendas, signatures et autres éléments qui ne sont
+pas a proprement parler du contenu linguistique.
+
+Le tableau 1 donne les caractéristiques générales de ces corpus. On peut constater que les
+occurrences d’inconnus sont d’autant plus redondantes que le sous—corpus est grand. Les corpus
+AFP—a.n.not et AFP—2009 sont utilisés a ﬁns d’études. En particulier, AFP—a.n.not est annoté
+manuellement en inconnus selon la classiﬁcation de Blancafort San José et al. (2010) 6. Nous
+écartons certaines classes d’inconnus de cette étude (mots commencant par des chiffres ou des
+majuscules) aﬁn de se focaliser sur les créations lexicales. Le tableau 2 indique la répartition des
+inconnus selon ces classes. Nous y Vériﬁons l’importance du phénomene de créations lexicales,
+que nous assimilons aux néologismes et sur laquelle nous concentrons nos efforts.
+
+La ﬁgure 2 nous renseigne sur l’évolution des inconnus distincts (repérés par la chaine de
+
+5. Des néologismes empruntés a des formes anglophones peuvent alors ne pas étre repérés (cardio-training, box-oﬁice,
+etc.), mais ces erreurs représentent moins de 1% des tokens inconnus.
+
+6. Le travail d’annotation manuelle a été réalisé sous la responsabilité et avec les outils de l’entreprise Syllabs, dans le
+cadre du projet ANR EDyLex.
+
+410 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+— anuot
+
+ 
+
+TABLE 1 — Volumes
+
+non-autonomes
+
+4- 10-3
+
+ 
+
+F1-équence relative
+N
+...
+O
+4.
+
+TABLE 2 — Inconnus de AFP—a.nnot
+
+:
+
+‘to. re. "0; "°o., "°o.. "°o..
+
+v, ‘% 2;‘, 2;, Q, 2}. Inconnus —l— Nouveaux —"— Anciens -9- Intersection
+
+FIGURE 2 — Temporalités des inconnus distincts
+
+traitement) par mois au sein du corpus AFP—2009 en fréquence relative 7. Au ﬁl de l’année,
+les accumuler permet d’indiquer pour chaque mois le nombre de nouveaux inconnus a traiter
+(Nouveaux), et leur intersection depuis le début de l’année (Intersection). Malgré les volumes de
+données que nous manipulons, il semble que le nombre de nouveaux inconnus apparaissant tous
+les mois diminue relativement peu. Cette apparition continuelle de nouvelles entrées, dans un
+corpus aussi contrélé que des dépéches AFB nous conﬁrme la nécessité de mettre en place des
+mécanismes dynamiques pour traiter ces éléments.
+
+3 Analyse linguistique des néologismes
+
+Il existe de nombreuses formes de néologismes qui ne sont pas toutes aussi faciles a identiﬁer
+comme telles. Sablayrolles (1997) recense une centaine de typologies plus ou moins profondes
+des néologismes. Sablayrolles et al. (2011) proposent un classement général des néologismes
+en trois classes qui correspondent aux phénomenes de glissement de sens, aux phénomenes
+d’afﬁxation et de composition ainsi qu’aux phénomenes d’économie du langage. Il propose
+également un classement plus ﬁns en 24 classes.
+
+De nombreux travaux ont permis d’élaborer des outils aﬁn d’étudier et de décrire la néologie.
+Le logiciel SEXTAN (Cabré et al., 2003) permet d’identiﬁer automatjquement les inconnus et de
+les présenter a un lexicographe. Le laboratoire LDI dispose d’une plateforme de traitement des
+néologismes, NEOLOGIA (Cartier, 2011), qui permet de collecter et rechercher des néologismes
+dans la base de données, d’en observer l’évolution (depuis l’état néologique jusqu’a celui de mot
+intégré dans les dictjonnaires) et, dans certains cas, la disparition.
+
+Les néologismes issus d’emprunts sont étudiés depuis une quarantaine d’années, notamment a
+travers les travaux de L. Guilbert dans les années 70 puis J. Rey—Debove et M. Yaguello dans
+les années 80. Aujourd’hui, de nombreuses recherches s’intéressent plus particulierement a
+l’adaptation des formes empruntées (Anastassiadis—Syméonidis et Nikolaou, 2011). Walther et
+
+7. La fréquence est rapportée aux nombre de tokens par mois.
+
+411 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+Sagot (2011) abordent ainsi la question de l’adaptation de verbes néologiques issus de l’anglais.
+
+Dans le cadre de la déﬁnition des néologismes donnée plus haut, nous nous intéressons dans
+cette partie aux inconnus morphologiquement analysables, et notamment aux créations lexicales
+formées par dérivation ou par composition (et éventuellement altération) de mots connus.
+
+3.1 Mécanismes de création lexicale
+3.1.1 Formes créées par dérivation
+
+Par dérivation nous faisons référence aux phénoménes d’afﬁxation. L’afﬁxation correspond a
+l’ajout de morphémes a gauche (préﬁxation) ou a droite (sufﬁxation) d’un mot connu. Ces
+mécanismes permettent la construction de néologismes dont la signiﬁcation est, généralement,
+immédiatement compréhensible. En cas de sufﬁxation, la catégorie peut étre modiﬁée (énorme
+—> énormitude) 8. Nous classons parmi les préﬁxes, les formes « e », « i », « web » et « cyber »,
+Notons que ces derniéres sont parfois décrites, selon les auteurs comme << combining forms »
+(Ahronian et Béjoint, 2008) ou formes hybrides (Sablayrolles et al., 2011).
+
+occ. (+tiret)
+- 3371 +
+- +
+- +
+
+isation (s) 1 992 masterisation
+s
+s
+s
+s
+
+ 
+
+TABLE 3 — Affixes les plus fréquents dans les dépéches AFP
+
+La table 3 donne, pour quelques exemples, les occurrences que nous relevons dans le corpus
+AFP—2009. L’étude systématique de préﬁxes et de suffixes nous perrnet d’en constituer une liste
+utilisée comme motifs pour l’analyses des néologismes.
+
+3.1.2 Formes créées par composition
+
+Comme nous le verrons en section 4, les mécanismes de composition représentent une part
+importante de néologismes que nous repérons. Tout d’abord, un composé peut étre simplement
+créé par association de constituants. Dans ce cas, les mots sont concaténés (généralement par
+trait d’union) aﬁn de n’en former plus qu’un. Nous relevons en particulier : (i) les compositions
+ADJ+N, N+ADJ et ADJ+ADJ = ADJ ou N, (ii) les compositions N+N = N, (iii) les compositions
+V+N = N. Certains adjectifs sont trés productifs pour composer les formes comme en (i). C’est le
+cas par exemple des adjectifs super (ex. super—he'ros) ou mini (ex. mini—chaine). Les compositions
+a partir de noms communs (ii) permettent de générer d’autres noms composés. Les compositions
+issues de verbes et de noms communs (iii) permettent de créer des noms communs qui font
+
+8. Certains mots suffixés peuvent également étre classés dans les constructions par apocopes qui eux-mémes peuvent
+étre associés a des mots-valises.
+
+412 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+référence, par exemple (Villoing, 2003) a des instruments (ouvre—lettre), des lieux (coupe—gorge),
+des agents (gratte-papier), des proces (léche—vitrine), etc.
+
+Dans les composés créés a partir de deux adjectifs ou plus (chiraco—villepinistes), les premiers
+composants manifestent la perte de leur autonomie au proﬁt du dernier adjectif par un mécanisme
+d’altération en -0. Ce mécanisme permet notamment la construction de termes dans des domaines
+de spécialités (socialo—communiste), ou d’adjecu'fs formés avec des gentilés (franco—allemand).
+
+On peut enﬁn relever le cas particulier des compositions dans lesquelles le premier adjectif est
+en réalité une base latine ou grecque munie de ce morphe -0 9. Ces composés sont souvent des
+termes savants du domaine médical (cardio—vasculaire).
+
+Créations lexicales Nb d’occ. Formes distinctes Exemples
+composé d’un gentilé 7797 616 américano-taiwanais
+par association avec altération autres 2956 239 politico-judiciaire
+total 10753 855 chiraco-villepinistes
+par association sans altération — 284 109 satiristes-polémistes
+
+TABLE 4 — Formes inconnues créées par association dans les dépéches AFP
+
+Le tableau 4, qui résume les études sur corpus sur la composition, montre la forte productivité
+des composés, notamment des formes en -0 , qui demandent un traitement spéciﬁque.
+
+4 Analyse morphologique automatique des néologismes
+
+4.1 Etat de l’art
+
+Plusieurs approches peuvent permettre d’analyser les néologismes par dérivation ou par compo-
+sition. Nous nous appuyons sur les travaux en morphologie qui s’intéressent au regroupement
+de mots en familles morphologiques 1°. C’est le cas de Bernhard (2010) qui a mis en place deux
+systémes d’apprentissage non supervisés (Morphoclust et MorphoNet) ou de Hathout (2010)
+dont le systeme (Morphonette) méle analogie et informations sémantiques. Dans certains cas, les
+travaux portent sur la prédiction de formes potentielles de la langue (Neuvel et Fulop, 2002) ou
+aﬁn de compléter un quadruplet d’analogie (Lepage, 1998).
+
+La plupart des systémes décrits dans la littérature mettent l’accent sur l’analyse de la construction
+d’un mot. Le systéme a base de régles (créées manuellement) Dérif (Hathout et Namer, 2011)
+détermine les éléments a partir desquels sont construits des unités lexicales, par dérivation ou
+par composition. D’autres systémes réalisent cette tache de maniére non supervisée, par exemple
+par analogie formelle (Lavallée et Langlais, 2011) on par segmentation (Goldsmith, 2001; Creutz
+et Lagus, 2005). En ce qui concerne les mécanismes compositionnels, si Mathieu—Colas (2010)
+se penche sur la création lexicale par trait d’union, nous n’avons pas connaissance de systemes
+implémentés spéciﬁquement a leur sujet.
+
+Certains travaux montrent qu’il est possible d’ajouter a l’analyse de la construction d’un mot
+la prédiction de son lemme et de ses traits morphologiques en s’appuyant sur un systéme
+
+9. Ces << compositions néoclassiques >> existent en frangais mais ne correspondent plus aux formes d’o1igines.
+10. Une famille morphologique est composée de mots partageant une base lexicale commune (écrit, écrire, e’crivain,...).
+
+413 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+d’apprentissage supervisé couplé a de l’analogie (Stroppa et Yvon, 2006). Disposer de ces
+informations supplémentaires ont, par exemple, permis a Dal et Namer (2000) (avec Ge'De’Rif),
+ainsi qu’a (Tanguy et Hathout, 2002) (avec Webaﬂix), de proposer un systéme qui, pour chaque
+forme nouvelle, calcule ses dérivés et vériﬁe leur validité sur intemet.
+
+Cependant, mis a part Mikheev (1997), peu de travaux étudient spéciﬁquement l’élaboration et
+l’évaluation de systemes de comple’tion d’un lexique. Dans notre travail, nous mettons en place
+des outils destinés a traiter des documents susceptibles de contenir de nombreux néologismes, tels
+que déﬁnis en introduction. 11 nous faut donc distinguer ces derniers parmi les tokens inconnus,
+déterminer et évaluer les mécanismes qui permettent de les analyser automatiquement.
+
+4.2 Recherche dans des lexiques extemes
+
+Les notions d’inconnu et de néologisme étant déﬁnies ici par rapport a un lexique de re’fe’rence,
+le Leﬁj‘ , la facon la plus simple de les traiter consiste a les rechercher dans d’autres ressources
+lexicales librement disponibles. Nous avons fait appel au Wiktionnaire (fr . wiktionary . com/),
+dictionnaire collaboratif, a Morphalou (Romary et al., 2004), lexique morphologique extrait du
+TLFi, et a ProLexBase (Maurel, 2008), base de noms propres incluant de nombreux gentilés.
+
+Toutefois, l’enrichissement du Leﬁf avec des entrées lexicales manquantes extraites de ces res-
+sources nécessite de rendre ces derniéres compatibles avec le Leﬁﬁ‘, en les transformant en un
+inventaire d’entrées lexicales associant une forme de citation a une des classes ﬂexionnelles du
+Leﬁﬁ‘ . Pour chacune de ces trois ressources, nous avons donc construit des outils de conversion
+automatique vers le formalisme Alexina, puis avons projeté les classes ﬂexionnelles obtenues vers
+celles utilisées par le Leﬁﬁ‘ . Ce processus, bien que nécessairement imparfait, a permis de détecter
+des erreurs dans les trois ressources d’origine 11. Le Wiktionnaire, Morphalou et ProLexBase ont
+été ainsi transformés en des lexiques Alexina de méme grammaire morphologique que le Leﬁfet
+comprenant respectivement environ 1 million, 400 000 et 125 000 entrées produisant au total
+1 100 000 formes ﬂéchies distinctes, parmi lesquelles 700 000 ne sont pas couvertes par le Leﬁﬁ‘ .
+
+Ainsi, un module dédié recherche les néologismes dans ces ressources, et propose autant d’ana—
+lyses qu’il y trouve d’entrées. Au sein du corpus AFP—2009, 18,6% des inconnus analysés distincts
+le sont grace a ce module, parmi lesquels 71,5% sont trouvés dans le Wiktionnaire, 32,0% dans
+Morphalou et 14,9% dans ProLexBase (une entrée pouvant se trouver dans plusieurs lexiques en
+méme temps). Notons que, méme s’ils ne sont pas utilisés par les modules présentés ci—aprés, ces
+lexiques sont disponibles pour l’ensemble de la chaine de traitement SxPipe.
+
+4.3 Néologismes construits par dérivation
+4.3.1 Analyse par analogie
+
+Comme indiqué en partie 3.1, nous analysons les néologismes construits par dérivation comme
+l’applicau'on de régles d’afﬁxau'on sur une entrée existante du Leﬁﬁ‘ (ex : divulgable—divulgation) 12.
+
+11. Par exemple parce qu’une entrée lexicale se retrouve 21 associer une forme de citation avec une classe ﬂexionnelle
+que la grammaire morphologique du Lefjﬂ‘ considere comme incompatible
+
+12. Le Leff ne comportant pas de noms propres, notre chaine ne permet pas l’analyse de dérivés dont la base est un
+nom propre, tels que zlataner ou sarkozysme.
+
+414 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Le module décrit ici s’inspire de travaux sur l’analogie appliquée a la morphologie. Cette notion,
+décrite dans les travaux cités en section 4.1, permet d’établir un rapport entre deux paires
+d’éléments : x est a y ce que z est a t, noté x : y :: z : t. Pour la néologie, nous recherchons des
+régles d’afﬁxation communes a des paires d’entrées du Leﬁﬁ‘, qui nous permettent de déduire
+des informations pour des néologismes donnés. Dans le cas de divulgable, nous pouvons déduire
+qu’il s’agit d’un dérivé si nous trouvons conjointement (i) divulgation dans le Leﬁfet (ii) une
+régle de substitution du sufﬁxe —able en —ation (extraite d’entrées du Leﬁfcomme acceptable-
+acceptation). Ce type d’analyse nécessite donc un apprentissage des régles morphologiques. Le
+notre, faiblement supervisé, se fait en trois étapes :
+
+1. Nous apprenons les regles de construction a partir des formes ﬂéchies du Leﬁﬁ‘ en étudiant
+tous les couples (forme de citation, forme ﬂéchie reliée ou non a la forme de citation —)
+qui ont une partie commune d’au moins 5 caracteres et qui ne different que par un sufﬁxe
+ou par un préﬁxe (en sélectionnant les regles de fréquence Z 40).
+
+2. Les régles sont utilisées pour grouper les entrées du Leﬁj‘ (supposées partager une méme
+base lexicale) aﬁn de constituer des paires de formes accompagnées de regles de transfor-
+mation pour passer de l’une a l’autre.
+
+3. Cette seconde étape permet d’établir des paires de formes x, y (forme de citation, forme
+ﬂéchie reliée par ﬂexion ou dérivation), qui vont nous servir a construire des relations
+analogiques impliquant un inconnu t, relations de la forme x : y :: t : z. Pour ce faire,
+nous remplacons chaque paire de formes par une régle de réécriture reliant un couple
+préﬁxe/sufﬁxe d’input a un couple préﬁxe/sufﬁxe d’output, ce qui permet de traiter les
+préﬁxations, les sufﬁxations, et les dérivés parasynthétiques (cf. table 5). Chacune de
+ces régles indique la catégorie et les traits morphologiques (genre, nombre) obtenus.
+De surcroit, en étudiant les couples de mots leur donnant naissance, nous catégorisons
+chaque régle comme ﬂexionnelle ou dérivationnelle. Nous ne conservons que les régles
+morphologiques qui ont plus de 80 occurrences (32 508 régles distinctes) dont quelques
+exemples sont montrés en table 5.
+
+Cat. Préﬁxe Sufﬁxe Occ Type Exemple
+adj_Kfp —> v_W _ ées —> er 6483 Dérivation données —> donner
+v_I12s —> nc_fs _—> dé is —> tion 116 Dérivation valorisais —> dévalorisation
+v_P2p —> v_W _ z —> r 7074 Flexion dansez —> danser
+
+TABLE 5 — Exemples de regles afﬁxales apprises
+
+Nous sommes ainsi en mesure de déterminer si un inconnu, analysable par ces régles, est une
+création lexicale. En effet, si nous parvenons a le relier ainsi a une entrée du Leﬁf grace a une
+regle dérivationnelle 13. Le lemme (forme de citation + classe ﬂexionnelle) est obtenu en appli-
+quant l’outil intégré au Leﬁf permettant de calculer pour un triplet (forme, catégorie, étiquette
+morphologique) l’ensemble des lemmes morphologiquement compatibles avec la grammaire
+morphologique du Leﬁj‘ d’une part et avec le triplet d’autre part. L’application, en paralléle, de
+l’étiqueteur morphosyntaxique MElt (Denis et Sagot, 2012) permet alors de ne conserver que
+les lemmes dont la catégorie est la méme que celle proposée par MElt pour l’inconnu (s’il y en
+a plusieurs, on choisit le mieux pondéré, s’il n’y en a aucun, on déclare l’inconnu inanalysable
+par ce module). La sortie de notre module, présentée en table 6 nous permet de proposer de
+
+13. Si la régle est ﬂexionnelle, nous considérons qu’il s’agit d’une faute d’orthographe et non d’un néologisme : le
+Lejﬁ‘ étant supposé comporter toutes les ﬂexions possibles, le mot est ﬂéchi selon une classe ﬂexionnelle erronée (travails
+comme pluriel de travail).
+
+415 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+Composé Régles appliquée Famille morphologique Cat., ﬂexion F. de citation
+blablatons -ons—>-age blablatage V_P1p, V-er; V_Y1p, V-er blablater
+décrocheurs -eurs—>-er, -eurs—>-age décrocher, décrochage... NC_mp, nc-2m décrocheur
+
+TABLE 6 — Analyse des dérivés
+
+nouvelles entrées lexicales et permet d’analyser 11,9% des inconnus distincts présents dans le
+corpus AFP—2009.
+
+4.3.2 Mise au point de motifs dédiés
+
+L’étude menée en section 3.1 nous a permis d’isoler et de décrire certains phénoménes de
+création lexicale pour lesquels nous mettons au point des mécanismes d’analyse dédiés. En
+particulier, parmi les préfixes considérés, une proportion importante correspond a un mécanisme
+de dérivation qui ne modiﬁe pas la catégorie morphosyntaxique et la classe ﬂexionnelle du lemme
+de base. Ainsi, nous mettons en place un module qui, pour un inconnu donné, recherche un
+des préﬁxes standard 14 et vériﬁe si le composant a droite (concaténé, éventuellement par trait
+d’union) de ce préﬁxe est un mot connu du Leﬁﬁ‘ . Si tel est le cas, une analyse est proposée qui
+construit le lemme complet a partir de l’entrée trouvée. Dans le corpus AFP—2009, 16,6% des
+inconnus analysés distincts le sont grace a ce module. Un mécanisme similaire est implémenté
+pour les sufﬁxes iste, isme et isation mais ne traite qu’un tres faible nombre d’inconnus (0,2%).
+
+4.4 Analyse des néologismes construits par composition
+
+Aﬁn de traiter les expressions construites par composition, nous nous focalisons en premiere
+approche sur la composition marquée par un ou plusieurs tiret(s) ‘—’ dont nous cherchons a
+décrire la morphologie. Nous sommes alors en mesure d’en identiﬁer simplement les composants
+et d’interroger le Leﬁﬁ‘ pour y rechercher, par ordre de préférence :
+
+(i) l’expression dans laquelle les tirets sont remplacés par un blanc (expression multi—mots),
+(ii) chaque composant séparément (composition),
+
+(iii) s’il n’y a que deux composants, le dernier composant et les formes de citation ayant un
+préﬁxe commun 15 avec le premier composant (composition avec alteration).
+
+Comme 1’étude linguistique en partie 3.1 1’a suggéré, dans une grande majorité de cas, le dernier
+composant impose sa catégorie et sa classe ﬂexionnelle au néologisme construit. S’il y a ambiguité,
+nous utilisons la catégorie proposée par l’étiqueteur morphosyntaxique MElt appliqué en paralléle,
+pour ne conserver que les analyses qui sont compatibles avec cette catégorie (contrairement a
+la section précédente, nous conservons ici toutes les analyses produites si MElt n’en a proposé
+aucune compatible avec les entrées suggérées). Nous conservons ainsi ces informations pour
+proposer la catégorie et la classe ﬂexionnelle de la nouvelle entrée lexicale. Enﬁn, la forme de
+citation est construite a partir de tous les composants d’origine, sauf 1e dernier qui est remplacé
+par la forme de citation de l’entrée lexicale du Leﬁftrouvé.
+
+14. agri, anti, apre‘s, archi, contre, cyber, dé, demi, dés, e, ex, extra, grand, hyper, im, in, inter, intra, mal, maxi, méga,
+méta, mi, mini, multi, non, outre, para, péri, pluri, poly, post, pré, quart, quasi, re, re’, sans, semi, sous, sub, super, supra,
+sur, téle', tiers, trans, ultra, uni, vice, ca.
+
+15. Ce préﬁxe doit contenir au moins la moitié du composant.
+
+416 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+s en Cat., F01-me
+a centre nc-2m NC nc-2m centre
+) (NC nc-4) + maire (NC -4sse) NC -4sse
+NC -
+
++ (NC fs,nc-2f) _
+
+ 
+
+TABLE 7 — Analyse de composés
+
+Nous remarquons qu’en (iii), l’analyse peut fournir de nombreuses hypotheses distinctes (forme de
+citation, catégorie, classe ﬂexionnelle), notamment lors de la recherche par préﬁxe commun. Pour
+pallier cela, nous ajoutons des contraintes dans ce cas : nous nous restreignons aux expressions
+formée selon le motif -0 qui décrit correctement, notamment, la composition adjectivale. La
+table 7 donne quelques exemples de décompositions réalisées selon ces principes.
+
+Dans le cas général, nous remarquons la difﬁculté de traiter de telles expressions lorsqu’ils sont
+amalgamés sans marqueurs de séparation (ni espace), puisque l’on tombe dans le cas difﬁcile
+des mots composés standards (Sag et al., 2002), mais notre étude sur corpus a montré que ce
+phénomene était marginal.
+
+Parmi les inconnus distincts traités par nos modules, celui-ci en analyse 57,7% dans le corpus
+AFP—2009. Ce chiffre important est lié a la productivité des mécanismes de création lexicale.
+Ceci nous conﬁrme que l’incomplétude lexicale reléve de mécanismes au—dela de la morphologie
+dérivationnelle et que des moyens peuvent étre mis en oeuvre pour permettre leur analyse.
+
+5 Construction et évaluation d’entrées lexicales néologiques
+
+Tous les modules que nous avons décrits, lorsqu’ils parviennent a analyser un inconnu, fournissent
+pour chaque élément son lemme, c’est—a—dire sa forme de citation, sa catégorie et sa classe
+ﬂexionnelle. En conséquence, nous sommes en mesure de re’cupe’rer les analyses produites aﬁn
+de proposer de nouvelles entrées a ajouter au lexique. L’ordre de ces modules importe : le
+premier qui parvient a analyser un inconnu interrompra le processus d’ana1yse. Comme nous le
+verrons ci—dessous, la précision des modules d’ana1yse nous permet d’examiner1es analyses des
+la premiere occurrence.
+
+Comme indiqué plus haut, l’objectif de ce travail est double : construire des entrées lexicales
+ﬂexionnelles a ajouter au Leﬁfaﬁn d’en augmenter la couverture sur les dépéches AFP de
+facon dynamique, mais également extraire des informations constructionnelles concernant ces
+nouvelles entrées, aﬁn de permettre des traitements ultérieurs (sémantique lexicale y compris
+pour des applications en TAL, étude quantitative des mécanismes de création lexicale, etc.).
+Nous avons donc procédé a une évaluation en trois étapes, qui vise a répondre aux questions
+suivantes pour chaque occurrence d’inconnu : a—t—elle été correctement identiﬁée comme étant ou
+n’étant pas un néologisme ? si oui, l’entrée lexicale proposée est—elle correcte, y compris sa classe
+ﬂexionnelle aﬁn de pouvoir produire correctement ses formes ﬂéchies ? si oui, les informations
+constructionnelles associées sont-elles correctes ?
+
+Pour cela, nous traitons les inconnus contenus dans le corpus AFP—eval tel que décrit en partie
+2. Parmi les 489 inconnus distincts, 449 (soit 92%) ont été correctement classés, dont 357 qui
+ne sont pas des néologismes et 92 néologismes. Les 40 inconnus restant (8% du total) ont
+
+417 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+été mal classés, dont 34 néologismes : seulement 6 inconnus ont été analysés a tort comme
+des néologismes (et ont donc donné lieu a des entrées lexicales candidates erronées). Nous
+obtenons donc pour la tache de détection des néologismes une précision de 94% (92 / (92+6)) et
+un rappel de 73% (92 / (92+34)), et pour la tache complémentaire de détection des inconnus
+non—néologiques une précision de 91% (357/ (357+34)) et un rappel de 98% (357/ (357+6)).
+
+Les 98 inconnus détectés comme néologismes, y compris les 6 classés par erreur, ont conduit 2‘: la
+création de 93 entrées lexicales candidates, c’est—a—dire d’entrées (forme de citation, catégorie,
+classe ﬂexionnelle) qui permettent de construire automatiquement toutes les formes ﬂéchies
+correspondantes. Nous avons évalué cette liste manuellement avec les résultats suivants : 73 sur
+93, soit environ 80%, sont totalement correctes, 5 ont la bonne catégorie mais pas la bonne classe
+ﬂexionnelle (ainsi point—presse, considéré comme féminin et prenant un s au pluriel), 13 n’ont
+pas la bonne catégorie (mais souvent les bonnes formes ﬂéchies, car il s’agit fréquemment de
+confusions nom/adjectif, par exemple multi—facette), 1 est douteuse et 1 est totalement erronée
+(le verbe multi—voir pour l’adjectif multi—vues).
+
+Parmi les 73 entrées lexicales correctes, 52 ont été construites par 1’un de nos modules d’analyse,
+et non au moyen de lexiques externes. Pour ces 52 entrées nous disposons donc d’informations
+constructionnelles, de nature a permettre le calcul d’informations supplémentaires telles que
+la valence ou la sémantique lexicale 15. Ainsi, ayant correctement analysé co-attribuer comme
+issu d’une dérivation préﬁxale a partir du verbe attribuer, nous pouvons d’une part associer
+a co-attribuer les memes informations de valence que celles dont on peut disposer dans un
+lexique comme le Leﬁj‘, et d’autre part savoir que le sens de co-attribuer peut se construire
+compositionnellement a partir de celui du préﬁxe co- et de celui d’attribuer 17. Nous avons étudié
+manuellement les informations constructionnelles obtenues au cours du processus d’analyse. Pour
+cette évaluation, celles—ci se sont toujours avérées correctes. Par exemple, le module d’analyse des
+dérivés par analogie a correctement relié le verbe néologique galvaniser au nom galvanisation. Le
+module d’analyse des composés a su analyser politico-judiciaire comme formé par la composition
+des adjectifs politique (avec altération) et judiciaire.
+
+6 Conclusion
+
+Le traitement de ﬂux continu de dépéches d’actualité nécessite de maintenir un lexique a jour
+aussi dynamiquement que possible. Face a cette problématique, nous avons mis au point une
+chaine de traitement qui isole les éléments relevant de l’incomplétude lexicale, nous étudions
+les mécanismes néologiques liés a leur création et implémentons des modules dédiés pour
+leur analyse morphologique. Ce processus nous permet de récolter des informations (morpho-
+syntaxiques et ﬂexionnelles), selon la morphologie des néologismes analysés. Nous sommes ainsi
+en mesure de proposer des entrées lexicales a ajouter au lexique, des leur premiere occurrence et
+avec une trés bonne précision.
+
+En perspectives, ce travail pourra donner lieu a des études, a plus grande échelle et en temporalité,
+des néologismes, ainsi qu’a l’inférence d’autres informations (cadres de sous—catégorisation,
+classes sémantiques) concernant des entrées inconnues des lexiques. De tels travaux devront
+
+16. Ces informations pourraient également étre construites pour les néologismes trouvés dans les lexiques externes.
+17. Méme si ce dernier point est plus délicat, une des caractéristiques de la morphologie constructionnelle étant
+précisément le caractére non complétement prédictible de la sémantique résultante.
+
+418 © ATALA
+
+TALN-RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+par ailleurs étre évalués dans une conﬁguration oriente’e—tache, pour montrer par exemple leur
+utilité en analyse morphosyntaxique, syntaxique ou sémantique, ainsi par exemple que pour
+l’indexation de documents.
+
+Remerciements Ce travail a été ﬁnancé par le projet ANR EDyLex (ANR—09—CORD—008) et par
+l’entreprise viavoo.
+
+Références
+
+AHRONIAN, C. et BEJOINT, H. (2008). Les noms composés anglais et francais du domaine
+d’intemet : une radiographie bilingue. Meta : journal des traducteurs, 53(3):648—666.
+ANASTASSIADIS-SYMEONIDIS, A. et NIKOLAOU, G. (2011). L’adaptation morphologique des em-
+prunts néologiques : en quoi est-elle précieuse ? Langages 3.
+
+BARANES, M. (2012). Vers la correction automatique de textes bruités : Architecture générale et
+détermination de la langue d’un mot inconnu. In Actes de Recital 2012, Grenoble, France.
+BERNHARD, D. (2010). Apprentissage non supervisé de familles morphologisques : Comparaison
+de méthodes et aspects multilingues. TAL, 51(2):11—39.
+
+BLANCAFORT SAN José, H., Racouncé, G., Couro, J., SAGOT, B., STERN, R. et TEYSSOU, D. (2010).
+Traitement des inconnus : une approche systématique de l’incomplétude lexicale. In Actes de
+TALN 2010, Montréal, Canada.
+
+CABRE, M., DOMENECH, M., EsTo1>A, R., FREIXA, J. et SOLE, E. (2003). L’observatoire de néologie :
+conception, méthodologie, résultats et nouveaux travaux. L’innovation lexicale, pages 125-147.
+
+CARTIER, E. (2011). Néologie et description linguistique pour le tal. Langages, 183:105—117.
+CHRUPALA, G., DINU, G. et van GENABITH, J. (2008). Learning morphology with morfette. In
+Proceedings of LREC 2008, Marrakech, Morocco. ELDA/ELRA.
+
+CREUTZ, M. et LAGUS, K. (2005). Inducing the morphological lexicon of a natural language from
+unannotated text. In Proceedings of the International and Interdisciplinary Conference on Adaptive
+Knowledge Representation and Reasoning (AKRR’05), pages 106-113.
+
+DAL, G. et NAMER, F. (2000). Génération et analyse automatiques de ressources lexicales
+construites utilisables en recherche d’informations. TAL, 41(2):423—446.
+
+DENIS, R et SAGOT, B. (2012). Coupling an annotated corpus and a lexicon for state—of—the—art
+pos tagging. Language Resources and Evaluation, 46(4):721—736.
+
+DISTER, A. et FAIRON, C. (2004). Extension des ressources lexicales grace a un corpus dynamique.
+Lexicometrica, Thema 7.
+
+GOLDSMITH, J. (2001). Unsupervised learning of the morphology of a natural language. Compu-
+tational Linguistics, 27(2):153—198.
+
+HAN, B. et BALDWIN, T. (2011). Lexical normalisation of short text messages : Makn sens a#
+twitter. In Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics :
+Human Language Technologies, volume 1, pages 368-378.
+
+HATHOUT, N. (2010). Morphonette : a morphological network of french. CoRR, abs/1005.3902.
+HATHOUT, N. et NAMER, E (2011). Regles et paradigmes en morphologie informatique lexéma—
+tique. In Actes de TALN 201 1, Montpellier, France.
+
+419 © ATALA
+
+TALN—RECITAL 2013, 17-21 Iuin, Les Sables d’Olonne
+
+LAVALLEE, J.—E et LANGLAIS, P. (2011). Moranapho : un systéme multilingue d’analyse morpholo-
+gique fondé sur l’analogie formelle. TAL, 52 (2):17—44.
+
+LEPAGE, Y. (1998). Solving analogies on words : An algorithm. In Proceedings of COLING—ACL
+1998, pages 728-735.
+
+LoVINs, J. (1968). Development of a stemming algorithm. MIT Information Processing Group,
+Electronic Systems Laboratory.
+
+MATHIEU-COLAS, M. (2010). Flexion des noms et des adjectifs composés : principes de codage.
+Lexiques, Dictionnaires, Informatique (LDI).
+
+MAUREL, D. (2008). Prolexbase : a multilingual relational lexical database of proper names. In
+Proceedings of LREC’08, pages 334-338, Marrakech, Morocco.
+
+MAUREL, D. et PITON, O. (1998). Un dictionnaire de noms propres pour intex : les noms propres
+géographiques. Lingvisticae Investigationes, 22:279-289.
+
+MIKHEEV, A. (1997). Automatic rule induction for unknown—word guessing. Computational
+Linguistics, 23:405-423.
+
+NEUVEL, S. et FULOP, S. A. (2002). Unsupervised learning of morphology without morphemes.
+CORR, cs.CL/0205072.
+
+ROMARY, L., SALMON-ALT, S. et FRANCOPOULO, G. (2004). Standards going concrete : from lmf
+to morphalou. In Proceedings of the Workshop on Enhancing and Using Electronic Dictionaries,
+pages 22-28.
+
+SABLAYROLLES, J. (1997). Néologismes : Une typologie des typologies. Cahier du CIEL, 1996-
+1 997: 1 1-48.
+
+SABLAYROLLES, J., JACQUET-PFAU, C. et HUMBLEY, J . (2011). Emprunts, créations ’sous inﬂuence’
+et équivalents. In Actes des Huitiémes Journées scientifiques du Re’seau de chercheurs Lexicologie,
+terminologie, traduction.
+
+SAG, 1., BALDWIN, 'I‘., BOND, E, COPESTAKE, A. et FLICKINGER, D. (2002). Multi—word expressions :
+A pain in the neck for NLP. In proceedings of Conferences on Computational Linguistics and
+Natural Language Processing.
+
+SAGOT, B. (2010). The Leﬁf , a freely available and large—coverage morphological and syntactic
+lexicon for French. In Proceedings of LREC 2010, La Valette, Malte.
+
+SAGOT, B. et BOULLIER, R (2008). SxPipe 2 : architecture pour le traitement pré—syntaxique de
+corpus bruts. TAL, 49(2):155—188.
+
+SAGOT, B. et STERN, R. (2012). Aleda, a free large—scale entity database for French. In Proceedings
+of LREC 2012, pages 1273-1276, Istanbul, Turquie.
+
+SCHMID, H. (1994). Treetagger. TC project at the Institute for Computational Linguistics of the
+University of Stuttgart.
+
+STROPPA, N. et YVoN, F. (2006). Du quatriéme de proportion comme principe inductif : une
+proposition et son application a l’apprentissage de la morphologie. TAL, 47(1):33-59.
+TANGUY, L. et HATHOUT, N. (2002). Webafﬁx : un outil d’acquisition morphologique dérivation—
+nelle a partir du Web. In Actes de TALN 2002, pages 245-254, Nancy, France.
+
+VILLOING, E (2003). Les mots composés VN du francais : arguments en faveur d’une construction
+morphologique. Cahiers de Grammaire, 28:183-196.
+
+WALTHER, G. et SAGOT, B. (2011). Problémes d’intégration morphologique d’emprunts d’origine
+anglaise en francais. In 30th International Conference on Lexis and Grammar.
+
+420 © ATALA
+

@@ -1,0 +1,506 @@
+TALN 2003, Batz—sur—Mer, I I -1 4 juin 2003
+
+Cartographie lexicale pour la recherche d’information
+
+Jean Veronis
+
+Equipe DELIC - Universite de Provence
+29, Av. Robert Schuman - 13621 Aix-en-Provence Cedex 1
+J ean.Veronis@up.univ-mrs.fr
+
+Resume — Abstract
+
+Nous decrivons un algorithme, HyperLex, de determination automatique des differents usages
+d’un mot dans une base textuelle sans utilisation d’un dictionnaire. Cet algorithme base sur la
+detection des composantes de forte densite du graphe des cooccurrences de mots permet,
+contrairement aux methodes precedemment proposees (vecteurs de mots), d’isoler des usages
+tres peu frequents. Il est associe a une technique de representation graphique permettant a
+l’utilisateur de naviguer de facon visuelle a travers le lexique et d’explorer les differentes
+thematiques correspondant aux usages discrimines.
+
+We describe the HyperLex algorithm for automatic discrimination of word uses in a textual
+database. The algorithm does not require a dictionary. It detects high density components in
+the word-cooccurrence graph, and, contrary to previous methods (word vectors), enables the
+recognition of very low frequency uses. HyperLex is associated with a graphic representation
+technique that makes it possible to navigate through the lexicon and explore visually the
+various themes corresponding to the discriminated uses.
+
+Keywords — Mots Cles
+
+Desambiguisation lexicale, recherche d’information, interfaces graphiques
+Lexical disambiguation, information retrieval, graphic interfaces
+
+1 Introduction
+
+La recherche d’information par mot-cles sur le Web, et dans les grandes bases textuelles en
+general, se heurte au probleme de la multiplicite des usages de la plupart des mots.
+L’homographie et la polysemie omnipresentes dans les langues introduisent un bruit
+considerable dans les resultats : ainsi, une recherche sur le mot barrage verra retourner, au
+gre des frequences globales et des heuristiques de classement des moteurs de recherche, des
+resultats concernant les barrages hydrauliques, les barrages routiers, les matchs de barrage.
+Extraire les resultats concernant les usages les moins frequents peut s’averer particulierement
+delicat. Bien sﬁr l’utilisateur peut generalement compliquer sa requéte en croisant des mots-
+
+Jean VERONIS
+
+clés, mais outre que cette technique n’est pas forcément bien maitrisée du (tres) grand public,
+elle n’est pas touj ours tres praticable : il ne suffit pas de croiser le mot barrage avec le mot
+match pour obtenir les pages concernant les matchs de barrage : de nombreuses pages traitent
+du theme sans pour autant contenir le mot match. 11 faudrait alors énumérer les possibilités
+lexicales et formuler une requéte du type barrage ET (jouer 0Ujeu OU football OU basket
+OU basket-ball 0U...), ce qui est peu économique (et peu sﬁr). Par ailleurs, sans que le
+phénomene releve probablement de ce que les lexicographes appelleraient polysémie, un mot
+peut étre impliqué dans des themes distincts, qu’il est important de distinguer pour
+l’utilisateur. Ainsi, bien qu’il s’agisse toujours de barrages sur des routes, il est peu probable
+que la méme requéte cherche a retoumer péle-méle des pages parlant de barrages
+revendicatifs de camions, ou de barrages d’hommes en armes a des frontieres ou des zones en
+conﬂit.
+
+Les dictionnaires classiques sont peu adaptés a la tache. Ils contiennent la plupart du temps
+des définitions d’une trop grande généralité (<< action de barrer>>, par exemple), et rien ne
+garantit qu’elles reﬂetent le contenu exact du corpus textuel interrogé. Nous avons montré de
+facon expérimentale la difficulté pour des linguistes de faire correspondre correctement les
+<< sens >> d’un dictionnaire et les occurrences d’un corpus (Véronis, 1998). De plus, il resterait
+a catégoriser automatiquement les documents de la base de textes en fonction des << sens >> du
+dictionnaire, tache d’une difficulté extréme, qui élude les efforts soutenus de la recherche
+depuis un demi-siecle (cf. [Ide, Véronis, 1998] pour un état de l’art détaillé).
+
+Schutze (1998) a proposé une méthode permettant d’extraire automatiquement la liste des
+<< sens >> (nous préférons parler d’<< usages >>) du corpus lui-méme, tout en fournissant une
+technique robuste de catégorisation. Ces usages correspondent a des groupes (clusters) de
+contextes similaires dans un espace de tres grande dimensionnalité formé par des Vecteurs de
+mots ou de cooccurrences proches du mot a désambigu'1'ser, espace rendu utilisable par une
+technique de décomposition en Valeurs singulieres classique. Les techniques basées sur les
+Vecteurs de mots se heurtent toutefois a une difficulté majeure et rédhibitoire : la tres grande
+différence de fréquence entre usages d’un méme mot (déja constatée par Zipf, 1945) repousse
+la plupart des distinctions utiles en-dessous du seuil de bruit du modele. Ainsi, selon nos
+estimations, l’usage << match de barrage >> concerne moins de 1% des documents contenant le
+mot barrage.
+
+Nous proposons dans cette communication un algorithme radicalement different, base sur les
+propriété des graphes constitués par les cooccurrences de mots. Cet algorithme, HyperLex,
+perrnet d’extraire des composantes de forte densité qui reﬂetent les différents usages des
+mots. Contrairement aux méthodes Vectorielles, l’algorithme HyperLex est peu sensible a la
+fréquence relative et au nombre des différents usages a discriminer. De plus, il est associé a
+une technique de représentation graphique permettant a l’utilisateur de naviguer de facon
+Visuelle a travers le lexique et d’explorer les différentes thématiques correspondant aux
+usages discriminés. Nous illustrons HyperLex sur des exemples tirés du Web, mais rien
+n’empéche d’appliquer la méme technique a n’importe quelle grande base textuelle.
+
+2 Méthode et hypothéses
+
+Nous partons du méme constat que Shiitze (1998) et d’autres, selon lequel les cooccurrences
+constituent de forts indices désambigu'1'sateurs pour distinguer les différents usages des mots.
+
+Cartographie lexicale pour la recherche d ’inf0rmati0ns
+
+Ainsi, en présence du mot ﬂeuve, le mot barrage renverra presque obligatoirement a l’usage
+<< barrage hydraulique >>, alors qu’en présence du mot football, il renverra tres probablement a
+<< match de barrage >>.
+
+Partant d’un mot cible donné, nous extrayons de la base textuelle l’ensemble des contextes
+(nous avons choisi un paragraphe, mais ce pourrait étre le document entier ou une fenétre de
+taille donnée) contenant le mot-cible. Ces contextes sont lemmatisés, puis filtrés pour
+éliminer les mots-outils (déterminants, prépositions, etc.), ainsi qu’un certain nombre de mots
+généraux et tout particulierement, dans notre application, ceux liés au Web lui-méme (menu,
+accueil, lien, http, etc.).
+
+L’ensemble des cooccurrences forme un graphe, dont les noeuds sont les différents mots du
+corpus. Une aréte relie deux noeuds A, B chaque fois que les mots correspondants ont été
+trouvés en cooccurrence autour du mot-cible (au-dela d’un seuil de fréquence ﬁxé). Nous
+affectons a chaque aréte un poids d’autant plus faible que les mots sont fréquemment
+associes :
+
+WA,B = 1 - maX[P(/1 |B)=P(B I/1)]
+
+ou p(A | B) est la probabilité conditionnelle d’observerA dans un contexte donné sachant que
+ce contexte contient B, et inversement, p(B | A) celle d’observer B dans un contexte donné
+sachant que ce contexte contientA. Ces probabilités sont estimées a partir des fréquences :
+
+P(A 1B) :f4.B /fB et [703 1A) :f4.B /f4
+
+Nous prendrons a titre d’illustration les cooccurrences eau - ouvrage et eau - potable. Le
+Tableau 1 donne le nombre de contextes dans lesquels ces couples de mots apparaissent
+ensemble ou l’un sans l’autre dans un corpus de pages Web (cf. section 4). On Voit que toutes
+les occurrences du mot potable apparaissent conjointement avec le mot eau, alors que c’est le
+cas seulement d’une partie des occurrences du mot ouvrage.
+
+EAU ~EAU Total EAU ~EAU Total
+OUVRAGE 183 296 479 POTABLE 63 0 63
+~OUVRAGE 874 5556 6430 ~POTABLE 994 5852 6846
+Total 1057 5852 6909 Total 1057 5852 6909
+
+Tableau 1. Cooccurrences eau-ouvrage et eau-potable
+
+On a :
+p(eau | ouvrage) = 183/479 =0,38 p(0uvrage | eau) = 183/1057 = 0,17 w = 1 - 0,38 = 0,62
+p(eau |p0table) = 63/63 =1 p(p0table | eau) = 63/1057 = 0,06 w = 1 - 1 = 0
+
+La mesure reﬂete donc la plus ou moins grande << distancel» sémantique entre mots:
+lorsqu’elle Vaut 0, les mots sont toujours associés (jusqu’a concurrence de la fréquence
+maximale possible, déterminée par le moins fréquent) ; lorsqu’elle Vaut 1, les mots ne sont
+jamais associés.
+
+1 I1 ne s’agit pas d’une distance au sens mathe'ma11'que du terrne, mais d’une dissimilarité, l’ine'galite’
+
+Iriangulaire n’e'tant pas respectée.
+
+Jean VERONIS
+
+L’hypothese de base qui sous-tend notre méthode est que les différents usages du mot-cible
+constituent des sous-ensembles, ou << composantes», de haute densité dans le graphe. En
+effet, barrage (dans l’usage << barrage hydraulique >>) doit étre en cooccurrence fréquente avec
+eau, ouvrage, ﬂeuve, rivie‘re, crue, irrigation, etc., et ces mots eux-mémes ont toutes les
+chances d’étre interconnectés (Figure 1). De méme, dans l’usage «match de barrage»,
+barrage doit étre en cooccurrence fréquente avec match, équipe, coupe, football, victoire,
+etc., ces terrnes eux-mémes étant fortement interconnectés. Etant donné la complexité du
+langage (et en particulier le fait que les mots entrant dans les cooccurrences sont eux-mémes
+ambigus), il existe aussi des connexions entre les composantes, ce qui interdit l’utilisation
+d’algorithmes de détection de composantes fortement connexes ou de cliques, mais ces
+interconnections entre les composantes doivent étre peu nombreuses et leur poids élevé.
+
+ﬂeuve
+
+  
+
+C1116 /
+
+ﬁviére
+
+ 
+
+match
+
+éqllipe
+
+Figure 1. Composantes de forte densité dans le graphe des cooccurrences
+
+Détecter les différents usages d’un mot revient donc a isoler des composantes de forte densité
+du graphe des cooccurrences. La plupart des techniques exactes de partitionnement de
+graphes sont malheureusement NP-difficiles, et l’on ne peut (étant donné que les graphes
+obtenus ont plusieurs milliers de noeuds et d’arétes) qu’utiliser des méthodes approximatives,
+basées sur des heuristiques. La recherche sur la détection de composantes de forte densité est
+un domaine particulierement actif, qui intervient notamment dans les secteurs de la détection
+de << communautés >> ou de << sources autorisées >> sur le Web, ou la parallélisation des calculs.
+Malheureusement, les techniques développées dans ces secteurs ne sont pas directement
+exploitables, étant donné que l’applicabilité des heuristiques depend des applications et des
+propriétés particulieres des graphes analysés. La propriété fondamentale que nous
+exploiterons ici est le caractere zipfien du langage, rappelé plus haut, et qui touche a la fois la
+fréquence des mots eux-mémes, la fréquence des usages de chaque mot, et la fréquence des
+cooccurrences (Voir Zipf, 1945, et aussi Baayen, 2000).
+
+3 Détection des composantes de forte densité
+
+Nous créons le graphe des cooccurrences en ne retenant que les mots apparaissant dans au
+moins 10 contextes, et les cooccurrences correspondant a un poids w en deca d’un certain
+seuil (0.9). L’algorithme de détection part du principe que pour chacun des usages du mot
+considéré (<< mot-cible »), un cooccurrent (ou << mot-racine >>) a une fréquence plus élevée que
+les autres, en Vertu de l’organisation zipfienne des cooccurrences que nous avons mentionnée
+
+Cartographie lexicale pour la recherche a’ ’informations
+
+plus haut. Ainsi, pour barrage, le cooccurrent le plus frequent dans l’usage «barrage
+hydraulique>> est eau, tandis que le cooccurrent le plus frequent dans l’usage << match de
+barrage >> est match.
+
+De plus, nous faisons l’hypothese que les autres cooccurrents du mot-cible pour un usage
+donné ont toutes les chances d’apparaitre a un moment ou a un autre au contact du mot-racine
+de cet usage, et donc d’étre directement connecté a celui-ci dans le graphe. Par exemple, les
+voisins directs de eau (dans le contexte de barrage) sont ouvrage, riviere, cours, retenue,
+construction, etc. Ceux de match sont equipe, mona'e, coupe, football, but, etc. Les mots
+frequents qui ne seraient pas des voisins de eau ont de bonnes chances de faire partie d’un
+autre usage.
+
+L’algorithme HyperLex utilise cette propriété pour determiner de facon iterative les << mots-
+racines >> caractérisant chaque usage. Dans un premier temps, HyperLex constitue une liste
+des noeuds du graphe classes par ordre de fréquence décroissante. Pour chaque noeud de la
+liste, l’algorithme essaie de déterminer si ce noeud est une racine raisonnable pour une
+composante de forte densité, selon deux criteres :
+
+(1) le noeud doit avoir au moins 6 voisins propres (c’est-a-dire qui ne sont pas voisins
+d’un mot-racine précédemment determine),
+
+(2) le poids moyen entre le noeud-racine potentiel et ses 6 premiers voisins propres doit
+étre inférieur a un seuil donné (0.8).
+
+Si le noeud satisfait a ces conditions, il est retenu comme mot-racine et il est éliminé de la liste
+avec tous ses voisins. Le processus est itéré jusqu’a avoir épuisé tous les noeuds du graphe.
+
+Ceci donne les étapes suivantes pour barrage dans notre corpus (les mots-racines successifs
+et leurs voisins propres les plus frequents apparaissent apres le signe :>; les mots qui ne
+satisfont pas les criteres 1 et 2 sont barrés) :
+
+Liste 1: eau construction ouvrage Iiviere projet retenue crue securite hydroelectrique etude travail hauteur metre zone plan
+region tene developpement cours lac environnement reservoir technique niveau bassin impact ﬂeuve debit population..
+2 EAU : construction ouvrage riviere projet retenue crue...
+
+Liste 2: routier frontiere comite match Algerie militaire efﬁcacite annee vehicule Suisse histoire carte auscultation poste
+Tunisie ALN camion jeu americain connaissance defense document membre liste inspection position ﬁnancement...
+
+2 ROUTIER : véhicule camion membre conducteur policier groupement...
+
+Liste 3: frontiere comite match Algerie militaire efﬁcacite annee Suisse histoire carte auscultation poste Tunisie ALN jeu
+americain connaissance defense document liste inspection position ﬁnancement contenance algerien division Allemagne...
+
+=> FRONTIERE :Algérie militaire eﬂicacité armée suisse poste...
+
+Liste 4: eemite match histoire carte auscultation jeu americain connaissance document liste inspection position ﬁnancement
+contenance division Allemagne province CMB INGEMA gabion prix debat congres renseignement dommage reaction..
+
+2 MATCH : vainqueur victoire rencontre qualification tir football...
+
+Apres cette étape, plus aucun mot ne satisfait les conditions. Au total, HyperLex a donc
+determine quatre mots-racines, eau, routier, frontiere, match, qui reﬂetent bien les usages de
+barrage dans le corpus.
+
+Jean VERONIS
+
+4 Expérimentation
+
+Nous avons expérimenté HyperLex sur 10 mots tres polysémiques (Tableau 2), choisis parmi
+ceux qui ont servi de mots-tests lors de l’action de désambigu'1'sation Romanseval, et qui
+avaient posé de grandes difficultés a des annotateurs humains (Véronis, 1998). Un sous-
+corpus de pages Web a été constitué pour chacun de ces mots, a l’aide du méta-moteur
+Copernic Agent2, en interrogeant tout d’abord la forme singulier, puis la forme pluriel. Les
+pages obtenues ont été ﬁltrées de facon a éliminer les pages qui ne contenaient pas le mot
+cherché (erreurs du type << Page not found >>, par exemple), ainsi que les doublons.
+
+Mot Pag Contextes Graphe
+Brutes Utiles Bruts Uﬂles Naeuds Arétes
+
+BARRAGE 1702 1372 7256 6924 1203 6138
+DETENTION 2112 1270 8902 8728 1418 19007
+FORMATION 5974 1590 5248 4885 542 1531
+LANCEMENT 2828 1231 3307 3174 617 2521
+ORGANE 2786 994 2953 2849 53 1 1997
+PASSAGE 3512 1046 4210 3894 797 2916
+RESTA URA TION 5327 1227 3522 3287 512 1398
+SOLUTION 6287 896 2085 1915 253 1704
+STATION 7916 1093 3837 3671 487 971
+VOL 5237 818 3001 2579 259 719
+
+Tableau 2. Mots-cibles et caractéristiques quantitatives des sous-corpus
+
+Les paragraphes contenant chaque mot-cible ont été extraits et étiquetés a l’aide du logiciel
+Cordial Analyseur3. Seuls ont été retenus les noms et les adjectifs. Dans un premier temps
+nous avions retenu aussi les Verbes, mais il s’est finalement avéré que ceux-ci dégradent
+notablement les performances. Les mots généraux appartenant a un anti-dictionnaire (stoplist)
+ont été supprimés. Finalement, les contextes contenant moins de 4 mots apres ﬁltrage ont été
+éliminés. Le Tableau 2 donne les caractéristiques quantitatives du sous-corpus recueilli pour
+chaque mot, ainsi que du graphe de cooccurrences qu’il a perrnis de construire.
+
+L’algorithme HyperLex a été appliqué a chacun des mots, et donne les résultats résumés dans
+le Tableau 3. La liste des usages détectés pour chaque mot reﬂete évidemment la composition
+du corpus, et les biais introduits par les moteurs de recherches et leurs algorithmes de
+pondération et de classement des résultats (tels que PageRank de Google). Par exemple, le
+mot formation, polysémique dans la langue générale, n’apparait dans notre corpus que dans le
+contexte d’apprentissage et d’enseignement. On note aussi l’inﬂuence d’énumérations,
+comme pour le mot station, ou certaines pages contiennent des annuaires de stations-services
+délivrant du gaz GPL. Ces énumérations résultent dans des usages un peu artificiels pour les
+mots concernés. L’algorithme n’étant pas ici en cause, nous n’aVons pas exploré plus avant la
+question, mais il conviendrait sans doute de se pencher plus en détail sur le nettoyage des
+pages dans une utilisation opérationnelle.
+
+Les usages répertoriés couvrent la quasi-totalité des thématiques développées dans les
+différents sous-corpus. En procédant par sondage (1 page sur 100), nous n’aVons constaté
+l’absence d’aucune thématique majeure. Ceci n’exclut pas que quelques usages tres peu
+
+2 http://www.coperr1ic.com
+
+3 De’veloppe' par Synapse Développement : http://www.synapse-fr.com
+
+Cartographie lexicale pour la recherche d ’informations
+
+fré uents aient été omis ar 1’a1 orithme mais seule une évaluation beaucou lus détaillée
+7
+pourra1t les révéler.
+
+Mot-Cible Racine Fréq. Voisins les plus fréquents
+BARRAGE EAU 1057 construction ouvrage riviere projet retenue crue
+ROUTIER 125 vehicule camion membre conducteur policier groupement
+FRONTIERE 106 Algerie militaire efﬁcacite arrnee S11isse poste
+MATCH 65 vainqueur victoire rencontre qualiﬁcation tir football
+DETENTION PROVISOIRE 2189 juge liberte loi procedure prison instruction
+DETENU 1049 police centre autorite arrestation torture arbitraire
+ARME 306 autorisation acquisition feu munition vente commerce
+ANIMAL 212 transport compagnie sauvage certiﬁcat annexe directive
+FORMATION PROFES SIONNEL 573 centre entreprise organisme stage service programme
+LAN CEMENT SATELLITE 301 Ariane programme spatial lanceur orbite fusee
+PRODUIT 124 public entreprise evenement convention presse affaire
+ORGAN E DON 187 transplantation greffe donneur prelevement tissu vie
+DELIBERANT 126 public etablissement president demande attribution communaute
+REGLEMENT 91 pays appel differend OMC reunion autorite
+TECHNIQUE 62 scientiﬁque convention economique conference subsidiaire programme
+CONSULTATIF 52 matiere civil tete supervision memorandum PAB
+MALADIE 48 coeur traitement specimen preuve sang intervention
+REPRESENTANT 48 delegue supreme concertation departement personnel agent
+PARTI 47 presse chef journal Geneve Allemagne redacteur
+PASSAGE EURO 621 public travail entreprise systeme national monnaie
+AN_2000 264 programme autorite installation reseau solution materiel
+NIVEAU 172 porte chemin ouverture salle route entree
+LIBRE 92 cour prestation police assurance caisse prevoyance
+CHEVAL 71 main energie equilibre trot dos foulee
+PARAMETRE 61 mode appel variable argument langage expression
+GALERIE 53 ville boutique bois panorama epoque verriere
+TERRE 53 duree mouvement soleil Venus Mercure noeud
+MORT 46 rite Dieu naissance Christ vivant Jesus
+RESTAURA'I‘ION HOTELLERIE 188 formation duree centre professionnel entreprise alternance
+CONSERVATION 157 sauvegarde atelier monument technique historique oeuvre
+HEBERGEMENT 136 activite hotel region loisir culture contact
+RAPIDE 114 restaurant vente etablissement repas marche traiteur
+FICHIER 103 systeme information donnee client espace bande
+PIERRE 70 batiment chantier terre polychromie taille sec
+MEUBLE 69 bois table mobilier decoration fabrication antiquite
+SOLUTION GESTION 147 entreprise service logiciel client information systeme
+EU 80 monde gratuit astuce joueur gain francophone
+INJECTABLE 65 perfusion glucose HOP commercialisation arrét Fandre
+STATION SKI 261 hiver piste montagne sport vﬂlage location
+METEO 132 temperature Oregon scientiﬁc WS pI'0f6SSl0IlIl6l capteur
+SPATIAL 117 international MIR systeme programme ISS projet
+TRAVAIL. 106 reseau traitement donnee carte Sun environnement
+RADIO 94 navire region reception installation antemie communication
+PRIMAGAZ 86 Paris aire Esso province Marseille Dyneff
+EAU 79 epuration source mer plage Yves riviere
+LIGNE 65 metro quai terminus voyageur correspondance atelier
+VOL AVION 393 bﬂlet pilote club sec depart voyage
+LIBRE 260 ecole parapente loisir montagne formation Paris
+VOILE 219 centre photo vent pﬂotage forum competition
+VOLE 44 service recherche numero base domiee vehicule
+
+Tableau 3. Résultats de 1’a1gorithme sur les 10 mots-cibles
+(la colonne Freq. donne la fréquence des mots-racines)
+
+Par contre, on peut discuter certaines distinctions ou certains regroupements opérés par
+1’a1gorithme. Ainsi, pour detention, 1’a1gorithme distingue les aspects juridiques lies a la
+détention provisoire (sous cette racine), et ceux liés au prisonnier et aux conditions de
+détention (sous la racine détenu). En examinant plus en détail les pages concemées, on
+constate effectivement des champs lexicaux différents, 1’un de type juridique et judiciaire,
+1’autre lié aux aspects humains de la detention, mais les deux pourraient sans doute étre
+regroupés. A 1’inverse, 1’a1gorithme fusionne les stations de radio a usage public (FM, etc.) et
+les stations radio de navires, les champs lexicaux étant assez proches (radio, communication,
+
+Jean VERONIS
+
+bande, Aﬂiz, etc.). On Voudrait pourtant tres certainement différencier ces usages, qui
+correspondront Vraisemblablement a des requétes différentes. L’algorithme pourrait étre
+amélioré sur plusieurs points, notamment par la prise en compte des distances entre
+cooccurrents. Ainsi, l’expression << station de radio >> n’est utilisée que pour les stations de
+radio a usage public, alors que pour l’usage maritime, on trouve l’expression << station de
+navire >>, et le mot radio lui méme est généralement plus éloigné dans le contexte, entrant
+dans d’autres expressions (opérateur radio, équipement radio, etc.).
+
+Enﬁn, la sélection du mot-racine est dans quelques cas discutable, méme si lui-méme et ses
+voisins représentent bien la thématique de l’usage considéré. Par exemple, métro serait plus
+intuitif que ligne pour l’usage << station de métro >>. L’usage des distances entre le mot-cible et
+ses cooccurrents pourrait probablement améliorer les choses, comme pour le cas précédent.
+
+5 Visualisation et navigation « hyperlexicale »
+
+La visualisation et la navigation a l’intérieur de grands graphes est un domaine de recherche
+en pleine expansion, lié notamment a la nécessité de représenter de facon satisfaisante les
+liens entre serveurs ou entre hyperdocuments a l’intention des administrateurs et webmasters.
+L’algorithme H3 récemment développé par Tamara Munzner dans le cadre de sa these
+(l\/Iunzner, 2000) nous parait l’un des plus convaincants, et, contrairement a d’autres,
+directement adaptable a notre problématique. Un outil qui implémente cet algorithme,
+H3 Viewer, est de plus disponible4, et perrnet une expérimentation immédiate.
+
+Le probleme de la représentation de grands graphes dans un espace euclidien est tout d’abord
+le << manque de place >> de l’espace euclidien, puisque le nombre de noeuds d’un arbre, par
+exemple, croit de facon exponentielle avec la profondeur, alors que l’espace disponible pour
+les représenter croit seulement de facon polynomiale par rapport au rayon d’un cercle ou
+d’une sphere. 11 en résulte des distorsions inévitables, qui peuvent perturber considérablement
+la lecture, et ont souvent pour effet, lorsqu’on se déplace en profondeur dans l’arbre, de faire
+perdre totalement de vue le contexte environnant. De plus, des stratégies doivent étre
+développées pour gérer la surabondance d’information (multiples liens et noeuds) qui rend tres
+rapidement les représentations totalement illisibles.
+
+L’algorithme H3 résout ces problemes de facon tres élégante a l’aide de la géométrie
+hyperbolique : dans un espace hyperbolique, l’espace disponible croit de facon exponentielle
+avec le rayon, contrairement a l’espace euclidien. L’espace hyperbolique (inﬁni) est ensuite
+projeté dans une portion finie de l’espace euclidien (un disque), comme ﬁlmé par une caméra,
+dont l’utilisateur peut déplacer la position et l’angle. Le résultat apparait a l’utilisateur en
+perspective comme une projection dans une sphere (effet << fish-eye >> : Figure 2).
+
+H3 prend en entrée un arbre construit a partir du graphe a Visualiser. L’arbre que nous
+construisons essaie de représenter au mieux les composantes de forte densité qui représentent
+les différents usages du mot-cible. Nous construisons le sommet de l’arbre en ajoutant un
+noeud qui correspond au mot-cible (par exemple barrage), relié par des arétes de poids 0 a
+chacun des mots-racines determines a l’étape précédente. Apres quelques heuristiques
+
+4
+
+http://graphics.stanford.edu/~munzner/h3/
+
+Cartographie lexicale pour la recherche d ’informations
+
+d’élagage de certaines arétes (par exemple celles qui relient des mots de fréquences tres
+différentes), nous calculons un arbre de couverture minimale ayant pour racine le mot-cible.
+Cet arbre organise les différentes composantes denses d’une facon qui reﬂete la force
+d’association entre mots. Il est ensuite Visualisé a l’aide d’H3Viewer. L’utilisateur peut
+naviguer de theme en theme a l’intérieur de la représentation hyperbolique a l’aide de la
+souris : un clic sur un noeud avec le bouton gauche permet de centrer la représentation autour
+de ce noeud, un glisser avec le bouton gauche appuyé permet de déplacer un noeud et de
+changer le contexte, un glisser avec le bouton droit permet une rotation de l’arbre. La Figure 2
+montre en (a) la vue initiale offerte a l’utilisateur pour le mot barrage et en (b) la vue obtenue
+en cliquant sur le noeud match.
+
+6 Conclusion
+
+Nous avons présenté un algorithme, HyperLex, qui permet d’extraire automatiquement d’une
+grande base textuelle les usages d’un mot donné, sans recours a un dictionnaire.
+Contrairement aux méthodes précédentes basées sur des Vecteurs de mots, notre technique
+permet d’isoler des usages de fréquence tres faible. L’algorithme est couplé avec une
+technique de représentation Visuelle basée sur un espace hyperbolique (1\/Iunzner, 2000) qui
+permet a l’utilisateur de naviguer a travers le lexique et les thématiques dégagées.
+
+Remerciements
+
+Nous sommes tres reconnaissant a Tamara Munzner pour la mise a disposition de l’outil
+H3 Viewer, utilisé dans ce travail.
+
+Références
+
+Baayen, R. H. (2000). Word frequency distributions. Dordrecht: Kluwer Academic
+Publishers.
+
+Ide, N. M., Véronis, J. (1998). Introduction to the special issue on word sense
+disambiguation : the state of the art. Computational Linguistics, (24)1, 1-40.
+
+Munzner, T. (2000). Interactive visualization of large graphs and networks. Ph. D.
+Dissertation, Stanford University.
+
+Schutze, H. (1998). Automatic word sense discrimination. Computational Linguistics, (24)1,
+97-124.
+
+Véronis, J. (1998). A study of polysemy judgements and inter-annotator agreement,
+Programme and advanced papers of the Senseval workshop (pp. 2-4). Herstmonceux Castle
+(England) [http:/www.up.uniV-mrs.fr/Veronis/pdf/1998senseVal.pdf].
+
+Zipf, G. K. (1945). The meaning-frequency relationship of words. Journal of General
+Psychology, 33, 251-266.
+
+Jean VERONIS
+
+b)  /?<.~'ﬂ HISTOXREJ.
+
+MONDE\'\a
+
+  
+   
+
+/\ 2
+/._  \. '
+RENCONTREKCHAMPONNAT I
+ R 
+
+QUAL\F|CATl()l\ll F?
+WOT, RE\ EQUIPE
+TIR_L' 
+
+I
+
+SAEEDNQL
+A(:cEs3s3\oN_§'
+
+Figure 2. Deux Vues du champ lexical de barrage
+

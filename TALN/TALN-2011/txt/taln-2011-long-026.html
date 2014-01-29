@@ -1,0 +1,818 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Mod&#232;les g&#233;n&#233;ratif et discriminant en analyse syntaxique : exp&#233;riences sur le corpus arbor&#233; de Paris 7</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2011, Montpellier, 27 juin &#8211; 1er juillet 2011
+</p>
+<p>Mod&#232;les g&#233;n&#233;ratif et discriminant en analyse syntaxique :
+exp&#233;riences sur le corpus arbor&#233; de Paris 7
+</p>
+<p>Joseph Le Roux Beno&#238;t Favre Seyed Abolghasem Mirroshandel Alexis Nasr
+LIF - CNRS UMR 6166 - Universit&#233; Aix Marseille
+</p>
+<p>{joseph.le-roux, benoit.favre, alexis.nasr}@lif.univ-mrs.fr
+</p>
+<p>R&#233;sum&#233;. Nous pr&#233;sentons une architecture pour l&#8217;analyse syntaxique en deux &#233;tapes. Dans un premier
+temps un analyseur syntagmatique construit, pour chaque phrase, une liste d&#8217;analyses qui sont converties en arbres
+de d&#233;pendances. Ces arbres sont ensuite r&#233;&#233;valu&#233;s par un r&#233;ordonnanceur discriminant. Cette m&#233;thode permet de
+prendre en compte des informations auxquelles l&#8217;analyseur n&#8217;a pas acc&#232;s, en particulier des annotations fonction-
+nelles. Nous validons notre approche par une &#233;valuation sur le corpus arbor&#233; de Paris 7. La seconde &#233;tape permet
+d&#8217;am&#233;liorer significativement la qualit&#233; des analyses retourn&#233;es, quelle que soit la m&#233;trique utilis&#233;e.
+</p>
+<p>Abstract. We present an architecture for parsing in two steps. First, a phrase-structure parser builds for
+each sentence an n-best list of analyses which are converted to dependency trees. Then these trees are rescored by
+a discriminative reranker. This method enables the incorporation of additional linguistic information, more preci-
+sely functional annotations. We test our approach on the French Treebank. The evaluation shows a significative
+improvement on different parse metrics.
+</p>
+<p>Mots-cl&#233;s : analyse syntaxique, corpus arbor&#233;, apprentissage automatique, r&#233;ordonnancement discrimi-
+nant.
+</p>
+<p>Keywords: parsing, treebank, machine learning, discriminative reranking.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>1 Introduction
+</p>
+<p>On peut observer l&#8217;existence de deux approches en analyse syntaxique automatique. La premi&#232;re, dite g&#233;n&#233;rative,
+se fonde sur la tradition des langages formels et des syst&#232;mes de r&#233;&#233;criture. L&#8217;analyse syntaxique est envisag&#233;e ici
+comme un processus permettant de passer d&#8217;une structure initiale (une cha&#238;ne d&#8217;entr&#233;e) &#224; une structure finale (un
+arbre ou une for&#234;t d&#8217;analyses). On utilise le plus couramment les grammaires alg&#233;briques qui peuvent s&#8217;analyser
+en temps polynomial. Malheureusement, l&#8217;hypoth&#232;se d&#8217;ind&#233;pendance des r&#233;&#233;critures qui sous-tend ce formalisme
+ne permet pas une analyse tr&#232;s fine de certains ph&#233;nom&#232;nes, en particulier les d&#233;pendances &#224; longue distance et
+les d&#233;pendances lexicales.
+</p>
+<p>La seconde approche, dite discriminante, se fonde sur la &#171; syntaxe comme th&#233;orie des mod&#232;les &#187; (en anglais
+model-theoretic syntax, (Pullum &amp; Scholz, 2001)) et a connu un regain d&#8217;int&#233;r&#234;t gr&#226;ce aux progr&#232;s r&#233;alis&#233;s dans le
+domaine de l&#8217;apprentissage automatique, plus pr&#233;cis&#233;ment en classification automatique. Dans cette approche, la
+grammaire est vue comme un syst&#232;me de contraintes sur les structures syntaxiques correctes. Les mots de la phrase
+d&#8217;entr&#233;e sont eux-m&#234;mes vus comme des contraintes sur les positions qu&#8217;ils occupent et l&#8217;analyse syntaxique
+revient &#224; r&#233;soudre ces contraintes. Le probl&#232;me majeur de cette seconde approche tient &#224; sa complexit&#233;. Les
+contraintes pouvant en th&#233;orie porter sur divers aspects des structures finales, il n&#8217;est pas possible d&#8217;utiliser des
+techniques de programmation dynamique efficaces et il faut, dans le pire des cas, &#233;num&#233;rer tous les arbres pour
+ensuite &#233;valuer leur pertinence. Dans certains d&#233;veloppements de cette approche, utilis&#233;s dans le pr&#233;sent travail,
+les contraintes sont uniquement d&#8217;ordre num&#233;rique. Une analyse y est repr&#233;sent&#233;e par un vecteur de traits et sa
+qualit&#233; se mesure par la distance entre ce dernier et l&#8217;analyse de r&#233;f&#233;rence.
+</p>
+<p>Une mani&#232;re de tirer profit des deux approches consiste, comme l&#8217;a propos&#233; (Collins, 2000), &#224; les combiner de
+fa&#231;on s&#233;quentielle. Un analyseur de type g&#233;n&#233;ratif produit alors un ensemble de structures candidates pour un
+second module, discriminant, de fa&#231;on &#224; contraindre son espace de recherche. Cette approche par analyse puis
+r&#233;ordonnancement (en anglais, parsing/reranking) est utilis&#233;e dans l&#8217;analyseur de Brown (Charniak &amp; Johnson,
+2005), adapt&#233; pour le fran&#231;ais dans (Seddah et al., 2009). Il est m&#234;me int&#233;ressant de fournir au module de r&#233;ordon-
+nancement des analyses provenant de diff&#233;rents analyseurs, comme le montrent les r&#233;sultats obtenus par (Johnson
+&amp; Ural, 2010).
+</p>
+<p>Notre architecture, repr&#233;sent&#233;e sur la figure 1, reprend ces deux &#233;tapes. Lors de la premi&#232;re &#233;tape, un analyseur
+syntagmatique traite chaque phrase d&#8217;entr&#233;e et produit la liste des n analyses les plus probables munies de leur pro-
+babilit&#233;. Elles sont ensuite annot&#233;es par un &#233;tiqueteur fonctionnel avec des fonctions syntaxiques classiques sujet,
+objet, objet indirect. . . Les analyses syntagmatiques enrichies d&#8217;annotations fonctionnelles sont alors converties
+en structures de d&#233;pendances. &#192; l&#8217;issue de cette conversion, on dispose donc de candidats qui sont des struc-
+tures de d&#233;pendances munies du score donn&#233; par le premier analyseur. Cette &#233;tape est r&#233;alis&#233;e par un analyseur
+syntagmatique PCFG-LA (Petrov et al., 2006) coupl&#233; &#224; l&#8217;&#233;tiqueteur et au convertisseur BONSA&#207; 1.
+</p>
+<p>Chaque structure de d&#233;pendances munie d&#8217;un score est ensuite traduite en un vecteur de traits. Ces traits repr&#233;-
+sentent des configurations structurelles qui peuvent &#234;tre absentes ou pr&#233;sentes dans l&#8217;arbre de d&#233;pendances et le
+vecteur indique leur nombre d&#8217;occurrences pour ce candidat. Le score attribu&#233; par l&#8217;analyseur syntagmatique est
+lui-m&#234;me vu comme un trait. Les diff&#233;rents candidats sont finalement &#233;valu&#233;s par le r&#233;ordonnanceur et le syst&#232;me
+retourne le meilleur candidat. Ce module est r&#233;alis&#233; par notre implantation de l&#8217;algorithme MIRA (Crammer et al.,
+2006).
+</p>
+<p>Il nous para&#238;t important de revenir ici sur deux aspects de notre architecture. Le premier est la r&#233;alisation de l&#8217;&#233;tape
+de r&#233;ordonnancement sur des structures de d&#233;pendances et non pas sur des structures syntagmatiques, &#224; l&#8217;image
+de (Charniak &amp; Johnson, 2005). Notre analyseur produisant des structures syntagmatiques, il aurait en effet &#233;t&#233;
+plus naturel de r&#233;aliser le r&#233;ordonnancement sur des structures syntagmatiques et de s&#8217;&#233;pargner ainsi leur conver-
+sion en structures de d&#233;pendances. Deux raisons sont &#224; l&#8217;origine de ce choix. D&#8217;une part, il nous a sembl&#233; que de
+nombreuses contraintes se mod&#233;lisent plus naturellement sous la forme de structures de d&#233;pendances que sous la
+forme de structures syntagmatiques. On pense en particulier &#224; des contraintes sur les cadres de sous-cat&#233;gorisation
+ou &#224; des contraintes de s&#233;lection, qui font explicitement appel &#224; la notion de fonction syntaxique. D&#8217;autre part, un
+certain nombre de travaux r&#233;cents en analyse syntaxique (McDonald, 2006; Nivre et al., 2007) reposent sur les
+structures de d&#233;pendances et il nous a sembl&#233; int&#233;ressant de proposer un syst&#232;me de r&#233;ordonnancement pour ce
+type d&#8217;analyses.
+</p>
+<p>1. disponibles sur le site http://alpage.inria.fr/statgram/frdep/fr_stat_dep_parsing.html.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MOD&#200;LES G&#201;N&#201;RATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+</p>
+<p>La raison pour laquelle nous n&#8217;avons pas utilis&#233; directement un analyseur en d&#233;pendances, qui aurait &#233;t&#233; sans
+doute un choix plus naturel, est qu&#8217;il n&#8217;existe pas &#224; notre connaissance d&#8217;analyseur en d&#233;pendances qui g&#233;n&#232;re les
+n analyses les plus probables. Les analyseurs de (McDonald, 2006), ou de (Nivre et al., 2007), par exemple, ne
+permettent pas de les produire, m&#234;me si le premier peut les approximer. C&#8217;est donc une raison pragmatique qui
+nous a pouss&#233;s &#224; faire ce choix. Enfin, il &#233;tait int&#233;ressant de v&#233;rifier si, comme pour l&#8217;anglais, les structures de
+d&#233;pendances obtenues par conversions de structures syntagmatiques sont de meilleure qualit&#233; que celles renvoy&#233;es
+par les analyseurs en d&#233;pendances directement.
+</p>
+<p>Le r&#233;ordonnanceur propos&#233; dans ce travail, qui sera d&#233;crit en d&#233;tail dans la section 3, partage plusieurs de ses
+caract&#233;ristiques avec l&#8217;analyseur de (McDonald, 2006), &#233;voqu&#233; ci-dessus. Les deux reposent sur l&#8217;algorithme
+d&#8217;apprentissage MIRA (Crammer et al., 2006) d&#233;crit dans la section 3. De plus, les contraintes consid&#233;r&#233;es dans
+notre mod&#232;le sont inspir&#233;es de (McDonald, 2006). La diff&#233;rence fondamentale provient du fait que les seules
+analyses prises en comptes sont celles produites par le mod&#232;le g&#233;n&#233;ratif (il s&#8217;agit d&#8217;un r&#233;ordonnanceur et non d&#8217;un
+analyseur). L&#8217;avantage de cette solution par rapport &#224; (McDonald, 2006) est que nous ne sommes pas restreints &#224;
+un ensemble de traits locaux. En effet la prise en compte de traits non pr&#233;vus, de domaine de localit&#233; arbitraire,
+dans l&#8217;algorithme de (McDonald, 2006) suppose des modifications de l&#8217;algorithme d&#8217;analyse alors qu&#8217;ils peuvent
+&#234;tre ajout&#233;s facilement dans notre mod&#232;le de r&#233;ordonnancement.
+</p>
+<p> Score
+</p>
+<p> Score
+</p>
+<p>il/Cl fait/Vle/Cl
+</p>
+<p>SUJ
+</p>
+<p>OBJ
+</p>
+<p>Analyse de meilleur
+score
+</p>
+<p>il le fait
+Entr&#233;e
+</p>
+<p>il/Cl-S fait/Vle/Cl-O
+VN
+</p>
+<p>SENT
+</p>
+<p>fait/Vle/Dil/Cl-S
+</p>
+<p>SENT
+</p>
+<p>VN
+</p>
+<p>le/D fait/Nil/Cl
+NP NP
+</p>
+<p>SENT
+</p>
+<p>(1) Analyse syntagmatique
++ &#233;tiquetage fonctionnel
+</p>
+<p>le/D fait/Nil/Cl
+</p>
+<p>MOD
+</p>
+<p>MOD
+</p>
+<p>fait/Vle/Dil/Cl
+</p>
+<p>SUJ
+</p>
+<p>MOD
+</p>
+<p>il/Cl fait/Vle/Cl
+</p>
+<p>SUJ
+</p>
+<p>OBJ
+</p>
+<p>(2) Conversion
+vers d&#233;pendances
+</p>
+<p>Extraction
+de traits
+</p>
+<p>(3) R&#233;ordonnancement
+</p>
+<p>Mod&#232;le
+lin&#233;aire
+</p>
+<p> Score
+</p>
+<p>FIGURE 1 &#8211; Architecture de notre analyseur : (1) g&#233;n&#233;ration de n arbres syntagmatiques annot&#233;s en fonctions, (2)
+conversion vers une repr&#233;sentation en d&#233;pendances et extraction de vecteurs de traits, (3) calcul des scores &#224; l&#8217;aide
+d&#8217;un mod&#232;le lin&#233;aire. L&#8217;analyse de meilleur score est consid&#233;r&#233;e comme l&#8217;analyse finale.
+</p>
+<p>La suite de l&#8217;article se pr&#233;sente de la fa&#231;on suivante : nous d&#233;crivons en 2 les d&#233;tails du mod&#232;le utilis&#233; dans notre
+analyseur g&#233;n&#233;ratif puis en 3 le mod&#232;le de r&#233;ordonnancement discriminant et les patrons de traits utilis&#233;s. La
+section 4 pr&#233;sente les r&#233;sultats obtenus sur le corpus arbor&#233; d&#233;velopp&#233; &#224; l&#8217;universit&#233; Paris 7 (Abeill&#233; et al., 2003)
+et la section 5 pr&#233;sente les conclusions.
+</p>
+<p>2 Mod&#232;le g&#233;n&#233;ratif
+</p>
+<p>La premi&#232;re partie de notre syst&#232;me, l&#8217;analyse syntaxique classique, produit des structures en d&#233;pendances de
+surface gr&#226;ce &#224; un syst&#232;me s&#233;quentiel, &#224; l&#8217;image de (Candito et al., 2009, 2010b). Un analyseur, fond&#233; sur les
+PCFG-LA, produit des structures syntagmatiques qui sont ensuite transform&#233;es en arbres de d&#233;pendances. Deux
+points nous distinguent des travaux pr&#233;c&#233;dents : (1) la liste d&#8217;analyses candidates est produite par un nouvel
+analyseur et (2) ces analyses ne sont pas consid&#233;r&#233;es comme les structures finales mais seront trait&#233;es dans le
+r&#233;ordonnanceur.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>2.1 Les grammaires alg&#233;briques &#224; annotations latentes
+</p>
+<p>Les grammaires alg&#233;briques probabilistes &#224; annotations latentes (PCFG-LA), introduites par (Matsuzaki et al.,
+2005), peuvent &#234;tre vues comme une fa&#231;on de sp&#233;cialiser automatiquement le jeu d&#8217;&#233;tiquettes d&#8217;une grammaire
+alg&#233;brique (PCFG) &#224; partir d&#8217;un corpus de mani&#232;re &#224; en am&#233;liorer la pr&#233;cision.
+</p>
+<p>Chaque symbole de la grammaire est enrichi d&#8217;annotations se comportant comme des sous-classes de ce symbole,
+et les probabilit&#233;s des r&#232;gles qui manipulent les symboles augment&#233;s sont estim&#233;es par la m&#233;thode EM d&#8217;appren-
+tissage non-supervis&#233;, &#224; partir des fr&#233;quences relatives observ&#233;es sur le corpus. (Petrov et al., 2006) proposent
+d&#8217;apprendre ces grammaires en plusieurs rondes : &#224; chaque it&#233;ration on divise une annotation d&#8217;un symbole en
+deux si l&#8217;apport des nouvelles annotations augmente la vraisemblance du corpus d&#8217;entra&#238;nement. Cette m&#233;thode
+permet d&#8217;obtenir une grammaire dans laquelle le nombre d&#8217;annotations est adapt&#233; au symbole et beaucoup plus
+compacte que celles obtenues par (Matsuzaki et al., 2005).
+</p>
+<p>On peut reprendre l&#8217;illustration des sp&#233;cialisations d&#8217;&#233;tiquettes de parties du discours de (Petrov et al., 2006) pour
+le fran&#231;ais. Par exemple l&#8217;&#233;tiquette DET est divis&#233;e en quinze sous-&#233;tiquettes apr&#232;s cinq rondes d&#8217;apprentissage.
+Nous montrons dans la table 1 les trois mots les plus fr&#233;quents pour chaque annotation 2. M&#234;me si la sp&#233;cialisation
+est difficile &#224; interpr&#233;ter compl&#232;tement, on note que les articles d&#233;finis et ind&#233;finis sont s&#233;par&#233;s des d&#233;monstratifs
+et possessifs d&#8217;une part et des cardinaux d&#8217;autre part. Il est important de noter que cette distinction est apprise par
+une m&#233;thode qui d&#233;pend largement des param&#232;tres d&#8217;initialisation et qui ne garantit pas de trouver la sp&#233;cialisation
+optimale.
+</p>
+<p>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+1 une la l&#8217; un les les ses le cette son NB deux NB NB NB
+2 la La la son des Les ces Le Cette ce 10 trois 7 40 1
+3 La L&#8217; les Un Les de leurs un Ce leur 3 quelques trois 20 30
+</p>
+<p>TABLE 1 &#8211; Division du symbole DET en annotations
+</p>
+<p>Dans ce formalisme, le probl&#232;mes de l&#8217;analyse exacte devient NP-difficile mais (Petrov &amp; Klein, 2007) d&#233;crivent
+comment l&#8217;approximer efficacement, en tirant &#233;galement profit de la structure hi&#233;rarchique des annotations cr&#233;&#233;es
+lors des rondes successives. Une for&#234;t d&#8217;analyses est produite avec la PCFG d&#8217;origine et est ensuite &#233;lagu&#233;e avec
+les grammaires interm&#233;diaires produites lors des rondes successives d&#8217;apprentissage 3, c&#8217;est-&#224;-dire qu&#8217;on ne garde
+qu&#8217;un sous-ensemble a priori int&#233;ressant des analyses, de mani&#232;re &#224; restreindre au maximum l&#8217;espace de recherche
+lors du d&#233;codage avec la grammaire finale.
+</p>
+<p>Nous utilisons notre propre analyseur de PCFG-LA 4. La grammaire est apprise en cinq rondes sur le corpus d&#8217;en-
+tra&#238;nement : c&#8217;est le nombre de rondes optimal sur notre corpus. Pour pouvoir traiter les mots inconnus, les mots
+rares sont remplac&#233;s par des cha&#238;nes contenant des informations positionnelles et typographiques, en particulier
+leur suffixe. La liste des suffixes int&#233;ressants est collect&#233;e sur ce corpus en fonction du gain d&#8217;information pour
+l&#8217;&#233;tiquetage et permet de mieux traiter les mots inconnus (Attia et al., 2010).
+</p>
+<p>Ce type de grammaire a d&#233;j&#224; &#233;t&#233; utilis&#233; pour le fran&#231;ais &#224; partir du m&#234;me corpus (Crabb&#233; &amp; Candito, 2008). Il a
+donn&#233; des r&#233;sultats du niveau de l&#8217;&#233;tat de l&#8217;art en mati&#232;re d&#8217;analyse en constituants. (Candito &amp; Crabb&#233;, 2009)
+montrent que si l&#8217;on sait cat&#233;goriser les mots en classes lexicales (agr&#233;gats ou clusters), ces grammaires offrent
+les meilleures analyses en syntagmes pour le fran&#231;ais. Nous reprendrons cette classification pour nos exp&#233;riences
+(cf. section 4). Cependant, les structures en d&#233;pendances extraites des meilleures analyses en constituants ne sont
+pas aussi bonnes que celles obtenues directement par un analyseur en d&#233;pendances (Candito et al., 2010b).
+</p>
+<p>2.2 Structures de d&#233;pendances
+</p>
+<p>Bien qu&#8217;une th&#233;orie syntaxique puisse se repr&#233;senter &#224; partir de syntagmes et de d&#233;pendances (Rambow, 2010),
+certains types d&#8217;informations sont plus ou moins faciles &#224; d&#233;crire selon la repr&#233;sentation choisie. L&#8217;analyseur g&#233;n&#233;-
+ratif &#233;tant appris sur des structures syntagmatiques, il est vraisemblable qu&#8217;une partie de l&#8217;information linguistique
+lui &#233;chappe parce qu&#8217;elle est implicite ou difficile &#224; retrouver dans cette repr&#233;sentation.
+</p>
+<p>2. Le symbole terminal NB est une cha&#238;ne g&#233;n&#233;rique qui remplace les nombres qui apparaissent peu de fois dans le corpus d&#8217;entra&#238;nement.
+3. En r&#233;alit&#233; ces grammaires sont recalcul&#233;es &#224; la vol&#233;e &#224; partir de la grammaire finale et de la structure hi&#233;rarchique des annotations.
+4. Cet analyseur est disponible pour les travaux acad&#233;miques. Les lecteurs int&#233;ress&#233;s peuvent contacter le premier auteur.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MOD&#200;LES G&#201;N&#201;RATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+</p>
+<p>Cette &#233;quivalence n&#8217;est de toute fa&#231;on vraie que si les deux repr&#233;sentations offrent r&#233;ellement les m&#234;mes infor-
+mations. Or, comme cela sera d&#233;crit dans la section 4, nous avons fait dispara&#238;tre les fonctions du corpus d&#8217;ap-
+prentissage de l&#8217;analyseur syntagmatique pour aider lutter &#224; contre l&#8217;effet de dispersion des donn&#233;es et am&#233;liorer
+l&#8217;apprentissage des relations de sous-constituance. Mais pour obtenir les relations de d&#233;pendances typ&#233;es, il est
+n&#233;cessaire de disposer de l&#8217;information fonctionnelle.
+</p>
+<p>Pour passer des structures en constituants aux structures en d&#233;pendances, nous utilisons le convertisseur d&#233;velopp&#233;
+par (Candito et al., 2010a) et disponible dans la bo&#238;te &#224; outils BONSA&#207;. La conversion se d&#233;compose en deux
+&#233;tapes :
+</p>
+<p>1. Les n&#339;uds internes sont r&#233;annot&#233;s avec des &#233;tiquettes fonctionnelles, en utilisant un classifieur multiclasse
+par maximum d&#8217;entropie.
+</p>
+<p>2. Les arbres ainsi d&#233;cor&#233;s sont convertis en structures de d&#233;pendances par un ensemble de r&#232;gles de propaga-
+tions de t&#234;tes fonctionnelles et d&#8217;heuristiques.
+</p>
+<p>Cette conversion effectu&#233;e, les analyses sont pr&#234;tes &#224; &#234;tre r&#233;ordonnanc&#233;es.
+</p>
+<p>3 Mod&#232;le discriminant
+</p>
+<p>Le mod&#232;le discriminant que nous proposons repose sur l&#8217;algorithme Margin-infused Relaxed Algorithm (MIRA) (Cram-
+mer et al., 2006). Selon ce mod&#232;le, le score d&#8217;une analyse est calcul&#233; comme la combinaison lin&#233;aire des traits
+extraits &#224; partir de cette analyse, pond&#233;r&#233;s par un vecteur de poids repr&#233;sentant les param&#232;tres du mod&#232;le. MIRA,
+l&#8217;algorithme d&#8217;apprentissage des param&#232;tres du mod&#232;le, est tr&#232;s similaire au Perceptron (Rosenblatt, 1958), et est
+donc rapide et peu gourmand en ressources, tout en offrant de meilleures performances.
+</p>
+<p>Le r&#233;ordonnancement discriminant des analyses se d&#233;roule selon deux &#233;tapes : apprentissage des param&#232;tres du
+mod&#232;le et pr&#233;diction. L&#8217;&#233;tape de pr&#233;diction consiste &#224; produire les n meilleures analyses du mod&#232;le g&#233;n&#233;ratif,
+extraire des traits pour caract&#233;riser ces analyses et attribuer un score &#224; chaque analyse en fonction de ses traits
+et du mod&#232;le discriminant. L&#8217;analyse de meilleur score est alors s&#233;lectionn&#233;e comme sortie finale du syst&#232;me.
+L&#8217;&#233;tape d&#8217;entra&#238;nement consiste &#224; utiliser des exemples de phrases avec leurs analyses de r&#233;f&#233;rence (ensemble
+d&#8217;apprentissage) pour d&#233;terminer les param&#232;tres du mod&#232;le. Alors que la plupart des mod&#232;les discriminants tentent
+de minimiser le taux d&#8217;erreur global sur l&#8217;ensemble des exemples d&#8217;apprentissage, MIRA se contente de traiter les
+exemples un par un, ajustant son mod&#232;le pour que l&#8217;analyse s&#233;lectionn&#233;e pour la phrase courante soit celle qui est
+la plus proche de l&#8217;analyse de r&#233;f&#233;rence. Une telle approche, appel&#233;e &#171; en ligne &#187;, limite les ressources n&#233;cessaires,
+processeur et m&#233;moire, rendant possible l&#8217;apprentissage de mod&#232;les qui prennent en compte un tr&#232;s grand nombre
+de traits.
+</p>
+<p>3.1 D&#233;finitions
+</p>
+<p>On se place dans un espace vectoriel de dimensionm o&#249; chaque dimension correspond &#224; un trait. Certaines dimen-
+sions repr&#233;sentent la pr&#233;sence ou l&#8217;absence d&#8217;un trait (valeur bool&#233;enne), son nombre d&#8217;occurrence dans l&#8217;analyse
+(entier naturel), ou une valeur r&#233;elle quelconque (par exemple la probabilit&#233; de l&#8217;analyse, ou son logarithme, selon
+le mod&#232;le g&#233;n&#233;ratif). Une analyse p est alors repr&#233;sent&#233;e sous la forme d&#8217;un vecteur de r&#233;els &#966;(p). Dans le cas
+d&#8217;un indicateur de pr&#233;sence, la ie coordonn&#233;e de &#966;(p) vaut 1 si p poss&#232;de le ie trait et 0 sinon. Un tel vecteur
+est g&#233;n&#233;ralement creux (une analyse ne poss&#232;de en moyenne qu&#8217;une petite partie des diff&#233;rents traits possibles).
+Un mod&#232;le est un vecteur de poids w de dimension m dont la ie coordonn&#233;e est le poids associ&#233; au ie trait. Plus
+ce poids est important, plus le trait correspondant aura &#233;t&#233; jug&#233; discriminant. Le score d&#8217;une analyse p n&#8217;est rien
+d&#8217;autre que le produit scalaire du vecteur &#966;(p) et du vecteur w :
+</p>
+<p>score(p) =
+</p>
+<p>m&#8721;
+i=1
+</p>
+<p>wi &#215; &#966;i(p) (1)
+</p>
+<p>Soit L la liste des nmeilleures analyses produites par l&#8217;analyseur syntaxique g&#233;n&#233;ratif pour une phrase. On calcule
+le score de chaque analyse et l&#8217;analyse de score maximum p&#770; est choisie comme sortie finale du syst&#232;me :
+</p>
+<p>p&#770; = argmax
+p&#8712;L
+</p>
+<p>score(p) (2)</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>La phase d&#8217;apprentissage consiste &#224; utiliser les phrases d&#8217;entra&#238;nement et leurs analyses de r&#233;f&#233;rence pour d&#233;ter-
+miner le vecteur de poids w. Le classifieur MIRA commence avec un vecteur de poids nul (c&#8217;est-&#224;-dire que toutes
+les analyses ont un score de z&#233;ro), et essaie de modifier ce vecteur de fa&#231;on &#224; ce que les bonnes analyses ait un
+score plus &#233;lev&#233; que les mauvaises analyses. L&#8217;analyse la plus proche de la r&#233;f&#233;rence est nomm&#233;e oracle (not&#233;e o).
+Il serait souha&#238;table que l&#8217;oracle ait le meilleur score parmi les analyses propos&#233;e pour une phrase. Soit error(p)
+le nombre de mauvaises d&#233;pendences (&#233;tiquette, position, direction) dans l&#8217;analyse p. L&#8217;oracle o est l&#8217;analyse pour
+laquelle erreur() est minimale.
+</p>
+<p>Les phrases de l&#8217;ensemble d&#8217;entra&#238;nement sont trait&#233;es s&#233;quentiellement. Pour chacune d&#8217;entre elles, on d&#233;termine
+la liste des n meilleures analyses candidates, puis l&#8217;analyse candidate de meilleur score, not&#233;e p&#770;. Si cette analyse
+est diff&#233;rente de l&#8217;oracle (p&#770; 6= o), cela signifie que le vecteur de poids w peut &#234;tre am&#233;lior&#233;. Dans ce cas, on
+recherche une modification de w qui assure que o ait un score plus &#233;lev&#233; que l&#8217;analyse qui avait le meilleur score.
+Plus pr&#233;cis&#233;ment, on souhaite que la diff&#233;rence entre leurs scores soit proportionnelle &#224; la diff&#233;rence entre leur
+distance &#224; la r&#233;f&#233;rence. Ainsi, une tr&#232;s mauvaise analyse aura un score bien plus faible qu&#8217;une analyse de qualit&#233;
+moyenne. Trouver une am&#233;lioration de w peut &#234;tre formul&#233; comme un probl&#232;me d&#8217;optimisation sous la contrainte
+que la diff&#233;rence des scores de l&#8217;oracle et de l&#8217;hypoth&#232;se de plus haut score soit sup&#233;rieure &#224; la diff&#233;rence entre
+leurs distances &#224; la r&#233;f&#233;rence. Comme il existe une infinit&#233; de vecteurs w satisfaisant cette contrainte, on recherche
+celui de plus petite norme. Ce probl&#232;me s&#8217;&#233;crit sous la forme suivante :
+</p>
+<p>minimiser : ||w|| tel que : score(o)&#8722; score(p&#770;) &#8805; error(o)&#8722; error(p&#770;) (3)
+</p>
+<p>Des m&#233;thodes classiques d&#8217;optimisation quadratique sous contrainte sont utilis&#233;es : tout d&#8217;abord la contrainte est
+introduite dans la fonction objective gr&#226;ce &#224; des multiplicateurs de Lagrange. De cette fa&#231;on, les solutions qui
+violent le plus la contrainte sont p&#233;nalis&#233;es par rapport aux autres solutions. Enfin, la m&#233;thode de Hildreth donne
+la solution analytique suivante au probl&#232;me quadratique non contraint :
+</p>
+<p>w? = w + &#945; [&#966;(o)&#8722; &#966;(p&#770;)] (4)
+</p>
+<p>&#945; = max
+</p>
+<p>[
+0,
+error(o)&#8722; error(p&#770;)&#8722; (score(o)&#8722; score(p&#770;))
+</p>
+<p>||&#966;(o)&#8722; &#966;(p&#770;)||2
+]
+</p>
+<p>(5)
+</p>
+<p>Ici, w? est le nouveau vecteur de poids, &#945; est un taux de modification et [&#966;(o)&#8722; &#966;(p&#770;)] est la diff&#233;rence entre le
+vecteur de traits de l&#8217;oracle et celui de l&#8217;analyse de plus haut score. Concr&#232;tement, cette mise &#224; jour attire le vecteur
+de poids en direction de l&#8217;oracle et l&#8217;&#233;loigne de p&#770;. Cet algorithme d&#8217;apprentissage est tr&#232;s proche de l&#8217;algorithme
+du perceptron, et tout comme pour le perceptron, il est recommand&#233; (1) de faire de multiples passes sur l&#8217;ensemble
+d&#8217;apprentissage et (2) de sauvegarder le vecteur de poids apr&#232;s chaque mise &#224; jour et d&#8217;en faire la moyenne pour
+produire le vecteur de poids final 5. L&#8217;algorithme 1 pr&#233;sente l&#8217;apprentissage MIRA.
+</p>
+<p>3.2 Traits utilis&#233;s
+</p>
+<p>La qualit&#233; d&#8217;un r&#233;ordonnanceur d&#233;pend de la capacit&#233; de l&#8217;algorithme d&#8217;apprentissage &#224; attribuer un bon poids aux
+traits discriminants, mais aussi, de mani&#232;re cruciale, &#224; la qualit&#233; des traits qui lui sont fournis. Ces traits peuvent
+porter sur n&#8217;importe quelle configuration lexico-syntaxique d&#8217;une analyse. L&#8217;ensemble des traits potentiels est par
+cons&#233;quent gigantesque. Pour &#234;tre pertinent, un trait doit d&#8217;une part &#234;tre assez g&#233;n&#233;ral pour appara&#238;tre souvent et,
+d&#8217;autre part, permettre de discriminer les bonnes analyses des mauvaises. Il n&#8217;existe pas de m&#233;thode g&#233;n&#233;rale de
+s&#233;lection des traits pertinents, du fait de leur nombre et de leur caract&#232;re non monotone : un trait simple peut se
+r&#233;v&#233;ler non pertinent mais l&#8217;extension de ce trait simple en un trait plus complexe peut l&#8217;&#234;tre. L&#8217;espace des traits
+est par cons&#233;quent difficile &#224; explorer syst&#233;matiquement et la s&#233;lection des traits pertinents est une activit&#233; qui
+rel&#232;ve de l&#8217;art, pour reprendre un bon mot de (Charniak &amp; Johnson, 2005).
+</p>
+<p>Nous nous sommes inspir&#233;s de traits utilis&#233;s dans l&#8217;analyseur (McDonald, 2006) qui a montr&#233; de bonnes perfor-
+mances dans de nombreuses langues. Ils se divisent en cinq familles, chaque famille correspondant &#224; un type de
+configuration. L&#8217;instanciation de ces patrons sur les sorties de l&#8217;analyseur a g&#233;n&#233;r&#233; plus de 70 millions de traits.
+Nous d&#233;crivons ci-dessous les cinq familles de traits que nous illustrons sur la phrase Les enfants mangent des
+glaces avec app&#233;tit dans laquelle on s&#8217;int&#233;ressera en particulier &#224; la d&#233;pendance objet (mangent, glaces).
+</p>
+<p>5. Dans la pratique, il n&#8217;est pas n&#233;cessaire de sauvegarder tous les vecteurs de poids, mais seulement deux vecteurs.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MOD&#200;LES G&#201;N&#201;RATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+</p>
+<p>Algorithme 1 Entra&#238;nement MIRA
+pour i = 1 &#224; t faire
+</p>
+<p>pour chaque phrase de l&#8217;ensemble d&#8217;entra&#238;nement faire
+G&#233;n&#233;rer les n meilleures hypoth&#232;ses de l&#8217;analyseur en constituants.
+pour chaque hypoth&#232;se faire
+</p>
+<p>Extraire un vecteur de traits &#224; partir de l&#8217;hypoth&#232;se.
+Calculer son score comme le produit scalaire entre ce vecteur et le vecteur de poids (&#233;q. 1)
+</p>
+<p>fin pour
+Soit l&#8217;oracle, l&#8217;hypoth&#232;se la plus proche de la r&#233;f&#233;rence pour cette phrase.
+si l&#8217;hypoth&#232;se de meilleur score n&#8217;est pas l&#8217;oracle alors
+</p>
+<p>Calculer la diff&#233;rence entre le vecteur de traits de l&#8217;oracle et le vecteur de traits de l&#8217;hypoth&#232;se.
+Calculer le facteur &#945; qui assure que l&#8217;oracle ait un meilleur score la prochaine fois (&#233;q. 5)
+Ajouter au vecteur de poids ce facteur fois la diff&#233;rence entre les deux vecteurs (&#233;q. 4)
+</p>
+<p>fin si
+fin pour
+</p>
+<p>fin pour
+Retourner un vecteur de poids moyen consitut&#233; &#224; partir de l&#8217;&#233;tat du vecteur de poids apr&#232;s chaque phrase
+d&#8217;entra&#238;nement.
+</p>
+<p>Unigramme Les traits unigrammes sont les plus simples, ils ne mettent en jeu qu&#8217;une seule d&#233;pendance. &#201;tant
+donn&#233; une d&#233;pendance entre les positions i et j de type l, gouvern&#233;e par xi, not&#233;e xi
+</p>
+<p>l&#8594; xj , on cr&#233;e deux
+traits, l&#8217;un pour le gouverneur xi , l&#8217;autre pour le d&#233;pendant xj qui prennent la forme de sextuplets (mot,
+lemme, partie du discours, statut dans la d&#233;pendance (gouverneur (G) ou d&#233;pendant (D)) , direction de la
+d&#233;pendance (droite (D) ou gauche (G)), type de la d&#233;pendance). On ajoute aussi tous les tuples avec une
+partie de l&#8217;information masqu&#233;e pour lutter contre la dispersion des donn&#233;es lors de l&#8217;apprentissage.
+Ainsi, la pr&#233;sence de la d&#233;pendance objet dans notre exemple donnera naissance aux deux traits :
+[mangent, manger, V, G, D, objet] et [glaces, glace, N, D, D, objet]
+mais aussi &#224; tous les traits que l&#8217;on peut construire &#224; partir des deux premiers par sous-sp&#233;cification :
+[-, manger, V, G, D, objet], [mangent, -, V, G, D, objet] ...
+[mangent, -,-,-,-,objet]
+</p>
+<p>Ce processus de sous-sp&#233;cification des traits s&#8217;applique &#224; toutes les familles de traits, on omettra de le
+r&#233;p&#233;ter ci-dessous.
+</p>
+<p>Bigramme Contrairement &#224; la famille pr&#233;c&#233;dente qui ne prenait en compte qu&#8217;un des deux membres d&#8217;une d&#233;-
+pendance, les traits bigrammes mod&#233;lisent la cooccurrence des deux membres de la d&#233;pendance, &#224; l&#8217;image
+des d&#233;pendances bi-lexicales de (Collins, 1997). &#201;tant donn&#233; la d&#233;pendance xi
+</p>
+<p>l&#8594; xj , on cr&#233;e un trait (mot
+xi, lemme xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , distance 6 de i &#224; j, direction
+de la d&#233;pendance, type de la d&#233;pendance).
+L&#8217;exemple ci-dessus donnera donc naissance au trait suivant :
+[mangent, manger, V, glaces, glace, N, 2, D, objet]
+</p>
+<p>o&#249; 2 est la distance s&#233;parant mangent et glaces dans la cha&#238;ne lin&#233;aire.
+</p>
+<p>Contexte lin&#233;aire Contrairement aux deux familles pr&#233;c&#233;dentes qui s&#8217;int&#233;ressaient &#224; une d&#233;pendance ind&#233;pen-
+damment de sa r&#233;alisation dans la cha&#238;ne, on regarde ici les &#233;l&#233;ments qui s&#233;parent un gouverneur de son
+d&#233;pendant dans cette derni&#232;re. &#201;tant donn&#233; la d&#233;pendance xi
+</p>
+<p>l&#8594; xj On cr&#233;e un trait avec les partie de dis-
+cours de xi, de xj et de chaque mot entre les positions i et j. On cr&#233;e &#233;galement un trait comportant les
+parties de discours aux positions i &#8722; 1, i, i + 1, j &#8722; 1, j, j + 1. La d&#233;pendance objet de notre exemple
+donnera naissance aux deux traits :
+[V, D, N] et [N, V, D, N, P]
+</p>
+<p>Contexte syntaxique, n&#339;uds fr&#232;res Cette famille de traits ainsi que la suivante mettent en jeu deux d&#233;pen-
+dances dans deux configurations particuli&#232;res. &#201;tant donn&#233; deux d&#233;pendances xi
+</p>
+<p>l&#8594; xj et xi m&#8594; xk, on
+cr&#233;e un trait (mot xi, lemme xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , mot xk,
+lemme xk, partie du discours xk, distance de i &#224; j, distance de i &#224; k, direction de la premi&#232;re d&#233;pendance,
+</p>
+<p>6. Cette distance est r&#233;duite &#224; sept classes selon qu&#8217;elle est &#233;gale &#224; 1, 2, 3, 4, 5, comprise entre 5 et 10, ou sup&#233;rieure &#224; 10.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>type de la premi&#232;re d&#233;pendance, direction de la seconde d&#233;pendance, type de la seconde d&#233;pendance). Ce
+qui donne, dans notre exemple : [mangent, manger, V, glaces, glace, avec, avec, P,
+2, 3, D, objet, D, mod]
+</p>
+<p>Contexte syntaxique, cha&#238;nes &#201;tant donn&#233; deux d&#233;pendances xi
+l&#8594; xj m&#8594; xk, on cr&#233;e un trait (mot xi, lemme
+</p>
+<p>xi, partie du discours xi, mot xj , lemme xj , partie du discours xj , mot xk, lemme xk, partie du discours xk,
+distance de i &#224; j, distance de i &#224; k, direction de la premi&#232;re d&#233;pendance, type de la premi&#232;re d&#233;pendance,
+direction de la seconde d&#233;pendance, type de la seconde d&#233;pendance). Dans notre exemple : [mangent,
+manger, V, avec, avec, P, app&#233;tit, app&#233;tit, N, 3, 4, D, mod, D, objet]
+</p>
+<p>On peut noter que les patrons de traits ne reposent que sur des connaissances pr&#233;sentes dans les donn&#233;es d&#8217;appren-
+tissage. Nous n&#8217;avons pas ajout&#233; de traits qui proviennent de connaissances linguistiques externes.
+</p>
+<p>4 Exp&#233;riences
+</p>
+<p>Dans cette section, nous &#233;valuons les performances de notre analyseur. Nous pr&#233;sentons d&#8217;abord le module g&#233;n&#233;-
+ratif seul, puis les deux modules ensemble.
+</p>
+<p>Nous utilisons dans nos exp&#233;riences le corpus arbor&#233; de Paris 7 (Abeill&#233; et al., 2003) (dans la suite, FTB). Il
+contient 12 350 phrases annot&#233;es syntaxiquement en constituants, et en &#233;tiquettes fonctionnelles. Ce n&#8217;est pas
+directement ce corpus que nous manipulons mais deux transformations de celui-ci.
+</p>
+<p>1. La premi&#232;re, FTB-UC, mise au point par (Crabb&#233; &amp; Candito, 2008), garde la structure en constituants mais
+simplifie le jeu d&#8217;&#233;tiquettes. En particulier, les fonctions disparaissent et les informations morphologiques
+sont r&#233;duites. C&#8217;est sur ce corpus que nous apprendrons la grammaire syntagmatique.
+</p>
+<p>2. La seconde, FTB-UC-DEP, pr&#233;sent&#233;e dans (Candito et al., 2009), est une conversion du FTB en d&#233;pendances.
+Cette conversion est r&#233;alis&#233;e &#224; l&#8217;aide de r&#232;gles de propagation de t&#234;tes et d&#8217;heuristiques. C&#8217;est sur ce second
+corpus que l&#8217;on apprendra l&#8217;analyseur discriminant.
+</p>
+<p>Pour entra&#238;ner et &#233;valuer notre syst&#232;me, nous divisons ces corpus en 3 : une partie pour l&#8217;entra&#238;nement (80%), une
+partie pour le d&#233;veloppement (10%) et le reste pour l&#8217;&#233;valuation finale.
+</p>
+<p>Nous employons deux types de grammaires syntagmatiques, le premier appris directement sur FTB-UC (mod&#232;le
+simple), le second appris sur une version modifi&#233;e de FTB-UC dans laquelle les mots sont remplac&#233;s par leur classe
+d&#8217;&#233;quivalence (mod&#232;le agr&#233;gats), comme dans (Candito &amp; Crabb&#233;, 2009).
+</p>
+<p>4.1 &#201;valuation du mod&#232;le g&#233;n&#233;ratif seul
+</p>
+<p>Les performances de notre analyseur syntagmatique sur le corpus de d&#233;veloppement sont r&#233;sum&#233;es dans le ta-
+bleau 2. Le F-score 7 est la moyenne harmonique du rappel (ici, les constituants de la r&#233;f&#233;rence retrouv&#233;s par
+l&#8217;analyseur) et de la pr&#233;cision (ici, les constituants pr&#233;dits pr&#233;sents dans la r&#233;f&#233;rence). Nous donnons les scores
+oracles de notre analyseur quand il renvoie les 1, 10, 50 et 100 analyses les plus probables d&#8217;une phrase, pour
+donner une id&#233;e de la marge de progression possible.
+</p>
+<p>Les r&#233;sultats quantitatifs de la conversion en structures de d&#233;pendances sont &#233;galement pr&#233;sent&#233;s dans la table 2.
+Le score d&#8217;attachement &#233;tiquet&#233; (LAS) est le taux de d&#233;pendances typ&#233;es correctement reconnues 8 par l&#8217;analy-
+seur. Le score non-&#233;tiquet&#233; (UAS) est ce m&#234;me taux lorsque l&#8217;on ne tient pas compte du type des d&#233;pendances.
+Nous avons repr&#233;sent&#233; sur la derni&#232;re colonne (GOLD) l&#8217;&#233;valuation de la conversion en d&#233;pendances de l&#8217;ana-
+lyse syntagmatique de r&#233;f&#233;rence. Ces r&#233;sultats nous permettent d&#8217;&#233;valuer la qualit&#233; de l&#8217;&#233;tiquetage fonctionnel, ils
+montrent que l&#8217;&#233;tiqueteur effectue &#224; peu pr&#232;s 4% d&#8217;erreurs dans l&#8217;attribution de ces &#233;tiquettes. Comme pr&#233;c&#233;dem-
+ment, nous donnons aussi le score oracle quand notre analyseur renvoie plusieurs analyses.
+</p>
+<p>7. Nous utilisons le logiciel evalb que nous avons modifi&#233; pour qu&#8217;il donne &#233;galement le score oracle quand l&#8217;analyseur fournit une liste
+d&#8217;arbres.
+</p>
+<p>8. La ponctuation n&#8217;est pas prise en compte.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MOD&#200;LES G&#201;N&#201;RATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+</p>
+<p>DEV-1 DEV-10 DEV-50 DEV-100 GOLD
+F 84,41 89,35 91,71 92,56 100
+LAS 86,01 89,25 90,86 91,48 96,04
+UAS 89,60 92,70 94,23 94,80 100
+F agr&#233;gats 85,02 89,98 92,33 93,27 100
+LAS agr&#233;gats 86,99 89,93 91,61 92,25 96,04
+UAS agr&#233;gats 90,72 93,48 95,05 95,68 100
+</p>
+<p>TABLE 2 &#8211; Scores de l&#8217;analyseur g&#233;n&#233;ratif sur la partie de d&#233;veloppement
+</p>
+<p>Les r&#233;sultats donn&#233;s ci-dessus nous permettent de tirer deux conclusions importantes. D&#8217;une part les r&#233;sultats de
+l&#8217;analyseur sont du niveau de l&#8217;&#233;tat de l&#8217;art pour l&#8217;analyse syntagmatique du fran&#231;ais (84, 41% de F-score). D&#8217;autre
+part, la marge de progression du r&#233;ordonnanceur est importante puisque le score oracle LAS sur les 100 analyses
+les plus probables est de 91, 48% alors que le score de l&#8217;analyse la plus probable est de 86, 01% soit une marge
+possible de progression de 5, 47%.
+</p>
+<p>4.2 Ajout du r&#233;ordonnanceur
+</p>
+<p>4.2.1 Apprentissage
+</p>
+<p>Le mod&#232;le discriminant, c&#8217;est-&#224;-dire les instances des patrons de traits et leur poids, est appris sur le corpus
+d&#8217;entra&#238;nement. L&#8217;analyseur g&#233;n&#233;ratif produit 100 analyses par phrase 9 pour ce corpus qui servent d&#8217;exemples
+d&#8217;apprentissage au r&#233;ordonnanceur. Le mod&#232;le donne 71 millions de traits pour la grammaire simple et 75 millions
+pour la grammaire d&#8217;agr&#233;gats. Notez qu&#8217;un tel nombre de traits n&#8217;est pas p&#233;nalisant car l&#8217;algorhtme discriminant
+ne donne un poids non nul qu&#8217;aux traits utiles.
+</p>
+<p>4.2.2 &#201;valuation
+</p>
+<p>base 10 20 50 100
+F 84,41 85,38 85,58 85,55 85,32
+LAS 86,01 87,06 87,31 87,39 87,28
+UAS 89,60 90,57 90,77 90,83 90,69
+</p>
+<p>base 10 20 50 100
+F 85,00 85,94 86,12 86,20 86,15
+LAS 86,99 88,00 88,06 88,10 88,17
+UAS 90,78 91,54 91,57 91,58 91,62
+</p>
+<p>grammaire simple grammaire apprise sur agr&#233;gats
+</p>
+<p>TABLE 3 &#8211; scores du r&#233;ordonnanceur en fonction du nombre de candidats
+</p>
+<p>Pour notre &#233;valuation, nous avons test&#233; plusieurs configurations sur le corpus de d&#233;veloppement en faisant varier le
+nombre de candidats fourni au r&#233;ordonnanceur lors de la phase de pr&#233;diction 10. Les r&#233;sultats sont pr&#233;sent&#233;s dans
+la table 3. Pour la m&#233;trique LAS, les meilleurs r&#233;sultats sont obtenus en donnant 50 candidats au r&#233;ordonnanceur
+dans le cas de la grammaire simple et 100 dans le cas de la grammaire d&#8217;agr&#233;gats. Mais la diff&#233;rence avec les
+autres configurations n&#8217;est pas significative.
+</p>
+<p>Puisque la meilleure configuration pour les diff&#233;rentes grammaires n&#8217;est pas la m&#234;me selon la m&#233;trique utilis&#233;e
+mais que la configuration &#224; 50 candidats est toujours la meilleure selon l&#8217;une d&#8217;entre elles, c&#8217;est cette configuration
+qui est utilis&#233;e sur le corpus de test pour l&#8217;&#233;valuation finale avec la grammaire simple et la grammaire d&#8217;agr&#233;gats.
+Les r&#233;sultats, dans la table 4, sont du m&#234;me ordre de grandeur 11. Pour la grammaire simple, le r&#233;ordonnanceur
+de notre syst&#232;me permet de passer d&#8217;un F-score de 85,09% &#224; 86,02%, pour le LAS de 86,68% &#224; 87,91% et pour
+le UAS de 90,22% &#224; 91,31%. Sur les 3 m&#233;triques le r&#233;ordonnanceur montre une am&#233;lioration significative 12. Il
+est int&#233;ressant de noter que nos traits portent uniquement sur les structures en d&#233;pendances (mis &#224; part le score
+</p>
+<p>9. Pour certaines phrases, les phrases courtes en particulier, notre syst&#232;me renvoie moins de 100 analyses.
+10. Les poids des traits sont toujours appris avec 100 candidats par phrase.
+11. F &lt; 40 est le F-score en constituants pour les phrases de moins de 40 mots.
+12. Les diff&#233;rences de scores entre le syst&#232;me de base et les nouveaux syst&#232;mes incorporant le module discriminant sont statistiquement
+</p>
+<p>significatives avec une valeur p &lt; 0.01. Les diff&#233;rences entre les nouveaux syst&#232;mes ne le sont pas.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>attribu&#233; par l&#8217;analyseur PCFG-LA) et que le F-score qui mesure la qualit&#233; des arbres syntagmatiques est tout de
+m&#234;me am&#233;lior&#233;e.
+</p>
+<p>base r&#233;ord.
+F 85,09 86,02
+F &lt; 40 87,10 87,82
+LAS 86,68 87,91
+UAS 90,22 91,31
+</p>
+<p>base r&#233;ord.
+F 86,35 86,89
+F &lt; 40 88,45 88,74
+LAS 87,37 88,45
+UAS 91,08 91,91
+</p>
+<p>grammaire simple grammaire apprise sur agr&#233;gats
+</p>
+<p>TABLE 4 &#8211; Scores du syst&#232;me sur le corpus de test
+</p>
+<p>4.2.3 Comparaisons
+</p>
+<p>F &lt; 40 LAS UAS
+Ce travail 87,82 87,91 91,31
+Ce travail + agr&#233;gats 88,74 88,45 91,91
+MATE + MELT &#8211; 88,17 90,15
+BKY 88,2 86,8 91,0
+MST &#8211; 88,2 90,9
+</p>
+<p>TABLE 5 &#8211; Comparaisons des diff&#233;rents r&#233;sultats d&#8217;analyse syntaxique
+</p>
+<p>Nous donnons un tableau r&#233;capitulatif de diff&#233;rents r&#233;sultats d&#8217;analyseurs sur le FTB dans la table 5. Nous compa-
+rons notre syst&#232;me (nous avons choisi les configurations qui donnaient les meilleurs scores LAS sur le corpus de
+d&#233;veloppement) avec l&#8217;analyseur en d&#233;pendances MATE (Bohnet, 2010), entra&#238;n&#233; et &#233;valu&#233; avec MELT (Denis &amp;
+Sagot, 2010) pour l&#8217;&#233;tiquetage en parties du discours. Nous citons aussi les travaux de comparaisons de (Candito
+et al., 2010b), avec un premier syst&#232;me (BKY dans la table) proche du n&#244;tre avec un analyseur syntagmatique
+qui fournit une sortie convertie en arbre de d&#233;pendances. Le second syst&#232;me (MST dans la table) est l&#8217;analyseur
+MSTParser de (McDonald et al., 2005). Ces deux syst&#232;mes utilisent aussi les agr&#233;gats et non directement les mots
+du texte.
+</p>
+<p>4.2.4 Analyse
+</p>
+<p>Une analyse du vecteur de poids produit par le mod&#232;le discriminant montre que seuls 27% des 75 millions de
+traits observ&#233;s dans les donn&#233;es d&#8217;entra&#238;nement correspondent &#224; des poids non nuls (mod&#232;le avec agr&#233;gats). Les
+autres traits ont donc &#233;t&#233; jug&#233;s non discriminants. Nous avons analys&#233; les 1000 traits de plus grand poids positif,
+repr&#233;sentant les caract&#233;ristiques jug&#233;es les plus pertinentes pour discriminer les bonnes analyses et les 1000 traits
+de poids n&#233;gatifs de plus grande valeur absolue, symptomatiques des mauvaises analyses.
+</p>
+<p>SENT
+</p>
+<p>NP VN
+PP
+</p>
+<p>PONCT
+</p>
+<p>NP
+</p>
+<p>PONCTNPP NPP V VPP P
+AP
+</p>
+<p>DET ADJ PONCT P ADJADJ
+</p>
+<p>SENT
+</p>
+<p>NP VN
+PP
+</p>
+<p>PONCT
+NP
+</p>
+<p>PONCTNPP NPP V VPP P
+AP
+</p>
+<p>P NC PONCT P ADJADJ
+NP
+</p>
+<p>PP PP
+</p>
+<p>Avant le r&#233;ordonnement Apr&#232;s le r&#233;ordonnement
+arbres
+</p>
+<p>syntagmatiques
+</p>
+<p>arbres en
+d&#233;pendances
+</p>
+<p>NPP NPP V VPP P ADJ PONCT DET ADJ PONCT P ADJ PONCT NPP NPP V VPP P ADJ PONCT P NC PONCT P ADJ PONCT
+</p>
+<p>FIGURE 2 &#8211; Exemple de r&#233;ordonnancement b&#233;n&#233;fique (163e phrase de d&#233;veloppement) : la meilleure analyse selon
+le mod&#232;le g&#233;n&#233;ratif est &#224; gauche, la meilleure selon le mod&#232;le discriminant, la 35e hypoth&#232;se du mod&#232;le g&#233;n&#233;ratif,
+est &#224; droite. Les erreurs, indiqu&#233;es par des pointill&#233;s, sont propag&#233;es lors de la conversion en d&#233;pendances.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>MOD&#200;LES G&#201;N&#201;RATIF ET DISCRIMINANT EN ANALYSE SYNTAXIQUE
+</p>
+<p>Cette analyse fait appara&#238;tre que les traits issus du repli 13 sont utiles pour caract&#233;riser de mauvaises analyses
+(63% des 1000 poids les plus n&#233;gatifs). De plus, les traits n&#233;gatifs font souvent r&#233;f&#233;rence &#224; un indicateur d&#8217;&#233;chec
+de la lemmatisation. Comme cette lemmatisation est produite &#224; partir d&#8217;un lexique et de la paire forme / partie
+du discours, et sous l&#8217;hypoth&#232;se que notre lexique est suffisamment riche, une erreur signifie que l&#8217;&#233;tiquetage en
+partie du discours est mauvais.
+</p>
+<p>Le trait positif le plus discriminant est, sans surprise, le score donn&#233; par l&#8217;analyseur. Les autres traits positifs
+importants permettent d&#8217;avantager des &#233;tiquetages de parties du discours en fonction du contexte lin&#233;aire. On
+remarque aussi l&#8217;existence de traits qui incitent les conjoints &#224; avoir la m&#234;me cat&#233;gorie dans les coordinations.
+</p>
+<p>On voit donc que le r&#233;ordonnancement peut remettre en question l&#8217;&#233;tiquetage de l&#8217;analyseur mais aussi qu&#8217;il peut
+influencer le traitement de ph&#233;nom&#232;nes plus complexes comme la coordination. La figure 2 donne un exemple de
+phrase dont la meilleure analyse a &#233;t&#233; corrig&#233;e par le mod&#232;le discriminant.
+</p>
+<p>Les patrons les plus repr&#233;sent&#233;s en positif sont unigramme, bigramme, contexte lin&#233;aire, cha&#238;nes, et leurs
+versions relach&#233;es, et en n&#233;gatif unigramme, bigramme, cha&#238;nes, n&#339;uds fr&#232;res. Une analyse des r&#233;sultats par
+type de d&#233;pendance montre que le r&#233;ordonnanceur fait moins d&#8217;erreurs uniform&#233;ment sur l&#8217;ensemble des types.
+La figure 2 donne un exemple de phrase dont l&#8217;analyse a &#233;t&#233; corrig&#233;e par le mod&#232;le discriminant.
+</p>
+<p>5 Conclusion
+</p>
+<p>Nous avons montr&#233; que l&#8217;ajout d&#8217;un module discriminant permet d&#8217;am&#233;liorer la qualit&#233; des analyses, comme nous
+avons pu le v&#233;rifier exp&#233;rimentalement sur le corpus FTB &#224; l&#8217;aide de trois m&#233;triques (F-score Parseval, LAS,
+UAS). Cependant, le gain est moins important que celui observ&#233; pour l&#8217;anglais (Charniak &amp; Johnson, 2005). Sans
+proc&#233;der &#224; une analyse d&#8217;erreurs exhaustive, on peut toutefois &#233;voquer plusieurs points pouvant &#234;tre am&#233;lior&#233;s.
+</p>
+<p>En premier lieu, l&#8217;approche s&#233;quentielle est vuln&#233;rable aux erreurs en cascade. Bien que l&#8217;analyseur g&#233;n&#233;ratif
+fournisse plusieurs candidats, ce n&#8217;est pas le cas de l&#8217;&#233;tiqueteur fonctionnel. Les erreurs d&#8217;&#233;tiquetage ne sont donc
+pas r&#233;cup&#233;rables. On peut envisager deux solutions ici : (1) permettre &#224; l&#8217;&#233;tiqueteur de renvoyer une sortie ambigu&#235;
+et laisser le r&#233;ordonnanceur d&#233;cider du meilleur &#233;tiquetage, et (2) utiliser des techniques plus sophistiqu&#233;es dans
+la phase discriminante comme la pr&#233;diction structur&#233;e. On pourra ainsi se passer de l&#8217;&#233;tiqueteur.
+</p>
+<p>Ensuite, cette approche &#224; deux niveaux ne permet pas d&#8217;atteindre l&#8217;oracle, ce qui a d&#233;j&#224; &#233;t&#233; observ&#233; sur l&#8217;anglais.
+Il est difficile de trouver un jeu de traits suffisamment g&#233;n&#233;ral et qui soit utile pour une phrase particuli&#232;re. Il
+y a encore des investigations &#224; mener pour trouver un jeu de traits optimal, par exemple sur l&#8217;utilisation plus
+syst&#233;matique de traits sur les structures de d&#233;pendances (par exemple en passant par des noyaux d&#8217;arbres), ou
+celle de connaissances externes, linguistiques ou collect&#233;es sur corpus (pr&#233;f&#233;rences lexicales, cadres de sous-
+cat&#233;gorisation, verbes copulatifs, sym&#233;trie de la coordination. . . ).
+</p>
+<p>Enfin, notre syst&#232;me doit encore &#234;tre am&#233;lior&#233; pour une utilisation en situation r&#233;elle (par exemple, l&#8217;analyse de
+gros volumes de donn&#233;es provenant de la toile). L&#8217;extraction des traits pour le r&#233;ordonnanceur, et vraisemblable-
+ment pour l&#8217;&#233;tiqueteur fonctionnel, est clairement le goulot d&#8217;&#233;tranglement. &#192; titre d&#8217;exemple, pour analyser les
+1235 phrases du corpus de test, les temps d&#8217;analyse en constituants, d&#8217;&#233;tiquetage fonctionnel et de conversion en
+structures de d&#233;pendances, d&#8217;extraction de traits et finalement de r&#233;ordonnancement, sont respectivement : 9 min
+55 s, 25 min 43 s, 51 min 12 s et 4 min 03 s.
+</p>
+<p>Ce travail ouvre la voie &#224; l&#8217;utilisation de donn&#233;es non &#233;tiquet&#233;es en plus d&#8217;un corpus arbor&#233; pour apprendre une
+meilleure grammaire g&#233;n&#233;rative (self training comme (McClosky et al., 2008)) o&#249; le r&#233;ordonnanceur &#233;vite au
+syst&#232;me d&#8217;apprendre sur les erreurs commises par l&#8217;analyseur g&#233;n&#233;ratif.
+</p>
+<p>Remerciements
+</p>
+<p>Ces travaux sont en partie financ&#233;s par le projet ANR Sequoia ANR-08-EMER-013. Nous tenons &#224; remercier
+Marie Candito qui nous a aid&#233;s &#224; ma&#238;triser BONSA&#207;, Djam&#233; Seddah qui nous a sugg&#233;r&#233; de tester notre architecture
+sur les grammaires d&#8217;agr&#233;gats, ainsi que les relecteurs anonymes.
+</p>
+<p>13. C&#8217;est-&#224;-dire qu&#8217;une partie de l&#8217;information est masqu&#233;e (cf. section 3.2).</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>LE ROUX, FAVRE, MIRROSHANDEL, NASR
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>ABEILL&#201; A., CL&#201;MENT L. &amp; FRAN&#199;OIS T. (2003). Treebanks, chapter Building a treebank for French. Kluwer,
+Dordrecht.
+ATTIA M., FOSTER J., HOGAN D., LE ROUX J., TOUNSI L. &amp; VAN GENABITH J. (2010). Handling Unknown
+Words in Statistical Latent-Variable Parsing Models for Arabic, English and French. In Proceedings of SPMRL.
+BOHNET B. (2010). Top Accuracy and Fast Dependency Parsing is not a Contradiction. In Proceedings of
+COLING.
+CANDITO M., CRABB&#201; B. &amp; DENIS P. (2010a). Statistical French Dependency Parsing : Treebank Conversion
+and First Results. In Proceedings of LREC2010.
+CANDITO M.-H. &amp; CRABB&#201; B. (2009). Improving Generative Statistical Parsing with Semi-Supervised Word
+Clustering. In Proceedings of IWPT 2009.
+CANDITO M.-H., CRABB&#201; B., DENIS P. &amp; GU&#201;RIN F. (2009). Analyse syntaxique du fran&#231;ais : des consti-
+tuants aux d&#233;pendances. In Actes de TALN.
+CANDITO M.-H., NIVRE J., DENIS P. &amp; HENESTROZA ANGUIANO E. (2010b). Benchmarking of Statistical
+Dependency Parsers for French. In Proceedings of COLING&#8217;2010.
+CHARNIAK E. &amp; JOHNSON M. (2005). Coarse-to-Fine n-Best Parsing and MaxEnt Discriminative Reranking.
+In Proceedings of ACL.
+COLLINS M. (1997). Three Generative, Lexicalised Models for Statistical Parsing. In Proceedings of the 35th
+Annual Meeting of the ACL.
+COLLINS M. (2000). Discriminative Reranking for Natural Language Parsing. In Proceedings of ICML.
+CRABB&#201; B. &amp; CANDITO M. (2008). Exp&#233;riences d&#8217;analyse syntaxique du fran&#231;ais. In Actes de TALN.
+CRAMMER K., DEKEL O., KESHET J., SHALEVSHWARTZ S. &amp; SINGER Y. (2006). Online Passive-Aggressive
+Algorithm. Journal of Machine Learning Research.
+DENIS P. &amp; SAGOT B. (2010). Exploitation d&#8217;une ressource lexicale pour la construction d&#8217;un &#233;tiqueteur mor-
+phosyntaxique &#233;tat-de-l&#8217;art du fran&#231;ais. In Actes de TALN.
+JOHNSON M. &amp; URAL A. E. (2010). Reranking the Berkeley and Brown Parsers. In Human Language Tech-
+nologies : The 2010 Annual Conference of the North American Chapter of the Association for Computational
+Linguistics, p. 665&#8211;668, Los Angeles, California : Association for Computational Linguistics.
+MATSUZAKI T., MIYAO Y. &amp; ICHI TSUJII J. (2005). Probabilistic CFG with Latent Annotations. In Proceedings
+of ACL.
+MCCLOSKY D., CHARNIAK E. &amp; JOHNSON M. (2008). When is Self-Training Effective for Parsing ? In D.
+SCOTT &amp; H. USZKOREIT, Eds., COLING, p. 561&#8211;568.
+MCDONALD R. (2006). Discriminative Training and Spanning Tree Algorithms for Dependency Parsing. PhD
+thesis, University of Pennsylvania.
+MCDONALD R., CRAMMER K. &amp; PEREIRA F. (2005). Online Large-Margin Training of Dependency Parsers.
+In Association for Computational Linguistics (ACL).
+NIVRE J., HALL J., NILSSON J., CHANEV A., ERYIGIT G., K&#220;BLER S., MARINOV S. &amp; MARSI E. (2007).
+Maltparser : A language-independent system for data-driven dependency parsing. Natural Language Enginee-
+ring, 13(2), 95&#8211;135.
+PETROV S., BARRETT L., THIBAUX R. &amp; KLEIN D. (2006). Learning Accurate, Compact, and Interpretable
+Tree Annotation. In ACL.
+PETROV S. &amp; KLEIN D. (2007). Improved Inference for Unlexicalized Parsing. In HLT-NAACL, p. 404&#8211;411.
+PULLUM G. K. &amp; SCHOLZ B. C. (2001). On the distinction between model-theoretic and generative-
+enumerative syntactic frameworks. In Logical Aspects of Computational Linguistics.
+RAMBOW O. (2010). The Simple Truth about Dependency and Phrase Structure Representations : An Opinion
+Piece. In NAACL HLT.
+ROSENBLATT F. (1958). The Perceptron : A Probabilistic Model for Information Storage and Organization in
+the Brain. Psychological Review.
+SEDDAH D., CANDITO M. &amp; CRABB&#201; B. (2009). Adaptation de parsers statistiques lexicalis&#233;s pour le fran&#231;ais :
+Une &#233;valuation compl&#232;te sur corpus arbor&#233;s. In TALN.</p>
+
+</div></div>
+</body></html>

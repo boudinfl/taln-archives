@@ -1,0 +1,713 @@
+TALN 2011, Montpellier, 27juin — 1"'ju1'11et 2011
+
+Analyse automatique de la modalite et du niveau de certitude :
+application au domaine medical
+
+Delphine Bernhardl Anne-Laure Ligozat1= 2
+(1) LIlVISI-CNRS, B.P. 133, 91403 Orsay Cedex
+(2) ENSIIE, 1 square de la resistance, 91000 Evry
+bernhard@limsi.fr, annlor@limsi.fr
+
+Résllnlé. De nombreux phenomenes linguistiques visent a exprimer le doute ou l’incertitude de l’enoncia—
+teur, ainsi que la subj ectivite potentielle du point de vue. La prise en compte de ces informations sur le niveau de
+certitude est primordiale pour de nombreuses applications du traitement automatique des langues, en particulier
+l’extraction d’information dans le domaine medical. Dans cet article, nous presentons deux systemes qui analysent
+automatiquement les niveaux de certitude associes a des problemes medicaux mentionnes dans des compte—rendus
+cliniques en anglais. Le premier systeme procede par apprentissage supervise et obtient une f—mesure de 0,93. Le
+second systeme utilise des regles decrivant des declencheurs linguistiques speciﬁques et obtient une f—mesure de
+0,90.
+
+Abstract. Many linguistic phenomena aim at expressing the speaker’s doubt or incertainty, as well as
+the potential subjectivity of the point of view. Most natural language processing applications, and in particular
+knowledge extraction in the medical domain, need to take this type of information into account. In this article,
+we describe two systems which automatically analyse the levels of certainty associated with medical problems
+mentioned in English clinical reports. The ﬁrst system uses supervised machine learning and obtains an f—measure
+of 0.93. The second system relies on a set of rules decribing speciﬁc linguistic triggers and reaches an f—measure
+of 0.90.
+
+M0tS-CléS 3 Modalite epistemique, Niveau de certitude, Domaine medical.
+
+Keywords: Epistemic modality, Certainty level, Medical domain.
+
+1 Introduction
+
+En traitement automatique des langues, les informations contenues dans les textes sont souvent considerees comme
+afﬁrmees et veriﬁees. Or, de nombreux phenomenes linguistiques visent a exprimer le doute ou l’incertitude de
+l’enonciateur, ainsi que la subjectivite potentielle du point de vue. 11 y a ainsi une gradation dans les niveaux de
+certitude associes a une information : elle peut etre vraie, possible ou fausse. Une information peut egalement
+n’etre vraie que dans certaines conditions, ou etre hypothetique.
+
+Dans certains domaines, il est particulierement important de savoir sil’infor1nation donnee dans un document est
+certaine ou pas. Par exemple dans le domaine medical, si l’on tente d’ analyser des relations entre un medicament
+et des symptémes decrites dans un texte, il est necessaire de savoir si le symptéme est present ou pas, ou encore s’il
+est susceptible d’etre developpe par le patient. En questions—reponses, notamment sur des corpus de documents
+issus du web, le niveau de certitude d’une information peut egalement etre utile : une reponse comme <<La tour
+Eiffel est une tour de 327 metres de hauteur» a la question <<Que1le est la taille de la tour Eiffel» est plus precise
+que la reponse <<J e pense que la tour Eiffel fait environ 300 metres» et devra etre consideree comme plus ﬁable.
+
+Ces divers aspects ne sont encore que tres rarement pris en compte dans les applications developpees actuellement
+en traitement automatique des langues, meme s’il existe des travaux recents visant a detecter l’incertitude, la
+modalite epistemique, la speculation ou encore les opinions.
+
+Dans cet article, nous nous interessons a l’analyse automatique de la modalite et du niveau de certitude dans
+le domaine medical. Plus particulierement, nous nous attachons a etudier ces phenomenes lorsqu’ils portent sur
+des problemes medicaux (maladies, syndromes, virus, bacteries, symptémes) mentionnes dans des compte—rendus
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+cliniques en anglais aﬁn de savoir si le probleme est present, absent, hypothétique, soumis a certaines conditions,
+ou encore associe a une personne djfferente du patient dont il est question. Nous utilisons pour ce faire des données
+produites et annotées dans le cadre du challenge international i2b2/VA 20101.
+
+L’article est organise comme suit : nous détajllons dans un premier temps l’état de l’art (section 2). Puis nous
+decrivons les donnees utilisées (section 3). Dans la section 4, nous presentons nos deux systemes et exposons les
+resultats de leur evaluation dans la section 5.
+
+2 Etat de l’art
+
+Les notions de modalité et de niveau de certitude couvrent des phenomenes linguistiques varies qu’il est neces-
+saire de prendre en compte pour effectuer une analyse semantique profonde des textes. Apres une mise au point
+tenninologique, nous détajllons le traitement de ces problématiques pour la fouille d’opinion et l’extraction d’in—
+formations dans le domaine medical.
+
+2.1 Mise au point terminologique
+
+La modalité est déﬁnie par Lapaire & Rotgé (1998) comme << une prise de position concemant la valeur de verité
+d’ une proposition » et << la maniere dont un sujet pensant et parlant se prononce sur un contenu propositionnel ».
+Dans cet article, nous nous intéressons plus particulierement a la modalité épistémique qui traduit le niveau de
+certitude de l’enonciateur par rapport a l’énonce. Cette notion est a rapprocher des procedés euphemistiques (en
+anglais, hedging) qui visent a attenuer ou a moduler la force d’une assertion.
+
+De nombreux marqueurs textuels servent a exprimer le degre de certitude de l’enonciateur : adj ectifs épistémiques
+(<< possible », << impossible »), adverbes épistémiques (<< probablement »), verbes (<< savoir », << croire ») et locutions
+verbales (<< il est possible que »), propositions conditionnelles, etc (Rubin et al., 2006; Rubin, 2007; Sauri &
+Pustejovsky, 2009).
+
+Rubin (2010) distingue cinq niveaux de certitude : absolue, elevee, moderee, faible et incertaine. A ces niveaux
+de certitude sont associées diverses dimensions contextuelles : perspective (point de vue de l’auteur / discours
+rapporte), focus (opinion / faits) et temporalite’ (passe, present, futur, hors de propos ou ambigu). L’annotation
+manuelle de 2 243 phrases issues d’articles de joumaux en anglais selon cette typologie a montré que plus de
+la moitié des phrases contiennent des marqueurs de modalité epistemique, avec 1 727 occurrences de marqueurs,
+classes dans 47 classes syntaxico—semantiques (Rubin, 2010). Les marqueurs les plus frequents sont les auxiliaires
+modaux (<< must», << could »), les adjectifs superlatifs et les adverbes intensiﬁeurs (<< much », « so »).
+
+Sauri & Pustejovsky (2009) déﬁnissent quant a eux les notions de fait avére (fact) et fait non avére (counterfact),
+modules par un niveau de certitude (certain, probable, possible). Ces categories ont eté utilisées pour l’annotation
+du corpus anglais FactBank.
+
+2.2 Fouille d’opinion
+
+La fouille d’opinion vise a détecter de maniere automatique les unites textuelles (mots, syntagmes, phrases ou
+textes) qui portent une marque de subjectivite et a determiner leur polarité ou orientation (positive, negative ou
+mixte) (Pang & Lee, 2008). Les systemes de fouille d’opinion utilisent souvent des lexiques affectifs regroupant
+des mots et expressions subj ectifs, associes a leur polarité et éventuellement l’intensité de leur orientation. L’ uti-
+lisation en contexte de tels lexiques nécessite la prise en compte des phenomenes linguistiques pouvant modiﬁer
+l’orientation a priori des expressions subjectives. Ces phenomenes incluent notamment la modiﬁcation adver-
+biale, conduisant a une modulation de l’intensite d’une opinion (<< bon », « tres bon »), voire son inversion par des
+adverbes de negation (<< bien », << pas bien »). En pratique, les phénomenes de negation sont identiﬁes par diverses
+heuristiques. Ainsi, Pang et al. (2002) marquent les mots modiﬁes par une negation s’ils apparaissent entre un ne-
+gateur et une marque de ponctuation. Na et al. (2005) utilisent quant a eux des patrons syntaxiques pour identiﬁer
+de maniere plus precise les expressions incluant un negateur.
+
+l. https : //www. i2b2 .org/NLP/Relations/Main .php
+
+ANALYSE AUTOMATIQUE DE LA MODALITE ET DU NIVEAU DE CERTITUDE
+
+L’ analyse automatique de la subj ectivité est également inﬂuencée par d’ autres phénomenes, tels que la presence
+d’ une proposition conditionnelle (N arayanan et al., 2009). Une phrase conditionnelle peut contenir des expressions
+subj ectives sans pour autant fonnuler une opinion (ex : << Si cet auteur écrit un bon livre, je l’acheterai »). D’autre
+part, l’opinion exprimée est souvent determinée conjointement par la proposition conditionnelle et le consequent
+(ex : << Si tu Veux lire un bon livre, je te conseille celui—ci »). L’analyse de phrases conditionnelles en fouille
+d’ opinion repose en general sur des criteres spéciﬁques, tels que le temps des Verbes ou la presence de connecteurs
+conditionnels.
+
+2.3 Extraction d’information en domaine biomédical
+
+En domaine biomedical, il est particulierement important d’analyser la modalite et le niveau de certitude car les
+formes modalisatrices sont tres largement utilisées dans les documents biomedicaux pour indiquer des i1npres—
+sions, des explications possibles ou des résultats négatifs (Vincze et al., 2008), comme le montrent les exemples
+suivants :
+
+— «These ﬁndings that may be from an acute pneumonia include minimal bronchiectasis as well.»
+
+— «Stable appearance the right kidney without hydronephrosis.»
+
+— «The treatment seems to be successful.»
+
+— «Right upper lobe Volume loss and probably pneumonia.»
+
+Differents niveaux de certitude peuvent etre distingues. Le niveau le plus traité est celui de la negation, mais une
+gradation plus ﬁne peut également etre utilisée avec, par exemple, des niveaux signalant une possibilite ou une
+condition. La detection du niveau de certitude peut se faire soit au niveau global de la phrase, soit a l’interieur
+d’ une phrase.
+
+Concemant la negation, sa detection dans les documents biomédicaux a eté largement etudiee. Chapman et al.
+(2001) ont propose un algorithme appelé NegEx détectant les négations et identiﬁant les termes médicaux dans
+la portee d’une négationz. Le principe est le suivant : les declencheurs de negation sont annotés dans la phrase
+(comme par exemple «no» ou <<denies») et repartis en deux classes selon qu’ils apparaissent avant ou apres les
+termes dans leur portée (les deux declencheurs precedents apparaissent par exemple avant les termes qu’ils qua-
+liﬁent) ; des pseudo—declencheurs sont également annotés, c’est—a—dire des termes contenant des declencheurs de
+negation, mais qui n’en sont pas, come «no increase». Puis les portees de ces declencheurs sont déﬁnies : par de-
+faut, la portee d’un déclencheur Va de ce déclencheur a la ﬁn (ou au debut) de la phrase, mais peut etre interrompue
+par la presence d’un autre declencheur ou d’ un déclencheur de ﬁn de clause (comme par exemple «presenting»,
+qui marque la ﬁn de portée de «History» dans la phrase «History of COPD, presenting with shortness of breath»).
+
+Mutalik et al. (2001) ont également propose un outil de detection des négations dans des documents médicaux. Des
+marqueurs de negation sont reperes puis une grammaire associe ces marqueurs avec des concepts. Enﬁn, Huang &
+Lowe (2007) ont utilise une approche mixte combinant des expressions régulieres et une analyse syntaxique. Le
+traitement de la negation est également inclus dans certains systemes plus generaux comme le systeme Medical
+Language Extraction and Encoding (MedLEE) (Friedman et al., 1994).
+
+D’autres travaux concement de fagon plus generale le traitement de la modalité. La premiere etude analysant ce
+probleme d’ un point de Vue linguistique et informatique est celle de Light et al. (2004) ; les auteurs ont analyse
+les marqueurs de modalité dans des resumes d’articles scientiﬁques médicaux issus de PubMed 3, annoté manuel—
+lement des phrases selon la presence de modalisation et entrainé un classiﬁeur a détecter de telles phrases dans
+des resumes d’articles. Plusieurs travaux se sont également intéressés a la classiﬁcation de phrases en fonction de
+la presence de modalité. Medlock & Briscoe (2007) se fondent sur une approche faiblement supervisée pour cette
+classiﬁcation, et utilisent uniquement les mots des phrases comme attributs. Leur classiﬁcation obtient un point
+d’ equilibre (break—even point ou BEP) entre rappel et precision de 0,76. Ils ont par ailleurs rendu public le cor-
+pus d’articles scientiﬁques biologiques qu’ils utilisent dans leurs travaux. Szarvas (2008) a étendu cette approche
+en aj outant les bigrammes et trigrammes aux attributs du classiﬁeur, en selectionnant les attributs pour réduire le
+nombre de mots—clés candidats et en aj outant des listes de mots-clés extemes, pour obtenir un BEP de 0,85. Kilico-
+glu & Bergler (2008) soulignent le role de la syntaxe dans la detection des marqueurs de modalité, et aj outent aux
+attributs des informations syntaxiques sur les relations de dépendance aﬁn de tenir compte du contexte syntaxique
+des marqueurs.
+
+2. Cet outil nous a servi dc systéme dc référence lors de notre évaluation.
+3. http: //www . ncbi . nlm . nih . gov/pubmed
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+Une limitation des ces travaux est qu’ils ne considerent la modalite qu’au niveau des phrases, alors que plusieurs
+modalites peuvent en réalite etre presentes dans une meme phrase comme le notent par exemple Wilbur et al.
+(2006). Un niveau de detection plus precis consiste a identiﬁer des marqueurs de modalité et leur portée. Ainsi,
+dans l’exemple «Right upper lobe volume loss and probably pneumonia.», «probably» est un marqueur de mo-
+dalité dont la portée est le seul terme «pneumonia». Le corpus BioScope (Vincze et al., 2008) a été utilise pour
+évaluer la reconnaissance de telles informations, notamment dans le cadre de la tache d’évaluation <<Leaming
+to detect hedges and their scope in natural language text» a CoNLL 20104. Morante & Daelemans (2009) par
+exemple ont considéré la detection des marqueurs et de leur portée comme un probleme de classiﬁcation super-
+visee, en entrainant et combinant plusieurs classiﬁeurs. Ils obtiennent une f—mesure de 0,85 pour la detection des
+marqueurs, et de 0,66 pour la detection des portees de ces marqueurs.
+
+Comme nous venons de le montrer, l’analyse de la modalité et du niveau de certitude a fait l’objet de divers
+travaux dans le domaine biomedical. Les methodes utilisees sont soit a base de regles et de lexiques, soit a base
+d’apprentissage, lorsqu’il existe des données annotées en quantité sufﬁsante. Dans cet article, nous décrivons
+et comparons de maniere détaillée deux methodes differentes pour une tache precise, a savoir la classiﬁcation
+d’ assertions portant sur des problemes médicaux en anglais.
+
+3 Description des données
+
+Nous nous sommes intéressées a la detection de modalité et du niveau de certitude intra-phrases dans le cadre
+de la campagne d’evaluation i2b2 20105. L’objectif d’une des taches de cette campagne etait la classiﬁcation
+d’ assertions relatives a des problemes medicaux. 11 s’ agissait donc de donner une valeur de certitude ou de modalité
+a des concepts médicaux qui avaient ete préalablement annotés dans des compte-rendus de patients.
+
+Plutot que de calculer la portee de chaque marqueur possible de modalite, l’accent est mis ici sur les concepts
+étudiés, pour lequels on cherche a connaitre une modalite. Nous detaillerons dans cette section les données que
+nous avons utilisées pour nos experiences, puis presenterons dans la section suivante les deux systemes d’ analyse
+développes.
+
+3.1 Corpus
+
+Les corpus sont composes de 826 compte-rendus médicaux en langue anglaise provenant de trois hopitaux ameri—
+
+cains. Ils ont préalablement ete armotes en concepts 5, qui sont :
+
+— les problémes médicaux, déﬁnis comme les observations concemant le corps ou l’esprit du patient et conside-
+rees comme anormales ou provoquées par une maladie, ce qui englobe les maladies, syndromes, virus, bactéries,
+symptomes. ..
+
+— les traitements, regroupant les procedures, interventions ou médicaments donnés au patient pour resoudre un
+probleme medical ;
+
+— les tests, c’est—a—dire les procedures ou mesures faites sur le patient pour trouver des informations sur un pro-
+bleme medical.
+
+Ces compte-rendus ont également éte anonymisés, aﬁn de supprimer les noms de personne, de lieu, les adresses,
+
+et autres informations géographiques précises, les dates relatives a un individu comme une date de naissance, les
+
+numéros de telephone et fax, les courriels, les numeros de securité sociale etc. Dans les documents, toutes ces
+informations sont remplacées par des balises genériques comme «NAME», «ADDRESS», ou encore «AGE».
+
+3.2 Catégories d’assertions
+
+Une classe d’assertion a eté attribuée a chaque probleme medical du corpus. Six categories d’assertions ont eté
+déﬁnies :
+
+4. http: //www. inf .u—szeged.hu/rgai/conll20l0st/
+5. https : //www . i2b2 . org/NLP/Relations/Main .php
+6. Pour une méthode d’annotation automatique des concepts, voir (Minard et al., 2011).
+
+ANALYSE AUTOMATIQUE DE LA MODALITE ET DU NIVEAU DE CERTITUDE
+
+— présent : le probleme associé au patient est present. C’est également la catégorie par defaut pour les problemes
+médicaux qui n’ont pu etre classes dans une autre catégorie.
+Exemples : «the wound was noted to be clean with mild serious drainage», «history of chest pain»
+
+— absent : le patient ne presente pas ce probleme. Cette categorie inclut les problemes resolus.
+Exemples : «patient denies pain», «history inconsistent with stroke»
+
+— possible : le patient peut avoir le probleme, mais ce n’est pas certain.
+Exemples : «this is Very likely to be an asthma exacerbation», «We suspect this is not pneumonia»
+
+— conditionnel : le patient ne rencontre le probleme que dans certaines conditions, comprenant en particulier les
+allergies.
+Exemples : «Penicillin causes a rash», «patient reports shortness of breath upon climbing stairs»
+
+— hypothétique : le patient est susceptible de developper le probleme dans le futur.
+Exemples : <<if you experience wheezing or shortness of breath», <<atiVan 0.25 to 0.5 mg IV q 4 to 6 hours pm
+anxiety»
+
+— associé a quelqu’un d’autre : le probleme conceme quelqu’un d’autre que le patient.
+Exemples : «Family history of prostate cancer», «brother had asthma»
+
+| Catégorie d’assertion | Corpus d’entrainement | Corpus d’évaluation |
+
+Présent 8 052 13 025
+Absent 2 536 3 609
+Possible 535 883
+Conditionnel 103 17 1
+Hypothétique 65 1 7 17
+Associé a qqun d’autre 92 145
+Total 11 969 18 550
+
+TABLE 1 — Nombre d’ assertions par catégorie dans les corpus d’entrainement et d’éValuation
+
+La table 1 detaille le nombre d’ assertions armotées pour chaque catégorie dans les corpus d’entrainement et d’ eva-
+luation. La majorité des problemes médicaux évoques dans les documents sont pre’sents : 67% des assertions
+appartiennent a cette categorie. La repartition des diverses categories est donc tres deséquilibrée.
+
+Les organisateurs d’i2b2 ont calculé l’accord inter—annotateur sur le corpus d’entrainement, annote par 12 a1mota—
+teurs. Cette information, presentée dans la table 2, est interessante car elle montre que pour certaines categories,
+les annotateurs ont fait des choix d’annotation relativement differents. L’ accord inter-annotateurs sur l’ensemble
+des categories est élevé, mais pour certaines categories notaimnent <<conditionnel», il est tres faible. On peut donc
+supposer que les résultats obtenus par des systemes automatiques seront également plus faibles pour ces catego-
+nes.
+
+Catégorie d’assertion | Accord |
+
+Présent 0,89
+Absent 0,94
+Possible 0,60
+Conditionnel 0,44
+Hypothétique 0,79
+Associé a qqun d’autre 0,89
+Total 0,91
+
+TABLE 2 — Accords inter-annotateurs pour chaque categorie d’assertion
+
+4 Description des systémes
+
+Dans cette section, nous décrivons tout d’abord les systemes de reference (ou baseline) et les resultats qu’ils
+obtiennent. Puis nous detaillons les systemes que nous avons developpes aﬁn d’ identiﬁer de maniere automatique
+la catégorie d’assertion associée a un probleme medical.
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+4.1 Références
+
+Nous avons considéré plusieurs references pour évaluer l’apport de nos systemes :
+
+— la premiere methode de reference consiste £1 tout étiqueter comme << present», ce qui donne une f—mesure totale
+de 0,67 (proportion de presents dans le corpus);
+
+— la deuxieme reference consiste £1 utiliser le systeme NegEx 7 sans aucune modiﬁcation, qui n’armote donc que
+les categories «present» et «absent», ce qui donne une f—mesure de 0,83 ;
+
+— la troisieme reference consiste £1 utiliser le systeme ConText (extension de NegEx pour tenir compte de la
+catégorie associé £1 quelqu’un d’autre) sans aucune modiﬁcation, donc sans les categories «possible», «condi-
+tionnel» et «hypothétique», ce qui donne une f—mesure de 0,86.
+
+4.2 Prétraitements
+4.2.1 Annotation des concepts
+
+Nous avions £1 notre disposition l’annotation en concepts faite manuellement par les organisateurs d’i2b2. Nous
+avons donc armote les documents en balisant les termes qui correspondaient £1 un concept medical reconnu, c’est-
+£1—dire £1 un probleme, un traitement ou un test.
+
+4.2.2 Traitement des coordinations
+
+L’ etude des données de developpement a montré que de nombreux concepts sont coordonnés £1l’aide de Virgules
+ou de conjonctions de coordination, comme par exemple << pleural effusion or pneumothorax ». Nos deux systemes
+utilisent les contextes directs des concepts, sous forme de fenetre de mots, aﬁn d’identiﬁer la catégorie de l’as-
+sertion. La presence de sequences de concepts coordonnés peut donc conduire £1 la prise en compte d’un contexte
+gauche ou droit reduit, comportant principalement d’autres problemes coordonnés. Dans ce cas, des indices es-
+sentiels pour l’identiﬁcation de la categorie de l’assertion peuvent se trouver en dehors de la fenetre contextuelle
+considéree. Le role important de la coordination a egalement été démontré pour une autre tache d’extraction d’in—
+formation, l’extraction d’eVenements (Kilicoglu & Bergler, 2009). Nous avons donc pre—traité les données pour
+identiﬁer les sequences de concepts coordonnés et ainsi redéﬁnir les fenetres contextuelles utilisées : les fenetres
+gauches se terminent au debut d’une sequence de concepts coordonnés tandis que les fenetres droites débutent £1
+la ﬁn d’une sequence de concepts. Ces fenetres contextuelles sont partagées par tous les concepts qui apparaissent
+dans la meme sequence. Plus de la moitié des concepts étaient inclus dans une coordination de concepts dans le
+corpus d’entrainement.
+
+4.3 Systéme par apprentissage supervisé
+
+Le systeme par apprentissage supervise considere l’identiﬁcation d’assertions comme une t£1che de classiﬁcation.
+Nous avons entrainé une machine £1 Vecteurs de support (SVM) avec libsvm (Chang & Lin, 2001) sur la base d’at—
+tributs binaires et d’un noyau RBF 8. Les parametres optimaux ont été sélectionnés automatiquement par Validation
+croisée en 5 sous—ensembles 9. Pour le developpement du systeme, nous avons utilise un corpus d’entrainement de
+241 ﬁchiers et un corpus de test de 54 ﬁchiers.
+
+Nous avons utilise quatre types d’attributs :
+
+— attributs contextuels lexicalisés : mots et mots désufﬁxés dans une fenetre de cinq mots £1 gauche et £1 droite
+du concept cible. Nous avons également effectué des experiences complementaires avec les etiquettes morpho-
+syntaxiques mais celles—ci n’apportent pas d’améliorations signiﬁcatives;
+
+7. http: //code . google . corn/p/negex/
+
+8. ll aurait également été possible d’utiliser les CRF (Conditional Random Fields) aﬁn d’étiqueter dc maniére plus précise les déclencheurs
+et leur portée. Toutefois, ces annotations n’étaients pas foumies dans le corpus d’apprentissage ct il aurait donc été nécessaire d’utiliser un
+corpus exteme, comme Bioscope par exemple (Vincze et al., 2008). Or, seules les catégories de négation et de spéculation sont annotées dans
+Bioscope. Nous avons donc renoncé a cette possibilité.
+
+9. Cette étape a été réalisée dc maniére automatique en utilisant le script easy . py fourni avec libsvm.
+
+ANALYSE AUTOMATIQUE DE LA MODALITE ET DU NIVEAU DE CERTITUDE
+
+— déclencheurs : nous avons utilise les declencheurs deﬁnis pour le systeme a base de regles (voir section sui-
+vante), avec quelques déclencheurs supplémentaires. Ces déclencheurs sont identiﬁes dans une fenetre de cinq
+mots a gauche et a droite du concept cible. Nous avons egalement identiﬁé quelques déclencheurs intemes au
+concept, tels que << on exertion » (<< a l’effort ») qui indique la catégorie conditionnel ;
+
+— attributs intemes au concept cible : mots et mots desufﬁxes formant le concept et presence du preﬁxe << non »
+dans un des mots;
+
+— attributs spéciﬁques a une séquence de concepts coordonnés. Dans le cas ou le concept cible apparait dans
+une séquence de concepts coordonnes, nous utilisons des attributs spéciﬁques qui correpondent aux mots et aux
+mots désufﬁxes de la sequence. Par exemple, pour la séquence << pleural effusion or pneumothorax », les mots
+<< pneumothorax », << pleural » et << effusion » ainsi que la racine << effus » sont utilises comme attributs.
+
+4.4 Systéme a base de régles
+
+L’ algorithme utilise est tres proche de celui de NegEx (voir section 2.3) mais est etendu aux six categories d’asser—
+tions a detecter. Quatre types de déclencheurs ont eté deﬁnis (les exemples suivants sont donnés pour la catégorie
+<<absent») :
+
+— ceux qui precedent le probleme comme «denies», «never had» ou «negative for» ;
+
+— ceux qui suivent le probleme comme <<was ruled out», «is absent» ou <<was stopped»;
+
+— ceux qui sont inclus dans le probleme comme <<afebrile» (dans le cas, le déclencheur est le probleme lui-meme)
+
+ou «allergy» ;
+
+— ceux qui lirnitent la portée d’un des declencheurs precedents, comme <<but».
+
+Un meme terme peut etre de plusieurs types : ainsi, «ruled out» peut precéder ou suivre le probleme associé. Les
+tennes de «pseudo—négation» de NegEx (qui ressemblent a des termes de negation mais n’en sont pas comme la
+double negation <<not ruled out») ne constituent pas un type distinct dans notre systeme, mais sont élimines en
+veriﬁant le contexte des tennes de negation (par exemple on veriﬁera que le mot <<not» ne precede pas «ruled
+out»).
+
+Les declencheurs ont d’abord eté deﬁnis manuellement par une etude de corpus, puis les listes ont eté completees
+grace aux résultats du systeme par apprentissage : les attributs les plus utiles a la classiﬁcation ont été étudiés,
+et éventuellement ajoutés aux listes. Le nombre moyen de déclencheurs par catégorie d’ assertion varie d’une
+cinquantaine pour les déclencheurs précédant le probleme a une quizaine pour les déclencheurs inclus dans le
+probleme.
+
+Trois expressions regulieres sont utilisées pour rechercher des declencheurs avant, apres ou a l’interieur des pro-
+blemes, sachant que des mots non déclencheurs peuvent etre autorises er1tre le déclencheur et le probleme (le
+nombre de ces mots a ete ﬁxé par une etude du corpus d’entrainement pour chaque catégorie d’ assertion) :
+
+— <déclencheur> <1nots non declencheurs> {0,n} <probleme>;
+
+— <probleme> <1nots non déclencheurs> {0,n} <déclencheur>;
+
+— <probleme> <déclencheur> >.
+
+Ainsi, dans la phrase «Also with multiple masses consistent with metastasis», «consistent with» est un déclencheur
+de la catégorie «possible» suivi directement du probleme «metastasis». La premiere expression réguliere sera donc
+declenchée, et donnera la catégorie «possible» a ce probleme.
+
+Ces listes de declencheurs et expressions régulieres ont eté implementés avec l’outil WMatch (Rosset et al., 2008;
+Galibert, 2009) 10 qui presente une vitesse d’execution bien superieure a celle de NegEx.
+
+Une priorité a eté attribuée a chaque catégorie d’assertion, en fonction du guide d’annotation i2b2 : associe a
+quelqu’un d’autre > absent > possible > conditionnel > hypothétique.
+
+5 Evaluation et discussion
+
+Le corpus d’évaluation comporte 18 550 assertions (voir table 1). Les resultats ont eté evalues en tennes de rappel,
+precision et f—mesure pour chaque catégorie d’assertion, ainsi que pour toutes les categories :
+
+10. Moteur d’expressions réguliéres développé au LIMSI, disponible sur demande.
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+#problemes correctement attribues £1 la categorie d’ assertion i
+#problemes de la categorie d’assert1on 1
+
+rappel =
+
+#problemes correctement attribues £1 la categorie d’ assertion i
+#problemes attribues £1 la categorie d’assertion i
+
+precision =
+
+2*rappe1*precision
+
+f—mesure = ,
+rappel+prec1s1on
+
+5.1 Résultats de l’évaluation
+
+Les resultats obtenus par les deux systemes sur le corpus d’eValuation 11 sont detailles dans la table 3.
+
+Apprentissage Régles
+| Catégorie Rappel | Precision | F-mesure Rappel | Precision | F-mesure
+Toutes 0,93 0,93 0,93 0,90 0,90 0,90
+Present 0,97 0,94 0,96 0,95 0,92 0,93
+Absent 0,95 0,93 0,94 0,85 0,93 0,89
+Possible 0,54 0,74 0,62 0,57 0,61 0,59
+Hypothétique 0,83 0,93 0,88 0,74 0,86 0,80
+Conditionnel 0,24 0,74 0,36 0,27 0,29 0,28
+Associé £1 quelqu’un d’autre 0,78 0,86 0,82 0,95 0,76 0,84
+
+TABLE 3 — Resultats pour le corpus d’eValuation
+Les deux systemes developpes obtiennent des resultats signiﬁcativement 12 meilleurs que les trois systemes de re-
+ference. Le systeme par apprentissage supervise obtient de tres bons resultats, et s’est classe 5° sur 21 participants
+£1 i2b2 2010.
+
+Si l’on compare plus en details les deux systemes, on constate que le systeme par apprentissage a tendance £1
+privilegier la precision sur le rappel. La precision qu’il obtient est generalement superieure ou egale £1 celle du
+systeme £1 base de regles. En outre, le systeme par apprentissage se caracterise par une f—mesure superieure £1
+celle du systeme £1 base de regles, sauf pour la categorie <<associe £1 quelqu’un d’autre». Dans ce dernier cas,
+les declencheurs utilises par le systeme £1 base de regles perrnettent d’obtenir un tres bon rappel de 0,95. Cette
+comparaison demontre la complementarite des deux systemes, qui gagneraient £1 etre combines.
+
+Lors du challenge i2b2, le meilleur score £1 cette tache a ete obtenu par l’equipe du National Research Council
+Canada, avec une f—mesure de 0,9362 (contre 0,9311 pour notre systeme par apprentissage). Les methodes des
+meilleurs systemes sont assez proches de celle utilisee par notre systeme par apprentissage. Les SVM sont gene-
+ralement utilises pour la classiﬁcation, avec des attributs portant sur les mots, l’annotation semantique des mots,
+l’etiquetage morpho—syntaxique ou encore des declencheurs speciﬁques. On trouve egalement des attributs diffe-
+rents, qu’ils serait interessant d’ integrer aux futures Versions de notre systeme : n—gra1nmes de caracteres, attributs
+speciﬁques £1 la phrase tels que le temps du Verbe principal ou encore attributs speciﬁques au document considere
+(longueur).
+
+5.2 Analyse des erreurs
+
+La table 4 detaille la matrice de confusion pour le systeme par apprentissage. Le systeme presente une tendance £1
+sur—a1moter les categories <<present» et «absent». Ce resultat etait previsible dans la mesure ou il s’agit egalement
+des categories les plus representees dans le corpus d’apprentissage. La categorie <<present» est egalement celle
+qui compte le plus grand nombre de faux positifs. Pour les classes plus rares dans le corpus d’apprentissage, et
+notarnment la classe <<conditionnel», le systeme se caracterise par un rappel reduit, correle £1 une bonne precision,
+de 0,74 £1 0,93 en fonction de la classe consideree.
+
+11. Ces résultats sont trés légérement différents dc ceux obtenus £1l’évaluation i2b2 pour le systéme par régles, du fait d’un changement dc
+systéme d’annotation : lors de 1’éva1uation, nous avions utilisé GenConText, alors que les résultats présentés dans cet article sont obtenus avec
+WMatch.
+
+12. p<0,05 selon le test de Student
+
+ANALYSE AUTOMATIQUE DE LA MODALITE ET DU NIVEAU DE CERTITUDE
+
+Hypo. autre Total
+34 16 13025
+2 1
+10
+
+0 883
+Référence 0 0 17 1
+Hypo. 2 7 17
+
+autre
+
+ 
+
+TABLE 4 — Matrice de confusion pour le systeme a base d’apprentissage
+
+La matrice de confusion de la table 5 presente les erreurs de categorisation détaillées du systeme a base de regles.
+Les confusions les plus frequentes concement principalement les categories «present» et «absent»; le systeme a
+également tendance a surannoter en «possible». Enﬁn, le tres bon rappel sur la catégorie «associé a quelqu’un
+d’ autre» se traduit par tres peu de confusion dans cette catégorie.
+
+Référence
+
+Hypo. 23
+autre 0
+Total 13471 823
+
+ 
+
+TABLE 5 — Matrice de confusion pour le systeme a base de regles
+
+Les erreurs du systeme a base de regles ont de multiples causes (dans les exemples suivants, les problemes medi-
+caux a analyser sont remplaces par le mot PROBLEM) :
+— les listes de déclencheurs sont incompletes : ainsi, pour la catégorie «associé a quelqu’un d’autre», les cas de
+
+dons d’organes anonymes n’avaient pas eté pris en compte («The liver was from a gentleman who had died
+from PROBLEM» 13) et donc les déclencheurs associes («gentleman» ici) n’étaient pas dans les listes;
+
+— le déclencheur peut etre trop loin du probleme pour que les deux soient associes, notamment dans le cas d’ ana-
+
+phores; ainsi pour la phrase «The patient declined the procedure stating that her mother had mitral valve re-
+gurgitation and she lived for many years without PROBLEM», le déclencheur «her mother» de la catégorie
+«associé a quelqu’un d’ autre» est trop loin du probleme a analyser; l’utilisation d’ un outil de resolution d’ ana-
+phore pourrait ici etre utile;
+
+un déclencheur est détecte, mais il n’est en réalité pas relié au probleme, notamment lorsque l’avis de la famille
+est évoque («According to the family») ; un contexte gauche au déclencheur <<famjly» pourrait ici etre precise
+pour éliminer ces cas, mais les formulations plus complexes come «The family is conﬁdent in any decision
+the doctor would make concerning her PROBLEM» sont plus difﬁciles a traiter;
+
+la portée du marqueur est trop importante ou trop faible : dans la phrase «The patient is on no speciﬁc medica-
+tions for his PROBLEM», le marqueur «no» est repéré, mais ne s’applique en realite pas au probleme;
+
+deux marqueurs sont détectés, et l’ambigiiité est mal résolue, comme par exemple dans la phrase «PROBLEM
+was less likely given her negative angiogram.» ou <<likely» est bien déclencheur de la catégorie «possible», mais
+le déclencheur «negative» est favorisé du fait des priorités e11tre categories;
+
+quelques erreurs sont liées a des problemes d’anony1nisation des donnees, qui perturbent l’application des
+regles;
+
+— quelques incohérences d’annotation ont egalement ete notees, ce que prevoyait l’accord inter-annotateur.
+
+Enﬁn, la matrice de confusion de la table 6 permet de comparer les annotations réalisées par les deux systemes.
+
+13. Les exemples présentés sont issus d’exemples réels, mais sont généralement simpliﬁés pour étre plus lisibles.
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+Apprentissage
+
+Hypo.
+autre
+
+ 
+
+TABLE 6 — Matrice de confusion pour les deux systemes
+
+Les systemes sont fortement en désaccord pour la catégorie <<conditionnel» : seules 31 annotations sont partagées.
+C’est également la catégorie qui obtient les moins bons résultats globalement. La deuxieme catégorie la plus
+problematique correspond aux assertions du type «possible». Le systeme par apprentissage tend a sous-annoter
+cette categorie et par consequent de nombreuses assertions armotées comme «possible» par le systeme a base de
+regles sont associées a la catégorie «present» par le systeme par apprentissage.
+
+6 Conclusion et perspectives
+
+Nous nous sommes intéressées a l’analyse de la modalité et du niveau de certitude dans des textes médicaux, et
+avons developpé deux systemes dans le cadre de la campagne d’ evaluation i2b2 2010. Le premier procede par
+apprentissage supervise et s’appuie sur des attributs lexicaux, morphologiques et semantiques. Le second est un
+systeme a base de listes et de regles. Ces deux systemes obtiennent des resultats signiﬁcativement meilleurs que
+les trois references considérées, et au niveau de l’etat de l’art : environ 0,93 et 0,90 de f—mesure.
+
+Les perspectives de poursuite de ces travaux sont nombreuses. Ces systemes pourraient notarmnent etre étendus
+aﬁn de travailler éventuellement sur plusieurs phrases, et de tenir compte des phénomenes discursifs. Il serait
+également souhaitable de combiner les deux systemes, en particulier pour proﬁter du tres bon niveau de rappel du
+systeme a base de regles pour la catégorie «associé a quelqu’un d’ autre».
+
+Nous envisageons également d’adapter les systemes presentes au francais. Pour le systeme a base de regles, il
+sera necessaire d’identiﬁer les declencheurs correspondant ou aditionnels pour le francais. Le systeme a base
+d’ apprentissage requiert quant a lui de larges quantites de données annotees. Dans la mesure ou ceci constitue une
+tache nécessitant des armotateurs experts humains, nous nous appuierons sur la methode de l’apprentissage actif
+(active learning).
+
+Nous souhaitons également generaliser ces travaux a d’autres domaines, aﬁn d’analyser la modalité et les niveaux
+de certitude dans des contextes plus larges. En particulier, nous envisageons l’etude des phenomenes similaires
+dans les textes joumalistiques et, plus globalement, les textes subjectifs visant a exprimer des opinions.
+
+Remerciements
+
+Ce travail a eté partiellement ﬁnance par le proj et Quaaro (ﬁnancement Oseo, agence frangaise pour l’innovation
+et la recherche). Les données medicales utilisées proviennent du consortium Informatics for Integrating Biology
+to the Bedside (i2b2) grace aux ﬁnancements numeros U54LM008748 de la National Library of Medicine, VA
+HSR HIR 08-374 du Consortium for Healthcare Informatics Research (CHIR), et VA HSR HIR 08-204 du VA
+Informatics and Computing Infrastructure (VINCI).
+
+Références
+
+CHANG C.—C. & LIN C.—J . (2001). LIBSVM : a library for support vector machines. Outil disponible a l’adresse
+
+ANALYSE AUTOMATIQUE DE LA MODALITE ET DU NIVEAU DE CERTITUDE
+
+suivante : http : //www . csie . ntu . edu . tw/~cjlin/libsvm.
+
+CHAPMAN W., BRIDEWELL W., HANBURY P., COOPER G. & BUCHANAN B. (2001). A simple algorithm
+for identifying negated ﬁndings and diseases in discharge summaries. Journal of biomedical informatics, 34(5),
+301-310.
+
+FRIEDMAN C., ALDERSON P. 0., AUSTIN J. H., CIMINO J. J. & JOHNSON S. B. (1994). A general natural-
+
+language text processor for clinical radiology. Journal of the American Medical Informatics Association, 1(2),
+161.
+
+GALIBERT O. (2009). Approches et me’thodologies pour la re’ponse automatique a des questions adapte’es a
+un cadre interactif en domaine ouvert. PhD thesis, These de doctorat en informatique, Université Paris—Sud 11,
+Orsay, France.
+
+HUANG Y. & LOWE H. (2007). A Novel Hybrid Approach to Automated Negation Detection in Clinical Radio-
+logy Reports. Journal of the American Medical Informatics Association, 14, 304-311.
+
+KILICOGLU H. & BERGLER S. (2008). Recognizing speculative language in biomedical research articles : a
+linguistically motivated perspective. BM C Bioinformatics, 9(Suppl 11).
+KILICOGLU H. & BERGLER S. (2009). Syntactic dependency based heuristics for biological event extraction.
+In BioNLP ’09 : Proceedings of the Workshop on BioNLP, p. 119-127.
+
+LAPAIRE J .—R. & ROTGE W. (1998). Linguistique et grammaire de l’anglais, 3e e’dition. Amphi 7. Presses
+Universitaires du Mirail.
+
+LIGHT M., QIU X. & SRINIVASAN P. (2004). The language of bioscience : Facts, speculations, and statements
+in between. In Proceedings of BioLink 2004 workshop on linking biological literature, ontologies and databases :
+tools for users, p. 17-24.
+
+MEDLOCK B. & BRISCOE T. (2007). Weakly supervised learning for hedge classiﬁcation in scientiﬁc literature.
+In Proceedings of the 45th Annual Meeting of the Association of Computational Linguistics, p. 992-999, Prague,
+Czech Republic.
+
+MINARD A.—L., LIGOZAT A.—L., BEN ABACHA A., BERNHARD D., CARTONI B., DELEGER L., GRAU B.,
+ROSSET S., ZWEIGENBAUM P. & GROUIN C. (2011). Hybrid methods for improving information access in
+clinical documents : Concept, assertion, and relation identiﬁcation. Journal of the American Medical Informatics
+Association. A paraitre.
+
+MORANTE R. & DAELEMANS W. (2009). Learning the scope of hedge cues in biomedical texts. In Proceedings
+of the Workshop on BioNLP, p. 28-36.
+
+MUTALIK P., DESHPANDE A. & NADKARNI P. (2001). Use of general—purpose negation detection to augment
+concept indexing of medical documents. Journal of the American Medical Informatics Association, 8(6), 598.
+
+NA J .—C., KHOO C. & WU P. H. J . (2005). Use of negation phrases in automatic sentiment classiﬁcation of
+product reviews. Library Collections, Acquisitions, and Technical Services, 29(2), 180 - 191.
+
+NARAYANAN R., LIU B. & CHOUDHARY A. (2009). Sentiment analysis of conditional sentences. In Procee-
+dings of the 2009 Conference on Empirical Methods in Natural Language Processing, volume 1 of EMNLP ’09,
+p. 180-189, Stroudsburg, PA, USA.
+
+PANG B. & LEE L. (2008). Opinion mining and sentiment analysis, volume 2 of Foundations and Trends in
+Information Retrieval. Now Publishers Inc.
+
+PANG B., LEE L. & VAITHYANATHAN S. (2002). Thumbs up ? Sentiment Classiﬁcation using Machine Lear-
+ning Techniques. In Proceedings of the 2002 Conference on Empirical Methods in Natural Language Processing
+(EMNLP), p. 79-86.
+
+ROSSET S., GALIBERT 0., BERNARD G., BILINSKI E. & ADDA G. (2008). The LIMSI participation to the
+QAst track. In Working Notes of CLEF 2008 Workshop, Aarhus, Danemark.
+
+RUBIN V., LIDDY E. & KANDO N. (2006). Certainty Identiﬁcation in Texts : Categorization Model and Manual
+Tagging Results. In W. B. CROFT, J . SHANAHAN, Y. QU & J . WIEBE, Eds., Computing Attitude and Ajfect in
+Text: Theory and Applications, volume 20 of The Information Retrieval Series, p. 61-76. Springer Netherlands.
+
+RUBIN V. L. (2007). Stating with Certainty or Stating with Doubt : Intercoder Reliability Results for Manual
+Annotation of Epistemically Modalized Statements. In Proceedings of the Human Language Technologies Confe-
+rence : The Annual Conference of the North American Chapter of the Association for Computational Linguistics
+(NAACL—HLT 2007) ; Companion Volume, Short Papers, p. 141-144.
+
+DELPHINE BERNHARD, ANNE—LAURE LIGOZAT
+
+RUBIN V. L. (2010). Epistemic modality : From uncertainty to certainty in the context of information seeking
+as interactions with texts. Information Processing & Management, 46(5), 533 — 540.
+
+SAURi R. & PUSTEJOVSKY J. (2009). FactBank : a corpus annotated with event factuality. language Resources
+and Evaluation, 43, 227-268.
+
+SZARVAS G. (2008). Hedge classiﬁcation in biomedical texts with a weakly supervised selection of keywords.
+In Proceedings of ACL—08 : HLT, p. 281 — 289, Colombus, Ohio, USA.
+
+VINCZE V., SZARVAS G., FARKAS R., MORA G. & CSIRIK J. (2008). The bioscope corpus : biomedical texts
+annotated for uncertainty, negation and their scopes. BM C Bioinformatics, 9(Suppl 11), S9.
+
+WILBUR W., RZHETSKY A. & SHATKAY H. (2006). New directions in biomedical text annotation : deﬁnitions,
+guidelines and corpus construction. BMC bioinformatics, 7(1), 356.
+

@@ -1,0 +1,527 @@
+TALN 2010, Montréal, 19-23 juillet 2010
+
+Exploitation d’une ressource lexicale pour la construction
+d’un étiqueteur morpho-syntaxique état-de-l’art du francais
+
+Pascal Denis & Benoit Sagot
+Alpage, INRIA Paris—Rocquencourt & Université Paris 7
+Rocquencourt, BP 105, 78153 Le Chesnay Cedex, France
+{pascal.denis,benoit.sagot} @inria.fr
+
+Résumé. Cet article présente ME1tﬁ~, un étiqueteur morpho-syntaxique automatique du frangais. I1
+repose sur un modele probabiliste séquentiel qui bénéﬁcie d’informations issues d’un lexique exogene, a
+savoir le Leﬁj”. Evalué sur le FTB, MEltf, atteint un taux de précision de 97.75% (91.36% sur les mots
+inconnus) sur un jeu de 29 étiquettes. Ceci correspond a une diminution du taux d’erreur de 18% (36.1%
+sur les mots inconnus) par rapport au méme modele sans couplage avec le Leﬁj‘. Nous étudions plus en
+détail la contribution de cette ressource, au travers de deux séries d’expériences. Celles-ci font apparaitre
+en particulier que la contribution des traits issus du Leﬁj‘ est de permettre une meilleure couverture, ainsi
+qu’une modélisation plus ﬁne du contexte droit des mots.
+
+Abstract. This paper presents ME1tf1~, an automatic POS tagger for French. This system relies on a
+sequential probabilistic model that exploits information extracted from an external lexicon, namely Leﬁf.
+When evaluated on the FTB corpus, ME1tf1~ achieves an accuracy of 97.75% (91.36% on unknow words)
+using a tagset of 29 categories. This corresponds to an error rate decrease of 18% (36.1% on unknow
+words) compared to the same model without Leﬁj‘ information. We investigate in more detail the contri-
+bution of this resource through two sets of experiments. These reveal in particular that the Leﬁj‘ features
+allow for an increased coverage and a ﬁner-grained modeling of the context at the right of a word.
+
+M0tS-CléS I Etiquetage morpho-syntaxique, modeles a maximisation d’entropie, frangais, lexique.
+
+Keywords: POS tagging, maximum entropy models, French, lexicon.
+
+1 Introduction
+
+De nombreux systemes pour l’étiquetage automatique en parties du discours ont été développés pour un
+large éventail de langues. Parmi les systemes les plus performants, on trouve ceux qui s’appuient sur
+des techniques d’apprentissage automatiquel. Pour certaines langues comme l’anglais ou d’autres langues
+tres étudiées, ces systemes ont atteint des niveaux de performance proches des niveaux humains. Il est
+intéressant de constater que la majorité de ces systemes n’ont pas recours a une source externe d’infor-
+mations lexicales, et se contentent d’un lexique extrait « a la volée » a partir du corpus d’apprentissage
+(cf. cependant (Hajié, 2000)). On est donc en droit de se demander s’il est possible d’améliorer encore
+
+1Se reporter a (Manning & Schiitze, 1999) pour un panorama complet.
+
+PASCAL DENIS & BENoiT SAGOT
+
+les performances des étiqueteurs en exploitant ce type de ressources. Un avantage potentiel de l’utilisa-
+tion d’un lexique externe consiste en un meilleur traitement des mots « inconnus », c’est-a-dire des mots
+absents du corpus d’apprentissage, des lors qu’ils sont présents dans le lexique externe.
+
+Dans (Denis & Sagot, 2009), nous avons montré qu’un modele d’étiquetage peut bénéﬁcier a la fois
+d’informations provenant d’un corpus d’entrainement et d’un lexique exogene a large couverture. Nous
+avons pour cela utilisé des modeles markoviens a maximisation d’entropie, a savoir une classe de modeles
+discriminants adaptés aux problemes séquentiels et par ailleurs tres rapides a entrainer. Les expériences
+menées en couplant ainsi le Corpus Arboré de Paris 7, dorénavant FTB pour French TreeBank (Abeillé
+et al., 2003), et le lexique Leﬁj" (Sagot, 2010) ont ainsi conduit a un étiqueteur de niveau état de l’art
+pour le francais, nommé MEltf1- et distribué librementz, qui a une précision de 97, 7% sur le jeu de test.
+(Denis & Sagot, 2009) montre par ailleurs que l’utilisation d’informations extraites du Leﬁj‘ permet, pour
+des taux de précision similaires, de réduire le volume du corpus d’entrainement par un facteur de 2 a
+3. Indépendamment, un travail comparable, mais qui integre en plus dans le modele les informations de
+lemmatisation, a également montré la pertinence de ce type d’approches (Chrupala et al., 2008).
+
+Toutefois, les causes précises de l’amélioration des performances lorsque les informations du Leﬁj‘ sont
+exploitées n’avaient pas encore été explorées de facon systématique. On s’attend naturellement a ce que
+de telles informations supplémentaires améliorent l’étiquetage des mots inconnus. Mais les informations
+extraites du Leﬁj" sont-elles les plus utiles a propos du mot courant ou du contexte gauche ou droit?
+Sont-elles plus cruciales pour étiqueter les mots appartenant a des classes fermées ou ouvertes ?
+
+Pour apporter des éléments de réponse a ces questions, nous avons conduit plusieurs séries d’expériences.
+Nous commencons par décrire les ressources utilisées (section 2). Nous détaillons ensuite le fonctionne-
+ment et les performances de l’étiqueteur ME1tﬁ~, amélioré depuis sa présentation dans (Denis & Sagot,
+2009), et nous le comparons avec d’autres étiqueteurs entrainés sur les memes données (section 3). Aﬁn
+de mieux comprendre la facon dont le couplage avec le Leﬁj‘ améliore les performances, nous presen-
+tons alors des expériences faisant varier la facon dont les informations extraites du Leﬁj‘ sont exploitées
+(section 4), puis des expériences faisant varier les jeux d’étiquettes du corpus et du lexique (section 5).
+
+2 Ressources utilisées
+
+Le corpus annoté en parties du discours que nous avons utilisé est une variante du FTB. I1 differe du FTB
+originel en ceci que tous les composés qui ne correspondent pas a une séquence réguliere de parties du
+discours sont fusionnés en un token unique, alors que les autres sont représentés par des séquences de plu-
+sieurs tokens (Candito, c.p.). Le corpus résultat contient 350 931 tokens pour 12 351 phrases. Dans le FTB
+originel, les mots sont répartis en 13 categories principales, elles-memes réparties en 34 sous-categories.
+La version du corpus que nous avons utilisée a été obtenue en convertissant ces sous-catégories en un jeu
+de 29 parties du discours, avec une granularité intermédiaire entre catégories et sous-categories. Ces 29
+étiquettes améliorent les catégories principales par des informations sur le mode des verbes, ainsi que par
+quelques traits lexicaux supplémentaires. Ce jeu d’étiquettes est celui qui conduit aux meilleurs résultats
+d’analyse syntaxique probabiliste pour le francais (Crabbé & Candito, 2008)3. Comme dans (Crabbé &
+Candito, 2008), le FTB est divisé en 3 sections : entrainement (80%), développement (10%) et test (10%).
+
+Zhttp : //gforge . inria . fr/projects/lingwb/.
+3Ce jeu d’étiquettes est nommé TREEBANK+ dans (Crabbé & Candito, 2008).
+
+UN ETIQUETEUR MORPHOSYNTAXIQUE ETAT-DE-L’ART DU FRANCAIS
+
+Les tailles respectives de ces sections sont détaillées a la table 1, ainsi que les nombres et proportions de
+tokens inconnus.4
+
+Section # de phrases # de tokens # de tokens inconnus # de tokens inconnus
+et absents du Lefﬂ’
+
+FTB-TRAIN 9 881 278 083
+
+FTB-DEV 1 235 36 508 1 790 (4, 9%) 604 (1, 7%)
+
+FTB-TEST 1 235 36 340 1 701 (4, 7%) 588 (1, 6%)
+
+TAB. 1 — J eux de données
+
+La source d’informations lexicales que nous avons utilisée est le lexique Leﬁj” (Sagot, 2010)5. Nous avons
+extrait du Leﬁj‘ 502 223 entrées distinctes de la forme (forme, étiquette), les étiquettes correspondant apres
+conversion au jeu de 29 étiquettes de la variante du FTB décrite ci-dessus et utilisée pour l’apprentissage.
+
+3 Etiquetage avec un modéle a maximisation d’entropie
+
+Dans cette section, nous décrivons le modele markovien a maximisation d’entropie (MMME) sur lequel
+repose l’étiqueteur ME1tf1~. Nous présentons d’abord la variante MElt?,°1e", qui n’exploite pas les informa-
+tions lexicales du Leﬁj‘. Il est comparable aux systemes de Ratnaparkhi (1996) et Toutanova & Manning
+(2000), a la fois quant au modele et quant aux traits utilisés. Aujourd’hui, les étiqueteurs reposant sur
+ce type de modeles sont parmi les meilleurs pour l’anglais.6 Un avantage important de ces modeles (sur
+les modeles de Markov cachés, notamment) est de permettre de combiner ensemble des traits tres divers,
+éventuellement redondants, sans qu’il soit nécessaire de faire une hypothese d’indépendance entre eux.
+C’est ce qui nous a permis de construire ME1tf1~ en rajoutant a MElt}‘,°1e" des traits lexicaux extraits du
+Leﬁj‘. Enﬁn, ces modeles sont également attrayants du fait qu’ils sont tres rapides a entrainer7.
+
+3.1 Le modéle de base
+
+I-/Etant donné un jeu d’étiquettes T et une chaine de mots (tokens) wi‘, on déﬁnit la tache d’étiquetage
+comme le processus consistant a assigner a 111;‘ la séquence d’étiquettes 75;‘ E T” de vraisemblance maxi-
+male. Suivant (Ratnaparkhi, 1996), on peut alors approcher la probabilité conditionnelle P(t'f |w{‘) de sorte
+que :
+
+77:
+'1‘ : argt1{r1E%xL P(t'1‘|w{‘) % argtr?r1EaixL  P(t,-|h,-), (1)
+
+o1‘1 t,- est l’étiquette du mot 111,- et hi est le contexte de (w,-, t,-), qui comprend la séquence des étiquettes déja
+assignées t‘f1 et la séquence des mots wﬁ‘.
+
+411 s’agit des tokens inconnus a la fois sous leur forme d’origine et sous leur forme minusculisée.
+
+5Le Leﬁj‘ est librement distribué sous licence LGPL—LR a l’adresse http : / /alexina . gforge . inria . fr/.
+
+5(Ratnaparkhi, 1996) et (Toutanova & Manning, 2000) obtiennent des précisions respectives de 96.43 et 96.86 sur les
+sections 23 et 24 du Penn Treebank.
+
+7Les Champs Aléatoires Conditionnels (Conditional Random Fields, CRF) sont souvent considérés comme plus adaptés
+aux problemes de prediction séquentielle et structurée (Lafferty et al., 2001), mais ils sont aussi nettement plus lents en temps
+d’ entrainement.
+
+PASCAL DENIS & BENOIT SAGOT
+
+Dans un modele a maximisation d’entropie, on estime les parametres d’un modele exponentiel qui a la
+forme suivante :
+
+Pom) = %) - exp )‘jfj(hiati)) <2)
+
+Les ff” sont des traits, fonctions deﬁnies sur l’ensemble des etiquettes ti et des historiques hi (avec
+f (hi, ti) 6 {0, 1}), les X1” sont les parametres associes aux ff”, et Z (h) est un facteur de normalisation sur
+les differentes etiquettes. Dans ce type de modele, le choix des parametres est assujetti a des contraintes
+garantissant que l’esperance de chaque trait soit egale a son esperance empirique telle que mesuree sur
+le corpus d’apprentissage (Berger et al., 1996). Dans nos experiences, les parametres ont ete estimes en
+uti1isantl’algorithme dit Limited Memory Variable Metric Algorithm (Malouf, 2002) implemente au sein
+du systeme Megams (Daume III, 2004).
+
+Les classes de traits que nous avons utilisees pour la conception du modele de base MElt}‘i°1e" d’etiquetage
+du francais, c’est-a-dire du modele n’utilisant pas le lexique Leﬁj‘, est un sur-ensemble des traits utilise par
+(Ratnaparkhi, 1996) et (Toutanova & Manning, 2000) pour l’anglais (qui etaient largement independants
+de la langue). Ces traits peuvent etre regroupes en deux sous-ensembles. Le premier rassemble des traits
+dits intemes qui essaient de capturer les caracteristiques du mot a etiqueter. Il s’agit notamment du mot
+wi lui-meme, de ses preﬁxes et sufﬁxes de longueur 1 a 4, ainsi que de traits booleens qui testent si wi
+contient ou non certains caracteres particuliers comme les chiffres, le tiret ou les majuscules. Le deuxieme
+ensemble de traits, dits extemes, modelise le contexte du mot a etiqueter. Il s’agit tout d’abord des mots
+qui sont dans les contextes gauche et droit de wi (a une distance d’au plus 2). Ensuite, nous integrons
+comme traits l’etiquette ti_1 assignee au mot precedent, ainsi que la concatenation des etiquettes ti_1 et
+ti_2 pour les deux mots precedents wi. La liste detaillee des classes de traits utilisees dans MElt}‘i°1e" est
+indiquee a la table 2.
+
+Traits internes
+
+wi = X & ti = T
+Préﬁxe de wi = P, |P| < 5 & ti = T
+Sufﬁxedewi=S,|S|<5 &ti=T
+wi contient un nombre & ti = T
+wi contient un tiret & ti = T
+wi contient une majuscule & ti = T
+wi contient uniquement des majuscules & ti = T
+wi contient une majuscule et n’est pas le premier mot d’une phrase & ti = T
+
+Traits externes
+
+ti_1 =X &ti=T
+ti'_2ti'_1 =XY &ti' =T
+wi+j=X>j€{_2>_1>1>2} 
+
+TAB. 2 — Traits de base utilises par MElt;‘r°1e"
+
+Une difference importante avec le jeu de traits de (Ratnaparkhi, 1996) vient du fait que nous n’avons
+pas restreint l’application des traits de type preﬁxes et sufﬁxes aux mots qui sont rares dans le corpus
+d’apprentissage. Dans notre modele, ces traits sont toujours construits, meme pour les mots frequents.
+En effet, nous avons constate lors du developpement que la prise en compte systematique de ces traits
+conduit a de meilleurs resultats, notamment sur les mots inconnus. De plus, ces traits sont probablement
+
+8Librement disponible a l’adresse http : //www . cs . ut ah . edu/~hal/megam/.
+
+UN ETIQUETEUR MORPHOSYNTAXIQUE ETAT-DE-L’ART DU FRANCAIS
+
+plus discriminants sur le francais que sur l’anglais, puisque le francais est morphologiquement plus riche.
+Une autre difference entre notre modele de base et les travaux antérieurs concerne le lissage. (Ratnaparkhi,
+1996) et (Toutanova & Manning, 2000) seuillent leurs traits a un nombre d’occurrence de 10 pour éviter
+les données statistiquement non signiﬁcatives. Nous n’avons pas seuillé nos traits mais avons utilisé a
+la place une régularisation gaussienne sur les poids, ce qui est une technique de lissage plus motivée
+statistiquement.
+
+3.2 Intégration des informations lexicales dans l’étiqueteur
+
+L’ avantage du modele sous-jacent a MElt;‘r°1e" est de permettre un ajout aisé de traits supplémentaires, y
+compris de traits dont les valeurs sont calculées a partir d’une ressource externe au corpus d’apprentissage,
+et notamment d’un lexique comme le Leﬁj‘.
+
+Pour chaque mot w,-, nous générons une nouvelle série de traits internes basés sur la présence (ou non)
+de 111,- dans le Leﬁj‘ et, le cas échéant, les étiquettes associées a w,- par le Leﬁj‘. Si 111,- est associé a une
+étiquette unique t,-, nous générons un trait qui encode l’association non ambigue entre w, et t,-,0. Lorsque
+w,- est associé a plusieurs étiquettes t,-,0, . . . , t,-,m par le Leﬁj‘, nous générons un trait interne pour chacune
+de ses étiquettes possibles t,-,3-, ainsi qu’un trait interne qui représente la disjonction de m étiquettes. Enﬁn,
+si 112,- n’est pas recensé dans le Leﬁj‘, nous créons un trait spéciﬁque qui encode le statut d’inconnu du
+
+Leﬁj‘.9
+
+De meme, nous utilisons le Leﬁj‘ pour construire de nouveaux traits extemes : nous construisons l’équi-
+valent des traits internes pour les mots des contextes gauche et droit a une distance de moins de 2 du mot
+courant. Nous générons également des traits bigrammes correspondant a la concaténation des étiquettes
+du Leﬁj‘ pour les 2 mots a gauche, les 2 mots a droite, et les deux mots qui entourent w,-. Lorsque ces
+mots sont ambigus pour le Leﬁj‘, seule leur disjonction contribue au bigramme, et si l’un ce ces mots est
+inconnu, la valeur unk tient lieu d’étiquette.1°
+
+La liste détaillée des classes de traits utilisées pour ME1tﬁ-, en plus de ceux de la table 2, est indiquée a la
+table 3. Ce jeu de traits étend légerement celui présenté par (Denis & Sagot, 2009).
+
+Traits lexicaux internes
+
+ti = X, VX E |e1"ff(w,-) if ||eff'f(w,-)| > 1 & ti =
+& t
+& t
+
+t,- = V |eff'f(w,-) if ||efff(w,-)| > 1
+ti = unk, if  = 0
+Traits lexicaux extemes
+t,'+j = V|ef'ff(w,-+1),j E {—2,—1,1,2} &t,' =T
+t,'+jt,'+k = V |ef'ff(w,-+3-) V |efff(w,-+;,),   E {(—2, -1), (+1, +2), (-1, +1)} & ti = T
+
+TAB. 3 — Traits lexicaux ajoutés au modele de base dans MEltf,
+
+Ces différents traits permettent d’avoir une information, ne serait-ce qu’ambigue, sur les étiquettes dans le
+contexte droit du mot, ce que ne permettent pas les traits de base utilisés par MElt‘f}°1eX. Ceux-ci n’incluent
+
+9Pour les mots qui apparaissent en position initiale dans la phrase, nous Vériﬁons au prélalable que la Version décapitalisée
+du mot n’est pas présente non plus dans le Lefﬁ’.
+
+1°Différentes valeurs de << fenetre » ont été essayées lors de la phase de développement : 1, 2 et 3. Bien que le passage de 1 a
+2 mene a une amelioration signiﬁcative, le passage de 2 a 3 mene a une légere degradation.
+
+PASCAL DENIS & BENoiT SAGOT
+
+que les étiquettes sur le contexte gauche, les seules a pouvoir étre intégrées dans un décodage gauche-
+droite. Par ailleurs, cette maniere d’intégrer les informations issues du lexique au modele sous forme
+de traits supplémentaires a l’avantage de ne pas ajouter de contraintes fortes, et d’étre ainsi robuste a
+d’éventuelles erreurs ou incomplétudes du lexique.
+
+Une autre facon, plus directe, d’exploiter une ressource lexicale exogene consiste en effet a utiliser les in-
+formations lexicales comme ﬁltre. A savoir, on contraint l’étiqueteur a choisir pour un mot w une étiquette
+correspondant soit a une occurrence de 11; dans le corpus, soit a une entrée du lexique pour w. C’est l’ap-
+proche employée par exemple par (Hajic, 2000) pour des langues a morphologie tres riche, et notamment
+pour le tcheque. Dans (Denis & Sagot, 2009), nous avons montré que cette stratégie ne permet d’améliorer
+que marginalement les performances de MElt}}°1ex, et restent largement en-deca de celles de MEltf,.
+
+3.3 Décodage
+
+La procédure de décodage (c’est-a-dire l’étiquetage proprement dit une fois le modele construit) repose
+sur un algorithme de type beam search pour trouver la séquence d’étiquettes la plus probable pour une
+phrase donnée. Autrement dit, chaque phrase est décodée de gauche a droite, et l’on conserve pour chaque
+mot w,- les n séquences d’étiquettes candidates les plus probables du début de la phrase jusqu’a la position
+1'. Pour nos expériences, nous avons utilisé un beam de taille 3“. De plus, la procédure de test utilise un
+dictionnaire d ’e’tiquettes) qui liste pour chaque mot les étiquettes qui lui sont associées dans le corpus
+d’apprentissage. Ceci réduit considérablement l’ensemble des étiquettes parmi lesquelles l’étiqueteur peut
+choisir pour étiqueter un mot donné, ce qui conduit, comme le montrent nos experiences, a de meilleures
+performances tant en termes de précision que d’efﬁcacité en temps.
+
+3.4 Comparaisons avec d’autres systémes
+
+Nous avons comparé les résultats de MElt}}°1e" et de ME1tf1~ a divers autres étiqueteurs, dont les deux
+premiers n’uti1isent pas le Leﬁj‘, mais qui ont tous été (ré)entrainés d’une facon ou d’une autre sur le
+corpus d’apprentissage du FTB :
+
+— UNIGRAM, un étiqueteur de base qui fonctionne comme suit : pour un mot présent dans le corpus
+d’entrainement, l’étiqueteur assigne l’étiquette la plus fréquemment trouvée dans le corpus; pour les
+autres mots, il utilise l’étiquette la plus fréquente du corpus (ici, NC);
+
+— TreeTagger, un étiqueteur statistique” qui repose sur les arbres de décision (Schmid, 1994) réentrainé
+sur notre corpus d’apprentissage.
+
+— UNIGRAMLW37, comme UNIGRAM, est un modele unigramme qui repose sur le corpus d’apprentissage,
+mais qui utilise le Leﬁj‘ pour étiqueter les mots inconnus : parmi les étiquettes que le Leﬁj‘ associe a un
+mot inconnu du corpus, l’étiquette la plus fréquente a l’échelle de tout le corpus est utilisée; les mots
+qui sont inconnus et du corpus et du Leﬁj‘ recoivent l’étiquette la plus fréquente (ici, NC);
+
+— TreeTaggerLeﬁrf est une variante de TreeTagger, le Leﬁj‘ étant foumi comme lexique externe;
+
+— F-BKY, une instance de l’analyseur syntaxique de Berkeley tel qu’adapté au francais par Crabbé &
+Candito (2008), et utilisée comme étiqueteur.
+
+“Nous avons essayé d’autres Valeurs (5, 10, 20) pendant le développement, mais ces Valeurs n’ont pas conduit a des Variations
+signiﬁcatives de performance.
+12Disponible sur http : / /www . ims . uni— stuttgart . de/pro j ekte/corplex/TreeTagger/.
+
+UN ETIQUETEUR MORPHOSYNTAXIQUE ETAT-DE-L’ART DU FRANCAIS
+
+Les resultats de cette compraison sur le corpus detest du FTB font l’objet du tableau 4.
+
+l Etiqueteur | Précision globale (%) l Précision sur les mots inconnus (%) l
+UNIGRAM 91, 90 24, 50
+TreeTagger 96, 14 75, 77
+UNIGRAMLeﬁtf 93, 40 55, 00
+TreeTaggerLeﬁrf 96, 55 82, 14
+F-BKY 97,25 82,90
+ME1tg°1e=< 97, 25 86, 47
+ME1tfr 97,75 91,36
+
+TAB. 4 — Comparaison des performances de divers etiqueteurs en partie du discours pour le francais
+
+Parmi les etiqueteurs ne faisant pas usage du Leﬁj‘, on constate que MEI "ﬁle" atteint deja une precision
+de 97, 25%, avec 86.47% sur les mots inconnus. Ceci est signiﬁcativement meilleur que TreeTagger, avec
+un gain de plus de 10% sur les mots inconnus”. On peut avancer plusieurs hypotheses pour expliquer
+des ecarts si importants sur l’etiquetage des mots inconnus. Tout d’abord, l’estimation des parametres
+dans un modele a maximisation d’entropie est moins sujette au probleme du manque de donnees pour
+certains traits ou certaines valeurs de traits que d’autres approches comme les arbres de decision (utilises
+par TreeTagger), notamment parce qu’aucune partition des donnees d’entrainement n’est effectuee. Par
+ailleurs, TreeTagger n’est pas en mesure de faire autant de generalisations que MEl",°1e" sur les traits
+
+intemes, puisqu’il ne prend en compte que les sufﬁxes, et ce, uniquement sur les mots inconnus.
+
+Parmi les etiqueteurs faisant usage du Leﬁj‘, le meilleur d’entre eux est MEltfr, avec une exactitude de
+97 , 7 5% globalement et 91, 36% sur les mots inconnus. Ces deux resultats constituent des ameliorations
+signiﬁcatives de 0, 5% et 4, 89% par rapport au modele sans Leﬁj”. Ces scores sont meilleurs que ceux
+de tous les etiqueteurs que nous avons pu tester, y compris l’analyseur F-BKY qui exploite des resultats
+d’analyse syntaxique probabiliste, et ce, avec un ecart signiﬁcatif”.
+
+D’autres etiqueteurs ont ete proposes pour le francais, notamment lors de la campagne d’evaluation
+GRACE15. Bien qu’une comparaison directe soit difﬁcile, etant donne la difference de corpus d’evalua-
+tion et de jeux d’etiquettes, notons que le meilleurs resultats reportes lors de cette campagne sont de 96%
+(Adda et al., 1999) et qu’ils ont ete obtenus par des analyseurs syntaxiques. Notons par ailleurs que (Nasr
+& Volanschi, 2004) reporte des scores de 97.82 sur le corpus de Paris 7, mais leur etiqueteur/chunker ne
+prend pas en compte les mots inconnus.
+
+Une analyse detaillee des causes d’erreurs de ME1tfr (Denis & Sagot, 2009) peut étre resumee ainsi :
+43, 5% des erreurs sont des erreurs classiques (dont 4% d’erreurs sur de, du et des, et 5, 5% de confusions
+entre adjectifs et participes passes), 15, 5% des erreurs concement des nombres, 27, 5% des erreurs sont
+liees a des entites nommees, et 13, 5% des erreurs n’en sont pas vraiment, soit que le corpus de reference
+contient lui-meme une erreur (9% des cas), soit que l’etiquette de reference et l’etiquette proposee par
+MEltf, semblent toutes deux correctes (4, 5% des cas).
+
+13Des tests de signiﬁcativite statistique (tests du X2) ont ete appliques aux écarts de precision, avec un parametre p 51 0,01.
+
+“Une adaptation au frangais de Morfette (Chrupala et al., 2008) utilisant le FTB et le Leﬁj‘ a ete realisee par G. Chrupala
+et D. Seddah (c.p.). Leur precision est comparable a celle de MEltf, (sur les memes jeux de données, Henestroza et Candito
+(c.p.) ont obtenu 97, 68%). Sur d’autres Variantes du FTB (tokenisation d’origine), Chrupala et Seddah (c.p.) obtiennent 97, 9%.
+Ces comparaisons sont a nuancer dans la mesure ou des infonnations supplementaires (les lemmes) sont extraites des corpus
+d’apprentissage et prises en compte dans ce modele.
+
+Hhttp://www.limsi.fr/TLP/grace/
+
+PASCAL DENIS & BENOlT SAGOT
+
+Nous avons cherché a comprendre au mieux la facon dont les informations extraites du Leﬁj‘ permettent
+d’améliorer les résultats. Pour cela, nous avons mené un certain nombre d’eXpériences, notamment en
+faisant varier les jeux de traits et d’étiquettes.
+
+4 Impact de différents jeux de traits extraits du Lefff
+
+En vue de Inieux comprendre l’impact des informations extraites du Leﬁj‘ sur notre modele, nous nous
+sommes livrés a plusieurs expériences d’ablation sur les traits décrits dans le tableau 3. Plus spéciﬁque-
+ment, nous avons évalué les 8 conﬁgurations possibles qui consistent a inclure (ou non) les traits lexicaux
+internes (INT), les traits lexicaux externes déﬁnis sur le contexte gauche (LEFT) et les traits lexicaux ex-
+temes déﬁnis sur le contexte droit (RIGHT). Les résultats de ces différentes experiences menées sur le
+corpus de développement FTB-DEV sont repris dans le tableau 5. Notons que les conﬁgurations les plus
+extremes, (Z) et INT+LEFT+RIGHT, correspondent respectivement aux systemes MEI "ﬁle" et MEltf,.
+
+l Traits Leﬂf | Précision globale (%) l Précision sur les mots inconnus (%) l
+0 (ME1t;;°1eX) 96, 54 83, 95
+INT 97,04 91, 4
+LEFT 96, 38 85, 36
+RIGHT 96, 39 86, 48
+INT+LEFT 96, 92 91, 28
+INT+RIGHT 97, 30 92,01
+LEFT+RIGHT 96, 57 86, 93
+INT+LEFT+RIGHT (ME1tfr) 97, 41 92, 35
+
+TAB. 5 — Comparaison des performances de ME1tﬁ- avec différents sous-ensembles de traits sur FTB-DEV
+
+Ces résultats indiquent que c’est la combinaison des traits internes et des traits sur le contexte droit qui
+apporte le plus d’informations a l’étiqueteur. Le sous-ensemble INT+RIGHT donne en effet les meilleurs
+scores apres ME1tf1~ lui-meme, aussi bien sur l’ensemble des mots que sur les mots inconnus seuls. Ces
+deux sous-ensembles sont complémentaires : les traits INT permettent d’améliorer la couverture lexicale
+de l’étiqueteur (certains mots inconnus, c’est-a-dire absents du corpus d’entrainement, sont couverts par
+le lexique), alors que les traits RIGHT fournissent des informations importantes sur le contexte droit que
+les traits de MElt?r°1e" ne modélisent que frustement.
+
+5 Impact de différents jeux d’étiquettes
+
+Indépendamment des expériences présentées a la section précédente, nous avons entrainé différentes ver-
+sions de MEltf, en faisant varier a chaque fois le jeu d’étiquettes utilisé par le lexique et par le corpus
+d’apprentissage. Rappelons en effet que ces deux jeux d’étiquettes n’ont aucunement besoin d’étre iden-
+tiques, les traits lexicaux permettant d’intégrer les informations issues du lexique quels que soient les deux
+jeux d’étiquettes utilisés. La comparaison entre ces différentes variantes de ME1tfr est utile a deux points
+de vue au moins. Tout d’abord, elle permet de donner une idée des performances de ME1tf1~ avec différents
+jeux de parametres. Certaines taches de traitement automatique ou d’eXtraction d’informations n’ont peut-
+
+UN ETIQUETEUR MORPHOSYNTAXIQUE ETAT-DE-L’ART DU FRANCAIS
+
+étre pas besoin de la granularité de notre jeu d’étiquettes d’origine. Par ailleurs, ces expériences permettent
+d’aborder par un autre angle l’analyse de l’impact des informations lexicales sur les performances.
+
+Nous avons donc utilisé différentes variantes du jeu d’étiquettes, qui sont les suivantes :
+2 9 le jeu de départ (cf. section 2);
+15 les catégories principales du FTB (cf. section 2) ;
+
+open le meme que 15, o1‘1toutes les classes fermées (autres que NC, NPP, AD J, ADV et V) sont regroupées
+en une seule classe CLOSED;
+
+gram le meme que 15, o1‘1toutes les classes ouvertes sont regroupées en une seule classe LEX.
+
+J eu d’étiquettes J eu d’étiquettes du lexique
+
+du corpus pas de Leﬁﬁf | gram | open l 1 5 l 2 9
+gram 96, 74% 98,55% 98,82% 98,81% 98,76%
+open 97,29% 97,88% 98,12% 98,19% 98,25%
+1 5 96,86% 97,15% 97,75% 97,87% 97,87 %
+2 9 96,54% 96,63% 97,04% 97,29% 97,41 %
+
+TAB. 6 — Comparaison des performances de ME1tf1~ sur FTB-DEV avec divers jeux d’étiquettes. L’ étique-
+tage et donc l’évaluation se font sur le jeu d’étiquettes du corpus.
+
+Ces résultats permettent de tirer quelques enseignements généraux :
+
+— comme attendu, plus le jeu d’étiquettes sur lequel on s’évalue est riche, plus les résultats se dégradent;
+une exception toutefois : des lors que l’on utilise une des variantes du Leﬁj‘, étiqueter les 10 classes
+fermées est plus facile qu’étiqueter les 5 classes ouvertes;
+
+— en général, les informations du Leﬁj‘ sont d’une aide d’autant plus grande que les étiquettes qui en sont
+extraites sont riches ;
+
+— les informations lexicales semblent plus améliorer l’étiquetage des classes fermées que celui des classes
+ouvertes ; nous soupconnons que ceci s’explique par l’ambigui'té des mots grammaticaux et le fait qu’ils
+soient difﬁciles a étiqueter sans aucune information lexicale spéciﬁque.
+
+6 Conclusions et perspectives
+
+Nous avons présenté un étiqueteur morpho-syntaxique hybride du francais, ME1tf1~, qui a des performances
+état-de-1’ art. 11 a pour particularité de chercher a exploiter au mieux des informations extraites d’un lexique
+exogene non probabilisé, le Leﬁj‘, en plus de celles extraites d’un corpus d’apprentissage extrait du FTB.
+Nous avons essayé de comprendre au mieux de quelle facon ces informations lexicales contribuent au gain
+de performance observé entre ME1tf1~ et sa contrepartie MElt‘f}°1ex qui n’utilise pas le Leﬁj‘.
+
+Les perspectives de ce travail sont nombreuses. Tout d’abord, des travaux préliminaires ont été menés qui
+montrent la pertinence du modele sous-jacent a ME1tfr sur d’autres langues que le francais, en particulier si
+une ressource lexicale comparable au Leﬁj‘ est disponible. Ensuite, des informations supplémentaires pour-
+raient étre extraites du Leﬁj‘, qui sont susceptibles d’amé1iorer les performances. Ainsi, des informations
+de sous-catégorisation verbale, disponibles dans le Leﬁj‘, pourraient par exemple améliorer l’étiquetage
+d’un mot tel que de, ambigu entre d’une part, une préposition qui introduit parfois un argument de type
+objet indirect et d’autre part, un déterminant partitif qui débute parfois un argument de type objet direct.
+
+PASCAL DENIS & BENOIT SAGOT
+
+Enﬁn, nous souhaitons permettre a MEltf, de prendre en entrée pas seulement une séquence de mots mais
+plus généralement un graphe de formes, aﬁn de permettre d’utiliser ME1tf1- pour lever des ambigui'tés de
+segmentation, voire de correction orthographique, en plus de fournir une annotation en parties du discours.
+
+Références
+
+ABEILLE A., CLEMENT L. & TOUSSENEL F. (2003). Building a treebank for French. In A. ABEILLE,
+Ed., Treebanks. Kluwer, Dordrecht.
+
+ADDA G., MARIANI J ., PAROUBEK P., RAJMAN M. & LECOMTE J . (1999). Métrique et premiers
+résultats de l’évaluation grace des étiqueteurs morphosyntaxiques pour le francais. In TALN.
+
+BERGER A., PIETRA S. D. & PIETRA V. D. (1996). A maximum entropy approach to natural language
+processing. Computational Linguistics, 22(1), 39-71.
+
+CHRUPALA G., DINU G. & VAN GENABITH J . (2008). Learning morphology with morfette. In Procee-
+dings of the 6th Language Resource and Evaluation Conference, Marrakech, Maroc.
+
+CRABBE B. & CANDITO M. (2008). Experiences d’analyses syntaxique statistique du francais. In
+Proceedings of TALN’08, Avignon, France.
+
+DAUME III H. (2004). Notes on CG and LM-BFGS optimization of logistic regression. Paper available
+at http : //pub . hal3 . name#daumeO4cg—bfgs, implementation available at http : //hal3 .
+name /megam/.
+
+DENIS P. & SAGOT B. (2009). Coupling an annotated corpus and a morphosyntactic lexicon for state-
+of-the-art POS tagging with less human effort. In Proceedings of PACLIC 2009, Hong Kong.
+
+HAJIG J . (2000). Morphological Tagging : Data vs. Dictionaries. In Proceedings ofANLP’00, p. 94-101,
+Seattle, WA, USA.
+
+LAFFERTY J . D., MCCALLUM A. & PEREIRA F. C. N. (2001). Conditional random ﬁelds : Probabilistic
+models for segmenting and labeling sequence data. In I CML, p. 282-289.
+
+MALOUF R. (2002). A comparison of algorithms for maximum entropy parameter estimation. In Pro-
+ceedings of the Sixth Workshop on Natural Language Learning, p. 49-55, Taipei, Taiwan.
+
+MANNING C. D. & SCHUTZE H. (1999). Foundations of Statistical Natural Language Processing.
+Cambridge, MA : MIT Press.
+
+NASR A. & VOLANSCHI A. (2004). Couplage d’un étiqueteur morpho-syntaxique et d’un analyseur
+partiel représentés sous la forme d’automates ﬁnis pondérés. In TALN.
+
+RATNAPARKHI A. (1996). A maximum entropy model for part-of-speech tagging. In Proceedings of
+International Conference on Empirical Methods in Natural Language Processing, p. 133-142.
+
+SAGOT B. (2010). The Leﬁf, a freely available, accurate and large-coverage lexicon for french. In
+Proceedings of the 7th Language Resource and Evaluation Conference, La Valette, Malte. a paraitre.
+
+SCHMID H. (1994). Probabilistic part-of-speech tagging using decision trees. In Proceedings of Inter-
+national Conference on New Methods in Language Processing, Manchester, UK.
+
+TOUTANOVA K. & MANNING C. D. (2000). Enriching the knowledge sources used in a maximum
+entropy part-of-speech tagger. In Proceedings of International Conference on New Methods in Language
+Processing, p. 63-70, Hong Kong.
+

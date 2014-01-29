@@ -1,0 +1,540 @@
+TALN 2009, Senlis, 24-26 juin 2009
+
+Un analyseur de surface non déterministe pour le francais
+
+Francois Trouilleux
+LRL, Universite Blaise-Pascal
+http : / /www . univ—bpclermont . fr/LABOS/lrl/
+
+Resume. Les analyseurs syntaxiques de surface a base de regles se caracterisent par un
+processus en deux temps : desambigu'1'sation lexicale, puis reconnaissance de patrons. Conside-
+rant que ces deux etapes introduisent une certaine redondance dans la description linguistique
+et une dilution des heuristiques dans les differents processus, nous proposons de deﬁnir un ana-
+lyseur de surface qui fonctionne sur une entree non desambigu'1'see et produise l’ensemble des
+analyses possibles en termes de syntagmes noyau (chunks). L’analyseur, implante avec NooJ,
+repose sur la deﬁnition de patrons etendus qui annotent des sequences de syntagmes noyau.
+Les resultats obtenus sur un corpus de developpement d’environ 22 500 mots, avec un rappel
+proche de 100 %, montrent la faisabilite de l’approche et signalent quelques points d’ambigui'te
+a etudier plus particulierement pour ameliorer la precision.
+
+Abstract. Rule-based chunkers are characterized by a two-tier process : part-of-speech
+disambiguation, and pattern matching. Considering that these two stages introduce some redun-
+dancy in the linguistic description and a dilution of heuristics over the different processes, we
+propose to deﬁne a chunker which parses a non-disambiguated input, and produces all possible
+analysis in terms of chunks. The parser, implemented with NooJ, relies on the deﬁnition of ex-
+tended patterns, which annotate sequences of chunks. The results obtained on an approx. 22500
+word corpus, with almost 100 % recall, demonstrate the feasability of the approach, and signal
+which ambiguities should be further studied in order to improve precision.
+
+M0tS-CléS I Analyse syntaxique de surface, automates a etats ﬁnis, determinisme, desa-
+mbigu'1'sation.
+
+Keywords: Chunking, ﬁnite-state automata, determinism, disambiguation.
+
+Francois Trouilleux
+
+1 Introduction
+
+Dans un recent article, M. Cori (2008) distingue deux grands types de methodes en TAL. Le
+« TAL theorique » y est caracterise par reference aux differents modeles de grammaires syntag-
+matiques, tandis qu’un logiciel de « TAL robuste » y est caracterise par une serie de criteres: il
+traite du texte « tout venant », il produit toujours une analyse, il selectionne l’analyse suppo-
+see la meilleure, et il se prete a des procedures d’evaluation quantitative de ses performances.
+L’article oppose par ailleurs TAL theorique et TAL robuste sur leurs objectifs d’analyse, en
+soulignant que le TAL robuste vise souvent une analyse syntaxique partielle, typiquement en
+syntagmes noyau (chunks).
+
+En jouant sur l’un ou l’autre des criteres identiﬁes par Cori pour le TAL robuste, on peut cher-
+cher de nouvelles frontieres entre les deux pratiques. Le travail presente dans cet article trouve
+son origine dans la volonte de faire varier le parametre qui consiste a ne produire qu’une analyse
+en selectionnant la meilleure. On a ainsi tente de developper un analyseur de surface (chunker)
+pour le frangais, capable de traiter du texte tout venant, qui produise touj ours une analyse, mais
+qui, pour chaque phrase du texte analyse, produise an ensemble d ’analyses possibles en termes
+de syntagmes noyau, etant donne une description de chaque modele de syntagme noyau.
+
+Notre analyseur s’ecarte de deux pratiques omnipresentes dans les analyseurs de surface: le de-
+terminisme et l’incrementalite. Nous justiﬁerons ce choix en le mettant en perspective avec ces
+pratiques canoniques (alinea 2.1), puis nous exposerons les problemes poses par l’application
+directe de la reconnaissance de patrons sur une entree ambigiie (alinea 2.2). Notre analyseur,
+implante avec NooJ, propose une solution a ces problemes grace a l’utilisation de patrons eten-
+dus annotant des sequences de syntagmes noyau (alinea 3). Les resultats obtenus sur un corpus
+de developpement de 22 500 mots sont presentes dans l’alinea 4.
+
+2 Problématique
+
+Les analyseurs syntaxiques de surface robustes a base de reglesl se caracterisent par le fait
+qu’ils sont deterministes, dans le sens o1‘1 ils ne produisent qu’une seule analyse, et mettent en
+oeuvre un processus d’analyse incremental. Par ailleurs, dans ces systemes, les regles sont en
+general appliquees selon le mode de la reconnaissance de patrons.
+
+2.1 Déterminisme et incrémentalité
+
+De maniere generale, l’arguInent en faveur du determinisme de l’analyseur est utilitaire. Ainsi,
+Hindle (1994, p. 107) considere qu’« une sortie unique facilite grandement l’utilisation d’un
+analyseur. Si un analyseur devait produire plusieurs analyses, pour la plupart des taches d’ana-
+lyse textuelle il serait necessaire de choisir parmi les alternatives avant d’utiliser les resultats ».
+Hindle precise que le determinisme n’est pas une necessite; notre projet est de l’eviter. La
+consequence de ce choix est que l’interet de notre analyseur ne residera pas dans ses apports
+a une chaine de traitements globale, mais dans le fait qu’il fournira une sortie propre a mettre
+en lumiere les difﬁcultes de l’analyse linguistique. Notre analyseur se veut un outil d’etude
+linguistique, plutot qu’un composant d’une application.
+
+1. On laisse de cote dans cet article les approches a base de modéles statistiques.
+
+Un analyseur de surface non deterministe pour le francais
+
+Les systemes de TAL robustes sont evalues de facon uniquement quantitative, ce qui conduit
+les linguistes qui les deﬁnissent a faire des choix motives par des considerations statistiques.
+Ainsi la plupart de ces systemes echoueront a analyser correctement la phrase suivante, parce
+que statistiquement un des en debut de phrase est le plus souvent un determinant:
+
+(1) Des petunias en bordure de l’allee montait par bouffee une odeur de cassis.
+
+Une de nos motivations est de pouvoir reperer dans des corpus des conﬁgurations telles que
+celle qu’on observe dans cet exemple.
+
+Les analyseurs syntaxiques de surface a base de regles se caracterisent par un processus en
+deux temps: desambigui'sation lexicale, puis applications de regles. On pourrait multiplier les
+exemples de tels analyseurs: (Hindle, 1994), (Kinyon, 2001), (A'1't-Mokhtar et al., 2002), (Bou-
+rigault et al., 2005), etc. On notera egalement que le Natural Language Toolkit, dont on peut
+penser que, en tant que « boite a outils », il met en oeuvre des approches paradigmatiques, deﬁnit
+un analyseur syntaxique de surface en ces terInes:
+
+A chunker ﬁnds contiguous, non-overlapping spans of related tokens and groups
+them together into chunks. Chunkers often operate on tagged texts, and use the tags
+to make chunking decisions. (Bird et al., 2009, alinea 7.2)
+
+De fait, le systeme de segmentation en syntagmes noyau du NLTK fonctionne par application
+d’expressions regulieres sur du texte etiquete de facon non ambigiie.
+
+L’utilisation d’un tagger pour desambigui'ser les unites lexicales est avant tout, comme le de-
+terminisme, utilitaire: les taggers, qu’ils soient a base de regles ou statistiques, sont en general
+extremement rapides et permettent de reduire sensiblement la complexite du processus d’ana-
+lyse global. Ainsi, (Roussanaly et al., 2005) justiﬁent l’inclusion d’un tagger dans la chaine de
+traitement Inise en oeuvre pour leur participation a la campagne EASY par les « temps d’analyse
+redhibitoires » provoques par « des ambigui'tes multiples ».
+
+Une alternative a la desambigui'sation lexicale est proposee par (Vergne, 1999), dont l’analyseur
+fonctionne sur des unites lexicales ayant explicitement une categorie par défaut. L’ objectif est
+egalement de reduire les possibilites combinatoires pour la suite de l’analyse.
+
+Le principal inconvenient d’un processus d’analyse en deux temps est bien connu: les erreurs
+d’analyse au premier niveau vont affecter le second. Or il est generalement admis que l’infor-
+mation utilisee par les taggers est trop limitée pour permettre une analyse toujours correcte. On
+abandonne ainsi le traitement de certaines ambigui'tes, celle du des de (1), par exemple. Cela
+etant, nous voyons dans l’utilisation d’un tagger deux autres inconvenients.
+
+Le premier est que dans l’approche a deux etapes, on a une description linguistique redondante,
+dans le sens ou on dira souvent deux fois la meme chose 2. Par exemple, au premier niveau on
+aura une regle ou une statistique qui dira qu’un clitique est plus probable qu’un article ou un
+nom apres la forme ne, et au deuxieme niveau on aura un automate ou une expression reguliere
+speciﬁant des syntagmes NV qui integrera la meme information.
+
+Le second inconvenient est qu’en repartissant le processus d’analyse sur deux niveaux, on abou-
+tit a une dilution des heuristiques. Des choix statistiques (plus ou moins explicites) sont faits aux
+deux niveaux et on ne sait plus forcement dans l’evaluation globale du systeme d’o1‘1 viennent
+
+2. Et non dans le sens o1‘1 deux infonnations differentes pennettraient d’aboutir a une meme conclusion, ce qui
+serait positif.
+
+Francois Trouilleux
+
+les erreurs. Nous pensons qu’un analyseur produisant une segmentation en syntagmes noyau
+ambigiie permettra de spéciﬁer par la suite et d’évaluer clairement les heuristiques a mettre en
+oeuvre pour désambigui'ser cette sortie. L’ analyseur que nous proposons désambigu'1'sera cer-
+taines formes, mais seulement sur la base de la structure interne des syntagmes noyau.
+
+2.2 Limites de la reconnaissance de patrons
+
+Bon nombre d’analyseurs robustes tirent leur robustesse du fait que les regles qu’ils implantent
+sont appliquées selon le mode de la « reconnaissance de patrons ». L’ algorithme qui parcourt la
+chaine d’entrée ne cherche pas a associer une analyse axiomatique a l’ensemble de la chaine,
+mais se contente de reconnaitre que des fragments de cette chaine satisfont aux regles speci-
+ﬁées. Cet aspect de l’algorithme est essentiel parce que c’est lui qui permet de passer outre des
+mots inconnus, toujours présents dans les corpus. NooJ (Silberztein, 2004), logiciel que nous
+utilisons, permet de déclarer des automates servant a la reconnaissance de patrons. Trois modes
+de reconnaissance des patrons déﬁnis par une grammaire sont disponibles: la plus courte, la
+plus longue ou toutes les correspondances.
+
+Considérons en premier lieu un modele simple qu’on notera ainsi:
+Main = :GN + :GP + :NV + :PV + :GR + :GA;
+o1‘1 les suites : GN, : GP, etc. identiﬁent chacune un automate a états ﬁnis déﬁnissant respective-
+
+ment l’ensemble des GN, GP, etc. possibles 3.
+
+Avec une telle grammaire, les deux premiers modes sont clairement inadaptés a notre projet.
+Ils sont déterministes, et il est facile de trouver des exemples ou ils échoueront. En voici deux,
+pour la sélection de la plus longue et de la plus courte correspondance, respectivement:
+
+(2) a. <GN>La petite ferme</GN> <GN>les yeux</GN>.
+b. <GN>La petite</GN> <GN>fille</GN> le <NV>regarde</NV>.
+
+Notons que ces deux exemples démontrent qu’on ne peut appliquer une reconnaissance de pa-
+trons simples de facon déterministe sur une entrée ambigiie. Cette observation jette une nou-
+velle lumiere sur le processus Inis en oeuvre dans les analyseurs robustes a base d’eXpressions
+régulieres ou d’automates ﬁnis: désambigu'1'ser le texte avant d’appliquer la reconnaissance de
+patrons n’est pas uniquement motivé par une question d’efﬁcacité, c’est une nécessité.
+
+Reste le mode « toutes les correspondances ». Il présente l’inconvénient de surgénérer exagéré-
+ment. Deux cas de ﬁgure méritent en particulier l’attention.
+
+Le premier est illustré par l’exemple suivant, ou une phrase composée d’un seul syntagme NV,
+donne lieu a quatre analyses.
+(3) <NV>Il <NV>le <NV>lui <NV>donne</NV></NV></NV></NV> .
+Le propre de la reconnaissance de patrons est de pouvoir ignorer des mots; ici on voudrait
+pouvoir dire au systeme de ne pas laisser hors d’un syntagme les mots qu’il peut intégrer.
+Le second peut étre illustré par la séquence suivante:
+(4) <GP>Pour cent francs</GP> <GP>par an</GP>
+Pour les cin unités lexicales de cette sé uence, notre dictionnaire ales caté ories suivantes:
+q q S
+
+Pour,PREP|N cent,NUM francs,ADJ|N par,PREP|N an,N
+
+3. On utilise les catégories de la campagne d’évaluation EASY (cf. (Gendner & Vilnat, 2004)).
+
+Un analyseur de surface non déterministe pour le francais
+
+Demander la reconnaissance de toutes les correspondances possibles avec cette entrée ambigiie
+aboutira a de multiples analyses, parmi lesquelles on trouvera par exemple:
+
+(5) <GN>Pour</GN> <GN>cent</GN> <GN>francs</GN>
+<GN>par</GN> <GN>an</GN>
+
+Ici, il semble raisonnable de privilégier les lectures de pour et par comme prépositions, et leur
+association avec le nom qui les suit. L’analyseur que nous présentons par la suite permettra
+d’exprimer cela.
+
+3 Un analyseur de surface non déterministe avec NooJ
+
+Nous avons montré que la reconnaissance de patrons déﬁnissant des syntagmes noyau ne pou-
+vait s’appliquer directement sur une entrée ambigiie. Néanmoins, nous avons pu implanter avec
+NooJ un analyseur qui satisfasse notre objectif de non-déterminisme et qui fonctionne en mode
+reconnaissance de patrons, donc avec une certaine robustesse. La modélisation s’appuie d’une
+part sur les caractéristiques fondamentales des syntagmes noyau en francais, d’autre part sur la
+possibilité de déﬁnir dans NooJ des patrons qui identiﬁent des sequences de syntagmes noyau.
+
+3.1 Caractéristiques des syntagmes noyau
+
+On s’appuie dans ce travail sur la déﬁnition des syntagmes noyau de (Abney, 1991). Si l’on
+prend cette deﬁnition 4 au pied de la lettre, il faut reconnaitre deux modeles de syntagmes noyau
+possibles:
+
+1. un mot lexical seul,
+
+2. et une suite de un ou plusieurs mots lexicaux, précédée et/ou suivie de un ou plusieurs
+mots fonctionnels.
+
+Dans la pratique, on s’écarte un peu de cette déﬁnition en considérant aussi comme un syntagme
+nominal noyau une suite comme belle marquise ou pauvre petit gargon, parce qu’on y reconnait
+des séquences qui integreraient un meme syntagme nominal noyau si elles étaient précédées
+d’un déterminant.
+
+Muni de cette deﬁnition stricte, on peut faire sur le francais deux observations intéressantes:
+
+1. un mot fonctionnel a droite du syntagme doit en principe étre lié au mot lexical qui le
+precede par un tiret (donne-le-moi, ce gargon-la) 5,
+
+2. il y a seulement deux cas ou un syntagme noyau contient plusieurs mots lexicaux:
+(a) un adverbe dans un syntagme verbal a l’inﬁnitif (ex. pour mieux labourer),
+(b) un GN ou GP avec adjectif antéposé au noyau (ex. avec la petite ﬁlle)
+
+Une conséquence qu’on peut tirer de la premiere observation est que, s’il n’est pas rattaché
+par un tiret a sa gauche, un mot fonctionnel ouvre un syntagme noyau ou s’integre dans un
+syntagme noyau ouvert par un autre mot fonctionnel. Si on veut privilégier la lecture des mots
+
+4. I deﬁne chunks in terms of major heads. Maj or heads are all content words except those that appear between
+a function word f and the content word that f selects. For example, proud is a major head in a man proud of his
+son, but proud is not a major head in the proud man, because it appears between the function word the and the
+content word man selected by the.
+
+5. Cela vaut si on analyse des mots comme durant ou excepte’ comme des participes, ce que nous faisons.
+
+Francois Trouilleux
+
+fonctionnels comme tels (cf. l’exemple 5), une stratégie de type « reconnaissance de la plus
+longue chaine » sera adaptée: par exemple, étant donné avec la ﬁlle, on évitera de fermer un
+syntagme apres avec ou la. Notons que cette propriété des mots fonctionnels est a la base de
+l’algorithme de (Kinyon, 2001).
+
+En ce qui conceme la deuxieme observation, nous manquons de données pour commenter le
+premier cas, et nous nous concentrerons donc par la suite sur le second, beaucoup plus fréquent.
+Pour l’heure, le point important est que la présence de plusieurs mots lexicaux est susceptible
+de conduire a une ambigu'1'té de segmentation au niveau de la limite droite du syntagme, avant
+ou apres un mot lexical, comme brise dans l’exemple classique La petite brise la glace.
+
+3.2 Des patrons pour des séquences de syntagmes noyau
+
+NooJ permet de déclarer des automates servant a la reconnaissance de patrons. Un apport es-
+sentiel de NooJ dans le systeme d’analyse que nous présentons ici est qu’il distingue les patrons
+spéciﬁés par un automate et le ou les patrons annotés par cet automate. Les patrons spéciﬁés
+sont ceux qui étiquettent un chemin complet de l’automate (de l’état initial a l’état ﬁnal), un
+patron annoté est un sous-chemin commencant par un état étiqueté <X et se terminant par un
+état étiqueté >, avec X la catégorie qu’on souhaite donner au syntagme 6.
+
+Le petit automate ci-contre illustre cette possibilité: il
+spéciﬁe le patron <qui> <V>, mais annote seulement
+le patron <V> comme un syntagme de catégorie NV.
+
+ 
+
+Notre grammaire déﬁnit ainsi un automate qui spéciﬁe des patrons annotant plusieurs syntagmes
+noyau consécutifs, en intégrant les ambigu'1'tés de segmentation possibles. La ﬁgure 1 illustre
+le principe de construction de cette grammaire. On y voit l’un des graphes principaux de la
+grammaire, qui non seulement annote comme PV ou NV des syntagmes, mais annote également
+d’autres syntagmes a droite de ces syntagmes par les graphes PP, GNb, GR, NVb, et GA-PP.
+Ces cinq graphes annotent eux-mémes selon les cas un a trois autres syntagmes:
+
+— PP annote un ou deux syntagmes: un participe passé, optionnellement précédé d’un ad-
+verbe (GR), ou d’une forme du pronom tout (GN),
+
+— GNb annote un seul syntagme: un nom qui n’est pas ambigu avec un mot fonctionnel,
+optionnellement précédé d’un adjectif préférentiellement antéposé, lui-méme optionnel-
+lement précédé d’un adverbe,
+
+— NVb annote un syntagme NV composé d’un verbe, suivi optionnellement de clitiques,
+plus, optionnellement et si le verbe est un auxiliaire, des syntagmes du graphe PP,
+
+— GR annote un syntagme composé d’un seul adverbe,
+— GA-PP annote un syntagme composé d’un seul adjectif ou participe passé.
+
+Le graphe PP a pour fonction de déﬁnir la relation spéciﬁque entre auxiliaire et participe passé.
+Les quatre autres graphes ont pour fonction de déﬁnir les syntagmes ne commencant pas par un
+mot fonctionnel, qu’on appellera « syntagmes B ». C’est avant ou apres les mots composants
+ces syntagmes qu’on peut observer une ambigu'1'té de segmentation du type évoqué dans notre
+deuxieme observation ci-dessus (ﬁn de l’alinéa 3.1).
+
+6. En fait, on note <E>/<X et <E>/> pour indiquer qu’on a d’une part la chaine vide (<E>) dans la chaine
+d’entrée, d’autre part le parenthésage d’un syntagme en sortie.
+
+Un analyseur de surface non déterministe pour le francais
+
+   
+   
+ 
+    
+ 
+
+  
+
+<:E:>
+<NEGPAS>
+<:}\,D1..F:>
+
+<rien,PRO >
+
+ 
+
+=1rien,PRO>
+
+FIG. 1 — Graphe annotant les PV et NV inﬁnitif + des syntagmes unaires optionnels a droite
+
+Si on fait abstraction du graphe PP, la grammaire spéciﬁe des patrons qui annotent un syntagme
+noyau commencant par un mot fonctionnel ou non (un « syntagme A »), suivi optionnellement
+d’un syntagme B. Ce modele est appliqué en mode « reconnaissance de la plus longue chaine » ;
+la grammaire déﬁnit les transitions possibles entre syntagmes A et syntagmes B, en faisant en
+sorte que les analyses qu’on veut privilégier correspondent a un chemin complet plus long,
+tandis que celles pour lesquelles on veut des annotations ambigiies soient de meme longueur.
+
+Apres un groupe verbal (NV ou PV) ou adverbial (GR), la grammaire autorise une transition
+vers tout type de syntagme 7. Pour les autres types de syntagmes (GA, GN et GP), les conditions
+qui régissent les transitions sont les suivantes:
+
+1. Un syntagme A ayant pour noyau un mot ambigu avec un mot fonctionnel 8 n’admet pas
+de transition vers un syntagme B ; on privilégie ainsi l’interprétation de ces mots comme
+fonctionnels si on peut construire un syntagme A avec eux. Par exemple, la, nom potentiel
+(la note de musique), ne peut étre noyau d’un GP dans de la porte.
+
+2. Pour les syntagmes a noyau nominal ou adjectival, qui sont ceux ou l’ambigu'1'té de seg-
+mentation a droite est possible, les transitions sont résumées dans le tableau 1:
+
+(a) pas de transition vers un GNb apres un GA ou apres un GN ou GP ayant pour
+noyau un adjectif (<AD J >) ou une forme du pronom tout, (p.eX. on exclut <GN>1a
+petite</GN> <GN>bri se</GN> ou <GN>tout< /GN> <GN>homme</GN>)
+
+(b) si un GN ou GP n’a pas d’épithete antéposée 9 eta pour noyau un nom non ambigu
+avec un mot fonctionnel, toutes les transitions sont permises,
+
+(c) si un GN ou GP contient une épithete antéposée a un noyau nominal, l’automate
+n’enregistre pas de transition vers un GNb ; on fait ainsi en sorte qu’un tel syntagme
+ait la meme longueur qu’une séquence syntagme A + syntagme B. Par exemple,
+
+7. Les categories utilisées ici sont celles de (Gendner & Vilnat, 2004), modulo les adaptations suivantes:
+— on traite les NV avec participe passe (PP) comme les adjectifs ; les deux categories ont des distributions
+proches et les NV avec participe passe sont touj ours unaires ;
+— NVb = groupe Verbal sans mot fonctionnel a gauche;
+— GNb = groupe nominal sans mot fonctionnel ni numeral;
+— GN = groupe nominal avec au moins un mot fonctionnel ou numeral.
+— GPO et GPA: Voir la suite du texte.
+8. Information codée dans le lexique par l’ajout d’un trait +fble pour ces mots. La contrainte n’a pas été
+implantée pour les Verbes mais s’applique aux adverbes (GR).
+9. Par épithéte antéposée, on Veut dire tout type de groupe adjectival antéposé au noyau du syntagme nominal,
+par exemple trés borme dans une trés borme idée.
+
+Francois Trouilleux
+
+NVb GNb GA-PP GR
+GA-PP + — + +
+GN—GP —<tout,PRO> + — + +
+— <AD J > + — + +
+— <N—fble> + + + +
+— épithéte <N> — — — —
+GPO — — — —
+GPA — — — —
+
+TAB. 1 — Transitions entre syntagmes A a noyau nominal ou adjectival (lignes) et syntagmes B
+(colonnes).
+
+<GN>la petite brise</Q§N> (sans transition vers un syntagme B) a la méme
+longueur que <GN>la petite</QN> <NV>brise</NV> (synt. A + synt. B).
+
+3. On distingue par ailleurs deux catégories de syntagmes spéciﬁques:
+
+(a) GPO = groupes prépositionnels composés d’une seule préposition, éventuellement
+précédée de de, par exemple il était <GPO>derriére</GPO>;
+ceux-ci seraient analysés comme GR dans EASY;
+
+(b) GPA = construction du type <GN>un fils</GN> <GPA>de malade</GPA>,
+analysée dans EASY comme <GN>un f ils</ GN> de <GA>malade</GA>.
+
+On n’enregistre aucune transition apres ces syntagmes, c’est-a-dire qu’on ne les admet
+que si on ne peut pas interpréter la séquence comme le début d’un GP plus long.
+
+A cela s’ajoute un cas particulier: apres une forme du pronom tout, on admet une transition sup-
+plémentaire vers un syntagme NV composé d’un clitique le et d’un verbe. Par ailleurs, pour tout
+GN ou GP ayant un noyau autre que adjectif ou nom commun (adverbe, nom propre, pronom,
+numéral ou participe passé), l’automate n’enregistre pas de transition vers un syntagme B.
+
+Les transitions ont été établies expérimentalement sur un corpus décrit ci-apres. Pour résumer,
+on peut dire qu’elles ont essentiellement deux fonctions: privilégier la construction des syn-
+tagmes associant les mots fonctionnels a un mot lexical (cf. les exemples 3, 4 et 5 ci-dessus) et
+gérer les ambiguités de segmentation a droite (cf. l’exemple 2).
+
+4 Analyse de corpus
+
+Pour déﬁnir cet analyseur, nous nous sommes appuyés sur un corpus de 22 557 mots (word
+forms de NooJ), en quatre parties: Un caeur simple de Flaubert (11 581 mots, 51 %), 157
+exemples extraits de l’entrée de du TLF (5 309 mots, 23,5 %), la transcription de la cassette
+de Jean-Claude Mery (3 449 mots, 15,5 %), et neuf articles du journal La Tribune (2 218 mots,
+10 %). Le tableau 2 donne les mesures de rappel et précision obtenues sur ce corpus. I1 ne
+s’agit en aucun cas d’une évaluation globale du systeme sur texte inconnu telle qu’on la pra-
+tique habituellement, mais simplement d’observations faites dans une situation controlée sur le
+corpus de développement. En particulier, on s’est donné un dictionnaire idéal en ajoutant les
+noms propres et mots inconnus du corpus, et, come on le voit sur le tableau, on s’est attaché
+a obtenir un rappel le plus proche possible de 100 %. L’idée, on le rappelle, est développer un
+outil qui permettra d’observer les ambiguités au niveau des syntagmes noyau.
+
+Un analyseur de surface non déterministe pour le francais
+
+total GA-PP GN GNb GP GPO GPA GR NV PV
+possible 11144 1205 2716 175 3064 16 9 877 2754 328
+effectif 14744 1334 4053 1196 3568 17 66 1140 3037 333
+correct 11 140 1205 2713 174 3064 16 9 877 2754 328
+rappel 99,96 100 99,89 99,43 100 100 100 100 100 100
+précision 75,56 90,33 66,94 14,55 85,87 94,12 13,64 76,93 90,68 98,50
+
+TAB. 2 — Mesures observées sur le corpus de développement.
+
+On releve quatre erreurs de rappel, toutes au niveau des GN-GNb. Une est anecdotique (un titre
+en anglais), les trois autres se manifestent dans les deux exemples suivants:
+
+(6) En voila <GN>une Mme Lehoussais< / GN>, qui au lieu de prendre un jeune homme. . .
+(7) <GP >De tels arguments</ QP > paraissent étonnants
+
+En (6) le systeme identiﬁe un GN la ou il en faudrait deux. Nous n’avons pas travaillé sur cette
+erreur parce qu’un syntagme composé d’un indéﬁni suivi d’un nom propre est possible (p.eX.
+un Picasso), et surtout, on a la une phrase qui a l’oral serait dite avec une intonation propre
+a séparer une et Mme Lehoussais, si bien qu’on serait en droit d’attendre une virgule a cet
+endroit. On atteint la, nous semble-t-il, le point de conﬂit entre exemple attesté et jugement de
+bonne formation. Cela étant ce cas est le seul ou l’association d’un mot fonctionnel (une) a un
+mot lexicale est une erreur. La stratégie consistant a privilégier la construction des syntagmes
+
+associant les mots fonctionnels est donc globalementbonne1°.
+
+En (7), le systeme identiﬁe un GP alors qu’on aurait voulu une analyse ambigiie GN-GP. La
+source de cette erreur est l’ambigu'1'té de tels, DET ou ADJ. L’ analyse de la séquence comme
+GN est bien prévue, mais comme il y a un adjectif antéposé, il n’y a pas a sa droite de transition
+vers un syntagme B, alors que l’analyse GP peut se faire avec une séquence PREP + DET +
+N, qui admet une transition vers un syntagme B (ici le NV paraissent), et est donc privilégiée.
+La construction de <AD J+pl> <N+pl>, en ce qu’elle exige la combinaison de de et l’épithete
+pour former un GN, pourrait peut-étre donner lieu a une exception.
+
+Le chiffre de la précision donne une idée du résultat qu’on peut obtenir avec une information
+limitée a la seule constitution interne des syntagmes, a savoir un bruit assez important. La place
+manque ici pour analyser les erreurs en détail, mais on peut déja noter deux causes principales:
+
+— l’ambigu'1'té des syntagmes commencant par des, de ou du (GN, ou GP, ou GPA), respon-
+sable d’environ 38,5% du bruit,
+
+— l’ambigu'1'té adjectif/nom, assez systématique dans le dictionnaire utilisé: on trouve 547
+GA analysé comme GNb, et 238 analyses scindant un syntagme nominal avec épithete
+en deux, de type <GN>un jeune</GN> <GNb>homme</GNb>, avecjeune comme nom.
+Ces demieres erreurs produisant deux erreurs de précision, l’ambigu'1'té adjectif/nom est
+responsable de plus de 28% du bruit.
+
+Signalons également que la faible précision obtenue pour les GR est due principalement a l’am-
+biguité de comme et des interrogatifs, la grammaire ne traitant pas les conjonctions et autres
+introducteurs de propositions.
+
+10. Les 100% de rappel obtenus pour GPO en témoignent également. On notera que la seule erreur observée
+pour les GP01’est dans un cas limite, ou le découpage en syntagmes noyau sans enchassement n’est plus possible:
+avec, quand méme, un probléme (cf. (Gendner & Vilnat, 2004, alinéa B.3)).
+
+Francois Trouilleux
+
+5 Conclusion
+
+Le travail que nous avons présenté ici a Inis en lumiere la difﬁculté de la reconnaissance de
+patrons sur une entrée ambigiie, tout en proposant une voie d’étude alternative a l’approche
+paradigmatique déterministe et incrémentale de l’analyse de surface. On obtient un outil pour
+l’analyse linguistique dont on espere qu’il permettra de poser un regard neuf sur l’ambigui'té
+catégorielle en plagant l’analyse au niveau des syntagmes noyau plutot qu’au niveau des unités
+lexicales.
+
+Au-dela, ce travail suggere aussi une piste d’amélioration des logiciels. Nous avons vu que
+la reconnaissance de la plus longue chaine était adaptée pour les mots fonctionnels (cf. les
+exemples 3 et 4), tandis que la reconnaissance de toutes les correspondances serait souhaitable
+au niveau des mots lexicaux (cf. la petite brise la glace). On pourrait alors imaginer un nouveau
+mode de reconnaissance de patrons, hybride, caractérisable comme la reconnaissance de toutes
+les correspondances en privile’giant le rattachement des mots fonctionnels. Ces derniers pouvant
+étre spéciﬁés déclarativement comme une liste de catégories particulieres, on aurait alors un
+algorithme qui prendrait mieux en compte les propriétés de l’objet qu’il vise a analyser.
+
+Références
+
+ABNEY S. (1991). Parsing by chunks. In R. BERWICK, S. ABNEY & C. TENNY, Eds.,
+Principle-Based Parsing. Dordrecht: Kluwer Academic Publishers.
+
+AIT-MOKHTAR S., CHANOD J .-P. & ROUX C. (2002). Robustness beyond shallowness:
+incremental dependency parsing. Natural Language Engineering, 8, 121-144.
+
+BIRD S., KLEIN E. & LOPER E. (2009). Analyzing Text with Python and the Natural Lan-
+guage Toolkit. http://www.nltk.org/book.
+
+BOURIGAULT D., FABRE C., FREROT C., JACQUES M.-P. & OZDOWSKA S. (2005). Syntex,
+analyseur syntaxique de corpus. In (J ardino, 2005).
+
+CORI M. (2008). Des méthodes de traitement automatique aux linguistiques fondées sur les
+corpus. Langages, 171.
+
+GENDNER V. & VILNAT A. (2004). Les annotations syntaxiques de référence PEAS.
+
+http : //www. limsi . fr/Recherche/CORVAL/easy/.
+
+HINDLE D. (1994). A parser for text corpora. In B. ATKINS & A. ZAMPOLLI, Eds., Compu-
+tational Approaches to the Lexicon, p. 103-151. Oxford: Clarendon Press.
+
+M. JARDINO, Ed. (2005). Actes de TALN 2005 (Traitement automatique des langues natu-
+relles), Dourdan. ATALA, LIMSI.
+
+KINYON A. (2001). A language-independent shallow-parser compiler. In ACL, p. 322-329.
+ROUSSANALY A., CRABBE B. & PERRIN J . (2005). PreIr1ier bilan de la participation du
+LORIA a la campagne d’évaluation EASY. In (J ardino, 2005), p. 49-52.
+
+SILBERZTEIN M. (2004). Nooj : an oriented object approach. In J . ROYAUTE & M. SILBERZ-
+TEIN, Eds., INTEX pour la Linguistique et le Traitement Automatique des Langues. Presses
+Universitaires de Franche-Comté. http : / /www . noo j 4nlp . net
+
+VERGNE J . (1999). Etude et modélisation de la syntaxe des langues a l’aide de l’ordina-
+teur. Analyse syntaxique automatique non combinatoire. Dossier d’habilitation a diriger des
+recherches. Université de Caen.
+

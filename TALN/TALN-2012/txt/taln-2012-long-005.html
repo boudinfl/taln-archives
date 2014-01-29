@@ -1,0 +1,751 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>La reconnaissance des mots compos&#233;s &#224; l'&#233;preuve de l'analyse syntaxique et vice-versa : &#233;valuation de deux strat&#233;gies discriminantes</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Actes de la conf&#233;rence conjointe JEP-TALN-RECITAL 2012, volume 2: TALN, pages 57&#8211;70,
+Grenoble, 4 au 8 juin 2012. c&#169;2012 ATALA &amp; AFCP
+</p>
+<p>La reconnaissance des mots compos&#233;s &#224; l&#8217;&#233;preuve de l&#8217;analyse
+syntaxique et vice-versa : &#233;valuation de deux strat&#233;gies
+</p>
+<p>discriminantes
+</p>
+<p>Matthieu Constant1 Anthony Sigogne1 Patrick Watrin2
+(1) universit&#233; Paris-Est, LIGM, CNRS, 5, bd Descartes 774545 Marne-la-Vall&#233;e
+</p>
+<p>(2) Universit&#233; de Louvain, CENTAL, Louvain-la-Neuve
+mconstan@univ-mlv.fr, sigogne@univ-mlv.fr,patrick.watrin@uclouvain.be
+</p>
+<p>R&#201;SUM&#201;
+Nous proposons deux strat&#233;gies discriminantes d&#8217;int&#233;gration des mots compos&#233;s dans un proces-
+sus r&#233;el d&#8217;analyse syntaxique : (i) pr&#233;-segmentation lexicale avant analyse, (ii) post-segmentation
+lexicale apr&#232;s analyse au moyen d&#8217;un r&#233;ordonnanceur. Le segmenteur de l&#8217;approche (i) se fonde
+sur un mod&#232;le CRF et permet d&#8217;obtenir un reconnaisseur de mots compos&#233;s &#233;tat-de-l&#8217;art. Le
+r&#233;ordonnanceur de l&#8217;approche (ii) repose sur un mod&#232;le MaxEnt int&#233;grant des traits d&#233;di&#233;s aux
+mots compos&#233;s. Nous montrons que les deux approches permettent de combler jusqu&#8217;&#224; 18% de
+l&#8217;&#233;cart entre un analyseur baseline et un analyseur avec segmentation parfaite et jusqu&#8217;&#224; 25%
+pour la reconnaissance des mots compos&#233;s.
+</p>
+<p>ABSTRACT
+Recognition of compound words tested against parsing and vice-versa : evaluation of two
+discriminative approaches
+</p>
+<p>We propose two discriminative strategies to integrate compound word recognition in a real
+parsing context : (i) state-of-the-art compound pregrouping with Conditional Random Fields
+before parsing, (ii) reranking parses with features dedicated to compounds after parsing. We
+show that these two approaches help reduce up to 18% of the gap between a baseline parser and
+parser with golden segmentation and up to 25% for compound recognition.
+</p>
+<p>MOTS-CL&#201;S : Mots compos&#233;s, analyse syntaxique, champs markoviens al&#233;atoires, r&#233;ordon-
+nanceur.
+</p>
+<p>KEYWORDS: Multiword expressions, parsing, Conditional random Fields, reranker.
+</p>
+<p>1 Introduction
+</p>
+<p>L&#8217;int&#233;gration des expressions multi-mots (EMM) dans des applications r&#233;elles comme la tra-
+duction automatique ou l&#8217;extraction d&#8217;information est cruciale car de telles expressions ont la
+particularit&#233; de contenir un certain degr&#233; de figement. En particulier, elles forment des unit&#233;s
+lexicales complexes qui, si elles sont prises en compte, peuvent non seulement am&#233;liorer l&#8217;analyse
+syntaxique, mais aussi faciliter les analyses s&#233;mantiques qui en d&#233;coulent. Leur int&#233;gration
+dans un processus d&#8217;analyse syntaxique probabiliste a d&#233;j&#224; &#233;t&#233; envisag&#233;e dans quelques &#233;tudes.
+Toutefois, elles reposent pour la majorit&#233; sur un corpus au sein duquel l&#8217;ensemble des EMMs a
+</p>
+<p>57</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>&#233;t&#233; parfaitement identifi&#233; au pr&#233;alable. Bien qu&#8217;artificielles, ces &#233;tudes ont montr&#233; une am&#233;lio-
+ration des performances d&#8217;analyse : par exemple, (Nivre et Nilsson, 2004; Eryigit et al., 2011)
+pour l&#8217;analyse en d&#233;pendance et (Arun et Keller, 2005; Hogan et al., 2011) pour l&#8217;analyse en
+constituants. Plus r&#233;cemment, (Green et al., 2011) a int&#233;gr&#233; la reconnaissance des EMMs au sein
+de la grammaire et non plus dans une phase pr&#233;alable. La grammaire est entrain&#233;e sur un corpus
+arbor&#233; o&#249; les EMMs sont annot&#233;es avec des noeuds non-terminaux sp&#233;cifiques.
+</p>
+<p>Dans cet article, nous nous int&#233;ressons &#224; un type d&#8217;EMMs : les mots compos&#233;s. Nous proposons
+d&#8217;&#233;valuer deux strat&#233;gies discriminantes d&#8217;int&#233;gration de ces expressions dans un contexte r&#233;el
+d&#8217;analyse syntaxique en constituants : (a) pr&#233;-segmentation lexicale au moyen d&#8217;un reconnaisseur
+&#233;tat-de-l&#8217;art de mots compos&#233;s bas&#233; sur les champs markoviens al&#233;atoires [CRF] ; (b) analyse
+bas&#233;e sur une grammaire incluant l&#8217;identification des mots compos&#233;s, suivie d&#8217;une phase de
+r&#233;ordonnancement des analyses &#224; l&#8217;aide d&#8217;un mod&#232;le maximum d&#8217;entropie int&#233;grant des traits
+d&#233;di&#233;s aux mots compos&#233;s. (a) est une impl&#233;mentation r&#233;aliste de l&#8217;approche classique de pr&#233;-
+regroupement des EMMs. Nous souhaitons &#233;valuer si la reconnaissance automatique des EMMs
+a toujours un impact positif sur l&#8217;analyse syntaxique, c&#8217;est-&#224;-dire, si une segmentation lexicale
+imparfaite ne provoque pas trop d&#8217;effets de bord sur les constituants sup&#233;rieurs. L&#8217;approche (b)
+est innovante pour la reconnaissance des EMMs : nous s&#233;lectionnons la segmentation lexicale
+finale apr&#232;s l&#8217;analyse syntaxique afin d&#8217;explorer le plus d&#8217;analyses possibles (contrairement &#224; la
+m&#233;thode (a)). Cette approche ressemble &#224; celle propos&#233;e par (Wehrli et al., 2010) qui reclasse
+les hypoth&#232;ses d&#8217;analyses g&#233;n&#233;r&#233;es par un analyseur symbolique en se basant sur la pr&#233;sence
+ou non de collocations. Les exp&#233;riences que nous avons men&#233;es ont &#233;t&#233; r&#233;alis&#233;es sur le corpus
+arbor&#233; de Paris 7 [FTB] (Abeill&#233; et al., 2003) o&#249; les mots compos&#233;s sont marqu&#233;s. Nous avons
+utilis&#233; l&#8217;analyseur syntaxique de Berkeley (Petrov et al., 2006) qui est fond&#233; sur une strat&#233;gie
+non-lexicalis&#233;e et qui obtient les meilleurs r&#233;sultats en fran&#231;ais (Seddah et al., 2009), m&#234;me en
+incorporant l&#8217;identification des EMMs (Green et al., 2011).
+</p>
+<p>L&#8217;article est organis&#233; comme suit : la section 2 pr&#233;sente les probl&#233;matiques du rep&#233;rage des EMMs
+et de leur int&#233;gration dans un analyseur syntaxique. La section 3 d&#233;crit plus en d&#233;tail les deux
+strat&#233;gies propos&#233;es et les mod&#232;les sous-jacents. La section 4 d&#233;taille les ressources utilis&#233;es pour
+nos exp&#233;riences : corpus et lexiques. Nous d&#233;crivons ensuite (dans la section 5) l&#8217;ensemble des
+traits d&#233;di&#233;s aux EMMs int&#233;gr&#233;s dans nos deux mod&#232;les. Enfin, la section 6 rapporte et analyse
+les r&#233;sultats obtenus lors de nos exp&#233;riences.
+</p>
+<p>2 Les mots compos&#233;s
+</p>
+<p>Les expressions multi-mots sont des unit&#233;s lexicales constitu&#233;es de plusieurs lex&#232;mes qui contien-
+nent un certain degr&#233; de figement. Elles couvrent une large gamme de ph&#233;nom&#232;nes linguistiques :
+les expressions fig&#233;es et semi-fig&#233;es, les constructions &#224; verbe support, les entit&#233;s nomm&#233;es,
+les termes, etc. Elles sont souvent divis&#233;es en deux classes : les expressions d&#233;finies au moyen
+de crit&#232;res linguistiques et celles d&#233;finies par des crit&#232;res purement statistiques (collocations)
+(Sag et al., 2002). La plupart des crit&#232;res linguistiques pour d&#233;terminer si une combinaison
+de mots est une EMM sont bas&#233;s sur des tests syntaxiques et s&#233;mantiques comme ceux d&#233;crits
+dans (Gross, 1986). Par exemple, l&#8217;expression caisse noire est une EMM car elle n&#8217;accepte pas
+de variations lexicales (*caisse sombre) et elle n&#8217;autorise pas d&#8217;insertions (*caisse tr&#232;s noire). De
+telles expressions d&#233;finies linguistiquement peuvent coincider en partie avec les collocations
+</p>
+<p>58</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>qui constituent des associations habituelles de mots (fond&#233;es sur la notion de fr&#233;quence). Ces
+derni&#232;res sont souvent identifi&#233;es au moyen de mesures statistiques associatives. Dans cet article,
+nous nous focalisons sur les EMMs continues qui forment des unit&#233;s lexicales auxquelles on peut
+associer une partie-du-discours : ex. tout &#224; fait est un adverbe, &#224; cause de est une pr&#233;position,
+table ronde est un nom. Les variations morphologiques et lexicales sont tr&#232;s limit&#233;es &#8211; e.g. caisse
+noire+caisses noires, vin (rouge+blanc+ros&#233;+*orange+...) &#8211; et les variations syntaxiques tr&#232;s
+souvent interdites 1. De telles expressions sont g&#233;n&#233;ralement analys&#233;es au niveau lexical. Par la
+suite, nous utilisons le terme mot compos&#233; ou unit&#233; polylexicale.
+</p>
+<p>2.1 Identification
+</p>
+<p>L&#8217;identification des EMMs dans les textes est souvent complexe car leur propri&#233;t&#233; de figement
+les rend difficilement pr&#233;dictibles. Elle repose g&#233;n&#233;ralement sur des strat&#233;gies lexicalis&#233;es. La
+plus simple est fond&#233;e sur la consultation de lexiques comme dans (Silberztein, 2000). Le plus
+grand d&#233;savantage est que cette proc&#233;dure se base enti&#232;rement sur des dictionnaires et est donc
+incapable de d&#233;couvrir de nouveaux mots compos&#233;s. L&#8217;utilisation d&#8217;extracteurs de collocations
+peut donc s&#8217;av&#233;rer utile. Par exemple, (Watrin et Fran&#231;ois, 2011) calcule &#224; la vol&#233;e pour chaque
+collocation candidate dans le texte trait&#233;, son score d&#8217;association au moyen d&#8217;une base externe
+de n-grammes apprises sur un grand corpus brut. L&#8217;expression est ensuite &#233;tiquet&#233;e comme
+EMM si son score d&#8217;association est plus grand qu&#8217;un seuil donn&#233;. Ils obtiennent d&#8217;excellents
+r&#233;sultats dans le cadre d&#8217;une t&#226;che d&#8217;extraction de mots-cl&#233;s. Dans le cadre d&#8217;une &#233;valuation sur
+corpus de r&#233;f&#233;rence, (Ramisch et al., 2010) a d&#233;velopp&#233; un classifieur bas&#233; sur un s&#233;parateur
+&#224; vastes marges int&#233;grant des traits correspondant &#224; diff&#233;rentes mesures d&#8217;associations des
+collocations. Les r&#233;sultats sont plut&#244;t faibles sur le corpus GENIA. (Green et al., 2011) a confirm&#233;
+ces mauvais r&#233;sultats sur le corpus arbor&#233; de Paris 7. Ceci s&#8217;explique par le fait que de telles
+m&#233;thodes ne font aucune distinction entre les diff&#233;rents types de EMMs et que les types de EMMs
+annot&#233;s dans les corpus sont souvent limit&#233;s. Une approche r&#233;cente consiste &#224; coupler, dans un
+m&#234;me &quot;mod&#232;le&quot;, l&#8217;annotation des mots compos&#233;s avec un analyseur linguistique : un &#233;tiqueteur
+morphosyntaxique dans (Constant et al., 2011) et un analyseur syntaxique dans (Green et al.,
+2011). (Constant et al., 2011) apprend un mod&#232;le CRF int&#233;grant diff&#233;rents traits classiques de
+l&#8217;&#233;tiquetage morphosyntaxique et des traits bas&#233;s sur des ressources externes. (Green et al., 2011)
+a propos&#233; que l&#8217;identification des mots compos&#233;s soit int&#233;gr&#233;e dans la grammaire de l&#8217;analyseur,
+qui est apprise sur un corpus arbor&#233; o&#249; les mots compos&#233;s sont annot&#233;s au moyen de noeuds
+non-terminaux sp&#233;cifiques. Ils ont utilis&#233;, avec succ&#232;s, une grammaire &#224; substitution d&#8217;arbres au
+lieu d&#8217;une grammaire probabiliste ind&#233;pendante du contexte (avec annotations latentes) afin
+d&#8217;apprendre des r&#232;gles lexicalis&#233;es. Les deux m&#233;thodes ont l&#8217;avantage d&#8217;&#234;tre capables d&#8217;apprendre
+de nouveaux mots compos&#233;s. Dans cet article, nous exploitons les avantages des m&#233;thodes
+d&#233;crites dans cette section en les int&#233;grant comme traits d&#8217;un unique mod&#232;le probabiliste.
+</p>
+<p>2.2 Int&#233;gration dans l&#8217;analyse syntaxique
+</p>
+<p>La majorit&#233; des exp&#233;riences d&#8217;int&#233;gration des EMMs dans un processus d&#8217;analyse syntaxique
+repose sur des corpus au sein desquels les mots compos&#233;s ont &#233;t&#233; parfaitement identifi&#233;s au
+</p>
+<p>1. De telles expressions acceptent tr&#232;s rarement des insertions, souvent limit&#233;es &#224; des modifieurs simples e.g. &#224; court
+terme, &#224; tr&#232;s court terme.
+</p>
+<p>59</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>pr&#233;alable. Bien qu&#8217;artificielles, ces &#233;tudes ont montr&#233; une am&#233;lioration des performances d&#8217;anal-
+yse : par exemple, (Nivre et Nilsson, 2004; Eryigit et al., 2011) pour l&#8217;analyse en d&#233;pendance
+et (Arun et Keller, 2005; Hogan et al., 2011) pour l&#8217;analyse en constituants. Pour l&#8217;analyse en
+constituants, nous pouvons noter les exp&#233;riences de (Cafferkey et al., 2007) qui ont essay&#233;
+de coupler des annotateurs r&#233;els de EMMs et diff&#233;rents types d&#8217;analyseurs probabilistes pour
+l&#8217;anglais. Ils ont travaill&#233; sur un corpus de r&#233;f&#233;rence non annot&#233; en EMMs. Les EMMs sont
+reconnues et pr&#233;-group&#233;es automatiquement &#224; l&#8217;aide de ressources externes et d&#8217;un reconnaisseur
+d&#8217;entit&#233;s nomm&#233;es. Ils appliquent, ensuite, un analyseur syntaxique et r&#233;ins&#232;rent finalement les
+sous-arbres correspondants aux EMMs pour faire l&#8217;&#233;valuation. Ils ont montr&#233; des gains faibles
+mais significatifs. R&#233;cemment, les travaux de (Finkel et Manning, 2009) et (Green et al., 2011)
+ont propos&#233; d&#8217;int&#233;grer les deux t&#226;ches dans le m&#234;me mod&#232;le. (Finkel et Manning, 2009) couple
+analyse syntaxique et reconnaissance des entit&#233;s nomm&#233;es dans un mod&#232;le discriminant d&#8217;analyse
+syntaxique bas&#233; sur les CRF. (Green et al., 2011) a int&#233;gr&#233; l&#8217;identification des mots compos&#233;s
+dans la grammaire. Ils ont, en particulier, montr&#233;, pour le fran&#231;ais, que le meilleur analyseur
+syntaxique &#233;tait toujours l&#8217;analyseur de Berkeley (fond&#233; sur une strat&#233;gie non-lexicalis&#233;e), bien
+que l&#8217;identification des mots compos&#233;s soit moins bonne qu&#8217;avec un analyseur syntaxique fond&#233;
+sur une strat&#233;gie lexicalis&#233;e. Enfin, il existe les travaux de (Wehrli et al., 2010) qui reclasse les
+hypoth&#232;ses d&#8217;analyses g&#233;n&#233;r&#233;es par un analyseur symbolique en se basant sur la pr&#233;sence ou non
+de collocations.
+</p>
+<p>3 Mod&#232;les discriminants
+</p>
+<p>Nous consid&#233;rons deux strat&#233;gies d&#8217;int&#233;gration des mots compos&#233;s dans le processus d&#8217;analyse
+syntaxique : (a) une pr&#233;-identification des mots compos&#233;s, suivie d&#8217;une analyse ; et (b) une
+analyse syntaxique incorporant l&#8217;identification des mots compos&#233;s suivie d&#8217;un r&#233;ordonnanceur
+int&#233;grant des traits d&#233;di&#233;s aux EMMs.
+</p>
+<p>3.1 Pr&#233;-identification des mots compos&#233;s
+</p>
+<p>La reconnaissance de mots compos&#233;s peut &#234;tre vue comme une t&#226;che d&#8217;annotation s&#233;quentielle si
+l&#8217;on utilise le sch&#233;ma d&#8217;annotation IOB (Ramshaw et Marcus, 1995). Ceci implique une limitation
+th&#233;orique : les mots compos&#233;s doivent &#234;tre continus. Ce sch&#233;ma est donc th&#233;oriquement plus
+faible que celui propos&#233; par (Green et al., 2011) qui int&#232;gre les mots compos&#233;s dans la grammaire
+et autorise des unit&#233;s polylexicales discontinues. Cependant, en pratique, les mots compos&#233;s sont
+tr&#232;s tr&#232;s rarement discontinus et dans la majorit&#233; des cas, la discontinuit&#233; est due &#224; l&#8217;insertion
+d&#8217;un simple modifieur qui peut &#234;tre incorpor&#233; dans la s&#233;quence fig&#233;e : &#224; court terme, &#224; tr&#232;s court
+terme. Dans cet article, nous proposons d&#8217;associer les composants simples des unit&#233;s polylexicales
+&#224; une &#233;tiquette de la forme CAT+X o&#249; CAT est la cat&#233;gorie grammaticale du mot compos&#233; et X
+d&#233;termine la position relative du token dans le mot compos&#233; (soit B pour le d&#233;but &#8211; Beginning&#8211;,
+soit I pour les autres positions &#8211;Inside&#8211;). Les mots simples sont &#233;tiquet&#233;s O (outside) : Jean/O
+adore/O les/O faits/N+B divers/N+I.
+</p>
+<p>Pour cette t&#226;che, nous utilisons le mod&#232;le des champs al&#233;atoires markoviens lin&#233;aires (Tellier
+et Tommasi, 2011) [CRF] introduits par (Lafferty et al., 2001) pour l&#8217;annotation de s&#233;quences.
+</p>
+<p>60</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Etant donn&#233; une s&#233;quence de mots (graphiques) 2 en entr&#233;e x = (x1, x2, ..., xN ) et une s&#233;quence
+d&#8217;&#233;tiquettes en sortie y = (y1, y2, ..., yN ), le mod&#232;le est d&#233;fini comme suit :
+</p>
+<p>P&#955;(y|x) = 1Z(x) .
+N&#8721;
+t
+</p>
+<p>K&#8721;
+k
+</p>
+<p>log&#955;k. fk(t, yt , yt&#8722;1, x)
+</p>
+<p>o&#249; Z(x) est un vecteur de normalisation d&#233;pendant de x . Il est bas&#233; sur K traits d&#233;finis par
+des fonctions binaires fk d&#233;pendant de la position courante t dans x , l&#8217;&#233;tiquette courante yt ,
+l&#8217;&#233;tiquette pr&#233;c&#233;dente yt&#8722;1 et toute la s&#233;quence en entr&#233;e. Chaque mot x i de x int&#232;gre non
+seulement sa propre valeur lexicale mais aussi toutes les propri&#233;t&#233;s du mot (e.g. ses suffixes, ses
+&#233;tiquettes dans un lexique externe, il commence par une majuscule, etc.). Les traits sont activ&#233;s
+si une configuration particuli&#232;re entre t, yt , yt&#8722;1 and x est satisfaite (i.e. fk(t, yt , yt&#8722;1, x) = 1).
+Chaque trait est associ&#233; &#224; un poids &#955;k. Ces poids sont les param&#232;tres du mod&#232;le et sont estim&#233;s
+lors de la phase d&#8217;apprentissage. Les traits utilis&#233;s pour notre t&#226;che sont d&#233;crits dans la section 5.
+Ils sont g&#233;n&#233;r&#233;s &#224; partir de patrons qui sont instanci&#233;s &#224; chaque position dans la s&#233;quence &#224;
+annoter. Chaque instance x correspond &#224; une fonction binaire fk qui retourne 1 si l&#8217;instance &#224; la
+position courante correspond &#224; x , 0 sinon.
+</p>
+<p>3.2 R&#233;ordonnanceur
+</p>
+<p>Le r&#233;ordonnancement discriminant consiste &#224; reclasser les n meilleures analyses produites par
+un analyseur syntaxique de base et &#224; s&#233;lectionner la meilleure. Il utilise un mod&#232;le discriminant
+int&#233;grant des traits associ&#233;s aux noeuds des analyses candidates. (Charniak et Johnson, 2005)
+a introduit diff&#233;rents traits qui permettent d&#8217;am&#233;liorer sensiblement les performances d&#8217;un
+analyseur syntaxique. Formellement, &#233;tant donn&#233; une phrase s, le r&#233;ordonnanceur s&#233;lectionne la
+meilleure analyse candidate p parmi l&#8217;ensemble de tous les candidats P(s) &#224; l&#8217;aide d&#8217;une fonction
+de score V&#952; :
+</p>
+<p>p&#8727; = ar gmaxp&#8712;P(s)V&#952; (p)
+</p>
+<p>L&#8217;ensemble des candidats P(s) correspond aux n meilleures analyses produites par l&#8217;analyseur de
+base. La fonction de score V&#952; est le produit scalaire d&#8217;un vecteur de param&#232;tres &#952; et d&#8217;un vecteur
+de traits f :
+</p>
+<p>V&#952; (p) = &#952; . f (p) =
+m&#8721;
+</p>
+<p>j=1
+</p>
+<p>&#952; j . f j(p)
+</p>
+<p>o&#249; f j(p) correspond au nombre d&#8217;occurences du trait f j dans l&#8217;analyse p. Selon (Charniak et
+Johnson, 2005), le premier trait f1 est la probabilit&#233; de p fournie par l&#8217;analyseur de base. Le
+vecteur &#952; est estim&#233; lors de la phase d&#8217;apprentissage &#224; partir du corpus arbor&#233; de r&#233;f&#233;rence et
+des analyses g&#233;n&#233;r&#233;es par l&#8217;analyseur de base.
+</p>
+<p>Dans cet article, l&#8217;utilisation du r&#233;ordonnanceur est l&#233;g&#232;rement modifi&#233;e par rapport &#224; ce qui se
+fait traditionnellement. En effet, nous y int&#233;grons des traits charg&#233;s d&#8217;am&#233;liorer la reconnaissance
+</p>
+<p>2. Un mot (graphique) correspond &#224; un token.
+</p>
+<p>61</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>des mots compos&#233;s dans le contexte de l&#8217;analyse syntaxique. Ces traits sont d&#233;crits dans la sec-
+tion 5 au moyen de patrons qui sont instanci&#233;s pour chaque noeud des analyses. L&#8217;apprentissage
+du mod&#232;le est r&#233;alis&#233; &#224; l&#8217;aide de l&#8217;algorithme de maximum d&#8217;entropie utilis&#233; dans (Charniak et
+Johnson, 2005).
+</p>
+<p>4 Ressources
+</p>
+<p>4.1 Corpus
+</p>
+<p>Le corpus arbor&#233; de Paris 7 3 [FTB] (Abeill&#233; et al., 2003) est un corpus annot&#233; en constituants
+syntaxiques. Il est compos&#233; d&#8217;articles provenant du journal Le Monde. Nous avons utilis&#233; la version
+la plus r&#233;cente, celle de juin 2010. Elle comporte 15 917 phrases et 473 904 mots graphiques,
+et utilise 13 cat&#233;gories syntaxiques pour identifier les constituants. Les mots compos&#233;s sont
+marqu&#233;s et forment au total plus de 5% des unit&#233;s lexicales (mots simples et compos&#233;s). Nous
+avons r&#233;alis&#233; nos exp&#233;riences sur deux instances diff&#233;rentes provenant de cette m&#234;me version :
+l&#8217;instance issue du pr&#233;traitement d&#233;crit dans (Green et al., 2011) [FTB-STF] et l&#8217;instance issue
+du pr&#233;traitement r&#233;alis&#233; par la cha&#238;ne de traitement de l&#8217;&#233;quipe Alpage de Paris 7 [FTB-P7].
+FTB-STF poss&#232;de un jeu de 14 &#233;tiquettes morphosyntaxiques et a &#233;t&#233; utilis&#233; pour avoir des
+r&#233;sultats comparables avec (Green et al., 2011) en terme d&#8217;identification des mots compos&#233;s. Les
+mots compos&#233;s sont d&#233;faits et annot&#233;s &#224; l&#8217;aide d&#8217;un symbole non-terminal sp&#233;cifique &quot;MWX&quot; o&#249; X
+est la cat&#233;gorie grammaticale de l&#8217;expression. Ils ont une structure plate comme dans la figure 1.
+Il existe 11 symboles de type EMM. FTB-P7 poss&#232;de un jeu de 28 &#233;tiquettes morphosyntaxiques
+optimis&#233; pour l&#8217;analyse syntaxique et donc tr&#232;s ad&#233;quat pour nos exp&#233;riences. Les composants
+simples de chaque mot compos&#233; sont fusionn&#233;s en un seul mot. Pour pouvoir r&#233;aliser nos
+exp&#233;riences, il a &#233;t&#233; n&#233;cessaire de d&#233;faire tous les mots compos&#233;s et les repr&#233;senter comme
+dans l&#8217;instance FTB-STF. Les &#233;tiquettes morphosyntaxiques des composants simples des unit&#233;s
+polylexicales ont &#233;t&#233; ajout&#233;es &#224; l&#8217;aide de l&#8217;&#233;tiqueteur morphosyntaxique lgtagger (Constant et
+Sigogne, 2011) appris sur la version du FTB o&#249; les mots compos&#233;s ne sont pas d&#233;faits. Le
+partionnement entra&#238;nement/d&#233;veloppement/test correspond au partitionnement officiel : les
+sections d&#233;veloppement et test sont les m&#234;mes que dans (Candito et Crabb&#233;, 2009), avec 1 235
+phrases chacune. La section entra&#238;nement comporte 13 347 phrases, soit 3 390 phases en plus
+que la version g&#233;n&#233;ralement utilis&#233;e.
+</p>
+<p>MWN
+</p>
+<p>&#8;&#8;
+&#8;
+</p>
+<p>HH
+H
+</p>
+<p>N
+</p>
+<p>part
+</p>
+<p>P
+</p>
+<p>de
+</p>
+<p>N
+</p>
+<p>march&#233;
+</p>
+<p>FIGURE 1 &#8211; Repr&#233;sentation des mots compos&#233;s part de march&#233; : le noeud MWN correspond &#224; un
+nom compos&#233; ; il a une structure interne plate N P N (nom &#8211; pr&#233;position &#8211; nom)
+</p>
+<p>3. http ://www.llf.cnrs.fr/Gens/Abeille/French-Treebank-fr.php
+</p>
+<p>62</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>4.2 Ressources lexicales
+</p>
+<p>Il existe de nombreuses resources morphologiques en fran&#231;ais incluant les mots compos&#233;s. Nous
+avons exploit&#233; deux dictionnaires de langue g&#233;n&#233;rale : le Dela (Courtois, 2009; Courtois et al.,
+1997) et le Lefff (Sagot, 2010). Le Dela a &#233;t&#233; manuellement d&#233;velopp&#233; dans les ann&#233;es 80-90 par
+l&#8217;&#233;quipe de linguistes du LADL &#224; Paris 7. Nous utilisons la version libre int&#233;gr&#233;e &#224; la plateforme
+Unitex 4. Il est compos&#233; de 840,813 entr&#233;es lexicales, incluant 104,350 entr&#233;es compos&#233;es (dont
+91,030 noms). Les mots compos&#233;s pr&#233;sents dans la ressource respectent, en g&#233;n&#233;ral, les crit&#232;res
+syntaxiques d&#233;finis dans (Gross, 1986). Le Lefff 5 est une ressource lexicale qui a &#233;t&#233; accumul&#233;e
+automatiquement &#224; partir de diverses sources et qui a ensuite &#233;t&#233; valid&#233;e manuellement. Nous
+avons utilis&#233; la version se trouvant dans MeLT (Denis et Sagot, 2009). Elle comprend 553,138
+entr&#233;es lexicales, incluant 26,311 entr&#233;es compos&#233;es (dont 22,673 noms). Leurs diff&#233;rents modes
+de construction rendent ces deux ressources compl&#233;mentaires. Pour toutes les deux, les entr&#233;es
+lexicales poss&#232;dent une forme fl&#233;chie, un lemme et une cat&#233;gorie grammaticale. Le Dela poss&#232;de
+un trait suppl&#233;mentaire pour la plupart des mots compos&#233;s : leur struture interne. Par exemple,
+eau de vie a le code NDN car sa structure interne est de la forme nom &#8211; pr&#233;position de &#8211; nom.
+</p>
+<p>En terme de collocations, (Watrin et Fran&#231;ois, 2011) a pr&#233;sent&#233; un syst&#232;me retournant, pour
+toute phrase, la liste des collocations nominales potentielles accompagn&#233;es de leur mesure
+d&#8217;association. Pour le FTB, nous obtenons 17,315 collocations nominales candidates associ&#233;es &#224;
+leur log-vraisemblance et leur structure interne.
+</p>
+<p>5 Les traits d&#233;di&#233;s aux mots compos&#233;s
+</p>
+<p>Les deux mod&#232;les d&#233;crits dans la section 3 n&#233;cessitent des traits d&#233;di&#233;s aux mots compos&#233;s.
+Les traits que nous proposons sont g&#233;n&#233;r&#233;s &#224; partir de patrons. Dans le but de rendre ces
+mod&#232;les comparables, nous avons mis en place deux jeux comparables de patrons de traits
+inspir&#233;s de (Constant et al., 2011) : l&#8217;un adapt&#233; &#224; l&#8217;annotation s&#233;quentielle et l&#8217;autre adapt&#233; au
+r&#233;ordonnancement. Les patrons pour l&#8217;annotation s&#233;quentielle sont instanci&#233;s &#224; chaque position
+de la s&#233;quence en entr&#233;e. Les patrons pour le r&#233;ordonnanceur sont seulement instanci&#233;s aux
+feuilles des analyses candidates, qui sont domin&#233;es par un noeud de type EMM (c&#8217;est-&#224;-dire qui
+ont un anc&#234;tre de type EMM). Nous d&#233;finissons un patron T comme suit :
+&#8211; Annotation s&#233;quentielle : &#224; chaque position n dans la s&#233;quence en entr&#233;e x ,
+</p>
+<p>T = f (x , n)/yn
+</p>
+<p>&#8211; R&#233;ordonnancement : &#224; chaque feuille (&#224; la position n) domin&#233;e par un noeud de type EMM m
+dans l&#8217;analyse candidate p,
+</p>
+<p>T = f (p, n)/label(m)/pos(p, n)
+</p>
+<p>o&#249; f est une fonction &#224; d&#233;finir ; yn est une &#233;tiquette de sortie &#224; la position n ; label(m) est
+l&#8217;&#233;tiquette du noeud m et pos(p, n) indique la position relative, dans l&#8217;unit&#233; polylexicale, du mot
+&#224; l&#8217;indice n : B (position initiale), I (autres positions).
+</p>
+<p>4. http ://igm.univ-mlv.fr/&#732;unitex
+5. http ://atoll.inria.fr/&#732;sagot/lefff.html
+</p>
+<p>63</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>5.1 Traits endog&#232;nes
+</p>
+<p>Les traits endog&#232;nes sont des traits extraits directement des mots eux-m&#234;mes ou d&#8217;un outil appris
+sur le corpus d&#8217;apprentissage comme un &#233;tiqueteur morphosyntaxique.
+</p>
+<p>n-grammes de mots. Nous utilisons les bigrammes et unigrammes de mots pour apprendre les
+mots compos&#233;s pr&#233;sents dans le corpus d&#8217;entrainement et pour extraire des indices lexicaux afin
+d&#8217;en d&#233;couvrir de nouveaux. Par exemple, le bigramme coup de est souvent le pr&#233;fixe d&#8217;unit&#233;s
+polylexicales comme coup de pied, coup de foudre, coup de main, etc.
+</p>
+<p>n-grammes d&#8217;&#233;tiquettes morphosyntaxiques. Nous utilisons les unigrammes et bigrammes
+d&#8217;&#233;tiquettes morphosyntaxiques dans le but d&#8217;apprendre des structures syntaxiques irr&#233;guli&#232;res
+souvent caract&#233;ristiques de pr&#233;sence de mots compos&#233;s. Par exemple, la s&#233;quence pr&#233;position &#8211;
+adverbe associ&#233;e &#224; l&#8217;adverbe compos&#233; depuis peu est tr&#232;s inhabituelle. Nous avons aussi int&#233;gr&#233;
+des bigrammes m&#233;langeant mots et &#233;tiquettes morphosyntaxiques.
+</p>
+<p>Traits sp&#233;cifiques. Chaque type de mod&#232;le int&#232;gre des traits particuliers car chacun s&#8217;att&#232;le &#224; des
+t&#226;ches diff&#233;rentes. On incorpore dans le CRF des traits sp&#233;cifiques pour g&#233;rer les mots inconnus
+et les mots sp&#233;ciaux (nombres, traits d&#8217;union, etc.) : le mot en lettres minuscules ; les pr&#233;fixes
+et suffixes de taille 1 &#224; 4, l&#8217;information si un mot commence par une majuscule, s&#8217;il contient un
+chiffre, si c&#8217;est un trait d&#8217;union. Nous ajoutons en plus les bigrammes des &#233;tiquettes de sortie. Les
+mod&#232;les li&#233;s au r&#233;ordonnanceur int&#232;grent des traits associ&#233;s aux noeuds de type EMM, dont les
+valeurs sont les formes lexicales des mots compos&#233;s correspondants.
+</p>
+<p>5.2 Traits exog&#232;nes.
+</p>
+<p>Les traits exog&#232;nes sont des traits qui proviennent totalement ou en partie de donn&#233;es externes
+(dans notre cas, nos ressources lexicales). Les ressources lexicales peuvent &#234;tre utiles pour
+d&#233;couvrir de nouvelles expressions. G&#233;n&#233;ralement, les mots compos&#233;s, en particulier les noms,
+suivent un sch&#233;ma r&#233;gulier, ce qui les rend tr&#232;s difficilement rep&#233;rables &#224; partir de traits endog&#232;nes
+uniquement. Nos ressources lexicales sont appliqu&#233;es au corpus &#224; l&#8217;aide d&#8217;une analyse lexicale qui
+produit, pour chaque phrase, un automate fini qui repr&#233;sente l&#8217;ensemble des analyses possibles.
+Les traits exog&#232;nes sont calcul&#233;s &#224; partir de cet automate.
+</p>
+<p>Les traits bas&#233;s sur un lexique. Nous associons &#224; chaque mot l&#8217;ensemble des &#233;tiquettes mor-
+phosyntaxiques trouv&#233;es dans notre lexique morphologique externe. Cet ensemble forme une
+classe d&#8217;ambiguit&#233; ac. Si un mot appartient potentiellement &#224; une unit&#233; polylexicale dans
+son contexte d&#8217;occurrence, l&#8217;&#233;tiquette correspondante au mot compos&#233; est aussi int&#233;gr&#233;e &#224; la
+classe d&#8217;ambiguit&#233;. Par exemple, le mot de dans le contexte eau de vie est associ&#233; &#224; la classe
+det_nom+I_prep. En effet, le mot simple de est soit un d&#233;terminant (det) soit une pr&#233;position
+(prep). Par ailleurs, il se trouve dans une position interne (I) du nom eau de vie. Ce trait est
+directement calcul&#233; &#224; partir de l&#8217;automate g&#233;n&#233;r&#233; par l&#8217;analyse lexicale. Nous utilisons &#233;galement
+cet automate afin de r&#233;aliser une segmentation lexicale pr&#233;liminaire en appliquant un algorithme
+du plus court chemin pour favoriser les analyses polylexicales. Cette segmentation pr&#233;liminaire
+est source d&#8217;indices pour la segmentation finale, donc source de nouveaux traits. On peut associer
+&#224; tout mot appartenant &#224; un segment compos&#233; diff&#233;rentes propri&#233;t&#233;s : l&#8217;&#233;tiquette morphosyntax-
+ique mwt du segment, ainsi que sa structure interne mws ; sa position relative mwpos dans le
+segment (&#8217;B&#8217; ou &#8217;I&#8217;).
+</p>
+<p>64</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Traits bas&#233;s sur les collocations. Dans notre ressource de collocations, chaque candidat du
+FTB est accompagn&#233; de sa structure syntaxique interne et de son score d&#8217;association (log-
+vraisemblance). Nous avons divis&#233; ces candidats en deux classes : ceux qui ont un score sup&#233;rieur
+&#224; un certain seuil et les autres. Ainsi, tout mot du corpus peut &#234;tre associ&#233; &#224; un certain nombre
+de propri&#233;t&#233;s s&#8217;il appartient &#224; une collocation candidate : la classe de la collocation c ainsi que sa
+structure interne cs, la position relative cpos du mot dans la collocation (&#8217;B&#8217; ou &#8217;I&#8217;). Nous avons
+manuellement fix&#233; le seuil &#224; une valeur de 150 apr&#232;s une phase de r&#233;glage sur le corpus de
+d&#233;veloppement.
+</p>
+<p>Tous les patrons de traits sont donn&#233;s dans la table 1.
+</p>
+<p>Traits endog&#232;nes
+w(n+ i), i &#8712; {&#8722;2,&#8722;1,0, 1,2}
+w(n+ i)/w(n+ i + 1), i &#8712; {&#8722;2,&#8722;1,0, 1}
+t(n+ i), i &#8712; {&#8722;2,&#8722;1,0, 1,2}
+t(n+ i)/t(n+ i+ 1), i &#8712; {&#8722;2,&#8722;1, 0,1}
+w(n+ i)/t(n+ j), (i, j) &#8712; {(1,0), (0,1), (&#8722;1,0), (0,&#8722;1)}
+Traits exog&#232;nes
+ac(n)
+mwt(n)/mwpos(n)
+mws(n)/mwpos(n)
+c(n)/cs(n)/cpos(n)
+</p>
+<p>TABLE 1 &#8211; Les patrons de traits utilis&#233;s &#224; la fois dans l&#8217;annotateur s&#233;quentiel et le r&#233;ordonnanceur
+(n est la position courante dans la phrase) : ils correspondent &#224; la fonction f .
+</p>
+<p>6 Evaluation
+</p>
+<p>6.1 Pr&#233;liminaires
+</p>
+<p>L&#8217;ensemble des exp&#233;riences d&#233;crites ci-dessous ont &#233;t&#233; r&#233;alis&#233;es avec l&#8217;analyseur syntaxique de
+Berkeley 6. Nous notons BKYc l&#8217;analyseur dont la grammaire 7 a &#233;t&#233; apprise sur le FTB o&#249; les
+mots compos&#233;s sont fusionn&#233;s ; BKY l&#8217;analyseur dont la grammaire a &#233;t&#233; apprise sur le FTB o&#249; les
+mots compos&#233;s sont d&#233;faits et annot&#233;s par un symbole non-terminal sp&#233;cial.
+</p>
+<p>Les exp&#233;riences sont &#233;valu&#233;es &#224; l&#8217;aide de plusieurs mesures classiques : la F-mesure [F], la mesure
+UAS (Unlabeled Attachment Score) et la mesure LA (Leaf Ancestors). F 8 prend en compte le
+parenth&#233;sage et l&#8217;&#233;tiquetage des noeuds. Le score UAS 9 &#233;value la qualit&#233; des liens de d&#233;pendance
+non typ&#233;s entre les mots. Finalement, la mesure LA 10 (Sampson et Babarczy, 2003) calcule la
+similarit&#233; entre les chemins allant des noeuds terminaux &#224; la racine de l&#8217;arbre et les chemins
+de r&#233;f&#233;rence correspondants. L&#8217;identification des mots compos&#233;s est &#233;valu&#233;e par la F-mesure
+</p>
+<p>6. Nous avons utilis&#233; la version adapt&#233;e au Fran&#231;ais pour la gestion des mots inconnus qui se trouve dans le logiciel Bon-
+sai (Candito et Crabb&#233;, 2009) : http://alpage.inria.fr/statgram/frdep/fr_stat_dep_parsing.html.
+</p>
+<p>7. Les grammaires sont apprises avec 6 cycles et une graine al&#233;atoire de 8.
+8. Cette mesure est calcul&#233;e au moyen du programme Evalb qui est disponible &#224; http://nlp.cs.nyu.edu/
+</p>
+<p>evalb/. Nous avons aussi utilis&#233; l&#8217;&#233;valuation par cat&#233;gorie implant&#233;e dans la classe EvalbByCat de l&#8217;analyseur de
+Stanford.
+</p>
+<p>9. On convertit d&#8217;abord automatiquement les analyses en consituants, en analyses en d&#233;pendances au moyen du
+logiciel Bonsai. Puis la mesure est calcul&#233;e avec l&#8217;outil disponible &#224; http://ilk.uvt.nl/conll/software.html.
+</p>
+<p>10. Nous utilisons l&#8217;outil disponible &#224; http://www.grsampson.net/Resources.html
+</p>
+<p>65</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>F(EMM) associ&#233;e aux noeuds de type EMM. La significativit&#233; statistique entre deux exp&#233;riences
+d&#8217;analyse syntaxique est calcul&#233;e au moyen du t-test unidirectionnel pour deux &#233;chantillons
+ind&#233;pendants 11. La significativit&#233; statistique entre deux exp&#233;riences d&#8217;identification de mots
+compos&#233;s est &#233;tablie par le test de McNemar (Gillick et Cox, 1989). Les r&#233;sultats de deux
+exp&#233;riences sont consid&#233;r&#233;s comme statistiquement significatifs si la valeur calcul&#233;e lors du test
+est inf&#233;rieure &#224; 0.01.
+</p>
+<p>6.2 Analyse syntaxique avec pr&#233;-identification des mots compos&#233;s
+</p>
+<p>Nous avons tout d&#8217;abord test&#233; l&#8217;analyseur BKYc prenant en entr&#233;e un texte segment&#233; par notre
+reconnaisseur CRF de mots compos&#233;s (sans les &#233;tiquettes). Ce dernier se base sur le logiciel
+Wapiti 12 (Lavergne et al., 2010) qui apprend et applique le mod&#232;le CRF. Le logiciel Unitex est
+utilis&#233; pour appliquer les ressources lexicales. L&#8217;&#233;tiqueteur morphosyntaxique lgtagger 13 sert &#224;
+extraire les traits li&#233;s aux n-grammes de cat&#233;gories grammaticales. Notre reconnaisseur int&#233;grant
+tous les traits atteint 75.9% de F(EMM) sur FTB-P7 (79.1% sans tenir compte des &#233;tiquettes). Il
+est, en pratique, meilleur que celui propos&#233; par (Green et al., 2011) qui a une F(EMM) de 71.1%
+sur les phrases inf&#233;rieures &#224; 40 mots de FTB-STF 14 : notre reconnaisseur atteint, sur ce m&#234;me
+corpus, 74% pour les traits endog&#232;nes (soit un gain absolu de +2.9%) et 77.3% pour tous les
+traits (soit un gain absolu de +6.2%).
+</p>
+<p>Pour rendre comparables les analyses g&#233;n&#233;r&#233;es par BKYc coupl&#233; au reconnaisseur, avec celles
+de l&#8217;analyseur BKY, nous avons automatiquement transform&#233; les analyses avec mots compos&#233;s
+fusionn&#233;s en leurs analyses &#233;quivalentes avec des noeuds non-terminaux sp&#233;cifiques pour les
+unit&#233;s polylexicales. Les cat&#233;gories grammaticales des composants internes ont &#233;t&#233; d&#233;termin&#233;es &#224;
+l&#8217;aide de l&#8217;&#233;tiqueteur morphosyntaxique lgtagger appris sur notre corpus d&#8217;apprentissage sans
+int&#233;grer de ressources lexicales externes. Les r&#233;sultats sont synth&#233;tis&#233;es dans la table 3.
+</p>
+<p>Traits F UAS LA F(EMM)
+BKY 81.13 83.88 92.96 69.3
+- 75.85 77.68 91.42 0.0
+endo 81.07&#8727; 85.01 93.10 73.5
+exo+endo 81.14&#8727; 85.22 93.11 75.3
+gold 84.17 91.29 94.05 93.2
+</p>
+<p>TABLE 2 &#8211; Int&#233;gration des mots compos&#233;s dans l&#8217;analyse syntaxique par identification pr&#233;alable.
+endo et exo indiquent que le mod&#232;le CRF incorpore respectivement les traits endog&#232;nes et les
+traits exog&#232;nes. gold signifie que la segmentation lexicale avant analyse syntaxique est parfaite. &#8727;
+indique que le r&#233;sultat n&#8217;est pas significatif par rapport &#224; BKY. Les tests sont r&#233;alis&#233;s sur FTB-P7.
+</p>
+<p>Les r&#233;sultats montrent un tr&#232;s grand &#233;cart de performance entre un analyseur ne tenant pas
+compte des mots compos&#233;s [trait -] et un analyseur avec une segmentation lexicale parfaite
+[gold] : on a &#8710;F = 8.32, &#8710;UAS = 13.61, &#8710;LA= 2.69 et &#8710;F(EM M) = 93.2. L&#8217;analyseur baseline
+BKY permet, en partie, de combler cet &#233;cart : 63% de &#8710;F , 46% de &#8710;UAS, 59% de &#8710;LA et 74%
+de &#8710;F(EM M). On constate qu&#8217;une reconnaissance pr&#233;alable des mots compos&#233;s n&#8217;am&#233;liore pas
+</p>
+<p>11. Nous utilisons l&#8217;outil de Dan Bikel disponible &#224; http://www.cis.upenn.edu/~dbikel/software.html.
+12. Wapiti est disponible &#224; http://wapiti.limsi.fr/. Nous l&#8217;avons configur&#233; de la mani&#232;re suivante : algorithme
+</p>
+<p>&#8217;rprop&#8217; et valeurs par d&#233;faut pour les p&#233;nalit&#233;s L1 et L2, ainsi que le crit&#232;re d&#8217;arr&#234;t.
+13. Disponible &#224; http://igm.univ-mlv.fr/~mconstan/research/software/
+14. (Green et al., 2011) ont &#233;valu&#233; leur syst&#232;me sur les phrases inf&#233;rieures &#224; 40 mots uniquement.
+</p>
+<p>66</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>le parenth&#233;sage g&#233;n&#233;ral des analyses (F-mesure) 15. Par contre, on observe un gain significatif
+de +1.34 en UAS, soit une r&#233;duction relative de 18% de l&#8217;&#233;cart avec l&#8217;analyseur gold pour le
+syst&#232;me int&#233;grant tous les traits. On remarque &#233;galement une am&#233;lioration significative de la
+reconnaissance des mots compos&#233;s de +6.0 en F(EMM), soit une r&#233;duction relative de l&#8217;&#233;cart de
++25%. Si l&#8217;on analyse les r&#233;sultats de F-mesure par cat&#233;gorie, on s&#8217;aper&#231;oit que le pr&#233;-rep&#233;rage
+des EMMs provoque des effets de bord sur les constituants sup&#233;rieurs comme les relatives et
+les subordonn&#233;es, et m&#234;me les groupes nominaux. L&#8217;un des principaux probl&#232;mes vient de
+l&#8217;identification des verbes compos&#233;s &#224; l&#8217;indicatif ou au subjonctif qui est dramatique (F-mesure de
+l&#8217;ordre de 20%). Dans une moindre mesure, le rep&#233;rage des noms communs compos&#233;s et des
+conjonctions de subordination compos&#233;es pose &#233;galement des probl&#232;mes.
+</p>
+<p>6.3 Analyse syntaxique avec r&#233;ordonnancement
+</p>
+<p>Nous avons ensuite &#233;valu&#233; l&#8217;int&#233;gration d&#8217;un r&#233;ordonnanceur apr&#232;s l&#8217;analyseur BKY. Comme dans
+(Charniak et Johnson, 2005), le r&#233;ordonnanceur se base sur un mod&#232;le maximum d&#8217;entropie dont
+les param&#232;tres sont d&#233;termin&#233;s par un algorithme d&#8217;optimisation de second ordre appel&#233; Limited
+Memory Variable Metric. Concr&#232;tement, nous utilisons une impl&#233;mentation de cet algorithme
+disponible dans les bibliot&#232;ques math&#233;matiques PETSc 16 et TAO42 17. Dans un premier temps,
+nous avons appliqu&#233; un mod&#232;le incorporant uniquement les traits d&#233;di&#233;s aux mots compos&#233;s
+(cf. section 5). Nous avons ensuite compar&#233; avec un mod&#232;le int&#233;grant aussi les traits g&#233;n&#233;raux
+d&#233;crits dans (Charniak et Johnson, 2005) ou (Collins, 20O0) par les patrons suivants : Rule, Word,
+Heavy, HeadTree, Bigrams, Trigrams, Edges, WordEdges, Heads, WProj, NGramTree et Score. Pour
+chaque exp&#233;rience, le r&#233;ordonnanceur prend, en entr&#233;e, les 50 meilleures analyses de Berkeley.
+Les r&#233;sultats sont synth&#233;tis&#233;s dans la table 3.
+</p>
+<p>Analyseur Traits F UAS LA F(EMM)
+BKY - 81.13 83.88 92.96 69.3
+BKY endo 81.35&#8727; 84.48+ 93.03 70.7+
+BKY endo+exo 81.64 84.98 93.12 74.2
+BKY std 81.98 84.40 93.41 70.8
+BKY tous 82.05+ 84.45+ 93.42 70.2+
+</p>
+<p>BKYc+ std 81.66+ 85.70 93.41 74.8
+</p>
+<p>TABLE 3 &#8211; Int&#233;gration d&#8217;un r&#233;ordonnanceur dans l&#8217;analyse syntaxique. Les notations std et tous
+correspondent respectivement aux traits g&#233;n&#233;raux et &#224; tous les traits d&#233;crits. BKYc+ correspond
+&#224; l&#8217;analyseur BKYc coupl&#233; au reconnaisseur de mots compos&#233;s avec tous les traits endog&#232;nes
+et exog&#232;nes. &#8727; et + indiquent que le r&#233;sultat n&#8217;est pas significatif respectivement par rapport &#224;
+l&#8217;analyseur baseline BKY et &#224; l&#8217;analyseur BKY coupl&#233; au r&#233;ordonnanceur avec les traits std. Les
+tests sont r&#233;alis&#233;s sur FTB-P7.
+</p>
+<p>L&#8217;utilisation de tous les traits d&#233;di&#233;s aux mots compos&#233;s permet d&#8217;augmenter toutes les mesures
+par rapport &#224; BKY : +0.51 en F, +1.10 en UAS, +0.16 en LA et +4.9 en F(EMM). Sur la
+reconnaissance des mots compos&#233;s, on constate une relative faiblesse par rapport &#224; la m&#233;thode
+par pr&#233;-identification : en analysant les analyses oracles selon F, on s&#8217;aper&#231;oit que F(EMM) a un
+</p>
+<p>15. Ces r&#233;sultats sont cependant &#224; mettre en perspective par rapport aux r&#233;sultats sur le corpus de d&#233;velopement o&#249;
+l&#8217;on observe des gains absolus significatifs : entre +0.2 et +0.7.
+</p>
+<p>16. http://www.mcs.anl.gov/petsc/.
+17. http://www.mcs.anl.gov/research/projects/tao/.
+</p>
+<p>67</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>potentiel maximum de 76.9% ce qui n&#8217;est pas tr&#232;s &#233;lev&#233;. Par ailleurs, les traits g&#233;n&#233;raux seuls
+sont plus efficaces que les traits d&#233;di&#233;s aux mots compos&#233;s pour ce qui concerne le parenth&#233;sage
+(81.98% vs. 81.64%) et le LA (93.41% vs. 93.12%). Par contre, ils d&#233;gradent l&#8217;UAS (84.40%
+vs. 84.98%) et la reconnaissance des mots compos&#233;s (70.8% vs. 74.2%) Le m&#233;lange des deux
+types de traits (tous) n&#8217;est pas tr&#232;s concluant car on n&#8217;observe aucune variation significative de
+l&#8217;&#233;cart par rapport &#224; l&#8217;analyseur avec les traits g&#233;n&#233;raux, quelle que soit la mesure. Ces r&#233;sultats
+montrent qu&#8217;il est n&#233;cessaire de trouver un autre moyen de combiner ces deux types de traits.
+</p>
+<p>7 Conclusions et Perspectives
+</p>
+<p>Dans cet article, nous avons &#233;valu&#233; deux strat&#233;gies discriminantes pour int&#233;grer la reconnaissance
+des mots compos&#233;s dans un syst&#232;me d&#8217;analyse syntaxique probabiliste : pr&#233;-identification &#233;tat-
+de-l&#8217;art des mots compos&#233;s ; rep&#233;rage final des mots compos&#233;s apr&#232;s r&#233;ordonnancement des
+n meilleures analyses. Les diff&#233;rents mod&#232;les comprennaient des traits sp&#233;cifiques aux unit&#233;s
+polylexicales. Nous avons montr&#233; que le pr&#233;-rep&#233;rage permettait d&#8217;am&#233;liorer grandement la
+reconnaissance des mots compos&#233;s et la qualit&#233; des liens de d&#233;pendance non typ&#233;s, alors que
+la F-mesure tend &#224; se stabiliser. Le r&#233;ordonnanceur augmente l&#233;g&#232;rement tous les scores, mais
+d&#233;&#231;oit en terme d&#8217;identification de mots compos&#233;s par rapport &#224; la premi&#232;re m&#233;thode. Par ailleurs,
+l&#8217;int&#233;gration des traits g&#233;n&#233;raux de (Charniak et Johnson, 2005) rend caducs les traits d&#233;di&#233;s
+aux unit&#233;s polylexicales et d&#233;grade la qualit&#233; des liens de d&#233;pendance non typ&#233;s. Il semble
+qu&#8217;aucune des deux m&#233;thodes ne soit enti&#232;rement satisfaisante. Mais ces exp&#233;riences ouvrent de
+nouvelles perspectives int&#233;ressantes. Nous pourrions combiner efficacement ces deux strat&#233;gies
+en permettant au pre-segmenteur de g&#233;n&#233;rer l&#8217;automate pond&#233;r&#233; des segmentations lexicales
+possibles et de combiner ce dernier avec l&#8217;analyseur syntaxique. Nous pourrions &#233;galement
+transposer ces deux solutions &#224; l&#8217;analyse en d&#233;pendance.
+</p>
+<p>Remerciements
+</p>
+<p>Nous souhaitons remercier Marie Candito et Spence Green pour nous avoir mis &#224; disposition
+leurs versions du corpus arbor&#233; de Paris 7.
+</p>
+<p>R&#233;f&#233;rences
+</p>
+<p>ABEILL&#201;, A., CL&#201;MENT, L. et TOUSSENEL, F. (2003). Building a treebank for french. In ABEILL&#201;, A.,
+&#233;diteur : Treebanks. Kluwer, Dordrecht.
+</p>
+<p>ARUN, A. et KELLER, F. (2005). Lexicalization in crosslinguistic probabilistic parsing : The case of
+french. In Actes de ACL.
+</p>
+<p>CAFFERKEY, C., HOGAN, D. et van GENABITH, J. (2007). Multi-word units in treebank-based
+probabilistic parsing and generation. In Proceedings of the 10th International Conference on
+Recent Advances in Natural Language Processing (RANLP-07).
+</p>
+<p>CANDITO, M. H. et CRABB&#201;, B. (2009). Improving generative statistical parsing with semi-
+supervised word clustering. In Proceedings of IWPT 2009.
+</p>
+<p>68</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>CHARNIAK, E. et JOHNSON, M. (2005). Coarse-to-fine n-best parsing and maxent discriminative
+reranking. In Proceedings of the 43rd Annual Meeting of the Association for Computational
+Linguistics (ACL&#8217;05).
+</p>
+<p>COLLINS, M. (20O0). Discriminative reranking for natural language parsing. In Proceedings of
+the Seventeenth International Conference on Machine Learning (ICML 2000).
+</p>
+<p>CONSTANT, M. et SIGOGNE, A. (2011). MWU-aware part-of-speech tagging with a CRF model
+and lexical resources. In Proceedings of the Workshop on Multiword Expressions : from Parsing
+and Generation to the Real World (MWE&#8217;11).
+</p>
+<p>CONSTANT, M., TELLIER, I., DUCHIER, D., DUPONT, Y., SIGOGNE, A. et BILLOT, S. (2011). Int&#233;grer
+des connaissances linguistiques dans un crf : application &#224; l&#8217;apprentissage d&#8217;un segmenteur-
+&#233;tiqueteur du fran&#231;ais. In Actes de Conf&#233;rence sur le traitement automatique des langues naturelles
+(TALN&#8217;11).
+</p>
+<p>COURTOIS, B. (2009). Un syst&#232;me de dictionnaires &#233;lectroniques pour les mots simples du
+fran&#231;ais. Langue Fran&#231;aise, 87:1941 &#8211; 1947.
+</p>
+<p>COURTOIS, B., GARRIGUES, M., GROSS, G., GROSS, M., JUNG, R., MATHIEU-COLAS, M., MONCEAUX, A.,
+PONCET-MONTANGE, A., SILBERZTEIN, M. et VIV&#201;S, R. (1997). Dictionnaire &#233;lectronique DELAC :
+les mots compos&#233;s binaires. Rapport technique 56, University Paris 7, LADL.
+</p>
+<p>DENIS, P. et SAGOT, B. (2009). Coupling an annotated corpus and a morphosyntactic lexicon
+for state-of-the-art pos tagging with less human effort. In Proceedings of the 23rd Pacific Asia
+Conference on Language, Information and Computation (PACLIC 2009).
+</p>
+<p>ERYIGIT, G., ILBAY, T. et ARKAN CAN, O. (2011). Multiword expressions in statistical dependency
+parsing. In Proceedings of the IWPT Workshop on Statistical Parsing of Morphologically-Rich
+Languages (SPRML&#8217;11).
+</p>
+<p>FINKEL, J. R. et MANNING, C. D. (2009). Joint parsing and named entity recognition. In
+Proceedings of NAACL.
+</p>
+<p>GILLICK, L. et COX, S. (1989). Some statistical issues in the comparison of speech recognition
+algorithms. In Proceedings of ICASSP&#8217;89.
+</p>
+<p>GREEN, S., de MARNEFFE, M.-C., BAUER, J. et MANNING, C. D. (2011). Multiword expression iden-
+tification with tree substitution grammars : A parsing tour de force with french. In Proceedings
+of the conference on Empirical Method for Natural Language Processing (EMNLP&#8217;11).
+</p>
+<p>GROSS, M. (1986). Lexicon grammar. the representation of compound words. In Proceedings of
+Computational Linguistics (COLING&#8217;86).
+</p>
+<p>HOGAN, D., FOSTER, J. et van GENABITH, J. (2011). Decreasing lexical data sparsity in statistical
+syntactic parsing - experiments with named entities. In Proceedings of ACL Workshop Multiword
+Expressions : from Parsing and Generation to the Real World (MWE&#8217;2011).
+</p>
+<p>LAFFERTY, J., MCCALLUM, A. et PEREIRA, F. (2001). Conditional random fields : Probabilistic
+models for segmenting and labeling sequence data. In Proceedings of the Eighteenth International
+Conference on Machine Learning (ICML 2001), pages 282&#8211;289.
+</p>
+<p>LAVERGNE, T., CAPP&#201;, O. et YVON, F. (2010). Practical very large scale CRFs. In Proceedings the
+48th Annual Meeting of the Association for Computational Linguistics (ACL), pages 504&#8211;513.
+Association for Computational Linguistics.
+</p>
+<p>NIVRE, J. et NILSSON, J. (2004). Multiword units in syntactic parsing. In Proceedings of
+Methodologies and Evaluation of Multiword Units in Real-World Applications (MEMURA).
+</p>
+<p>69</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>PETROV, S., BARRETT, L., THIBAUX, R. et KLEIN, D. (2006). Learning accurate, compact and
+interpretable tree annotation. In Proceedings of ACL.
+</p>
+<p>RAMISCH, C., VILLAVICENCIO, A. et BOITET, C. (2010). mwe-toolkit : a framework for multiword
+expression identification. In Proceedings of LREC.
+</p>
+<p>RAMSHAW, L. A. et MARCUS, M. P. (1995). Text chunking using transformation-based learning. In
+Proceedings of the 3rd Workshop on Very Large Corpora, pages 88 &#8211; 94.
+</p>
+<p>SAG, I. A., BALDWIN, T., BOND, F., COPESTAKE, A. A. et FLICKINGER, D. (2002). Multiword
+expressions : A pain in the neck for nlp. In Proceedings of the Third International Conference on
+Computational Linguistics and Intelligent Text Processing (CICLing &#8217;02), pages 1&#8211;15, London, UK.
+Springer-Verlag.
+</p>
+<p>SAGOT, B. (2010). The lefff, a freely available, accurate and large-coverage lexicon for french. In
+Proceedings of the 7th International Conference on Language Resources and Evaluation (LREC&#8217;10).
+</p>
+<p>SAMPSON, G. et BABARCZY, A. (2003). A test of the leaf-ancestor metric for parsing accuracy.
+Natural Language Engineering, 9(4).
+</p>
+<p>SEDDAH, D., CANDITO, M.-H. et CRABB&#201;, B. (2009). Cross-parser evaluation and tagset variation :
+a french treebank study. In Proceedings of International Workshop on Parsing Technologies
+(IWPT&#8217;09).
+</p>
+<p>SILBERZTEIN, M. (2000). Intex : an fst toolbox. Theoretical Computer Science, 231(1):33&#8211;46.
+</p>
+<p>TELLIER, I. et TOMMASI, M. (2011). Champs Markoviens Conditionnels pour l&#8217;extraction d&#8217;in-
+formation. In Eric GAUSSIER et Fran&#231;ois YVON, &#233;diteurs : Mod&#232;les probabilistes pour l&#8217;acc&#232;s &#224;
+l&#8217;information textuelle. Herm&#232;s.
+</p>
+<p>WATRIN, P. et FRAN&#199;OIS, T. (2011). N-gram frequency database reference to handle mwe
+extraction in nlp applications. In Proceedings of the Workshop on Multiword Expressions : from
+Parsing and Generation to the Real World (MWE&#8217;11).
+</p>
+<p>WEHRLI, E., SERETAN, V. et NERIMA, L. (2010). Sentence analysis and collocation identification.
+In Proceedings of the Workshop on Multiword Expression : From Theory to Applications (MWE&#8217;10).
+</p>
+<p>70</p>
+
+</div></div>
+</body></html>

@@ -1,0 +1,514 @@
+TALN 2010, Montreal, 19-23 jui11et2010
+
+Adaptation d’un Systéme de Traduction Automatique Statistique
+avec des Ressources monolingues
+
+Holger Schwenk
+LIUM, Université du Maine,
+72085 Le Mans cedex, France
+Holger.Schwenk@lium.univ-lemans.fr
+
+Résumé. Les performances d’un systeme de traduction statistique dépendent beaucoup de la qua-
+lité et de la quantité des données d’apprentissage disponibles. La plupart des textes paralleles librement
+disponibles proviennent d’organisations intemationales. Le jargon observé dans ces textes n’est pas tres
+adapté pour construire un systeme de traduction pour d’autres domaines. Nous présentons dans cet article
+une technique pour adapter le modele de traduction a un domaine différent en utilisant des textes dans
+la langue source uniquement. Nous obtenons des améliorations signiﬁcatives du score BLEU dans des
+systemes de traduction de l’arabe vers le francais et vers l’anglais.
+
+Abstract. The performance of a statistical machine translation system depends a lot on the quality
+and quantity of the available training data. Most of the existing, easily available parallel texts come from
+international organizations and the jargon observed in those texts is not very appropriate to build a ma-
+chine translation system for other domains. In this paper, we present a technique to automatically adapt the
+translation model to a new domain using monolingual data in the source language only. We observe signi-
+ﬁcant improvements in the BLEU score in statistical machine translation systems from Arabic to French
+and English respectively.
+
+M0tS-CléS I Traduction statistique, adaptation du modele de traduction, corpus monolingue, ap-
+prentissage non-supervisé.
+
+Keywords: Statistical machine translation, translation model adaptation, monolingual data, un-
+supervised training.
+
+1 Introduction
+
+La traduction automatique statistique est aujourd’hui considérée comme une alternative sérieuse aux sys-
+temes de traductions a base de regles. Ces demiers effectuent d’abord une analyse de la phrase source,
+puis une étape de transfert et ensuite la génération de la phrase dans la langue cible. Le développement
+et le maintien d’un tel systeme nécessite généralement un travail humain important par des spécialistes
+(bilingues). Un systeme statistique, en revanche, peut en principe étre développé sans connaissance des
+langues traitées. Considérons la traduction d’une phrase en francais f vers l’anglais e :
+
+e* = argm§1Xp(e|f) = argmcaxp(f|e)P(e) (1)
+
+HOLGER SCHWENK
+
+Le modele de traduction p( f |e) est appris a partir d’exemples de traductions, c’est-a-dire des textes en
+langue source et les traductions correspondantes, alignés au niveau de la phrase. Ces textes sont commu-
+nément appelés « textes paralleles » ou « bitextes » . Le modele de langue P(e) est construit a partir de
+textes dans la langue cible. Cet apprentissage automatique a partir d’exemples est généralement avancé
+comme un grand avantage des systemes de traduction statistique. Ceci a notamment permis de construire
+rapidement des systemes de traduction pour toutes les combinaisons de 22 langues européennes (Koehn
+et al., 2009), grace a l’utilisation des textes traduits par la Commission Européenne. Ce corpus parallele
+est connu sous le nom d’Europarl.
+
+En meme temps, il est clair que les performances de toute approche d’apprentissage automatique de-
+pendent largement de la quantité et de la qualité des données d’apprentissage disponibles. On constate
+souvent que les performances s’amé1iorent lorsque l’on utilise davantage de données d’apprentissage bien
+que cet effet s’accentue rapidement. D’autre part, il s’avere souvent que le domaine des données d’ap-
+prentissage correspond peu ou pas au domaine d’utilisation prévu du systeme de traduction. Pour citer un
+exemple, on comprend aisément que les traductions apprises automatiquement a partir des exemples de
+traductions dans le domaine de la ﬁnance conviennent mal pour traduire des textes médicaux. En effet,
+les vocabulaires risquent d’étre différents et il y a des mots qui se traduisent différemment en fonction du
+domaine.
+
+Malheureusement, il se trouve que pratiquement tous les bitextes librement disponibles proviennent du
+domaine parlementaire ou politique : le corpus Europarl, les comptes rendus en francais et en anglais du
+parlement canadien ( « Hansard » ) ou des textes des Nations Unies. Le modele de traduction appris sur
+ces données risque donc de favoriser des traductions spéciﬁques de ce domaine. On constate aussi que la
+premiere personne n’est pas fréquemment utilisée dans ces textes. Cependant, on peut supposer qu’il y ait
+sufﬁsamment de textes monolingues pour une grande variété de langues et domaines. Ces textes peuvent
+souvent étre trouvés sur Internet ou sont disponibles aupres de l’utilisateur du systeme de traduction. Il est
+donc nettement plus facile de construire un modele de langue spéciﬁque a un domaine.
+
+Dans ce travail, nous proposons une méthode qui permet d’adapter un modele de traduction générique a
+un domaine particulier en utilisant des données monolingues dans la langue source. Cet article est organisé
+comme suit. Dans la section suivante, nous résumons d’abord d’autres recherches qui abordent le probleme
+de ressources insufﬁsantes. La section 3 présente les systemes de traduction de référence et la section 4
+résume nos expériences. L’ article termine avec une conclusion et une discussion de futures directions de
+recherche.
+
+2 Recherches précédentes
+
+Plusieurs techniques ont été proposées dans la littérature pour aborder le probleme de ressources bilingues
+insufﬁsantes. On pourrait notamment essayer d’extraire des textes paralleles a partir de corpora compa-
+rables. Un corpus comparable bilingue peut étre déﬁni comme une collection de textes dans deux langues
+qui traitent le meme sujet sans étre des traductions parfaites. Wikipedia constitue un exemple bien connu
+d’un grand corpus comparable.
+
+Une autre piste consiste a adapter le modele de traduction a la tache sans utiliser des ressources bilingues
+supplémentaires. On peut distinguer deux facons d’effectuer cette adaptation : premierement, on ajoute de
+nouveaux mots en langue source ou de nouvelles traductions; et deuxiemement, on modiﬁe les distribu-
+
+ADAPTATION EN TRADUCTION AUTOMATIQUE STATISTIQUE
+
+tions de probabilité du modele existant pour qu’elles conviennent Inieux au domaine. Ces deux directions
+sont complémentaires et peuvent étre effectuées simultanément.
+
+Une technique classique pour adapter un modele statistique consiste a utiliser un mélange de plusieurs
+modeles et a optimiser les coefﬁcients d’interpolation a la tache. Ceci a été étudié par plusieurs auteurs
+dans le cadre de la traduction statistique, par exemple pour l’alignement des mots (Civera & Juan, 2007),
+pour la modélisation linguistique (Zhao et al., 2004; Koehn & Schroeder, 2007), et pour le modele de
+traduction (Foster & Kuhn, 2007; Chen et al. , 2008). L’ avantage de cette approche consiste dans le fait que
+peu de parametres sont modiﬁés, i.e. les coefﬁcients des mélanges. Cependant, beaucoup de probabilités
+sont modiﬁées en méme temps et il n’est pas possible de modiﬁer sélectivement la probabilité d’une
+traduction particuliere.
+
+L’extraction de textes alignés a partir de corpora comparables se fait souvent avec des techniques de
+recherche d’information, voir par exemple (Hildebrand et al., 2005). Récemment, une technique similaire
+a été Inise en oeuvre pour adapter le modele de traduction et de langage avec des textes monolingues dans la
+langue source (Snover et al., 2008). Les auteurs ont utilisé une recherche d’information interlingue pour
+trouver des textes dans la langue cible qui correspondent au domaine des textes dans la langue source.
+Cependant, il est difﬁcile de trouver les alignements entre les phrases en langue source et cible, et un
+simple modele de type IBM-1 a été utilisé.
+
+Une autre direction de recherche consiste dans l’auto-amélioration du modele de traduction. Ceci a été
+proposé la premiere fois par (Uefﬁng, 2006). L’idée consiste a traduire les données de test, a ﬁltrer les
+traductions avec une mesure de conﬁance eta utiliser les meilleures traductions pour entrainer un nouveau
+(petit) modele de traduction qui est utilisé conjointement avec la table de traduction générique. Ceci est
+en fait une approche par mélange de modeles dont un modele est construit explicitement pour chaque jeu
+de test. En pratique, ceci est uniquement possible lorsqu’une certaine quantité de données est disponible
+pour étre traduite en une seule fois. Ceci est typiquement le cas lors des évaluations du style NIST ou
+WMT avec des jeux de test d’environ 50.000 mots, mais l’utilisation de cette méthode semble étre plus
+difﬁcile dans le cadre d’un service de traduction sur Internet. Dans une telle application, on ne demande
+habituellement que la traduction de quelques phrases. Cette approche a été améliorée par la suite (Uefﬁng,
+2007) et appliquée aux autres modeles statistiques dans un systeme de traduction (Chen et al., 2008).
+
+Une autre approche comparable est l’apprentissage légerement supervisé (Schwenk, 2008). Dans ce tra-
+vail, un systeme de traduction statistique est utilisé pour traduire de grandes quantités de données en
+langue source. Ces traductions sont ensuite ﬁltrées et les meilleures sont ajoutées aux bitextes existants.
+Cette technique semble étre tres similaire a l’auto-amélioration telle que proposée par (Uefﬁng, 2006),
+mais il y a plusieurs différences conceptuelles. Premierement, nous n’utilisons a aucun moment le jeu de
+test pour adapter le modele de traduction, mais un grand corpus monolingue. Deuxiemement, nous créons
+un tout nouveau modele qui peut étre appliqué sur tout corpus de test sans modiﬁcation supplémentaire.
+Ainsi, il est possible d’utiliser un systeme adapté de cette facon dans un service de traduction sur Internet.
+
+Dans cet article, nous étudions l’utilité de cette approche pour adapter des systemes de traduction de
+l’arabe vers l’anglais et vers le francais. La traduction de l’arabe est intéressante puisqu’il s’agit d’une
+langue morphologiquement riche. Ainsi, le texte en arabe est habituellement décomposé pour séparer
+les afﬁxes et les sufﬁxes d’un mot ce qui permet de diminuer considérablement la taille du vocabulaire
+de traduction. Plusieurs auteurs signalent une amélioration de la qualité des traductions grace a cette
+décomposition morphologique, par exemple (Habash & Sadat, 2006). Elle donne également beaucoup
+de groupes de mots peu fréquents, ce qui peut entrainer une mauvaise estimation des probabilités de
+
+HOLGER SCHWENK
+
+traduction par fréquence relative. Notre but est d’amé1iorer l’estimation de ces probabilités par l’utilisation
+de textes monolingues.
+
+3 Systémes de traduction de référence
+
+Dans cet article, un systeme de traduction statistique basé sur les segments est utilisé (en anglais « phrase-
+based statistical machine translation system » ) pour les deux paires de langues, en utilisant le logiciel
+libre Moses (Koehn et al., 2007). L’équation 1 peut étre réécrite aﬁn de faire apparaitre des fonctions
+caractéristiques f,-(e, f) :
+
+6* = arg mgXp(f|e)P(e) = arg mgXHfi(e, f)“ = arg log fi(e7 f) (2)
+
+Nous utilisons quatorze fonctions caractéristiques : les probabilités de traduction et lexicales dans les deux
+directions, sept fonctions pour le modele de distorsion lexicalisé, une pénalité sur les mots et les groupes
+de mots, et une fonction pour le modele de langue. Les systemes sont construits de la facon suivante :
+d’abord le logiciel GIZA++ est utilisé aﬁn d’obtenir les alignements mot a mot dans les deux directions.
+11 existe une version qui permet d’accélérer le calcul sur des machines multi-coeurs (Gao & Vogel, 2008).1
+Ensuite les groupes de mots et les réordonnements sont extraits, avec les valeurs de défaut de l’outil Moses.
+Finalement, les coefﬁcients des fonctions caractéristiques sont optimisés par l’outil CMERT.
+
+Les modeles de langage sont des quadri-grammes a repli, construits avec l’outil SRILM (Stolcke, 2002).
+Les données d’entrainement correspondent au cote anglais des bitextes plus une importante collection de
+textes de journaux. Ces textes sont disponibles aupres du LDC sous le nom corpus Gigaword.
+
+Dans la plupart des études des outils tels que l’analyseur de Buckwalter et les outils MADA et TOKAN
+de l’université de Columbia sont utilisés pour effectuer la décomposition morphologique des textes en
+arabe (Habash & Sadat, 2006). Dans le présent travail, nous utilisons le module d’analyse du systeme de
+traduction de l’entreprise SYSTRAN pour effectuer ce travail. Des regles de décomposition sont d’abord
+appliquées, assistées par un dictionnaire. La décomposition la plus probable des mots absents du diction-
+naire est effectuée. De facon générale, toutes les décompositions possibles sont envisagées et puis ﬁltrées
+en utilisant le contexte dans la phrase. Cette étape se base sur une analyse globale de la phrase ainsi que
+des connaissances lexicales. Les textes francais ont été tokénisés avec les outils de Moses. La casse et les
+ponctuations sont préservées.
+
+3.1 Traduction arabe/anglais
+
+Le National Institute of Standards and Technology (NIST) organise depuis quelques années des campagnes
+d’évaluations internationales des systemes de traduction automatique. Ces évaluations sont communément
+considérées comme la référence dans le domaine. Le systeme de traduction arabe/anglais décrit ici fait
+partie des meilleurs systemes de l’évaluation organisée en 2009. Les conditions et résultats détaillés sont
+disponibles sur le site Internet de NIST.2
+
+1Les sources sont disponibles at http: / /www . cs . cmu . edu/~qing/
+Zhttp://www.itl.nist.gov/iad/mig/tests/mt/2009/
+
+ADAPTATION EN TRADUCTION AUTOMATIQUE STATISTIQUE
+
+Le modele de traduction est appris sur divers textes paralleles disponibles aupres du LDC dans le cadre de
+l’évaluation NIST pour un total d’environ 56 millions de mots arabes. Nous avons également ajouté 133M
+de mots du corpus des Nations Unies. Le modele de langue est appris sur un total de plus de 3 milliards
+de mots. Ces ressources étaient les memes pour tous les participants a cette évaluation ( « condition
+contrainte » ).
+
+L’optiIr1isation des parametres a été effectuée sur les données d’évaluation de 2006. Nous donnons ega-
+lement des résultats sur les données d’évaluation de 2008 qui ont été utilisées comme jeu de test inteme.
+Dans les deux cas, il s’agit de données du domaine des actualités radio et télévisées et des discussions sur
+Internet. Quatre références de traduction sont disponibles et la casse et la ponctuation sont préservées.
+
+Taille des Dev Test
+bitextes Nist06 Nist08
+
+News + ISI bitextes 56M 42,69 42,06
++ données ONU 189M 43,51 42,19
+
+Bitextes
+
+TAB. 1 — Scores BLEU du systeme de référence arabe/anglais.
+
+Les scores BLEU de ces systemes de référence sont donnés dans le tableau 1. On note que les données
+de l’ONU apportent un faible gain du score BLEU malgré une taille considérable. Ceci s’explique par le
+fait qu’il s’agit de données hors domaine. Bien que ce bitexte apporte beaucoup de traductions, il entraine
+également une modiﬁcation des probabilités de traduction calculées par fréquence relative. Les traductions
+du domaine « ONU » semblent donc doIr1inerles traductions plus adaptées des bitextes du domaine. Nous
+montrerons dans cet article que ceci peut étre « corrigé » en adaptant le modele de traduction avec des
+données monolingues.
+
+3.2 Traduction arabe/frangais
+
+Nous considérons également la traduction de l’arabe vers le francais. Cette paire de langues nous semble
+intéressante pour plusieurs raisons. Premierement, il s’agit de deux langues morphologiquement riches,
+par rapport a la traduction habituelle vers l’anglais. Deuxiemement, il y a peu de bitextes bien adaptés
+au domaine de traduction et un grand corpus hors domaine. Ce sont exactement les conditions qui ont
+motivé notre approche d’adaptation du modele de traduction. Finalement, on peut facilement identiﬁer des
+applications d’un systeme de traduction de l’arabe vers le francais.
+
+Le développement des premiers systemes de traduction statistiques pour cette paire de langues a probable-
+ment débuté avec le projet DGA TRAMES3 dont le but était la traduction de la parole arabe vers le francais.
+Dans le cadre de ce projet, environ 90 heures de discours radio et télévisés ont été enregistrés, transcrits et
+ensuite traduits en francais. La DGA nous a donné acces a ces textes paralleles d’environ 260 Inille mots.
+Ces données sont parfaitement adaptées au domaine mais sont bien sﬁr de taille trop limitée pour entrainer
+un modele de traduction statistique performant. Ainsi, nous les avons complétés par 1,1 million mots de
+textes téléchargés du site Internet du projet Syndicate4 et par environ 200 millions de mots de données de
+l’ONU. Ce dernier corpus a été collecté par l’entreprise SYSTRAN.
+
+3Traduction Automatique par Méthodes Statistiques
+4http : //www . project— syndicate . org
+
+HOLGER SCHWENK
+
+La DGA a également produit un jeu de test avec 4 traductions de référence. Ce corpus a été aléatoirement
+divisé en jeu de développement et test de 10 Inille mots chacun environ. Les performances des systemes de
+référence sont données dans le tableau 2. Le modele de langue est un quadri-grammes entrainé sur un peu
+plus de 1,3 Inilliard de mots (cote francais des bitextes, corpus Gigaword francais et d’autres journaux).
+
+1 Bitexts 1 #mots | Dev 1 Test 1
+TRAMES + Syndicate 858k 36,68 35,45
+ONU 203M 40,02 37,91
+
+TRAMES + Syndicate + ONU 204M 41,88 40,04
+
+TAB. 2 — Scores BLEU du systeme de référence arabe/francais.
+
+A notre connaissance, un seul autre systeme de traduction statistique arabe/francais a été développé, pre-
+cisément dans le cadre du projet TRAMES (Hasan & Ney, 2008). Dans ce travail, le meme jeu de test a été
+utilisé, mais les bitextes sont différents : les textes paralleles du projet TRAMES, des données de l’ONU
+de la période 2001 a avril 2007, les archives de Amnesty International et des articles du Monde Diploma-
+tique. Les auteurs donnent un score BLEU de 41,1 sur le jeu de test complet d’environ vingt Inilles mots.
+Ce systeme utilise donc d’autres ressources que le notre et il n’est pas possible de comparer directement
+les performances. Cependant, on peut probablement conclure que des scores BLEU supérieurs a 40 points
+semblent correspondre a l’état de l’art pour cette paire de langues. Ceci correspond également aux résultats
+observés dans les évaluations NIST pour la paire de langues arabe/anglais (cf. tableau 1). Dans les deux
+cas il s’agit de la traduction de textes radio et télévisés et quatre références de traductions sont disponibles.
+
+4 Adaptation du modéle de traduction
+
+Le but de ce travail est l’adaptation du modele de traduction sans bitextes supplémentaires, mais avec des
+données monolingues dans la langue source. Habituellement, il est bien plus facile de trouver de tels textes,
+en particulier lorsqu’il s’agit de textes du domaine des actualités comme dans ce travail. Nous utilisons ici
+des parties du corpus Gigaword en arabe du LDC.
+
+Ces textes sont traduits par les systemes de référence décrits ci-dessus. Ensuite, les traductions automa-
+tiques sont ﬁltrées aﬁn de ne garder que les « meilleures » . Cette sélection pourrait étre basée sur des
+scores de conﬁance au niveau des mots (Uefﬁng, 2007). Dans notre cas, nous avons utilisé le logarithme
+de la vraisemblance foumi par le décodeur, normalisé par le nombre de mots dans chaque phrase. Les
+traductions ﬁltrées sont ajoutées aux bitextes existants et la procédure complete de construction d’un sys-
+teme de traduction statistique est effectuée, c’est-a-dire l’alignement des mots par GIZA++, l’eXtraction
+des groupes de mots et l’optiInisation des coefﬁcients A,-. Alternativement, on pourrait réutiliser les ali-
+gnements déterminés par le décodeur Moses. Ceci pourrait accélérer le processus puisque nous omettons
+l’étape effectuée par GIZA++.
+
+Les caractéristiques des corpora Gigaword de LDC sont données dans le tableau 3. Le systeme arabe/
+francais n’a été adapté que sur le corpus AFP alors que nous avons utilisé les corpora AFP, XIN et NHR
+pour le systeme arabe/anglais. Notons que les textes de LDC en anglais et francais sont utilisés lors de la
+construction du modele de langue P(e). On peut supposer que ces textes contiennent les traductions de
+quelques phrases des textes en arabe, ce qui devrait aider a produire de bonnes traductions automatiques.
+Ainsi nous parlons d’un apprentissage légerement supervisé par le modele de langue (Schwenk, 2008).
+
+ADAPTATION EN TRADUCTION AUTOMATIQUE STATISTIQUE
+
+1 source  arabe l anglais | francais
+
+AFP 145M 527M 570M
+APW - 101 1M 200M
+ASB 7M - -
+HYT 175M - -
+NHR 188M - -
+UMH 1M - -
+XIN 58M 280M -
+
+TAB. 3 — Caractéristiques des corpora Gigaword de LDC (nombre de mots).
+
+4.1 Adaptation du systéme arabe/anglais
+
+Les scores BLEU apres adaptation du systeme arabe/anglais aux textes en arabe de l’AFP, XIN et HYT
+respectivement sont donnés dans le tableau 4. Bien que les scores BLEU sur les données de développe-
+ment ne changent que peu, on constate une nette amélioration des performances sur les données de test.
+On note aussi que les systemes adaptés utilisent moins de bitextes que le systeme de référence. Ceci s’ex-
+plique par le fait que les données de l’ONU ne sont plus utilisées dans les systemes adaptés puisque ces
+données hors-domaine sont remplacées par les traductions automatiques des corpora arabes du domaine.
+Pour chaque corpus, nous avons essayé différents seuils sur la vraisemblance normalisée du décodeur. Le
+choix du meilleur seuil était bien sur basé uniquement sur les performances obtenues sur les données de
+développement.
+
+Adaptation T aille des l)ev Te st
+bitextes N1st06 N1st08
+Aucune 189M 43,51 42,19
+AFP 81M 43,64 43,10
+XIN 48M 43,36 43,06
+HYT 49M 43,77 43,00
+Combinaison - 43,98 43,28
+
+TAB. 4 — Adaptation du systeme arabe/anglais.
+
+Finalement, nous avons effectué une simple combinaison des trois systemes adaptés indépendamment : les
+listes des n meilleures hypotheses sont concaténées et la meilleure hypothese est extraite. Ceci a perIr1is
+d’obtenir un faible gain supplémentaire (demiere ligne du tableau 4). Ce systeme a été tres bien placé lors
+des évaluations NIST de 2009.5 Le systeme ofﬁciel inclut une autre composante que nous avons oIr1ise ici
+par manque de place (la modélisation linguistique dans l’espace continu (Schwenk, 2010)).
+
+4.2 Adaptation du systéme arabe/francais
+
+Les performances du systeme arabe/francais adapté sont résumées dans le tableau 5. Ici, nous constatons
+un gain en score BLEU tres appréciable de plus de 3,5 points BLEU sur les données detest. Cette amelio-
+ration importante pourrait s’expliquer par le faible nombre de bitextes du domaine par rapport aux données
+
+Shttp://www.itl.nist.gov/iad/mig/tests/mt/2009/
+
+HOLGER SCHWENK
+
+#mots
+arabe
+Référence 217M 41,88 40,04
+Adapté 48M 45,44 43,68
+
+Dev Test
+
+TAB. 5 — Adaptation du systeme de traductions arabe/francais.
+
+de l’ONU, tres volumineuses mais hors domaine. Ce rapport était plus équilibré pour la paire de langues
+arabe/anglais.
+
+Nous avons analysé la table de traduction pour ce systeme adapté et le systeme de référence qui a été
+entrainé sur plus de 200M de mots. Ceci est résumé dans le tableau 6. La table de traduction initiale avait
+329M de lignes dont 22,9M pouvaient étre potentiellement appliquées aux données de test. La table de
+traduction du systeme adapté, d’autre part, n’utilise que 700k d’un total de 8,6M d’entrées. I1 parait clair
+que la table de traduction obtenue en entrainant sur les données de l’ONU contienne beaucoup d’entrées
+qui ne sont pas utilisées, voire meme fausses. Il est surprenant de voir que la table de traduction du systeme
+adapté soit plus petite et qu’elle contienne 11% de segments de la langue source en plus (18029 par rapport
+a 16263). Toutes ces entrées correspondent aux nouvelles séquences de mots puisque l’apprentissage non-
+supervisé ne permet pas d’augmenter le vocabulaire des mots source.
+
+1  Reference ‘ Adapté
+
+Nombre d’entrées 22,9M 700k
+Nombre d’entrées différentes cote source 16263 18029
+Nombre moyen de traductions 1406,4 38,8
+Longueur moyenne d’une entrée cote source 2,65 2,81
+
+TAB. 6 — Caractéristiques de la table de traduction des deux systemes. Dans les deux cas, la table a été
+ﬁltrée pour ne contenir que les groupes de mots qui peuvent étre appliqués aux données detest.
+
+Nous supposons que ceci est particulierement important avec la décomposition morphologique de l’arabe.
+Cette décomposition permet de réduire considérablement le vocabulaire, mais produit également beaucoup
+de séquences de tokens. I1 semble étre important d’inclure dans la table de traduction des séquences qui
+apparaissent dans les textes du domaine. Comme effet de bord, la plus petite table de traduction entraine
+un gain de vitesse de la traduction d’environ 40%.
+
+Nous avons comparé les traductions du systeme avant et apres adaptation : le TER6 est a environ 30.
+Les deux traductions different donc signiﬁcativement. Quelques exemples de traductions sont reproduits
+dans la ﬁgure 1. Le systeme adapté produit manifestement de meilleures traductions pour ces exemples.
+I1 reste bien sﬁr quelques erreurs dans ces phrases, mais la qualité des traductions permet largement de
+comprendre le sens des phrases.
+
+5Translation Edit Rate (SnoVer et al., 2006)
+
+ADAPTATION EN TRADUCTION AUTOMATIQUE STATISTIQUE
+
+Source: .¢-.,L.°‘:.JI E,a;|5.5Jl ,,.a.;;JT  pg?    3.13 cal}: a1'_5|5.5J| 
+
+le tribunal irakien a commencé depuis peu par la direction du reglement des accusations
+
+Base: . , . . .
+contre l'anc1en pres1dent irakien.
+
+AdaPt_ le tribunal irakien a commencé depuis peu une liste d'accusations contre l'ancien président
+
+irakien.
+Ref La Cour irakienne a commence a dresser la liste des inculpations de l'ancien président
+' irakien.
+. = g - _ ‘1 = I ’ , 1‘ , = , , ’ ’ ft‘
+Source 9,; ¢‘lJ| ,o|j._,.§  J.nic1wf,.l._g|}m~}l|  {bl   jglras o;ul'.9|
+- - - -.s .s ,1 . f .—._, 5, ,‘ "5 1 ,, -
+Q_9j.'a.>q_ |_9JlS ,_-,U.>|  .JLg.c| ‘cu LS  =_m..'aJ|
+Base_ De source militaire israélienne a indiqué que l'armée israélienne a arrété dans la nuit militants
+' a Ramallah en Cisj ordanie ont été arrétés autres militants qui 
+Ada t_ Selon des sources militaires israéliennes, l'armée israélienne a arrété dans la nuit de militants
+P ' a Ramallah, en Cisj ordanie, a également été arrété deux autres activistes qui 
+Ref Des sources militaires israéliennes ont indiqué que l'armée israélienne a arrété de nuit un
+
+activiste a Ramallah en Cisj ordanie, ainsi que deux autres activistes qui 
+
+Source:  n'i§l.5uiTa.ll  mséliill 3.3.53
+Base: Moharnmed du brouillard, le cycle de la presse, au Yémen.
+
+Adapt: Mohammed, une tournée de la presse le Yémen.
+
+Ref: Mohamed Al-Ghobari, tour de la presse, Yémen. ‘
+
+Source: .L§|j.5l|,54_: Liggiﬁgaamgé  
+
+Base: d'autre part commencé aussi embarrassée a retirer ses troupes d'Irak.
+
+Adapt: D'autre part, la Thai'lande a commence a retirer ses troupes d'Irak.
+
+Ref: D'autre part, la Thai'lande a également commence a retirer ses troupes d'Irak.
+
+FIG. 1 — Exemples de traductions automatiques tirés du jeux de test (systeme de référence, systeme adapté
+et référence de traduction humaine).
+
+5 Conclusion
+
+L’ approche statistique a la traduction automatique est aujourd’hui utilisée pour construire rapidement des
+systemes de traduction pour de nombreuses paires de langues. En general, on se contente de prendre
+tous les textes paralleles disponibles pour entrainer le modele de traduction. La plupart de ces textes
+proviennent cependant d’un domaine bien spéciﬁque — les discours parlementaires — ce qui les rend peu
+appropriés pour d’autres domaines. D’autre part, des textes monolingues existent généralement dans la
+plupart des domaines d’intérét.
+
+Dans ce travail, nous avons proposé une approche qui utilise des textes monolingues en langue source pour
+adapter un modele de traduction générique. Pour cela les textes sont traduits par un systeme générique
+initial, ﬁltrés et les plus ﬁables sont ajoutés aux textes paralleles. Apres un nouveau cycle d’apprentissage,
+nous obtenons un systeme adapté. Cette technique a permis d’obtenir des améliorations signiﬁcatives du
+score BLEU dans des systemes de traduction arabe/anglais et arabe/frangais.
+
+Plusieurs extensions de l’approche sont actuellement étudiées, notamment d’autres scores de conﬁance
+pour ﬁltrer les traductions automatiques, le traitement des n meilleures hypotheses au lieu de la traduction
+la plus probable, et l’utilisation des alignements fournis par le décodeur au lieu de relancer GIZA++.
+
+HOLGER SCHWENK
+
+Remerciements
+
+Ces recherches ont été partiellement ﬁnancées par le gouvemement francais sous le projet INSTAR (ANR
+
+J CJ C06_143038) et la Commission Européenne sous le projet EuromatrixPlus. Le corpus parallele arabe/
+
+francais de données radio et télévisées ainsi que les données de test correspondantes ont été Inises a dispo-
+sition par la DGA. Une partie de ces travaux a été effectuée en collaboration avec l’entreprise SYSTRAN.
+
+Références
+
+CHEN B ., ZHANG M., AW A. & LI H. (2008). Exploiting n-best hypotheses for SMT self-enhancement. In ACL,
+p. 157-160.
+
+CIVERA J. & JUAN A. (2007). Domain adaptation in statistical machine translation with mixture modelling. In
+Second Workshop on SMT, p. 177-180.
+
+FOSTER G. & KUHN R. (2007). Mixture-model adaptation for SMT. In EMNLP, p. 128-135.
+
+GAO Q. & VOGEL S. (2008). Parallel implementations of word alignment tool. In Software Engineering, Testing,
+and Quality Assurance for Natural Language Processing, p. 49-57, Columbus, Ohio 2 Association for Computa-
+tional Linguistics.
+
+HABASH N. & SADAT F. (2006). Arabic preprocessing schemes for statistical machine translation. In NAACL, p.
+49-52.
+
+HASAN S. & NEY H. (2008). A multi-genre SMT system for Arabic to French. In LREC, p. 2167-2170.
+
+HILDEBRAND A. S ., ECK M., VOGEL S. & WAIBEL A. (2005). Adaptation of the translation model for statistical
+machine translation based on information retrieval. In EAMT, p. 133-142.
+
+KOEHN P., BIRCH A. & STEINBERGER R. (2009). 462 machine translation systems for Europe. In MT Summit.
+
+KOEHN P., HOANG H., BIRCH A., CALLISON-BURCH C., FEDERICO M., BERTOLDI N., CowAN B., SHEN
+W., MORAN C., ZENS R., DYER C., BOJAR 0., CONSTANTIN A. & HERBST E. (2007). Moses : Open source
+toolkit for statistical machine translation. In ACL, demonstration session.
+
+KOEHN P. & SCHROEDER J. (2007). Experiments in domain adaptation for statistical machine translation. In
+Second Workshop on SMT, p. 224-227.
+
+SCHWENK H. (2008). Investigations on large-scale lightly-supervised training for statistical machine translation.
+In IWSLT, p. 182-189.
+
+SCHWENK H. (2010). Continuous space language models for statistical machine translation. The Prague Bulletin
+of Mathematical Linguistics, (93).
+
+SNOVER M., DORR B. & SCHWARTZ R. (2008). Language and translation model adaptation using comparable
+corpora. In EMNLP.
+
+SNOVER M., DORR B., SCHWARTZ R., MICCIULLA L. & MAKHOUL J. (2006). A study of translation edit rate
+with targeted human armotation. In ACL.
+
+STOLCKE A. (2002). SRILM - an extensible language modeling toolkit. In ICSLP, p. H 2 901-904.
+UEFFING N. (2006). Using monolingual source-language data to improve MT performance. In IWSLT, p. 174-181.
+UEFFING N. (2007). Transductive learning for statistical machine translation. In ACL, p. 25-32.
+
+ZHAO B., ECK M. & VOGEL S. (2004). Language model adaptation for statistical machine translation with
+structured query models. In Coling.
+

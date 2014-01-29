@@ -1,0 +1,744 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Vectorisation, Okapi et calcul de similarit&#233; pour le TAL : pour oublier enfin le TF-IDF</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>Actes de la conf&#233;rence conjointe JEP-TALN-RECITAL 2012, volume 2: TALN, pages 85&#8211;98,
+Grenoble, 4 au 8 juin 2012. c&#169;2012 ATALA &amp; AFCP
+</p>
+<p>TALN 2011, Montpellier, 27 juin &#8211; 1er juillet 2011
+</p>
+<p>Vectorisation, Okapi et calcul de similarit&#233; pour le TAL :
+pour oublier enfin le TF-IDF
+</p>
+<p>Vincent Claveau
+IRISA-CNRS
+</p>
+<p>Campus de Beaulieu, 35042 Rennes, France
+</p>
+<p>vincent.claveau@irisa.fr
+</p>
+<p>R&#201;SUM&#201;
+Dans cette prise de position, nous nous int&#233;ressons au calcul de similarit&#233; (ou distances)
+entre textes, probl&#233;matique pr&#233;sente dans de nombreuses t&#226;ches de TAL. Nous nous effor&#231;ons
+de montrer que ce qui n&#8217;est souvent qu&#8217;un composant dans des syst&#232;mes plus complexes est
+parfois n&#233;glig&#233; et des solutions sous-optimales sont employ&#233;es. Ainsi, le calcul de similarit&#233;
+par TF-IDF/cosinus est souvent pr&#233;sent&#233; comme &#171; &#233;tat-de-l&#8217;art &#187;, alors que des alternatives
+souvent plus performantes sont employ&#233;es couramment dans le domaine de la Recherche
+d&#8217;Information (RI). Au travers de quelques exp&#233;riences concernant plusieurs t&#226;ches, nous
+montrons combien ce simple calcul de similarit&#233; peut influencer les performances d&#8217;un
+syst&#232;me. Nous consid&#233;rons plus particuli&#232;rement deux alternatives. La premi&#232;re est le sch&#233;ma
+de pond&#233;ration Okapi-BM25, bien connu en RI et directement interchangeable avec le TF-IDF.
+L&#8217;autre, la vectorisation, est une technique de calcul de similarit&#233; que nous avons d&#233;velopp&#233;e
+et qui offrent d&#8217;int&#233;ressantes propri&#233;t&#233;s.
+</p>
+<p>ABSTRACT
+Vectorization, Okapi and computing similarity for NLP : say goodbye to TF-IDF
+</p>
+<p>In this position paper, we review a problem very common for many NLP tasks: computing
+similarity (or distances) between texts. We aim at showing that what is often considered as a
+small component in a broader complex system is very often overlooked, leading to the use
+of sub-optimal solutions. Indeed, computing similarity with TF-IDF weighting and cosine is
+often presented as &#8220;state-of-theart&#8221;, while more effective alternatives are in the Information
+Retrieval (IR) community. Through some experiments on several tasks, we show how this
+simple calculation of similarity can influence system performance. We consider two particular
+alternatives. The first is the weighting scheme Okapi-BM25, well known in IR and directly
+interchangeable with TF-IDF. The other, called vectorization, is a technique for calculating
+text similarities that we have developed which offers some interesting properties.
+</p>
+<p>MOTS-CL&#201;S : Calcul de similarit&#233;, mod&#232;le vectoriel, TF-IDF, Okapi BM-25, vectorisation.
+</p>
+<p>KEYWORDS: Calculating similarities, vector space model, TF-IDF, Okapi BM-25, vectoriza-
+tion.
+</p>
+<p>85</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>1 Introduction
+</p>
+<p>&#171; Okapi, qu&#8217;est ce que c&#8217;est ? &#187;, &#171; Quelle est la diff&#233;rence entre un lemme et un stem (racine) ? &#187;
+Voici deux questions pos&#233;es &#224; plusieurs reprises dans des conf&#233;rences de Traitement Automa-
+tique des Langues (TAL) pour la premi&#232;re et de Recherche d&#8217;Information (RI) pour la seconde.
+Elles illustrent le relatif cloisonnement des deux communaut&#233;s concern&#233;es, bien que RI et TAL
+partagent un grand nombre de probl&#233;matiques, et le langage (&#233;crit ou oral) comme mat&#233;riau
+de base. Dans cette prise de position, nous nous int&#233;ressons indirectement &#224; la premi&#232;re
+question et donc &#224; l&#8217;une des cons&#233;quences de la m&#233;connaissance de certaines techniques de
+RI dans les applications du TAL. Pr&#233;cisons que le propos n&#8217;est pas ici de dresser un &#233;tat de
+l&#8217;art complet sur les points de rencontre entre TAL et RI (pour un panorama de l&#8217;utilisation du
+TAL en RI, voir par exemple Moreau et S&#233;billot (2005)).Nous souhaitons simplement mettre
+en &#233;vidence l&#8217;importance du calcul de distance (ou de similarit&#233;), probl&#233;matique largement
+trait&#233;e en RI, dans ces applications du TAL1.
+</p>
+<p>Au travers de quelques travaux, nous montrons dans cet article que la m&#233;thode de calcul
+de similarit&#233;, &#224; syst&#232;me identique par ailleurs, influence grandement les r&#233;sultats. Plus
+particuli&#232;rement, le but de cette communication est de faire valoir quatre points :
+</p>
+<p>1. au sein d&#8217;un syst&#232;me de TAL n&#233;cessitant des calculs de similarit&#233;, le choix de la m&#233;-
+thode de calcul doit &#234;tre soigneusement &#233;tudi&#233; car il peut changer drastiquement les
+performances d&#8217;un syst&#232;me ;
+</p>
+<p>2. la similarit&#233; bas&#233;e sur le TF-IDF/cosinus n&#8217;est pas &#171; &#233;tat-de-l&#8217;art &#187;, comme on le lit trop
+souvent ;
+</p>
+<p>3. des alternatives bien &#233;tablies et tout aussi simples (par exemple Okapi) donnent de
+meilleurs r&#233;sultats en g&#233;n&#233;ral ;
+</p>
+<p>4. enfin, des propositions r&#233;centes, notamment l&#8217;approche par vectorisation que nous
+avons d&#233;velopp&#233;e, en donnent encore de meilleurs.
+</p>
+<p>Cette position peut para&#238;tre d&#8217;autant plus facile &#224; prendre qu&#8217;elle semble consensuelle. Pour
+autant, il est frappant de constater combien ces diff&#233;rents points sont loin d&#8217;&#234;tre ancr&#233;s
+dans la communaut&#233; : par exemple, dans les actes des quatre derni&#232;res &#233;ditions de la
+conf&#233;rence TALN, la pond&#233;ration TF-IDF est cit&#233;e dans 31 articles, contre 4 fois pour Okapi
+(principalement par les m&#234;mes auteurs de plus).
+</p>
+<p>Cet article est organis&#233; de la mani&#232;re suivante. La section 2 propose quelques rappels et
+consid&#233;rations sur les calculs de distance entre textes, en d&#233;taillant notamment les approches
+TF-IDF et Okapi. Nous pr&#233;sentons ensuite en section 3 une m&#233;thode de calcul de distance aux
+propri&#233;t&#233;s int&#233;ressantes que nous avons d&#233;velopp&#233;e et utilis&#233;e dans plusieurs t&#226;ches. Les trois
+sections suivantes pr&#233;sentent de mani&#232;re concise trois applications (des r&#233;f&#233;rences d&#233;taillant
+les approches sont donn&#233;es) dans lesquelles nous rapportons les performances au regard du
+choix du calcul de similarit&#233;.
+</p>
+<p>1Ce travail a &#233;t&#233; r&#233;alis&#233; dans le cadre du programme Qu&#230;ro (http://www.quaero.org), financ&#233; par OSEO,
+agence nationale de valorisation de la recherche.
+</p>
+<p>86</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>2 Calcul de distance et mod&#232;le vectoriel
+</p>
+<p>2.1 Repr&#233;sentation vectorielle et sacs de mots
+</p>
+<p>D&#233;s lors que l&#8217;on manipule des donn&#233;es (des textes dans notre cas), il est souvent possible de
+les d&#233;crire avec un ensemble (fini et fixe) de valeurs. Ces valeurs, et donc les objets qu&#8217;elles
+repr&#233;sentent, peuvent alors &#234;tre interpr&#233;t&#233;es comme des vecteurs formant un espace vectoriel.
+L&#8217;avantage de cette repr&#233;sentation est que l&#8217;on sait faire certaines op&#233;rations assez facilement
+dans de tels espaces, notamment des calculs de distance/similarit&#233; tr&#232;s rapides.
+</p>
+<p>Dans le cas des textes, ces repr&#233;sentations consistent souvent &#224; consid&#233;rer le document (ou
+n&#8217;importe quelle donn&#233;e textuelle) comme un sac-de-mots, c&#8217;est-&#224;-dire un ensemble non
+structur&#233;, sans information sur la s&#233;quentialit&#233; des mots dans le texte. Usuellement, on calcule
+pour chaque mot pr&#233;sent dans le document une valeur refl&#233;tant son importance comme
+descripteur du document (cf. sch&#233;ma de pond&#233;ration ci-apr&#232;s). Les mots du vocabulaire (ou
+de la collection de documents trait&#233;e) absents du document ont une valeur nulle. Finalement,
+le texte est donc d&#233;crit comme un vecteur d&#8217;un espace ayant pour dimensions tous les
+mots du vocabulaire. Ces espaces sont donc tr&#232;s grands (par exemple R100 000 pour une
+collection moyenne monolingue), mais les vecteurs sont aussi tr&#232;s creux, ce qui permet une
+repr&#233;sentation compacte, mais surtout de rendre certains calculs tr&#232;s rapides (cf. sous-section
+suivante).
+</p>
+<p>Cette repr&#233;sentation du texte est tr&#232;s utilis&#233;e, avec diff&#233;rentes variantes (sac-de-ngrams ou
+plus g&#233;n&#233;ralement sac-de-features...). Cela s&#8217;explique par sa simplicit&#233; de mise en &#339;uvre, ses
+manipulations efficaces, et bien que pauvre (elle ne n&#233;cessite aucun traitement complexe ou
+de donn&#233;es externes), elle donne souvent de bons r&#233;sultats en pratique.
+</p>
+<p>2.2 Distances dans les espaces vectoriels
+</p>
+<p>Dans le mod&#232;le vectoriel (Salton et al., 1975), les documents et les requ&#234;tes sont repr&#233;sent&#233;s
+par des vecteurs. L&#8217;appariement entre un document et une requ&#234;te se fait en calculant la
+proximit&#233; de leur vecteur, le plus souvent en utilisant une distance de type Lp. Pour deux
+documents d et q (ou un document et une requ&#234;te), la distance Lp est d&#233;finie comme suit
+(on note V le vocabulaire de la collection, c&#8217;est-&#224;-dire, l&#8217;ensemble des termes d&#8217;indexation de
+tous les documents) :
+</p>
+<p>&#948;Lp(q, d) = p
+</p>
+<p>&#8730;&#8721;
+t&#8712;V
+|qt &#8722; dt|p
+</p>
+<p>Les valeurs les plus courantes sont p = 1 (distance L1, dite manhattan ou city-block),
+p = 2 (distance L2 ou euclidienne), ou p &#8594; &#8734; (distance de Chebyshev) ; p n&#8217;est pas
+n&#233;cessairement un entier mais doit &#234;tre sup&#233;rieur &#224; 1 pour que soit respect&#233;e l&#8217;in&#233;galit&#233;
+triangulaire. Rappelons que la distance bas&#233;e sur le cosinus habituellement utilis&#233;e en RI
+textuelle est &#233;quivalente (i.e. produit le m&#234;me ordonnancement des documents) &#224; la distance
+L2 lorsque les vecteurs sont normalis&#233;s : &#948;L2(q, d) =
+</p>
+<p>&#8730;
+2&#8722; 2 &#8727; &#948;cos(q, d)
+</p>
+<p>Les distances Lp avec p pair, et donc la distance L2 et le cosinus en particulier, ont l&#8217;avantage
+d&#8217;&#234;tre rapides &#224; calculer quand les vecteurs sont norm&#233;s (sous Lp) et creux. En effet, seules
+</p>
+<p>87</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>les composantes des vecteurs qui sont non nulles &#224; la fois pour la requ&#234;te et le document
+interviennent dans le calcul. Dans le mod&#232;le vectoriel standard, cela revient &#224; ne s&#8217;int&#233;resser
+qu&#8217;aux mots partag&#233;s par la requ&#234;te et le document puisque les termes absents des documents
+(ou de la requ&#234;te) ont une pond&#233;ration nulle. Cela explique les mise en &#339;uvre par fichiers
+invers&#233;s et la grande rapidit&#233; de cette &#233;tape d&#8217;appariement, notamment lorsque l&#8217;on manipule
+des requ&#234;tes de quelques mots.
+</p>
+<p>Ce calcul de distance devient beaucoup plus co&#251;teux, dans le cas o&#249; les vecteurs sont de
+grandes dimensions mais ne sont pas creux. Mais il existe des techniques de calcul rapide
+des distances dans les espaces vectoriels. De mani&#232;re g&#233;n&#233;rale, ces techniques troquent un
+fort gain en temps de r&#233;ponse contre une l&#233;g&#232;re perte de pr&#233;cision, les &#233;l&#233;ments retourn&#233;s
+&#233;tant simplement similaires et non les plus similaires. Une approche est de d&#233;couper l&#8217;espace
+des donn&#233;es en portions et de n&#8217;effectuer des recherches que sur une ou plusieurs portions
+(Stein, 2007; Datar et al., 2004) et/ou de calculer des approximations de la distance r&#233;elle
+(Lejsek et al., 2008).
+</p>
+<p>2.3 Pond&#233;rations
+</p>
+<p>Les pond&#233;rations sont une des caract&#233;ristiques majeures du mod&#232;le vectoriel introduit par
+Salton (1975). Elles permettent de caract&#233;riser non seulement la pr&#233;sence ou l&#8217;absence de
+termes dans les documents, mais &#233;galement leur importance relative pour d&#233;crire le contenu
+du document : un poids wij est attribu&#233; &#224; chaque terme ti du document dj ; plus ce poids est
+important, plus ti est consid&#233;r&#233; comme pertinent pour d&#233;crire dj .
+</p>
+<p>Le c&#233;l&#232;bre TF-IDF d&#233;compose la pertinence d&#8217;un terme selon deux heuristiques. La premi&#232;re
+est le TF, issue des travaux de Luhn (1958) : plus le terme est fr&#233;quent dans le document, plus
+il est jug&#233; pertinent. La seconde, l&#8217;IDF, est souvent attribu&#233;e &#224; Sp&#228;rck Jones (1972) : plus un
+terme appara&#238;t dans un grand nombre de document, moins il est pertinent. Sa formulation la
+plus connue est (tf est le nombre d&#8217;occurrence ou la fr&#233;quence du terme t dans le document
+consid&#233;r&#233;, df sa fr&#233;quence documentaire, c&#8217;est-&#224;-dire le nombre de documents dans lequel il
+appara&#238;t, N est le nombre total de documents) :
+</p>
+<p>wTF&#8722;IDF (t, d) = tf(t, d) &#8727; log(N/df(t))
+</p>
+<p>Outre le TF-IDF/cosinus, beaucoup de techniques (pond&#233;rations et similarit&#233;s) pour calculer
+des similarit&#233;s dans des espaces alg&#233;briques existent (Tirilly, 2010, pour une revue). Parmi
+celles-ci, la pond&#233;ration Okapi2 est devenue une r&#233;f&#233;rence gr&#226;ce aux tr&#232;s bons r&#233;sultats
+qu&#8217;elle permet d&#8217;obtenir sur de nombreuses t&#226;ches de RI. Cette pond&#233;ration a initialement &#233;t&#233;
+propos&#233;e comme mod&#232;le de similarit&#233; dans un cadre probabiliste (Robertson et al., 1998) ;
+ce cadre repose sur le principe de classement probabiliste (PRP, Probability Ranking Principle
+que Robertson &#233;nonce ainsi : If retrieved documents are ordered by decreasing probability of
+relevance on the data available, then the system&#8217;s effectiveness is the best to be gotten for the
+data.
+</p>
+<p>Ce principe g&#233;n&#233;raliste est en pratique d&#233;clin&#233; en mod&#232;les pouvant s&#8217;interpr&#233;ter comme
+des pond&#233;rations dans un mod&#232;le vectoriel. Le mod&#232;le Okapi peut ainsi &#234;tre vu comme un
+</p>
+<p>2La formule de cette pond&#233;ration s&#8217;appelle en r&#233;alit&#233; BM-25, mais est souvent appel&#233;e Okapi du nom du premier
+syst&#232;me l&#8217;ayant impl&#233;ment&#233;.
+</p>
+<p>88</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>TF-IDF prenant mieux en compte la longueur des documents. Sa d&#233;finition est donn&#233;e dans
+l&#8217;&#233;quation 1 qui indique le poids du terme t dans le document d (k1 = 2 and b = 0.75 sont
+des constantes, dl la longueur du document, dlavg la longueur moyenne des documents).
+</p>
+<p>wBM25(t, d) = TFBM25(t, d) &#8727; IDFBM25(t)
+=
+</p>
+<p>tf(t, d) &#8727; (k1 + 1)
+tf(t, d) + k1 &#8727; (1&#8722; b+ b &#8727; dl(d)/dlavg) &#8727; log
+</p>
+<p>N &#8722; df(t) + 0.5
+df(t) + 0.5
+</p>
+<p>,
+(1)
+</p>
+<p>La partie TFBM25 est d&#233;riv&#233;e d&#8217;un mod&#232;le probabiliste de la fr&#233;quence des termes dans les
+documents, le mod&#232;le 2-Poisson de Harter (Sp&#228;rck Jones et al., 2000). Ce mod&#232;le repr&#233;sente
+la distribution des termes dans les documents comme un m&#233;lange de deux distributions de
+Poisson : l&#8217;une repr&#233;sentant la fr&#233;quence des termes pertinents pour d&#233;crire le document,
+l&#8217;autre celle des termes non-pertinents (Harter, 1975). C&#8217;est dans ce TF qu&#8217;est int&#233;gr&#233; une
+normalisation en fonction de la taille du document.
+La partie IDFBM25 est une simplification d&#8217;une formule d&#233;riv&#233;e du PRP (Sp&#228;rck Jones et al.,
+2000), th&#233;oriquement optimale mais n&#233;cessitant des donn&#233;es d&#8217;apprentissage. L&#8217;IDF obtenu
+est tr&#232;s proche de l&#8217;IDF standard et confirme le bien-fond&#233; de la formulation empirique.
+</p>
+<p>Enfin, signalons que de nombreuses autres pond&#233;rations tr&#232;s performantes ont &#233;t&#233; propos&#233;es
+en RI, comme les mod&#232;les DFR (Divergence from Randomness, propos&#233;s par Amati et
+Van Rijsbergen (2002)) ou les mod&#232;les de langues (Ponte et Croft, 1998). Ces deux approches
+construisent des mesures de similarit&#233;s bas&#233;es sur des mod&#232;les probabilistes de fr&#233;quence
+des termes. La encore, ces mod&#232;les peuvent s&#8217;interpr&#233;ter comme des pond&#233;rations dans un
+mod&#232;le vectoriel.
+</p>
+<p>3 Vectorisation ou distance du second ordre
+</p>
+<p>En plus des techniques de pond&#233;ration expos&#233;es pr&#233;c&#233;demment, nous proposons une autre
+alternative au TF-IDF que nous avons d&#233;velopp&#233;e. Il s&#8217;agit de la vectorisation, dont nous
+d&#233;crivons dans cette section les principes.
+</p>
+<p>3.1 Principe
+</p>
+<p>La vectorisation est une technique de plongement (embedding) permettant de projeter un
+calcul de similarit&#233; quelconque entre deux documents (ou un document et une requ&#234;te pour
+la RI) dans un espace vectoriel. Son principe est relativement simple : pour chaque document
+de la collection consid&#233;r&#233;e, il consiste &#224; calculer avec une mesure de similarit&#233;, quelle qu&#8217;elle
+soit, des scores de similarit&#233; entre ce document et m documents-pivots. Cette similarit&#233; est
+dite de premier ordre dans la suite de cet article. Les m scores obtenus forment ainsi un
+vecteur de m dimensions repr&#233;sentant le document (cf. figure 1) et place le document dans
+un nouvel espace vectoriel. D&#232;s lors, la comparaison de deux documents (ou d&#8217;un document
+et d&#8217;une requ&#234;te) peut donc s&#8217;effectuer de mani&#232;re standard dans ce nouvel espace, par
+exemple en calculant une distance L2. C&#8217;est la similarit&#233; de second ordre.
+</p>
+<p>Il est important de noter que la vectorisation change l&#8217;espace de repr&#233;sentation. Il ne s&#8217;agit
+donc pas seulement d&#8217;une r&#233;duction de l&#8217;espace ou d&#8217;une approximation de la distance
+</p>
+<p>89</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>similarit&#233;
+Document
+</p>
+<p>Doc pivot 1
+</p>
+<p>similarit&#233;
+</p>
+<p>Doc pivot 2
+</p>
+<p>similarit&#233;
+</p>
+<p>Doc pivot m
+</p>
+<p>...
+...Vecteur du document Score Score Score
+</p>
+<p>FIGURE 1 &#8211; Sch&#233;matisation du principe de vectorisation d&#8217;un document
+</p>
+<p>originelle comme propos&#233;e par exemple dans les travaux de (Bourgain, 1985). Il ne s&#8217;agit pas
+non plus d&#8217;une orthogonalisation, comme pour les approches LSI/LSA. C&#8217;est ce changement
+d&#8217;espace qui est &#224; l&#8217;origine de deux propri&#233;t&#233;s int&#233;ressantes.
+D&#8217;une part, cet embedding permet de r&#233;duire la complexit&#233; quand le calcul de similarit&#233; de
+premier ordre est trop co&#251;teux pour &#234;tre utilis&#233; en-ligne (Claveau et al., 2010).
+D&#8217;autre part, la vectorisation permet que deux documents soient consid&#233;r&#233;s comme proches
+s&#8217;ils sont proches des m&#234;mes documents-pivots. Cette comparaison indirecte, ou affinit&#233;
+du second ordre, permet par exemple de mettre en relation des documents textuels qui ne
+contiennent pourtant aucun mot en commun.
+</p>
+<p>3.2 Constitution des documents-pivots
+</p>
+<p>De nombreuses alternatives sont possibles pour constituer lesm documents-pivots, en fonction
+du probl&#232;me abord&#233;. Dans le principe, ces pivots ne sont pas n&#233;cessairement issus de la
+collection trait&#233;e, m&#234;me s&#8217;il semble plus raisonnable que ce soit le cas ; on a ainsi une
+assurance plus grande d&#8217;une bonne ad&#233;quation, notamment du vocabulaire, de ces pivots
+avec les documents &#224; traiter. Dans les exp&#233;riences pr&#233;sent&#233;es ci-apr&#232;s, nous indiquons pour
+chaque application comment ces pivots ont &#233;t&#233; constitu&#233;s.
+</p>
+<p>3.3 Calcul de distances
+</p>
+<p>Notre processus de vectorisation permet de ramener n&#8217;importe quel mod&#232;le de similarit&#233;
+&#224; une repr&#233;sentation vectorielle. La comparaison de deux documents se fait donc par un
+calcul de distance entre vecteurs, comme dans le mod&#232;le vectoriel classique. Les vecteurs
+sont normalis&#233;s (en coh&#233;rence avec la distance utilis&#233;e) ; dans les exp&#233;riences pr&#233;sent&#233;es
+dans cet article, nous utilisons une distance L2 (les vecteurs sont donc normalis&#233;s en L2). &#192; la
+diff&#233;rence du mod&#232;le vectoriel classique dans lequel les vecteurs repr&#233;sentant les documents
+sont g&#233;n&#233;ralement extr&#234;mement creux, les vecteurs obtenus par vectorisation n&#8217;ont pas
+forc&#233;ment beaucoup de composantes &#224; 0. Comme nous l&#8217;avons expliqu&#233; pr&#233;c&#233;demment, cela
+rend le calcul de distance beaucoup plus co&#251;teux s&#8217;il est fait de mani&#232;re exhaustive et exacte.
+Dans les exp&#233;riences report&#233;es ci-dessous, les quantit&#233;s de donn&#233;es manipul&#233;es permettent
+un tel calcul exact ; nous avons donc pris le parti d&#8217;&#233;valuer les r&#233;sultats sans le biais d&#8217;une
+recherche approximative. Les calculs de distance se font donc de mani&#232;re classique avec la
+</p>
+<p>90</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>distance L2.
+</p>
+<p>4 Utilisation en recherche d&#8217;information
+</p>
+<p>Dans les syst&#232;mes de recherche d&#8217;information, les mod&#232;les vectoriels sont tr&#232;s largement
+utilis&#233;s pour calculer les distances entre requ&#234;tes et textes. Il existe de nombreux articles ont
+compar&#233; les mesures/pond&#233;rations standard, comme le TF-IDF et Okapi (Savoy, 2005, inter
+alia). Dans cette section, nous rapportons quelques exp&#233;riences (Claveau et al., 2010, pour
+les d&#233;tails) les comparant &#233;galement &#224; la vectorisation.
+</p>
+<p>4.1 Description de la t&#226;che
+</p>
+<p>Pour ces &#233;valuations, nous utilisons deux collections de RI aux caract&#233;ristiques tr&#232;s diff&#233;rentes,
+en fran&#231;ais et provenant de la campagne d&#8217;&#233;valuation Amaryllis. La premi&#232;re est la collection
+ELDA, petite collection de 3500 documents issus de questions/r&#233;ponses de la commission
+europ&#233;enne, accompagn&#233;e de 19 requ&#234;tes. La seconde est la collection INIST compos&#233;e de
+160 000 documents (r&#233;sum&#233;s d&#8217;articles de diverses disciplines scientifiques) et de 30 requ&#234;tes.
+Pour ces deux collections, les requ&#234;tes sont compos&#233;es de plusieurs champs : titre, corps,
+description et concepts associ&#233;s. Dans les exp&#233;riences report&#233;es ci-dessous, seuls le titre et
+le corps sont utilis&#233;s. &#192; chaque requ&#234;te est associ&#233;e la liste des documents pertinents qui
+sont attendus en r&#233;ponse et donc utilis&#233;s pour &#233;valuer les performances des syst&#232;mes de
+RI. Dans les exp&#233;riences rapport&#233;es ci-dessous, ces performances sont mesur&#233;es en utilisant
+les mesures classiques de la RI, &#224; savoir la MAP (Mean Average Precision) et les pr&#233;cisions
+obtenues pour divers seuils de documents (5 premiers documents retourn&#233;s, 10 premiers...)
+moyenn&#233;es sur l&#8217;ensemble des requ&#234;tes.
+</p>
+<p>4.2 Approches propos&#233;es
+</p>
+<p>Pour ces exp&#233;riences, un syst&#232;me de RI vectoriel a &#233;t&#233; impl&#233;ment&#233; dont seul le calcul
+des distances varie. Bas&#233; sur ces distances, les documents sont propos&#233;s par similarit&#233;
+d&#233;croissante avec les requ&#234;tes. Pour le calcul par vectorisation, les m documents-pivots sont
+choisis comme des concat&#233;nations al&#233;atoires de documents de la collection formant une
+partition de l&#8217;ensemble des documents. Diff&#233;rents nombres de pivots (et donc la dimension
+de l&#8217;espace r&#233;sultant) sont test&#233;s, et les similarit&#233;s de premier ordre (servant &#224; construire les
+vecteurs) sont calcul&#233;es avec Okapi.
+</p>
+<p>4.3 R&#233;sultats
+</p>
+<p>Les tableaux 1 et 2 pr&#233;sentent les r&#233;sultats de ce syst&#232;me, selon les diff&#233;rentes m&#233;thodes
+de calcul de distances. En prenant Okapi comme base de comparaison, on indique les
+am&#233;liorations statistiquement significatives (t-test avec p = 0.05) en gras et les d&#233;gradations
+significatives en italiques. Plusieurs &#233;l&#233;ments en ressortent. D&#8217;une part, le syst&#232;me bas&#233; sur
+</p>
+<p>91</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>BM-25 domine tr&#232;s largement et dans tous les cas celui s&#8217;appuyant sur TF-IDF. Ce r&#233;sultat
+est conforme &#224; l&#8217;ensemble des exp&#233;riences de ce type dans la litt&#233;rature. Les r&#233;sultats de
+la vectorisation sont moins tranch&#233;s en terme de performances globales (MAP), puisque
+les r&#233;sultats sont tr&#232;s fortement am&#233;lior&#233;s pour la petite collection, mais comparable pour
+la collection INIST. En revanche, il appara&#238;t clairement et dans tous les cas la propri&#233;t&#233;
+de la vectorisation de trouver plus de documents pertinents (pr&#233;cision am&#233;lior&#233;e pour des
+seuils hauts). C&#8217;est cette propri&#233;t&#233;, reposant sur la capacit&#233; de juger de la similarit&#233; de deux
+documents m&#234;mes s&#8217;ils ne partagent pas de termes communs, qui est particuli&#232;rement utile
+pour certaines t&#226;ches de TAL.
+</p>
+<p>TF-IDF Okapi Vectorisation (m = 1750) Vectorisation (m = 3500)
+MAP 28.36 (-21.7 %) 36.22 39.01 (+7.7 %) 43.46 (+20 %)
+P@10 36.18 (-24.1 %) 47.67 51.67 (+8.4 %) 54.67 (+14.7 %)
+P@50 26.37 (-12.1 %) 30.00 29.07 (-3.1 %) 33.53 (+11.8 %)
+P@100 19.36 (-6.6 %) 20.73 19.87 (-4.2 %) 21.50 (+3.7 %)
+P@500 6.04 (-0.9 %) 5.99 5.71 (-4.8 %) 6.17 (+2.9 %)
+P@1000 3.16 (-0.4 %) 3.15 3.15 (0 %) 3.27 (+3.9 %)
+P@3000 1.08 (+0.4 %) 1.07 1.17 (+9.0 %) 1.18 (+10 %)
+</p>
+<p>TABLE 1 &#8211; Performances des syst&#232;mes sur la collection ELDA
+</p>
+<p>TF-IDF Okapi Vectorisation (m = 10 000)
+MAP 10.62 (-26.9 %) 14.52 14.26 (-1.8 %)
+P@10 24.00 (-29.4 %) 34.00 29.00 (-14.7 %)
+P@50 14.40 (-22.0 %) 18.47 18.00 (-2.5 %)
+P@100 10.93 (-8.9 %) 12.00 13.47 (+12.2 %)
+P@500 4.16 (-2.6 %) 4.27 4.93 (+15.3 %)
+P@1000 2.40 (-2.4 %) 2.46 2.89 (+17.3 %)
+P@3000 1.00 (-1 %) 1.01 1.12 (+10.9 %)
+</p>
+<p>TABLE 2 &#8211; Performances des syst&#232;mes sur la collection INIST
+</p>
+<p>5 Utilisation pour la fouille de texte
+</p>
+<p>Comme nous le soulignions d&#232;s l&#8217;introduction, calculer des distances entre textes n&#8217;est pas
+utile que pour la RI, mais aussi pour beaucoup de t&#226;ches du TAL. Dans cette section, nous
+illustrons l&#8217;importance du choix de la similarit&#233; dans un contexte de fouille de textes.
+</p>
+<p>5.1 Description de la t&#226;che
+</p>
+<p>Cette t&#226;che &#233;tait l&#8217;une de celles propos&#233;es dans le cadre du D&#233;fi Fouille de Texte (DeFT)
+2011 (Grouin et Forest, 2011). Elle consistait &#224; retrouver l&#8217;ann&#233;e de parution d&#8217;extraits
+d&#8217;articles de journaux OCRis&#233;s publi&#233;s entre 1801 et 1944. Les participants disposaient de
+</p>
+<p>92</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>donn&#233;es d&#8217;apprentissage (extraits d&#8217;articles avec leur date de parution), et de donn&#233;es de test
+(extraits d&#8217;articles pour lesquels il faut fournir la date de parution). Deux sous-t&#226;ches &#233;taient
+propos&#233;es : l&#8217;une avec des extraits de 300 mots et l&#8217;autre avec des extraits de 500 mots.
+</p>
+<p>La difficult&#233; de ce d&#233;fi tenait d&#8217;une part &#224; la qualit&#233; tr&#232;s d&#233;grad&#233;e des textes OCRis&#233;s et au
+grand nombre de classes possibles (144 ann&#233;es). La mesure d&#8217;&#233;valuation mise en place par
+les organisateurs permettait de pond&#233;rer les erreurs de datation en fonction de leur distance
+&#224; l&#8217;ann&#233;e r&#233;elle. Cette mesure va de 0 pour un document &#233;loign&#233; de plus de 15 ans, &#224; 1 quand
+la pr&#233;diction de date est exacte.
+</p>
+<p>5.2 Approches propos&#233;es
+</p>
+<p>L&#8217;approche que nous avons propos&#233;e lors de notre participation repose sur un apprentissage
+paresseux (lazy-learning), &#224; savoir les k-plus proches voisins (k-ppv), qui se veut souple et
+adapt&#233; &#224; la t&#226;che. Dans cette approche, une instance inconnue est class&#233;e en trouvant les k
+instances connues les plus similaires et en lui assignant la classe majoritaire de ces instances.
+Il n&#8217;y a donc pas &#224; proprement parler d&#8217;apprentissage, d&#8217;o&#249; le nom de lazy-learning, mais
+l&#8217;induction repose sur la calcul de similarit&#233;, qui permet de trouver les plus proches voisins, et
+la mise en &#339;uvre du vote (Beyer et al., 1999, pour les autres param&#232;tres pouvant intervenir).
+</p>
+<p>Ce calcul de similarit&#233; est donc central. Lors du d&#233;fi, nous avons utilis&#233; la pond&#233;ration Okapi,
+et cette simple approche nous a permis d&#8217;&#234;tre class&#233;s premiers. Dans la sous-section suivante,
+nous avons repris ces exp&#233;riences et nous pr&#233;sentons en plus les r&#233;sultats obtenus avec un
+TF-IDF et par vectorisation. Pour ces exp&#233;riences, les documents-pivots sont simplement des
+concat&#233;nations al&#233;atoires des articles de l&#8217;ensemble d&#8217;entra&#238;nement. La seule contrainte est
+que les documents concat&#233;n&#233;s doivent avoir la m&#234;me ann&#233;e de parution. Chaque dimension
+de notre nouvel espace vectoriel correspond donc &#224; une ann&#233;e (et &#233;ventuellement, plusieurs
+dimensions peuvent porter sur la m&#234;me ann&#233;e). Comme pr&#233;c&#233;demment, chaque document de
+l&#8217;ensemble d&#8217;entra&#238;nement est d&#233;crit &#224; l&#8217;aide de ces pivots : sa distance (similarit&#233; de premier
+ordre) &#224; chacun des pivots est calcul&#233;e en utilisant Okapi, ce qui forme l&#8217;ensemble de ses
+coordonn&#233;es dans le nouvel espace. Il est fait de m&#234;me pour les documents test. Finalement,
+les plus proches voisins d&#8217;un document test sont donn&#233;s par une distance L2.
+</p>
+<p>5.3 R&#233;sultats
+</p>
+<p>Le tableau 3 recense les r&#233;sultats de l&#8217;approche k-ppv avec une distance de type Okapi tels
+que publi&#233;s, ainsi que la m&#234;me approche utilisant cette fois la distance par vectorisation.
+&#192; des fins de comparaison, nous indiquons &#233;galement les r&#233;sultats du m&#234;me syst&#232;me qui
+utiliserait cette fois un TF-IDF standard avec une similarit&#233; cosinus, ainsi que ceux obtenus
+par le LIMSI, deuxi&#232;me syst&#232;me le plus performant.
+</p>
+<p>Il appara&#238;t encore une fois l&#8217;int&#233;r&#234;t de l&#8217;utilisation d&#8217;une pond&#233;ration BM-25 compar&#233;e au
+TF-IDF standard. Celle-ci a permis d&#8217;obtenir les meilleurs r&#233;sultats avec un algorithme simple
+de vote lors du challenge, alors que le TF-IDF aurait fait appara&#238;tre le syst&#232;me comme moins
+adapt&#233; que la proposition du LIMSI. La vectorisation permet en plus de d&#233;passer ces r&#233;sultats ;
+gr&#226;ce au choix des documents-pivots, les documents de m&#234;me ann&#233;e de parution peuvent
+avoir des repr&#233;sentations vectorielles proches, m&#234;me s&#8217;ils ne partagent pas de mots communs.
+</p>
+<p>93</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>extraits de 300 mots extraits de 500 mots
+syst&#232;me LIMSI 0.378 0.452
+k-ppv TF-IDF 0.364 0.398
+k-ppv Okapi 0.430 0.472
+k-ppv Vectorisation 0.466 0.505
+</p>
+<p>TABLE 3 &#8211; R&#233;sultats sur la t&#226;che de datation de DeFT 2011 d&#8217;un syst&#232;me k-ppv avec diff&#233;rents
+calculs de similarit&#233; et d&#8217;une baseline (syst&#232;me du LIMSI)
+</p>
+<p>6 Utilisation pour la segmentation th&#233;matique
+</p>
+<p>Outre la fouille de textes, le calcul de similarit&#233; est aussi utile dans certains syst&#232;mes d&#233;di&#233;s
+&#224; d&#8217;autres applications classiques du TAL, comme par exemple la segmentation th&#233;matique.
+Comme dans les sections pr&#233;c&#233;dentes, nous illustrons l&#8217;influence du choix du calcul de
+similarit&#233; dans un tel syst&#232;me de segmentation reposant sur ce calcul (Claveau et Lef&#232;vre,
+2011).
+</p>
+<p>6.1 Description de la t&#226;che
+</p>
+<p>La segmentation th&#233;matique est une t&#226;che classique du TAL consistant &#224; diviser un texte
+ou un flux textuel en parties th&#233;matiquement coh&#233;rentes. De nombreuses m&#233;thodes ont &#233;t&#233;
+propos&#233;es dans la litt&#233;rature, que l&#8217;on peut diviser en deux familles. Il y a d&#8217;une part des
+approches s&#8217;appuyant sur des propri&#233;t&#233;s de formatage des documents, ou sur la d&#233;tection de
+marqueurs discursifs (Christensen et al., 2005). L&#8217;autre grande famille d&#8217;approches s&#8217;appuie
+sur le contenu des documents pour d&#233;tecter les changements de th&#232;me. C&#8217;est dans cette
+famille que s&#8217;inscrit notre approche et beaucoup des syst&#232;mes existants, tels que SEGMENTER
+(Kan et al., 1998), l&#8217;approche Utiyama et Isahara (Utiyama et Isahara, 2001; Guinaudeau
+et al., 2010), DOTPLOTTING (Reynar, 2000), C99 (Choi, 2000), TEXT-TILING (Hearst, 1997).
+</p>
+<p>Ces diff&#233;rentes approches de l&#8217;&#233;tat de l&#8217;art ont &#233;t&#233; compar&#233;es, que ce soit sur l&#8217;anglais (Choi,
+2000) ou le fran&#231;ais (Sitbon et Bellot, 2004). &#192; des fins de comparaison, nous r&#233;utilisons ces
+donn&#233;es3 sur le fran&#231;ais pour &#233;valuer l&#8217;importance du calcul de similarit&#233; dans ce contexte.
+Celles-ci ont &#233;t&#233; constitu&#233;es artificiellement en segmentant et m&#233;langeant des articles du
+journal Le Monde de plusieurs cat&#233;gories (Sports, Arts...) et des extraits de la bible. Pour
+r&#233;pondre &#224; la critique d&#8217;artificialit&#233; de ces donn&#233;es, nous utilisons &#233;galement deux autres
+jeux, compos&#233;s respectivement de transcriptions de journaux TV et d&#8217;&#233;missions de reportage
+d&#233;velopp&#233;s par Guinaudeau et al. (2010). La segmentation de r&#233;f&#233;rence a &#233;t&#233; effectu&#233;e
+ind&#233;pendamment en consid&#233;rant qu&#8217;un changement de th&#232;me a lieu &#224; chaque changement
+de reportage. Cette d&#233;finition de la rupture th&#233;matique a l&#8217;avantage de correspondre &#224; un
+besoin applicatif r&#233;el et bien d&#233;fini. Les bandes-son de ces deux corpus ont &#233;t&#233; transcrites
+automatiquement par le syst&#232;me de reconnaissance de la parole IRENE (Huet et al., 2010).
+</p>
+<p>3Nous remercions L. Sitbon pour la mise &#224; disposition de ces donn&#233;es et des syst&#232;mes de l&#8217;&#233;tat-de-l&#8217;art.
+</p>
+<p>94</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>6.2 Approche propos&#233;e
+</p>
+<p>Notre technique de segmentation th&#233;matique cherche &#224; d&#233;tecter les ruptures th&#233;matiques en
+comparant (i.e. en calculant une distance) le contenu avant et apr&#232;s chaque segment. Plus la
+distance est importante, plus la rupture est probable. D&#8217;un point de vue technique, elle adapte
+un principe utilis&#233; en segmentation d&#8217;image : la ligne de partage des eaux (watershed). Celle-
+ci consiste &#224; repr&#233;senter l&#8217;image &#224; segmenter comme un relief (ou surface topographique)
+en calculant un gradient de l&#8217;image pour faire ressortir les zones de fortes variations (par
+exemple de luminance d&#8217;un pixel). Une inondation progressive du relief par ses minima est
+alors simul&#233;e et des digues sont (virtuellement) construites pour s&#233;parer les diff&#233;rents bassins
+associ&#233;s &#224; chaque minimum. &#192; l&#8217;issue du processus, ces digues repr&#233;sentent les lignes de
+partage des eaux, ou autrement dit les fronti&#232;res des r&#233;gions.
+</p>
+<p>Dans le cas de texte, il n&#8217;y a qu&#8217;une dimension &#224; consid&#233;rer, et le gradient est vu comme une
+mesure de distance textuelle. Un gradient est donc calcul&#233; entre chaque phrase (ou groupe de
+souffle dans le cas de transcriptions) : on calcule la similarit&#233; entre les phrases pr&#233;c&#233;dentes
+et suivantes de chaque fronti&#232;re potentielle (Claveau et Lef&#232;vre, 2011, pour une pr&#233;sentation
+plus d&#233;taill&#233;e). Il faut noter qu&#8217;on ne compare pas seulement le groupe de souffle pr&#233;c&#233;dent
+au groupe de souffle suivant, mais on consid&#232;re les n pr&#233;c&#233;dents et les n suivants. L&#224; encore,
+ce calcul de similarit&#233; peut se faire en utilisant les outils standard de RI comme le TF-IDF, ou
+bien Okapi, ou encore par vectorisation.
+</p>
+<p>6.3 R&#233;sultats
+</p>
+<p>Pour &#233;valuer la qualit&#233; des segmentation sur nos jeux de donn&#233;es, nous indiquons la mesure
+WindowDiff (WD), habituellement utilis&#233;e pour l&#8217;&#233;valuation de ce type de t&#226;che, et qui peut
+&#234;tre vu comme un taux d&#8217;erreurs (Pevzner et Hearst, 2002, pour une pr&#233;sentation d&#233;taill&#233;e).
+&#192; des fins de comparaison avec des syst&#232;mes n&#8217;utilisant pas le WindowDiff, nous utilisons
+aussi la F-mesure (F1).
+</p>
+<p>News Reports
+M&#233;thodes F1 (%) WD F1 (%) WD
+</p>
+<p>Utiyama (Utiyama et Isahara, 2001) 59.44 - 51.09 -
+Guinaudeau (Guinaudeau et al., 2010) 61.41 - 62.92 -
+</p>
+<p>DOTPLOT (Reynar, 2000) 36.42 0.4472 49.49 0.2125
+C99 (Choi, 2000) 50.25 0.3646 57.42 0.1893
+</p>
+<p>TEXTTILING (Hearst, 1997) 38.73 0.313 23.38 0.3456
+TF-IDF + Watershed 43.04 0.3833 60.12 0.1844
+Okapi + Watershed 60.04 0.2571 69.22 0.1428
+</p>
+<p>Vectorisation + Watershed 64.4 0.2269 73.31 0.1181
+</p>
+<p>TABLE 4 &#8211; Performances des syst&#232;mes de segmentation sur la collection News et Reports
+</p>
+<p>Sur cette application, les r&#233;sultats sont encore une fois tr&#232;s homog&#232;nes, quel que soit le corpus
+d&#8217;&#233;valuation. &#192; syst&#232;me &#233;quivalent, le choix de la mesure a une tr&#232;s grande influence, et on
+constate comme pr&#233;c&#233;demment que le TF-IDF est surpass&#233; par Okapi, lui-m&#234;me l&#233;g&#232;rement
+d&#233;pass&#233; par l&#8217;approche par vectorisation. On note encore qu&#8217;&#224; architecture similaire, le
+</p>
+<p>95</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Sous-corpus de test
+M&#233;thodes Sciences &#201;co Sports Arts Bible
+</p>
+<p>Meilleur syst&#232;me 0.2132 0.2243 0.2839 0.2811 0.3139
+(d&#8217;apr&#232;s Sitbon et Bellot (2004)) C99 C99 C99 C99 DOTPLOT
+</p>
+<p>TF-IDF + Watershed 0.2964 0.2996 0.3205 0.3560 0.3702
+Okapi + Watershed 0.2135 0.2177 0.2654 0.2729 0.2981
+</p>
+<p>Vectorisation + Watershed 0.1967 0.1836 0.2582 0.2587 0.2931
+</p>
+<p>TABLE 5 &#8211; Performances (WindowDiff) des syst&#232;mes de segmentation sur la collection de
+Sitbon et Bellot (2004)
+</p>
+<p>syst&#232;me avec TF-IDF aurait &#233;t&#233; &#233;cart&#233;, ses performances &#233;tant largement inf&#233;rieures &#224; l&#8217;&#233;tat-
+de-l&#8217;art.
+</p>
+<p>7 Conclusion
+</p>
+<p>Le calcul de similarit&#233; entre textes est une probl&#233;matique importante pour le TAL. Pour
+autant, ce qui n&#8217;est souvent qu&#8217;un composant dans des syst&#232;mes plus complexes est parfois
+n&#233;glig&#233; et des solutions sous-optimales sont employ&#233;es. Dans les exp&#233;riences pr&#233;c&#233;dentes
+relevant du cas tr&#232;s fr&#233;quent de la repr&#233;sentation vectorielle, on a montr&#233; combien un simple
+changement de pond&#233;ration (de TF-IDF vers Okapi) pouvait modifier les performances finales
+d&#8217;un tel syst&#232;me. Ainsi, il convient de s&#8217;interroger si l&#8217;emploi de ces calculs de similarit&#233;
+sous-optimaux n&#8217;a pas condamn&#233; des syst&#232;mes qui auraient &#233;t&#233; par ailleurs jug&#233;s performants
+&#224; condition d&#8217;utiliser un module de similarit&#233; plus &#233;tat-de-l&#8217;art.
+</p>
+<p>Outre l&#8217;utilisation de pond&#233;rations plus actuelles comme Okapi, nous avons montr&#233; que la
+vectorisation offre d&#8217;excellentes performances et des propri&#233;t&#233;s int&#233;ressantes. D&#8217;un point de
+vue technique, elle conserve le cadre vectoriel qui permet au besoin l&#8217;emploi d&#8217;outils de calcul
+de distances efficaces. Une autre propri&#233;t&#233; int&#233;ressante pour le TAL est la possibilit&#233; de juger
+de la similarit&#233; de textes m&#234;me lorsqu&#8217;ils ne partagent pas de mots communs.
+</p>
+<p>Quelques remarques s&#8217;imposent en compl&#233;ment de ces r&#233;sultats. Tout d&#8217;abord, la repr&#233;-
+sentation sac-de-mots n&#8217;est pas la repr&#233;sentation la plus adapt&#233;e &#224; tous les probl&#232;mes de
+similarit&#233;. Les approches par mod&#232;les de langue, outils communs du TAL, sont par exemple
+plus adapt&#233;es d&#232;s lors que l&#8217;aspect s&#233;quentiel du texte est important (Ebadat et al., 2011,
+pour un exemple). Il en va de m&#234;me pour les similarit&#233;s entre arbres syntaxiques ou graphes
+s&#233;mantiques.
+</p>
+<p>D&#8217;un point de vue plus g&#233;n&#233;ral, la relative s&#233;paration des communaut&#233;s RI et TAL explique
+sans doute le relatif manque d&#8217;importance accord&#233;e aux calculs de similarit&#233; dans certaines
+t&#226;ches du TAL. Cela milite pour des rapprochements th&#233;matiques ponctuels entre ces commu-
+naut&#233;s, par exemple par le biais de tutoriels, num&#233;ros sp&#233;ciaux de journaux, organisation
+de conf&#233;rences jointes... Enfin, cela peut passer aussi par des enseignements d&#233;di&#233;s ; on
+remarque en effet que les descriptifs des principales formations TAL, lorsque disponibles, font
+rarement &#233;tat de modules abordant l&#8217;indexation ou la recherche d&#8217;information.
+</p>
+<p>96</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R&#233;f&#233;rences
+</p>
+<p>AMATI, G. et VAN RIJSBERGEN, G. J. (2002). Probabilistic models of information retrieval
+based on measuring the divergence from randomness. ACM Transactions on Information
+Systems.
+</p>
+<p>BEYER, K., GOLDSTEIN, J., RAMAKRISHNAN, R. et SHAFT, U. (1999). When is &quot;nearest
+neighbor&quot; meaningful ? In Proceedings of the Int. Conf. on Database Theory, pages 217&#8211;235.
+</p>
+<p>BOURGAIN, J. (1985). On Lipschitz embedding of finite metric spaces in hilbert space. Israel
+Journal of Mathematics, 52(1).
+</p>
+<p>CHOI, F. Y. Y. (2000). Advances in domain independent linear text segmentation. In Procee-
+dings of the 1st metting of the North American Chapter of the Association for Computational
+Linguistics, USA.
+</p>
+<p>CHRISTENSEN, H., KOLLURU, B., GOTOH, Y. et RENALS, S. (2005). Maximum entropy
+segmentation of broadcast news. In Proceedings of the 30th IEEE ICASSP.
+</p>
+<p>CLAVEAU, V. et LEF&#200;VRE, S. (2011). Topic Segmentation of TV-streams by mathematical
+morphology and vectorization. In Proceedings of InterSpeech, pages 1105&#8211;1108, Italie.
+</p>
+<p>CLAVEAU, V., TAVENARD, R. et AMSALEG, L. (2010). Vectorisation des processus d&#8217;appa-
+riement document-requ&#234;te. In 7e conf&#233;rence en recherche d&#8217;informations et applications,
+CORIA&#8217;10, pages 313&#8211;324, Sousse, Tunisie.
+</p>
+<p>DATAR, M., IMMORLICA, N., INDYK, P. et MIRROKNI, V. (2004). Locality-sensitive hashing
+scheme based on p-stable distributions. In Proc. of the 20th ACM Symposium on Computatio-
+nal Geometry, Brooklyn, New York, USA.
+</p>
+<p>EBADAT, A. R., CLAVEAU, V. et S&#201;BILLOT, P. (2011). Using shallow linguistic features
+for relation extraction in bio-medical texts. In Actes de la 18e conf&#233;rence sur le Traitement
+Automatique des Langues Naturelles, TALN&#8217;11, volume 2, pages 125&#8211;130, Montpellier, France.
+</p>
+<p>GROUIN, C. et FOREST, D., &#233;diteurs (2011). Actes de l&#8217;atelier D&#233;fi Fouille de Textes (DeFT&#8217;11),
+Montpellier, France.
+</p>
+<p>GUINAUDEAU, C., GRAVIER, G. et S&#201;BILLOT, P. (2010). Improving ASR-based topic segmenta-
+tion of TV programs with confidence measures and semantic relations. In Proc. Annual Intl.
+Speech Communication Association Conference (Interspeech).
+</p>
+<p>HARTER, S. (1975). A probabilistic approach to automatic keyword indexing. Journal of the
+american society for information science, 26(6):197&#8211;206.
+</p>
+<p>HEARST, M. (1997). Text-tiling : segmenting text into multi-paragraph subtopic passages.
+Computational Linguistics, 23(1):33&#8211;64.
+</p>
+<p>HUET, S., GRAVIER, G. et S&#201;BILLOT, P. (2010). Morpho-syntactic post-processing with n-best
+lists for improved French automatic speech recognition. Computer Speech and Language,
+24(4):663&#8211;684.
+</p>
+<p>97</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>KAN, M.-Y., KLAVANS, J. L. et MCKEOWN, K. R. (1998). Linear segmentation and segment
+significance. In Proceedings of the 6th International Workshop of Very Large Corpora (WVLC-6).
+</p>
+<p>LEJSEK, H., ASMUNDSSON, F., J&#211;NSSON, B. et AMSALEG, L. (2008). Nv-tree : An efficient
+disk-based index for approximate search in very large high-dimensional collections. IEEE
+Trans. on Pattern Analysis and Machine Intelligence, 99(1).
+</p>
+<p>LUHN, H. P. (1958). The automatic creation of literature abstracts. IBM Journal on Research
+and Development, 2(2).
+</p>
+<p>MOREAU, F. et S&#201;BILLOT, P. (2005). Contributions des techniques du traitement automatique
+des langues &#224; la recherche d&#8217;information. Rapport technique 1690, IRISA.
+</p>
+<p>PEVZNER, L. et HEARST, M. (2002). A critique and improvement of an evaluation metric for
+text segmentation. Computational Linguistics.
+</p>
+<p>PONTE, J. M. et CROFT, W. B. (1998). A language modeling approach to information
+retrieval. In Proc. of SIGIR, Melbourne, Australie.
+</p>
+<p>REYNAR, J. C. (2000). Topic Segmentation : Algorithms and applications. Th&#232;se de doctorat,
+University of Pennsylvania.
+</p>
+<p>ROBERTSON, S. E., WALKER, S. et HANCOCK-BEAULIEU, M. (1998). Okapi at TREC-7 :
+Automatic Ad Hoc, Filtering, VLC and Interactive. In Proceedings of the 7th Text Retrieval
+Conference, TREC-7, pages 199&#8211;210.
+</p>
+<p>SALTON, G. (1975). A Theory of Indexing. Regional Conference Series in Applied Mathematics.
+Society for Industrial and Applied Mathematics, Philadelphy.
+</p>
+<p>SALTON, G., WONG, A. et YANG, C. S. (1975). A vector space model for automatic indexing.
+Comm. of the ACM, 18(11).
+</p>
+<p>SAVOY, J. (2005). Comparative study of monolingual and multilingual search models for use
+with asian languages. ACM Transactions on Asian Languages Information Processing, 4(2).
+</p>
+<p>SITBON, L. et BELLOT, P. (2004). &#201;valuation de m&#233;thodes de segmentation th&#233;matique
+lin&#233;aire non supervis&#233;es apr&#232;s adaptation au fran cais. In Actes de la conf&#233;rence Traitement
+automatique des langues, Fez, Tunisie.
+</p>
+<p>SP&#196;RCK JONES, K. (1972). A statistical interpretation of term specificity and its application
+in retrieval. Journal of Documentation, 28(1).
+</p>
+<p>SP&#196;RCK JONES, K., WALKER, S. G. et ROBERTSON, S. E. (2000). Probabilistic model of
+information retrieval : Development and comparative experiments. Information Processing
+and Management, 36(6).
+</p>
+<p>STEIN, B. (2007). Principles of hash-based text retrieval. In Proc. of SIGIR, Amsterdam,
+Pays-Bas.
+</p>
+<p>TIRILLY, P. (2010). Traitement automatique des langues pour l&#8217;indexation d&#8217;images. Th&#232;se de
+doctorat, Universit&#233; de Rennes 1.
+</p>
+<p>UTIYAMA, M. et ISAHARA, H. (2001). A statistical model for domain-independent text
+segmentation. In Proceedings of the 9th conference of the ACL.
+</p>
+<p>98</p>
+
+</div></div>
+</body></html>
