@@ -1,0 +1,520 @@
+TALN 2002, Nancy, 24-27 juin 2002
+
+Recherche de la réponse fondée sur la reconnaissance
+du focus de la question
+
+Olivier Ferret, Brigitte Grau, Martine Hurault-Plantet, Gabriel Illouz, Laura
+Monceaux, Isabelle Robba, et Anne Vilnat
+
+LIMSI-CNRS BP 133, 91403 Orsay
+{ferret, bg, mhp, gabrieli, monceaux, robba, anne}@limsi.fr
+
+Résumé — Abstract
+
+Le systéme de question-réponse QALC utilise les documents sélectionnés par un moteur de
+recherche pour la question posée, les sépare en phrases afin de comparer chaque phrase avec
+la question, puis localise la réponse soit en détectant l'entité nommée recherchée, soit en
+appliquant des patrons syntaxiques d'extraction de la réponse, sortes de schémas ﬁgés de
+réponse pour un type donné de question. Les patrons d'extraction que nous avons défmis se
+fondent sur la notion de focus, qui est l'élément important de la question, celui qui devra se
+trouver dans la phrase réponse. Dans cet article, nous décrirons comment nous déterminons le
+focus dans la question, puis comment nous l'utilisons dans l'appariement question-phrase et
+pour la localisation de la réponse dans les phrases les plus pertinentes retenues.
+
+The QALC question answering system we are developing uses a search engine to select
+documents responding to the question, matches each sentence of the selected documents with
+the question, then extracts the answer from the more relevant sentences, either by locating the
+expected named entity, or by applying extraction patterns. Patterns are based on the focus,
+which is the main concept in the question and is expected to be present in an answer sentence.
+In this paper, we will describe the way we determine the focus of the question, and the way
+that we use it in the question-answer pairing and answer location processes.
+
+Mots Clés — Keywords
+
+Recherche d’information, systéme de question-réponse, focus, patron d’extraction.
+Information retrieval, question answering system, focus, extraction pattern.
+
+1 Introduction
+Nous présentons dans cet article le systéme de question-réponse QALC qui participe depuis
+trois ans a la tache Question-Réponse des campagnes d'évaluation de la conférence TREC
+
+(Text REtrieval Conference). Dans son principe, un systéme de question-réponse permet de
+trouver la réponse précise a une question dans un corpus de documents. La réponse doit étre
+
+307
+
+Ferret 0., Grau B., Hurault-PlantetM, Illouz G., Monceaux L., Robba 1., Vilnat A.
+
+concise - c'est l'information demandée qui doit étre fournie et non un document dans son
+entier -, et le corpus doit étre suffisamment Vaste pour espérer y trouver une réponse. La tache
+Question-Réponse de TREC consiste a trouver des réponses de taille limitée (50 caracteres
+maximum) a un ensemble d'enViron 500 questions de type factuel ou encyclopédique. Les
+réponses doivent étre recherchées dans un corpus d'enViron un million d'articles de joumaux
+tels que le Wall Street Journal et le Los Angeles Times.
+
+Deux étapes sont essentielles dans la recherche de la réponse : tout d'abord restreindre le
+champ de recherche par la sélection d'un sous-ensemble de textes pertinents par rapport a la
+question, puis ensuite localiser la réponse dans cet ensemble restreint. Pour sélectionner des
+textes pertinents, on peut utiliser un moteur de recherche classique qui sélectionnera les
+documents pertinents pour la question posée (Alpha et al., 2001), ou bien adapter un moteur a
+la recherche de passages pertinents dans les documents comme le fait le systeme LCC
+(Harabagiu et al., 2001). En dernier ressort, c'est chaque phrase du document ou du passage
+(ou une fenétre plus petite, de 50 caracteres par exemple) qui sera comparée a la question
+pour localiser la réponse. L'appariement entre la phrase du document et la question fait en
+général intervenir les termes simples et les multi-termes de la question ainsi que leurs
+Variantes morphologiques et sémantiques. Mais la localisation de la réponse dans la phrase
+demande des informations supplémentaires. Ainsi, tous les systemes de question-réponse
+déterminent si la réponse attendue correspond a une entité nommée (par exemple une
+Personne ou une Ville), ou a une entité numérique (montant financier, longueur, poids ...).
+Dans ce cas en effet, la localisation de la réponse revient a la détection de la présence dans la
+phrase de l'entité nommée recherchée. Une autre information importante est la connaissance
+des dépendances syntaxiques entre les différents groupes syntaxiques de la question. La
+détection des mémes dépendances dans la phrase du document aidera la localisation de la
+réponse (Hovy et al., 2001). Mais cette détection demande un bon analyseur syntaxique,
+traitant en particulier les questions. Une solution plus robuste consiste dans l'utilisation de
+patrons d'extraction de la réponse, sortes de schémas figés de réponse pour un type donné de
+question. Certains systemes utilisent exclusivement cette solution (Soubbotin et al., 2001),
+d'autres ne l'utilisent que pour les types de questions ou les dépendances syntaxiques sont peu
+utilisables. Le systeme LCC (Harabagiu et al., 2001) par exemple utilise des patrons
+d'extraction pour les questions qui sont des demandes de définition d'un terme, comme
+<< Qu’est-ce qu ’un micron ?>>, mais utilise les dépendances syntaxiques pour d'autres types de
+question.
+
+Le systeme QALC utilise les documents sélectionnés par un moteur de recherche, les sépare
+en phrases afin de comparer chaque phrase avec la question, puis localise la réponse soit en
+détectant l'entité nommée recherchée, soit en appliquant des patrons syntaxiques d'extraction
+de la réponse. Les patrons d'extraction que nous avons définis se fondent sur la notion de
+focus de la question. Cette notion a été introduite par Wendy Lehnert (1979) puis largement
+reprise et redéfinie par la suite. Pour Lehnert, le focus de la question est le concept dans la
+question qui englobe les attentes d’information exprimées par la question. Pour nous, c'est le
+mot (ou le groupe nominal) de la question représentant l’entité sur laquelle on désire une
+information et qui généralement se trouve dans les phrases contenant la réponse.
+
+Dans cet article, apres une breve présentation du systeme QALC, nous détaillerons l'analyse
+de la question et les informations qu'elle fournit, puis nous décrirons les processus
+d'appariement question-phrase et de localisation de la réponse qui s'appuient sur le focus
+déterminé.
+
+308
+
+Recherche de la reponse fondée sur la reconnaissance du focus de la question
+
+2 Architecture du systeme QALC
+
+Le systeme QALC est compose de trois modules principaux: le premier est dedie au
+traitement des questions, le deuxieme selectionne et traite les documents du corpus et le
+demier module est charge de produire la reponse. Chacun de ces modules est compose de
+plusieurs processus (cf. Figure 1).
+
+QUESTIONS CORPUS de
+\ V DOCUMENTS
+Traitement des Moteur de
+Questions recherche
+
+\ /
+
+Traitement des documents :
+
+Re-indexation et selection des
+
+documents (FASTR)
+Categories des Reconnaissance des entites nommees _
+‘l“e5“°“5> F,°C“5> dans les documents selectionnes V0C,3b“1a1re &
+Type de la reponse frequences
+
+Recherche de la reponse :
+Reconnaissance du focus
+Appariement Question/Phrase
+Extraction de la reponse
+
+i
+
+Sequences ordonnees de 50
+caracteres
+
+Figure 1 : Le systeme QALC
+
+Le module de traitement des questions regroupe un module d'analyse de la question et un
+extracteur de termes. L'extracteur de termes est base sur des patrons syntaxiques qui decrivent
+les groupes nominaux. Le groupe de longueur maximale est produit ainsi que tous les groupes
+plausibles de moindre longueur qui le forment.
+
+L'analyse de la question se fonde sur l'utilisation d'un analyseur robuste dans le but d'extraire
+plusieurs informations de la question, informations utiles pour la selection de phrases ou pour
+l’extraction de la reponse. Cette partie sera developpee dans la section suivante.
+
+Le module de traitement des documents utilise les sorties fournies par le NIST1, resultat de
+l'application d’un moteur de recherche de type Vectoriel sur le corpus de documents pour
+l’ensemble des questions de l’eValuation TREC. Les 200 meilleurs documents sont re-indexes
+par le systeme FASTR (Jacquemin, 1999), analyseur transformationnel de surface qui
+reconnait les occurrences et les Variantes des termes produits par le module d'extraction de
+
+1 Le NIST est l’organisateur des conferences TREC.
+
+309
+
+Ferret 0., Grau B., Hurault-PlantetM, Illouz G., Monceaux L., Robba 1., Vilnat A.
+
+terrnes. Chaque occurrence ou Variante constitue un index qui est ensuite utilisé dans le
+processus de classement des documents. En effet, ces index permettent a QALC de
+réordonner les documents et de sélectionner les plus pertinents (Ferret et al. 2001). Le module
+de reconnaissance des entités nommées est ensuite appliqué sur les documents sélectionnés.
+
+Le module de recherche de la réponse réalise deux opérations : la sélection des phrases
+candidates et l'extraction de la réponse, en utilisant les informations extraites de la question
+ainsi que les documents étiquetés retenus.
+
+3 L'analyse de la question
+
+L'analyse de la question est réalisée afin d'extraire des questions certaines caractéristiques qui
+pourront étre utilisées dans le module de recherche de la réponse. Les caractéristiques de la
+question que nous détectons sont le type attendu de la réponse, le focus, et la catégorie de la
+question. Pour les trouver, nous utilisons des connaissances syntaxiques et sémantiques. Les
+informations syntaxiques sont fournies par un analyseur syntaxique robuste (A'1't-Mokhtar et
+al., 1997) appliqué a toutes les questions. Cet analyseur renvoie une segmentation en groupes
+pour chaque question ainsi qu’un ensemble de relations syntaxiques entre ces groupes. Les
+regles pour trouver le focus, le type de la question et le type attendu de la réponse ont été
+écrites a partir de ces représentations syntaxiques. Les connaissances sémantiques, provenant
+de WordNet (Fellbaum, 1998), permettent de compléter les lexiques correspondant a chaque
+type d'entité nommée et d’améliorer la détermination du type attendu de la réponse.
+
+0 Le type attendu de la réponse
+
+Dans un premier temps, le module d'analyse essaie de trouver si le type attendu de la réponse
+correspond a une ou plusieurs entités nommées classées par ordre d'importance. Les entités
+nommées détectées font partie d'une hiérarchie organisée en 22 classes sémantiques
+(Organisation, Ville, Poids...). Les regles de reconnaissance utilisent essentiellement le type
+de l’interrogatif et l’appartenance du nom sur lequel il porte a l’une des listes constituées pour
+chaque catégorie. Pour la conférence d'éValuation TRECl0, notre module de question trouve
+environ 90,5 % de types d’entités nommées attendus corrects.
+
+Exemple .' Question .' Who developed the Macintosh Computer ?
+(Qui a congu l ’ordinateur Macintosh .7)
+Type attendu EN de la réponse : {PERSOMVE , ORGANISATION}
+
+Ensuite, si le type de la réponse n’est pas une entité nommée, QALC essaiera de déterminer
+un type sémantique plus général correspondant au nom sur lequel porte l’interrogatif si ce
+nom est une entrée de WordNet. Pour la conférence d'éValuation TRECl0, notre module de
+question a trouvé 87 % de types attendus généraux corrects.
+
+Exemple .' Question .' What metal has the highest melting point ?
+(Quel metal a le plus haut point de fusion .7)
+
+Type attendu general de la réponse : métal
+
+0 Le focus de la question
+
+310
+
+Recherche de la réponse fondée sur la reconnaissance du focus de la question
+
+Le focus de la question correspond a un nom de la question qui idéalement devrait étre
+présent dans la phrase réponse. Pour chaque question, nous déterminons donc le focus, ainsi
+que ses modifieurs (adjectif, complément du nom...) qui interviendront également dans la
+recherche de la réponse. Les regles déterminant le focus dépendent essentiellement de la
+forme de la question, et celui-ci correspond souvent au sujet. Pour le corpus de la conférence
+d'éValuation TRECIO, notre module de question trouve 85 % de focus corrects.
+
+Exemple .' Question: Who was the ﬁrst governor of Alaska?
+(Qui a été le premier gouverneur de I ’Alaska .7)
+
+Groupe nominal du focus : the ﬁrst governor ofAlaska
+
+Focus : governor
+Modiﬁeurs du focus : ADJ ﬁrst, CO1\ﬂ’ Alaska
+
+0 La catégorie de la question
+
+La détection de la catégorie de la question nous permet de différencier les patrons syntaxiques
+d’extraction a appliquer aux phrases candidates a la réponse. La catégorie de la question
+correspond a la forme syntaxique de la question, plus ou moins détaillée. Par exemple :
+
+Question: What do bats eat? (Que mangent les chauves-souris .7)
+Catégorie de la question : What-Do-GN-VB2
+
+Question: When was Rosa Park born? (Quand Rosa Park est-elle née .7)
+Catégorie de la question : When—Be—NP—born
+
+Apres avoir étudié les questions des conférences TREC8 et TREC9 accompagnées des
+différentes phrases contenant les réponses, nous avons trouvé 82 formes syntaxiques de
+questions.
+
+4 La recherche de la réponse
+
+4.1 La reconnaissance du focus dans les documents
+
+Pour chaque question, le module d’analyse nous a foumi le nom représentant le focus et ses
+modifieurs. Le systeme QALC cherche a les localiser dans les phrases des documents
+sélectionnés, en détectant d’abord le focus, puis en identifiant le groupe nominal qui le
+contient. Nous avons défini une grammaire locale pour détecter les frontieres du groupe
+nominal. Cette grammaire se fonde sur l’étiquetage produit par le Tree-Tagger (Smidt, 1999).
+
+Exemple .' Question: Who is the creator of the Muppets?
+(Quel est le créateur des Muppets .7)
+
+Focus : creator
+Modiﬁeur du focus : COMP Muppets
+
+2
+
+GN signifie groupe nominal, VB signifie verbe, et NP, nom propre.
+
+3ll
+
+Ferret 0., Grau B., Hurault-PlantetM, Illouz G., Monceaux L., Robba 1., Vilnat A.
+
+Pour cette question, nous avons trouvé dans l’un des documents sélectionnés le groupe
+nominal late Muppets creator Jim Henson, qui correspond a l’expression :
+
+Adjectz'f + Nom Pluriel + Nom + Nom Propre + Nom Propre
+
+QALC recherche aussi les groupes nominaux contenant des synonymes du focus, synonymes
+déterminés par FASTR. Lorsqu’on ne trouve le focus dans aucune des phrases des documents
+sélectionnés pour la question, QALC recherche dans les phrases des groupes nominaux
+contenant les noms propres de la question, s’il y en a. Les noms propres font partie des
+éléments qu’une phrase réponse a de grande chance de mentionner.
+
+QALC associe un poids a chaque groupe nominal trouvé. Ce poids prend en compte l’origine
+du groupe nominal (focus, synonyme du focus, ou nom propre), ainsi que les modifieurs
+trouvés dans la question. Lorsque le groupe nominal contient un ou plusieurs modifieurs, le
+poids est augmenté en proportion des modifieurs trouvés. Le poids le plus fort est obtenu
+lorsque tous les modifieurs sont présents. Dans l’exemple décrit plus haut, le poids est
+maximal : le groupe nominal a été obtenu a partir du focus creator, et le modifieur Muppets
+est présent. Lorsque le groupe nominal est obtenu a partir d’un synonyme du focus, le poids
+est légerement baissé, il l’est encore plus lorsque le groupe nominal est obtenu a partir d’un
+nom propre. Par exemple, le poids attribué au groupe nominal their copy of the 13th century
+Magna Carta trouvé pour la question Which king signed the Magna Carta ?, n’aura pas le
+poids maximal car il n’a pas été obtenu a partir du focus king, mais a partir du nom propre
+Magna Carta. D’une maniere générale, l’algorithme de pondération tient touj ours compte du
+rapport entre le nombre de mots significatifs de la question, et le nombre de ces mots
+retrouvés dans le groupe nominal sélectionné dans le document.
+
+Pour chaque phrase du document sélectionné, le systeme QALC étiquette tous les groupes
+nominaux pertinents suivant les criteres décrits, avec leurs poids. Seuls les groupes nominaux
+obtenant les plus forts poids sont gardés, fournissant un critere d’éValuation de la phrase.
+
+4.2 La sélection des phrases
+
+La méthode que nous avons adoptée dans cette Version de QALC pour sélectionner les
+phrases susceptibles de contenir une réponse a la question posée reprend globalement celle
+définie pour ses Versions précédentes : grace a une fonction de comparaison entre phrases
+déterminant leur proximité relative par rapport a une question, QALC parcourt phrase par
+phrase les documents sélectionnés pour une question et retient les N phrases les plus proches
+de celle-ci3. Cette fonction de comparaison repose sur les caractéristiques de la question
+considérée qui sont identifiées dans les phrases des documents par les modules linguistiques
+exposés précédemment. Ces caractéristiques sont 1) les termes de la question, 2) le focus et
+ses modifieurs, 3) le type de la réponse attendue, que l’on retrouve au niveau des phrases des
+documents sous la forme d’entités nommées.
+
+3 N est au moins e'gal a 5. Les phrases se'lec1ionne'es sont classe’es par ordre de sin1ilarite' de’croissante avec la
+
+question.
+
+312
+
+Recherche de la réponse fondée sur la reconnaissance du focus de la question
+
+Un score spécifique est associé a chacun de ces traits et le score de la phrase correspond a une
+combinaison linéaire de ces poids. Le principal critere de sélection repose sur la présence
+d’un maximum de mots de la question dans la phrase, sachant que l’on privilégie les phrases
+contenant le nom focus. Le critere portant sur la présence des entités nommées est utilisé pour
+renforcer l’importance d’une phrase, mais non comme critere premier de sélection. Un demier
+critere, utilisé pour départager les phrases ex aequo, favorise les phrases dont le taux de
+dispersion des termes de la question est le plus faible. Ce taux est donné par la taille de la plus
+petite partie de la phrase contenant tous les termes reconnus de la question. Le détail de la
+méthode de sélection peut étre trouvée dans (Ferret et al., 2001).
+
+4.3 L’extraction de la réponse
+
+Le processus d’extraction est différent selon que le type attendu de la réponse est une entité
+nommée ou non. En effet, lorsque la réponse est une entité nommée, l’extraction consiste a
+localiser l’entité nommée dans la phrase candidate a la réponse. Elle repose donc
+essentiellement sur les résultats du module de reconnaissance des entités nommées dans les
+documents. En revanche, lorsque la réponse n’est pas une entité nommée, le processus
+d’extraction repose alors sur la reconnaissance du focus de la question et consiste a
+reconnaitre, dans la phrase, les patrons d’extraction de la réponse.
+
+4.3.1 Les réponses caractérisées par une entité nommée
+
+Lorsque le systeme QALC peut prédire le type de la réponse en terme d’entité nommée, le
+processus d’extraction recherche dans la phrase candidate toutes les expressions étiquetées
+par le type attendu. Lorsque plusieurs expressions sont trouvées, QALC sélectionne la plus
+proche, en terme de distance, du focus, si celui-ci a été reconnu dans la phrase, ou la premiere
+rencontrée sinon. Si aucune expression du type attendu n’a été trouvée, QALC généralise le
+type recherche en utilisant la hiérarchie des entités nommées que nous avons définie. Par
+exemple, le type PERSOMVE est généralise par le type NOM PROPRE, et le type
+LONGUE UR par le type NOMBRE.
+
+4.3.2 Les réponses de type « noms communs » et « groupe verbal »
+
+Lorsque le type attendu de la réponse n’est pas une entité nommée, le systeme QALC
+détermine la position de la réponse dans la phrase a l’aide de patrons syntaxiques d’extraction
+de la réponse. Un patron syntaxique d’extraction est une structure qui comporte le groupe
+nominal du focus dans la phrase candidate et le groupe nominal de la réponse, éventuellement
+séparés par d’autres éléments tels que Virgules, guillemets, Verbe ou préposition. Le patron
+d’extraction comporte toujours le focus de la question. Pour pouvoir reconnaitre dans la
+phrase candidate un patron d’extraction, il faut donc que le focus de la question ait été
+préalablement déterminé par le module d’analyse des questions. Prenons par exemple la
+question suivante :
+
+Question .' What do Knight Ridder publish? (Que publie Knight Ridder .7)
+
+313
+
+Ferret 0., Grau B., Hurault-PlantetM, Illouz G., Monceaux L., Robba 1., Vilnat A.
+
+Cette question a une structure syntaxique du type : What-do-GN-VB, Knight Ridder etant le
+groupe nominal (GN) et publish le Verbe (VB). Le focus, determine par les regles du module
+d’analyse de la question, est Knight Ridder.
+
+Pour ce type de question, un des patrons que nous avons retenu correspond a la sequence
+grammaticale suivante :
+
+GNfocus VB GNréponse
+
+Le GNfocus est le groupe nominal du focus dans la phrase-reponse. Il est suivi d’un
+separateur qui est ici le Verbe publish, puis d’un groupe nominal qui est suppose contenir la
+reponse a la question, appele GNreponse. La reponse suivante, resultant de l’application de ce
+patron, a ete trouvee dans le corpus :
+
+Knight Ridder publishes 30 daily newspapers  , extraite de la phrase :
+
+Knight Ridder publishes 30 daily newspapers, including the Miami Herald and the Philadelphia Inquirer, owns
+and operates eight television stations and is a join venture partner in cable television and newsprint
+manufacturing operations.
+
+(Knight Ridder publie 30 quotidiens, dont le Miami Herald et le Philadelphia Inquirer,il possede et gere 8
+chaines de television et est partie prenante dans des operations liées a la television cablée eta la fabrication de
+papier journal.)
+
+Dans le paragraphe 3.3, nous avons vu qu’enViron 80 categories de questions ont ete
+repertoriees. Parmi celles-ci, 45 n’attendent pas en reponse une entite nommee. Pour chacune
+de ces 45 categories de question, nous avons construit des patrons syntaxiques d’extraction.
+Les differents patrons, ainsi que les differentes categories de question, ont ete determines par
+l’etude des corpus de questions et de reponses fournis par les campagnes d’eValuation des
+conferences TREC8 et TREC9. En tout, nous avons retenu 24 patrons d’extraction. Le
+nombre de patrons par categorie de question Va de 2 a 20, avec une moyenne de 10 par
+categorie de question. Les differentes categories de questions ont donc plusieurs patrons en
+commun.
+
+Les patrons d’extraction sont plus difficiles a etablir pour certaines categories de question que
+pour d’autres. Cela peut étre en raison de leur rarete dans le corpus ou en raison de la Variete
+grammaticale des reponses. Les questions de type Why (Pourquoi), comme Why can ’t
+ostrishes ﬂy ? (Pourquoi les autruches ne peuvent-elles voler ?) sont rares dans le corpus
+(seulement 4) ainsi que les questions en How VB (Comment Verbe) (4 egalement), comme
+How did Socrates die ? (Comment Socrate est-il mort ?). De plus, les reponses a ces questions
+sont difficiles a modeliser sous la forme d’un patron syntaxique. Il est difficile egalement de
+trouver des regularites grammaticales dans les reponses aux questions du type What-GN-be-
+GN , comme What format was VHS ’s main competition ? (Quel était le principal concurrent
+du format VHS ?) ou encore What nationality was Jackson Pollock ? (Quelle était la
+nationalité de Jackson Pollock ?). Suivant les cas, c’est le premier GN (format) ou le
+deuxieme (Jackson Pollock) qui joue un role preponderant dans le patron d’extraction.
+
+314
+
+Recherche de la réponse fondée sur la reconnaissance du focus de la question
+
+5 Analyse des résultats
+
+Nous avons réalisé une évaluation des réponses que nous trouvons sur le corpus de la
+conférence TREC10, suivant que la question appartient a une catégorie déﬁnie par une entité
+nommée ou non. Cela nous permet d'éValuer indépendamment l'un de l'autre le processus de
+localisation de l'entité nommée attendue en réponse et le processus qui utilise les patrons
+d'extraction. L’éValuation a d’abord été faite sur les phrases candidates a la réponse puis sur
+les réponses a 50 caracteres, afin de mesurer la performance des deux modules constituant la
+recherche de la réponse dans les documents sélectionnés. Le tableau de la Figure 2 montre
+que QALC a de meilleures performances sur les catégories définies par une entité nommée.
+En effet, ce type de question comporte en général plusieurs termes, ce qui facilite la sélection
+des phrases candidates par rapport aux questions du type demande de deﬁnition qui ne
+comportent généralement qu’un seul terme. Par ailleurs, l’extraction de la réponse est facilitée
+par l’étiquetage des entités nommées dans les documents.
+
+Questions Nombre de Nombre de réponses Nombre de réponses Extraction correcte
+questions correctes (phrases) correctes (50 car.) (phrase -> 50 car.)
+Catégorie de’finie par 229 96 (42 %) 82 (36 %) 85 %
+
+une entité nommée
+
+Autre catégorie 263 103 (39 %) 63 (24 %) 61 %
+
+Figure 2 : Les réponses suivant la catégorie de question
+
+QALC a obtenu 0.18 a l’éValuation TREC10. La Version TRECIO du systeme QALC a
+obtenu de meilleurs résultats que la Version précédente pour les catégories de question qui ne
+sont pas déﬁnies par une entité nommée. En effet, on obtient une réponse correcte pour 24%
+de ces questions, contre seulement 10% dans la Version précédente.
+
+6 Conclusion
+
+Le systeme QALC, que nous Venons de décrire, sélectionne d’abord les 10 premieres phrases
+qui répondent a la question posée, pour en extraire ensuite une réponse précise. Ce principe
+est efﬁcace lorsque les phrases trouvées ont des poids tres différents les uns des autres. Dans
+ce cas, en effet, la réponse a de fortes chances de se trouver dans les 10 premieres phrases
+sélectionnées. En revanche, lorsqu’un grand nombre de phrases ont le meme poids, la réponse
+peut se trouver aussi bien dans l’une des dernieres phrases que dans la premiere. C'est plus
+particulierement le cas des questions de type définition comme Qu ‘est-ce qu ’un micron ? , qui
+n'ont qu'un seul terme caractéristique et n'attendent pas d'entité nommée en réponse. Dans ce
+cas, il sera probablement plus efﬁcace d'appliquer les patrons d'extraction a un nombre
+important de phrases, afin de les discriminer par ces patrons et non par les termes.
+
+Une autre difﬁculté que nous avons rencontrée dans l’extraction de la réponse est la
+constitution meme des patrons syntaxiques d’extraction. Ces patrons émergent des corpus de
+questions/réponses, et nécessitent donc d’abord la constitution de grands corpus. Par ailleurs,
+certaines catégories de questions se prétent moins bien que d’autres a la définition de patrons.
+Pour ces catégories, il faudra trouver d’autres solutions. L’une d’entre elles consiste a utiliser
+la hiérarchie des catégories sémantiques de Wordnet pour les questions dont le type général
+
+315
+
+Ferret 0., Grau B., Hurault-PlantetM, Illouz G., Monceaux L., Robba 1., Vilnat A.
+
+de la reponse attendue peut étre determine. En effet, la connaissance du type attendu de la
+reponse (lorsqu’il existe) facilite la recherche de la reponse dans la phrase. Actuellement, seul
+le type correspondant a une entite nommee est utilise, et non le type semantique general. Par
+exemple, la question What language is mostly spoken in Brazil? (Quelle langue est la plus
+parlée au Brésil ?) attend en reponse le nom d’une langue. Ce type n’etant pas etiquete dans
+le corpus, QALC ne peut pas le localiser dans les phrases candidates. En revanche, nous
+avons teste l’utilisation de WordNet pour verifier si un mot de la phrase candidate est du type
+langue. En effet, la reponse dans notre exemple est le portugais , qui fait partie des
+hyponymes de langue dans WordNet.
+
+Nous serons donc de plus en plus amenes a adopter des strategies differentes suivant la
+categorie de la question. Nous devrons alors specifier plus precisement les categories de
+questions, ainsi que les patrons d'extraction de la reponse qui leur sont associes afin
+d’ameliorer l'application de ces patrons.
+
+References
+
+Alpha S., Dixon P., Liao C., Yang C. (2001), Oracle at TREC10, Actes de TRECIO, 419-428.
+A'1't-Mokhtar S. and Chanod J. (1997), Incremental Finite-State Parsing, Actes de ANLP-97.
+
+Ferret 0., Grau B., Hurault-Plantet M., Illouz G., Jacquemin C. (2001), Document selection
+refinement based on linguistic features for QALC, a question answering system, Actes de
+RANLP 2001.
+
+Ferret 0., Grau B., Hurault-Plantet M., Monceaux, L., Robba, 1., Vilnat, A., (2001), Finding
+an answer based on the question focus, Text retrieval conference, TREC 10.
+
+Fellbaum C. (1998), WordNet.‘ An Electronic Lexical Database, MIT Press, Cambridge, MA.
+
+Harabagiu S., Moldovan D., Pasca M., Surdeanu M., Mihalcea R., Girju R., Rus V., Lacatusu
+F., Morarescu P., Bunescu R. (2001), Answering complex, list and context questions with
+LCC’s Question-Answering Server, Actes de TREC10.
+
+Hovy E., Herrnjakob U., Lin C. (2001), Actes de TRECIO, 166-174.
+
+Jacquemin, C. (1999), Syntagmatic and paradigmatic representations of term variation, Actes
+de ACL '99, University of Maryland, 341-348.
+
+Lehnert W. (1979),Y71e process of question answering, Lawrence Erlbaum Associates, 1979.
+
+Schmid H. (1999), Improvements in Part-of-Speech Tagging with an Application To German,
+Dordrecht, Editeurs Armstrong S., Church K.W., Isabelle P., Manzi S., Tzoukermann E., and
+Yarowsky D., Natural Language Processing Using Very Large Corpora, Kluwer Academic
+Publishers.
+
+Soubbotin M.M., Soubbotin S.M. (2001), Patterns of Potential Answer expressions as Clues
+to the Right Answers, Actes de TRECIO, 175-182.
+
+316
+

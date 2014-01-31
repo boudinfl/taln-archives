@@ -1,0 +1,1423 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Int&#233;gration probabiliste de sens dans la repr&#233;sentation de textes</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2001, Tours, 2-5 juillet 2001
+</p>
+<p>Int&#233;gration probabiliste de sens dans la repr&#233;sentation
+de textes
+</p>
+<p>Romaric Besan&#231;on, Antoine Rozenknop,
+Jean-C&#233;dric Chappelier et Martin Rajman
+</p>
+<p>Laboratoire d&#8217;Intelligence Artificielle, D&#233;partement Informatique
+&#201;cole Polytechnique F&#233;d&#233;rale de Lausanne
+</p>
+<p>e-mail: {Romaric.Besancon, Antoine.Rozenknop, Jean-Cedric.Chappelier, Martin.Rajman}@epfl.ch
+</p>
+<p>R&#233;sum&#233; - Abstract
+</p>
+<p>Le sujet du pr&#233;sent article est l&#8217;int&#233;gration des sens port&#233;s par les mots en contexte dans une
+repr&#233;sentation vectorielle de textes, au moyen d&#8217;un mod&#232;le probabiliste. La repr&#233;sentation
+vectorielle consid&#233;r&#233;e est le mod&#232;le DSIR, qui &#233;tend le mod&#232;le vectoriel (VS) standard en
+tenant compte &#224; la fois des occurrences et des co-occurrences de mots dans les documents.
+L&#8217;int&#233;gration des sens dans cette repr&#233;sentation se fait &#224; l&#8217;aide d&#8217;un mod&#232;le de Champ de
+Markov avec variables cach&#233;es, en utilisant une information s&#233;mantique d&#233;riv&#233;e de relations
+de synonymie extraites d&#8217;un dictionnaire de synonymes.
+Mots-cl&#233;s: D&#233;sambigu&#239;sation, S&#233;mantique Distributionnelle, Repr&#233;sentation Vectorielle, Re-
+cherche Documentaire, Champs de Markov, algorithme EM.
+</p>
+<p>The present contribution focuses on the integration of word senses in a vector representation of
+texts, using a probabilistic model. The vector representation under consideration is the DSIR
+model, that extends the standard Vector Space (VS) model by taking into account both occur-
+rences and co-occurrences of words. The integration of word senses into the co-occurrence
+model is done using a Markov Random Field model with hidden variables, using semantic in-
+formation derived from synonymy relations extracted from a synonym dictionary.
+Keywords: Word Sense Disambiguation, Distributional Semantics, Vector Space Representa-
+tion, Information Retrieval, Markov Random Fields, EM algorithm.
+</p>
+<p>1 Introduction
+</p>
+<p>Les syst&#232;mes pour le traitement de bases d&#8217;information textuelle de grande taille reposent
+g&#233;n&#233;ralement sur la notion de similarit&#233; entre textes. Par exemple, les syst&#232;mes de Recherche
+Documentaire (RD) cherchent &#224; calculer les similarit&#233;s entre une requ&#234;te et une collection de
+documents. Les techniques de classification non supervis&#233;es reposent &#233;galement sur une mesure
+de similarit&#233; qui permet de construire des classes en regroupant des documents similaires.
+</p>
+<p>Ces syst&#232;mes de similarit&#233;s textuelles utilisent en g&#233;n&#233;ral un mod&#232;le vectoriel pour la repr&#233;sen-
+tation des documents (Salton and Buckley, 1988; Rajman et al., 2000) pour d&#233;river une mesure</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R. Besan&#231;on, A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>de similarit&#233; (au sens math&#233;matique) dans l&#8217;espace vectoriel consid&#233;r&#233; (par exemple, le cosi-
+nus de l&#8217;angle entre les vecteurs repr&#233;sentant les documents). Les dimensions de cet espace
+vectoriel sont en g&#233;n&#233;ral associ&#233;es &#224; des unit&#233;s linguistiques sp&#233;cifiques, qui peuvent par ex-
+emple &#234;tre des mots, des stems ou des lemmes. Ces unit&#233;s linguistiques sont appel&#233;es termes
+d&#8217;indexation. L&#8217;id&#233;e pr&#233;sent&#233;e dans cet article est d&#8217;am&#233;liorer la qualit&#233; des repr&#233;sentations des
+textes en pr&#233;cisant le sens des unit&#233;s linguistiques polys&#233;miques. Dans ce but, une phase de
+d&#233;sambigu&#239;sation s&#233;mantique est int&#233;gr&#233;e dans le processus de repr&#233;sentation. L&#8217;information
+s&#233;mantique requise pour cette &#233;tape est extraite des relations de synonymie contenues dans un
+dictionnaire de synonymes.
+</p>
+<p>Dans la section 2, nous pr&#233;sentons rapidement le mod&#232;le DSIR (Distributional Semantics for
+Information Retrieval &#8211; Recherche Documentaire &#224; base de S&#233;mantique Distributionnelle) pour
+la repr&#233;sentation de textes. Dans la section 3, nous pr&#233;sentons une m&#233;thode pour d&#233;river une
+notion de concepts &#224; partir d&#8217;un ensemble de relations de synonymie. La section 4 traite de
+l&#8217;int&#233;gration de ces concepts dans le mod&#232;le probabiliste, et de l&#8217;utilisation d&#8217;un algorithme
+de type EM pour estimer les param&#232;tres de ce mod&#232;le. Finalement, dans la section 5, nous
+pr&#233;sentons les premiers r&#233;sultats pour la validation de cette approche, appliqu&#233;e &#224; la Recherche
+documentaire.
+</p>
+<p>2 Le mod&#232;le DSIR de repr&#233;sentation de textes
+</p>
+<p>Les mod&#232;les vectoriels standards repr&#233;sentent les documents par un vecteur, appel&#233; profil lexi-
+cal, dont chaque composante repr&#233;sente l&#8217;importance dans le document du terme d&#8217;indexation
+associ&#233; &#224; cette dimension. La notion d&#8217;importance (i.e. la composante du vecteur) se traduit
+habituellement par une valeur qui d&#233;pend de la fr&#233;quence du terme dans le document et, &#233;ven-
+tuellement, d&#8217;informations globales comme la fr&#233;quence en documents (Salton and Buckley,
+1988; Singhal, 1997). L&#8217;id&#233;e du mod&#232;le DSIR, fond&#233; sur la notion de S&#233;mantique Distri-
+butionnelle, est d&#8217;int&#233;grer plus d&#8217;information s&#233;mantique dans la repr&#233;sentation au moyen de
+l&#8217;utilisation de co-occurrences de termes (Rungsawang and Rajman, 1995; Rajman et al., 2000).
+L&#8217;id&#233;e d&#8217;origine de la s&#233;mantique distributionnelle est que le mot prend son sens en contexte et
+que le sens d&#8217;un mot est donc reli&#233; &#224; l&#8217;ensemble des contextes dans lequel il appara&#238;t (Rajman
+and Bonnet, 1992). Dans l&#8217;approche DSIR, les contextes sont pris en compte au moyen des
+fr&#233;quences de co-occurrence. Une unit&#233; linguistique &#0;&#2;&#1; est repr&#233;sent&#233;e par son profil de co-
+occurrence
+</p>
+<p>&#3; &#4;
+</p>
+<p>&#1; &#5; &#6; &#7; &#7; &#7;&#8;&#6;
+</p>
+<p>&#4;
+</p>
+<p>&#1; &#9;&#11;&#10;
+</p>
+<p>, o&#249; &#12; est la taille de l&#8217;ensemble des termes d&#8217;indexation et
+&#4;
+</p>
+<p>&#1; &#13; est
+la fr&#233;quence de co-occurrence entre &#0; &#1; et le terme d&#8217;indexation &#14; &#13; au sein d&#8217;une unit&#233; textuelle
+pr&#233;d&#233;finie (fen&#234;tre de taille fixe, phrase, paragraphe, etc). Les documents sont alors repr&#233;sent&#233;s
+par la moyenne pond&#233;r&#233;e des profils de co-occurrence des mots qu&#8217;ils contiennent, i.e. &#15;&#17;&#16;
+&#3;
+</p>
+<p>&#15;
+</p>
+<p>&#5; &#6; &#7; &#7; &#7;&#8;&#6;
+</p>
+<p>&#15;
+</p>
+<p>&#9;&#11;&#10;
+</p>
+<p>, o&#249;
+&#15;
+</p>
+<p>&#13;
+</p>
+<p>&#16;&#19;&#18;
+</p>
+<p>&#20; &#21; &#22;&#24;&#23;&#26;&#25;
+</p>
+<p>&#1;
+</p>
+<p>&#4;
+</p>
+<p>&#1; &#13;
+</p>
+<p>ff
+</p>
+<p>&#233;tant l&#8217;ensemble de toutes les unit&#233;s linguistiques, et
+&#25;
+</p>
+<p>&#1; la fr&#233;quence de &#0;fi&#1; dans le document &#15; .
+Comme montr&#233; dans (Besan&#231;on et al., 1999; Rajman et al., 2000), le mod&#232;le DSIR a &#233;galement
+une interpr&#233;tation probabiliste.
+</p>
+<p>La fa&#231;on de calculer les fr&#233;quences de co-occurrence d&#233;pend des relations de co-occurrence
+consid&#233;r&#233;es. L&#8217;approche la plus simple est de calculer toutes les co-occurrences entre toutes les
+unit&#233;s linguistiques dans une phrase ou une fen&#234;tre de taille donn&#233;e sur un corpus de r&#233;f&#233;rence.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Int&#233;gration probabiliste de sens dans la repr&#233;sentation de textes
+</p>
+<p>Une approche plus fine passe par l&#8217;utilisation d&#8217;une information syntaxique suppl&#233;mentaire
+permettant de produire des groupes syntaxiques (associ&#233;s chacun &#224; une unit&#233; linguistique par-
+ticuli&#232;re consid&#233;r&#233;e comme t&#234;te du groupe) : on ne consid&#233;re alors que les co-occurrences &#224;
+l&#8217;int&#233;rieur d&#8217;un groupe syntaxique ou entre t&#234;tes de diff&#233;rents groupes (Besan&#231;on et al., 1999),
+ce qui permet d&#8217;&#233;viter de tenir compte de co-occurrences entre unit&#233;s linguistiques non syn-
+taxiquement li&#233;es. Dans tous les cas, la phrase est transform&#233;e en un graphe de co-occurrence
+dans lequel les n&#339;uds sont associ&#233;s aux unit&#233;s linguistiques consid&#233;r&#233;es et les arcs repr&#233;sentent
+les relations de co-occurrence.
+</p>
+<p>Prenons par exemple la phrase : &quot;Chat &#233;chaud&#233; craint l&#8217;eau froide.&quot;. Apr&#232;s un pr&#233;traitement
+permettant de ne garder que les lemmes des mots pleins1, l&#8217;information de co-occurrence peut
+&#234;tre calcul&#233;e et les graphes de co-occurrences, correspondant &#224; la prise en compte ou non d&#8217;un
+filtrage syntaxique, sont pr&#233;sent&#233;s dans la Figure 1.
+</p>
+<p>chat &#233;chaud&#233;
+</p>
+<p>craindre eau froid
+</p>
+<p>chat &#233;chaud&#233;
+</p>
+<p>craindre eau froid
+</p>
+<p>chat &#233;chaud&#233; craindre eau froid (*chat &#233;chaud&#233;) (*craindre) (*eau froid)
+</p>
+<p>(a) (b)
+Figure 1: Exemples de graphes de co-occurrences , (a) sans filtrage syntaxique, (b) avec filtrage
+syntaxique (les &#233;toiles indiquent les t&#234;tes des groupes syntaxiques).
+</p>
+<p>L&#8217;objectif de l&#8217;int&#233;gration des sens dans le mod&#232;le de repr&#233;sentation des textes est de proposer
+un espace de repr&#233;sentation fond&#233; sur les sens, c&#8217;est-&#224;-dire un espace vectoriel dont chaque
+dimension est associ&#233;e &#224; un sens et non plus &#224; un mot (terme d&#8217;indexation). Dans le cadre du
+mod&#232;le DSIR, cette int&#233;gration passe par le calcul des co-occurrences entre sens au lieu des co-
+occurrences entre mots, permettant de construire des repr&#233;sentations s&#233;mantiques plus riches
+dans les profils de co-occurrence.
+</p>
+<p>Les sens qui sont associ&#233;s aux dimensions de l&#8217;espace sont d&#233;riv&#233;s d&#8217;un ensemble de relations
+de synonymie extraites d&#8217;un dictionnaire de synonymes. La section suivante pr&#233;sente une m&#233;-
+thode de construction de ces sens &#224; partir des donn&#233;es brutes (et ambigu&#235;s) d&#8217;un dictionnaire de
+synonymes.
+</p>
+<p>3 D&#233;sambigu&#239;sation d&#8217;un ensemble de relations de synonymie
+</p>
+<p>Un dictionnaire de synonymes peut &#234;tre consid&#233;r&#233; comme un ensemble de mots &#0; (entr&#233;es du
+dictionnaire2) associ&#233;s chacun &#224; un ensemble de listes de synonymes. Par exemple, quelques
+sens du mot froid et les listes de synonymes correspondantes sont (selon le dictionnaire des
+synonymes Hachette) :
+</p>
+<p>1par exemple, on peut d&#233;cider de ne garder que les lemmes des noms, des verbes et des adjectifs.
+2cet ensemble correspond ici &#224; l&#8217;ensemble d&#8217;unit&#233;s linguistiques consid&#233;r&#233; dans la section 2.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R. Besan&#231;on, A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>&#0; Sens 1 &#1; calme, de marbre, flegmatique, impassible, imperturbable, indiff&#233;rent, insensi-
+ble, marmor&#233;en;
+</p>
+<p>&#0; Sens 2 &#1; d&#233;daigneux, distant, fier, hautain, r&#233;frig&#233;rant, renferm&#233;, r&#233;serv&#233;, sec;
+&#0; Sens 3 &#1; aust&#232;re, glac&#233;, inexpressif, monotone, nu, plat, sec, s&#233;v&#232;re, simple, terne;
+&#0;&#3;&#2; &#2; &#2;
+</p>
+<p>Consid&#233;rons alors la relation est-synonyme-de3. Comme, dans les dictionnaires standards, la
+transitivit&#233; n&#8217;est en g&#233;n&#233;ral pas garantie pour cette relation, on construit tout d&#8217;abord la ferme-
+ture transitive de la relation est-synonyme-de, puis on extrait les sous-graphes correspondant &#224;
+des composantes connexes. Par construction, une telle composante connexe contient alors un
+ensemble de sens recoupant une m&#234;me notion. Cet ensemble de sens connexes sera appel&#233; un
+concept.
+</p>
+<p>Cependant, de fa&#231;on g&#233;n&#233;rale, les mots apparaissant dans la liste des synonymes fournie par un
+dictionnaire sont souvent eux-m&#234;me polys&#233;miques et doivent &#234;tre d&#233;sambigu&#239;s&#233;s pour permettre
+la construction des concepts : dans l&#8217;exemple pr&#233;c&#233;dent, le mot sec est synonyme de deux sens
+diff&#233;rents de froid. On suppose donc que ce mot a lui-m&#234;me au moins deux sens diff&#233;rents et
+des approches heuristiques doivent &#234;tre envisag&#233;es pour associer un sens unique &#224; chacun des
+mots au sein des listes de synonymes.
+</p>
+<p>Notons &#4;
+&#5;
+</p>
+<p>&#6;&#8;&#7;
+</p>
+<p>&#2; &#2; &#2;
+</p>
+<p>&#7;
+</p>
+<p>&#4;
+</p>
+<p>&#9; &#10;
+</p>
+<p>&#6; les &#11; &#6; sens d&#8217;un mot &#4; &#6; , et &#12; &#13;&#14;&#11;&#16;&#15; &#4;&#18;&#17;&#6; &#19;&#21;&#20;&#23;&#22; l&#8217;ensemble de synonymes du
+mot &#4; &#6; dans son sens &#24; . L&#8217;heuristique utilis&#233;e ici est d&#8217;associer &#224; chaque mot &#4; &#6;&#26;&#25; &#12; &#13;&#14;&#11;&#16;&#15; &#4;fifffl &#19;
+le sens &#4; &#17;&#6; pour lequel l&#8217;intersection entre la liste des synonymes repr&#233;sentant &#4; &#17;&#6; et la liste des
+synonymes repr&#233;sentant &#4;&#26;fffl est maximale. Plus pr&#233;cis&#233;ment, le sens &#24;&#14;ffi associ&#233; &#224; &#4; &#6; est d&#233;fini
+par :
+</p>
+<p>&#24;
+</p>
+<p>ffi&#18;&#31;! #&quot; $&#8;%&amp; &#8;'
+</p>
+<p>&#17;
+</p>
+<p>(
+</p>
+<p>(
+</p>
+<p>(
+</p>
+<p>&#12; &#13;&#14;&#11;&#16;&#15; &#4;
+</p>
+<p>&#17;
+</p>
+<p>&#6; &#19;&amp;)+*
+</p>
+<p>&#4;
+</p>
+<p>ff
+</p>
+<p>fl-,
+</p>
+<p>&#12; &#13;&#14;&#11;&#16;&#15; &#4;
+</p>
+<p>ff
+</p>
+<p>fl
+</p>
+<p>&#19;/.
+</p>
+<p>&#4;
+</p>
+<p>&#17;
+</p>
+<p>&#6; 0
+</p>
+<p>(
+</p>
+<p>(
+</p>
+<p>(
+</p>
+<p>&#192; l&#8217;aide d&#8217;une telle heuristique, il est alors possible d&#8217;associer &#224; chaque mot un ensemble de
+concepts possibles (les diff&#233;rents sens du mot) et &#224; chaque concept un ensemble de mots (les
+r&#233;alisations du concept).
+Le probl&#232;me principal de l&#8217;int&#233;gration des sens dans la repr&#233;sentation des textes est alors de
+choisir les bons concepts &#224; associer aux mots d&#8217;un corpus d&#8217;apprentissage, pour le calcul des
+co-occurrences entre concepts.
+</p>
+<p>4 Int&#233;gration des sens dans le mod&#232;le DSIR
+</p>
+<p>L&#8217;approche choisie pour la d&#233;sambigu&#239;sation s&#233;mantique des mots est de suivre l&#8217;intuition qui
+est &#224; la base de la S&#233;mantique Distributionnelle : on fait l&#8217;hypoth&#232;se que la s&#233;quence de con-
+cepts &#224; associer &#224; une s&#233;quence de mots est celle qui maximise la probabilit&#233; d&#8217;affecter des
+concepts aux n&#339;uds du graphe de co-occurrence d&#233;riv&#233; de la s&#233;quence de mots. En d&#8217;autres
+termes, pour une configuration de mots &#4; associ&#233;e aux n&#339;uds d&#8217;un graphe de co-occurrence 1 ,
+la configuration de concepts associ&#233;e 2 ffi est telle que
+</p>
+<p>2
+</p>
+<p>ffi
+</p>
+<p>&#31;! &#8;&quot; $#%&amp; '
+</p>
+<p>354
+</p>
+<p>&#15; 2#6 &#4;
+</p>
+<p>&#7;
+</p>
+<p>1
+</p>
+<p>&#19;
+</p>
+<p>&#31;! &#8;&quot; $#%&amp; '
+</p>
+<p>374
+</p>
+<p>&#15; &#4;&amp;6 2
+</p>
+<p>&#7;
+</p>
+<p>1
+</p>
+<p>&#19;
+</p>
+<p>4
+</p>
+<p>&#15; 2#6 1
+</p>
+<p>&#19;
+</p>
+<p>3on suppose que cette relation est sym&#233;trique, ce qui correspond &#224; l&#8217;intuition.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Int&#233;gration probabiliste de sens dans la repr&#233;sentation de textes
+</p>
+<p>On notera, pour tout graphe &#0; , &#1;&#3;&#2; l&#8217;ensemble de ses n&#339;uds, &#4;&#5;&#2; l&#8217;ensemble de ses arcs, et
+&#6;&#8;&#7; &#9; &#10; &#10; &#10;&#11;&#9; &#6;&#13;&#12; &#14;&#16;&#15; &#12; (resp. &#17; &#7; &#9; &#10; &#10; &#10;&#18;&#9; &#17; &#12; &#14;&#16;&#15; &#12; ) une configuration de mots (resp. de concepts) associ&#233;e aux
+n&#339;uds du graphe.
+</p>
+<p>Pour calculer &#19;&#21;&#20; &#6;&#23;&#22; &#17; &#9; &#0;&#25;&#24; &#19;&#21;&#20; &#17; &#22; &#0;&#16;&#24; , on fait les hypoth&#232;ses suivantes :
+</p>
+<p>&#26; H1: le conditionnement impos&#233; &#224; l&#8217;association d&#8217;un mot &#224; un n&#339;ud est limit&#233; au seul
+concept associ&#233; &#224; ce n&#339;ud, ce qui se traduit par : &#19;&#11;&#20; &#6;ff&#22; &#17; &#9; &#0;&#16;&#24;flfi&#31;ffi! &#19;&#11;&#20; &#6;
+</p>
+<p> 
+</p>
+<p>&#22;
+</p>
+<p>&#17;
+</p>
+<p> 
+</p>
+<p>&#24; ;
+</p>
+<p>&#26; H2: le conditionnement de l&#8217;association d&#8217;un concept &#224; un n&#339;ud du graphe est limit&#233;
+aux concepts associ&#233;s aux n&#339;uds voisins : &#19;&#21;&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#22;
+</p>
+<p>&#20; &#17; &quot;
+</p>
+<p>&#24;
+</p>
+<p>&quot; #
+</p>
+<p>&#14;&#16;&#15;
+</p>
+<p>&#24;&#3;fi
+</p>
+<p>&#19;&#21;&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#22;
+</p>
+<p>&#20; &#17;
+</p>
+<p>&quot;
+</p>
+<p>&#24;
+</p>
+<p>&quot; # $ %
+</p>
+<p>&#24;
+</p>
+<p>, o&#249; &amp;  est le
+voisinage du n&#339;ud ' dans le graphe &#0; .
+</p>
+<p>L&#8217;hypotyh&#232;se (H2) de conditionnement limit&#233; au voisinage, induit une structure de Champ de
+Markov (Markov Random Field &#8211; MRF) pour le mod&#232;le probabiliste. D&#8217;apr&#232;s le th&#233;or&#232;me de
+Hammerlsey (Besag, 1974), la distribution de probabilit&#233; &#19;&#11;&#20; &#17; &#22; &#0;&#25;&#24; est alors une distribution de
+Gibbs, c&#8217;est-&#224;-dire une distribution de la forme :
+</p>
+<p>&#19;&#11;&#20; &#17;
+</p>
+<p>&#22; &#0;&#25;&#24;flfi)(
+</p>
+<p>*fl+-, .0/&#8;12
+</p>
+<p># 354
+</p>
+<p>2
+</p>
+<p>&#20; &#17;
+</p>
+<p>&#24;
+</p>
+<p>o&#249;
+*
+</p>
+<p>+
+</p>
+<p>est un facteur de normalisation ( * + fi7678 , .0/&#21;9 6
+2
+</p>
+<p># 3
+</p>
+<p>4
+</p>
+<p>2
+</p>
+<p>&#20; &#17;
+</p>
+<p>&#24; : ), ; est un ensemble de cliques
+dans &#0; et
+</p>
+<p>4
+</p>
+<p>2
+</p>
+<p>&#20; &#17;
+</p>
+<p>&#24; est une fonction, appel&#233;e potentiel, qui associe une valeur r&#233;elle &#224; chacune de ces
+cliques. Comme, dans notre cas, on ne regarde que des relations de co-occurrence, les cliques
+consid&#233;r&#233;es sont d&#8217;ordre au plus 2, et on peut donc r&#233;&#233;crire &#19;&#21;&#20; &#17; &#22; &#0;&#16;&#24; comme:
+</p>
+<p>&#19;&#11;&#20; &#17;
+</p>
+<p>&#22; &#0;&#25;&#24;flfi
+</p>
+<p>(
+</p>
+<p>*fl+
+</p>
+<p>, .0/
+</p>
+<p>&lt;=
+</p>
+<p>1
+</p>
+<p> 
+</p>
+<p>#
+</p>
+<p>&#14;&#16;&#15;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#24;&#11;&gt;
+</p>
+<p>1
+</p>
+<p>?
+</p>
+<p> @
+</p>
+<p>&quot; A # B
+</p>
+<p>&#15;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17;
+</p>
+<p>&quot;
+</p>
+<p>&#24; CD
+</p>
+<p>La probabilit&#233; &#224; maximiser pour obtenir la configuration de concepts optimale &#17;FE est donc :
+</p>
+<p>&#19;&#11;&#20;
+</p>
+<p>&#6;ff&#22;
+</p>
+<p>&#17;
+</p>
+<p>&#9; &#0;&#16;&#24;
+</p>
+<p>&#19;&#21;&#20; &#17;
+</p>
+<p>&#22; &#0;&#16;&#24;flfiG(
+</p>
+<p>*H, .0/
+</p>
+<p>&lt;
+</p>
+<p>=
+</p>
+<p>1
+</p>
+<p> 
+</p>
+<p>#
+</p>
+<p>&#14;&#16;&#15;
+</p>
+<p>4&#25;I
+</p>
+<p>&#20;
+</p>
+<p>&#6;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17;
+</p>
+<p> 
+</p>
+<p>&#24;&#11;&gt;
+</p>
+<p>1
+</p>
+<p> 
+</p>
+<p>#
+</p>
+<p>&#14;&#16;&#15;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#24;&#11;&gt;
+</p>
+<p>1
+</p>
+<p>?
+</p>
+<p> @
+</p>
+<p>&quot; A # B
+</p>
+<p>&#15;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17;
+</p>
+<p>&quot;
+</p>
+<p>&#24; C
+</p>
+<p>D
+</p>
+<p>o&#249;
+4
+</p>
+<p>I
+</p>
+<p>&#20;
+</p>
+<p>&#6;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17;
+</p>
+<p> 
+</p>
+<p>&#24; est le potentiel associ&#233; &#224; la probabilit&#233; d&#8217;&#233;mission &#19;&#11;&#20; &#6;
+ 
+</p>
+<p>&#22;
+</p>
+<p>&#17;
+</p>
+<p> 
+</p>
+<p>&#24;
+</p>
+<p>.
+</p>
+<p>Cette distribution de probabilit&#233; correspond &#224; un mod&#232;le param&#233;trique, dont l&#8217;ensemble des
+param&#232;tres est J fiLK &#20;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#24; &#24;
+</p>
+<p>8
+</p>
+<p>% # M
+</p>
+<p>&#9;
+</p>
+<p>&#20;
+</p>
+<p>4
+</p>
+<p>&#20; &#17;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17; &quot;
+</p>
+<p>&#24; &#24;
+</p>
+<p>8
+</p>
+<p>%
+</p>
+<p>@ 8 N
+</p>
+<p># M
+</p>
+<p>&#9;
+</p>
+<p>&#20;
+</p>
+<p>4&#25;I
+</p>
+<p>&#20;
+</p>
+<p>&#6;
+</p>
+<p> 
+</p>
+<p>&#9;
+</p>
+<p>&#17; &quot;
+</p>
+<p>&#24; &#24; O
+</p>
+<p>% #FP
+</p>
+<p>@ 8 N
+</p>
+<p># M0Q , o&#249; R est l&#8217;ensemble
+des concepts. Pour trouver des valeurs pertinentes pour ces param&#232;tres, on utilise l&#8217;approche
+standard qui consiste &#224; choisir les valeurs qui maximisent la log-vraisemblance du corpus
+d&#8217;apprentissage S (les graphes de co-occurrence &#0; &#233;tant donn&#233;s par une analyse syntaxique
+pr&#233;alable des phrases de S ).
+On utilise dans ce but un algorithme d&#233;riv&#233; des algorithmes Estimation-Maximisation (EM)
+(Dempster et al., 1977) et Improved Iterative Scaling (IIS) (Lafferty, 1996; Pietra et al., 1997),
+dont l&#8217;objectif est de d&#233;terminer l&#8217;ensemble de param&#232;tres J qui maximise l&#8217;esp&#233;rance de la
+log-vraisemblance T-U &#20; S &#24;flfi76 ? O @
+</p>
+<p>&#2; A # V&#13;W XFY
+</p>
+<p>&#19;&#16;U &#20;
+</p>
+<p>&#6;&#23;&#22; &#0;&#25;&#24;
+</p>
+<p>.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R. Besan&#231;on, A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>La structure g&#233;n&#233;rale de cette approche it&#233;rative est la suivante : &#233;tant donn&#233; un ensemble
+de param&#232;tres
+</p>
+<p>&#0;
+</p>
+<p>, on cherche l&#8217;ensemble de param&#232;tre
+&#0;&#2;&#1;
+</p>
+<p>qui maximise l&#8217;esp&#233;rance de la log-
+vraisemblance sachant les param&#232;tres
+</p>
+<p>&#0;
+</p>
+<p>. Cela revient &#224; maximiser la fonction &#3;&#5;&#4;
+&#0;&#7;&#6; &#0;&#8;&#1; &#9;
+</p>
+<p>suivante :
+</p>
+<p>&#3;&#10;&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;
+</p>
+<p>&#1;
+</p>
+<p>&#9;&#12;&#11;&#14;&#13;
+</p>
+<p>&#15; &#16;&#18;&#17; &#19; &#20; &#21; &#22;
+</p>
+<p>&#13;
+</p>
+<p>&#23;
+</p>
+<p>&#21; &#24; &#25; &#15; &#16;&#18;&#20; &#26;fiff
+</p>
+<p>&#4; fl&#8;ffi &#31;
+</p>
+<p>&#6;  &#18;&#9;&#7;! &quot;&#8;#
+</p>
+<p>&#26;
+</p>
+<p>ff $
+</p>
+<p>&#4; &#31;
+</p>
+<p>&#6;
+</p>
+<p>fl&#8;ffi
+</p>
+<p> fi&#9;
+</p>
+<p>&#26;
+</p>
+<p>ff
+</p>
+<p>&#4; &#31;
+</p>
+<p>&#6;
+</p>
+<p>fl&#8;ffi
+</p>
+<p> &#18;&#9;
+</p>
+<p>o&#249; % &#19; &#4; &#31;
+&#9;
+</p>
+<p>est l&#8217;ensemble des configurations de concepts possibles sur le graphe
+ 
+</p>
+<p>, sachant les
+mots associ&#233;s aux n&#339;uds du graphe.
+</p>
+<p>Dans le cas d&#8217;une distribution de Gibbs, la log-vraisemblance est difficile &#224; calculer, en raison
+du caract&#232;re global de la constante de normalisation &amp; , trop co&#251;teuse &#224; &#233;valuer. L&#8217;approche
+g&#233;n&#233;ralement utilis&#233;e (en particulier dans le domaine du traitement d&#8217;image) pour r&#233;soudre
+ce probl&#232;me est de remplacer la vraisemblance par une pseudo-vraisemblance (Besag, 1974;
+Chalmond, 1989), d&#233;finie comme le produit des probabilit&#233;s conditionnelles :
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>&#4; fl&#8;ffi
+</p>
+<p> &#18;&#9;)&#11;+*
+</p>
+<p>,
+</p>
+<p>&#21; -fi&#25;
+</p>
+<p>&#26;
+</p>
+<p>&#4; fl
+</p>
+<p>,
+</p>
+<p>ffi &#4; fl .
+</p>
+<p>&#9;
+</p>
+<p>.
+</p>
+<p>&#21; / 0
+</p>
+<p>&#9;
+</p>
+<p>Il a &#233;t&#233; montr&#233; que l&#8217;estimateur ainsi obtenu est aussi consistant que l&#8217;estimateur du maximum
+de vraisemblance (Gidas, 1988).
+Pour ce qui est de la distribution jointe des variables observ&#233;es et cach&#233;es, la pseudo-vrai-
+semblance est d&#233;finie par (Chalmond, 1989) :
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>&#4; &#31;
+</p>
+<p>&#6;
+</p>
+<p>fl&#8;ffi
+</p>
+<p> &#18;&#9;1&#11;
+</p>
+<p>&#26;&#18;ff
+</p>
+<p>&#4; &#31;&#5;ffi fl
+</p>
+<p>&#9;
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>&#4; fl&#8;ffi
+</p>
+<p> &#18;&#9;
+</p>
+<p>et on cherche alors &#224; maximiser la fonction &#3;&#5;&#4;
+&#0;&#7;&#6; &#0;&#2;&#1; &#9;
+</p>
+<p>suivante :
+</p>
+<p>&#3;&#5;&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;
+</p>
+<p>&#1;
+</p>
+<p>&#9;&#12;&#11;&#14;&#13;
+</p>
+<p>&#15; &#16;2&#17; &#19; &#20; &#21; &#22;
+</p>
+<p>&#13;
+</p>
+<p>&#23;
+</p>
+<p>&#21; &#24; &#25; &#15; &#16;fi&#20; &#26;&#18;ff
+</p>
+<p>&#4; fl&#8;ffi &#31;
+</p>
+<p>&#6;  fi&#9;fi! &quot;&#2;#
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>$
+</p>
+<p>&#4; &#31;
+</p>
+<p>&#6;
+</p>
+<p>fl&#8;ffi
+</p>
+<p> &#18;&#9;
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>&#4; &#31;
+</p>
+<p>&#6;
+</p>
+<p>fl&#8;ffi
+</p>
+<p> fi&#9; (1)
+</p>
+<p>Comme il n&#8217;est en g&#233;n&#233;ral pas possible de maximiser directement cette expression, l&#8217;approche
+usuelle est d&#8217;utiliser une fonction auxiliaire 34&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;&#8;&#1; &#9;
+</p>
+<p>qui constitue une borne inf&#233;rieure pour la
+fonction &#3;&#5;&#4;
+</p>
+<p>&#0;&#7;&#6; &#0; &#1; &#9; 4
+.
+</p>
+<p>En effectuant les calculs &#224; partir de la d&#233;finition (1), on peut s&#233;parer la fonction &#3; en deux
+fonctions que l&#8217;on pourra maximiser s&#233;par&#233;ment :
+</p>
+<p>&#3;&#10;&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;
+</p>
+<p>&#1;
+</p>
+<p>&#9;&#12;&#11;
+</p>
+<p>&#3;65&#12;&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;
+</p>
+<p>&#1;
+</p>
+<p>&#9;87
+</p>
+<p>&#3;
+</p>
+<p>&#22;
+</p>
+<p>&#4;
+</p>
+<p>&#0;&#7;&#6; &#0;
+</p>
+<p>&#1;
+</p>
+<p>&#9;
+</p>
+<p>avec
+</p>
+<p>9:
+</p>
+<p>:
+</p>
+<p>;
+</p>
+<p>:
+</p>
+<p>:&lt;
+</p>
+<p>&#3;
+</p>
+<p>5
+</p>
+<p>&#4;
+</p>
+<p>&#0;&#7;&#6; &#0; &#1; &#9;&#12;&#11;&gt;=
+</p>
+<p>&#15; &#16;2&#17; &#19; &#20; &#21; &#22;
+</p>
+<p>=
+</p>
+<p>&#23;
+</p>
+<p>&#21; &#24; &#25; &#15; &#16;&#18;&#20;
+</p>
+<p>&#26;&#18;ff
+</p>
+<p>&#4; fl&#8;ffi &#31;
+</p>
+<p>&#6;  fi&#9;fi! &quot;&#2;#
+</p>
+<p>&#26;
+</p>
+<p>ff $
+</p>
+<p>&#4; &#31;?ffi fl
+</p>
+<p>&#9;
+</p>
+<p>&#26;
+</p>
+<p>ff
+</p>
+<p>&#4; &#31;&#5;ffi fl
+</p>
+<p>&#9;
+</p>
+<p>&#3;
+</p>
+<p>&#22;
+</p>
+<p>&#4;
+</p>
+<p>&#0;&#7;&#6; &#0; &#1; &#9;)&#11;@=
+</p>
+<p>&#15; &#16;2&#17; &#19; &#20; &#21; &#22;
+</p>
+<p>=
+</p>
+<p>&#23;
+</p>
+<p>&#21; &#24; &#25; &#15; &#16;&#18;&#20;
+</p>
+<p>&#26;fiff
+</p>
+<p>&#4; fl&#8;ffi &#31;
+</p>
+<p>&#6;  &#18;&#9;&#7;! &quot;&#8;#
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>$
+</p>
+<p>&#4; fl&#8;ffi
+</p>
+<p> fi&#9;
+</p>
+<p>'&#12;(
+</p>
+<p>ff
+</p>
+<p>&#4; fl&#8;ffi
+</p>
+<p> &#18;&#9;
+</p>
+<p>4maximiser A&#12;B C D C E F , si ce maximum est strictement positif, assure que les param&#232;tres C E d&#233;finissent un meilleur
+mod&#232;le que C .</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Int&#233;gration probabiliste de sens dans la repr&#233;sentation de textes
+</p>
+<p>Et on d&#233;rive ainsi les fonctions auxiliaires suivantes (en explicitant les valeurs de &#0;&#2;&#1; &#3; &#4;&#6;&#5; &#7; &#8; et
+&#9;&#11;&#10;
+</p>
+<p>&#1;
+</p>
+<p>&#3; &#7;&#12;&#5; &#13;&#14;&#8; ) :
+&#15;&#17;&#16;
+</p>
+<p>&#3; &#18;&#20;&#19; &#18; &#21; &#8;&#11;&#22;&#24;&#23;
+</p>
+<p>&#25; &#26;&#14;ff fi fl
+</p>
+<p>&#23;
+</p>
+<p>ffi &#31;  !
+</p>
+<p>&#25; &#26;&#14;fl
+</p>
+<p>&#0;
+</p>
+<p>&#1;
+</p>
+<p>&#3; &#7;&#12;&#5; &#4;&quot;&#19; &#13;&#14;&#8;#&#23;
+</p>
+<p>$
+</p>
+<p>&#31; %&amp;!
+</p>
+<p>' (*)&#14;+
+</p>
+<p>&#3; &#4;
+</p>
+<p>$
+</p>
+<p>&#19; &#7;
+</p>
+<p>$
+</p>
+<p>&#8;#,-&#23;
+</p>
+<p>&#26;
+</p>
+<p>&#31; ffi .
+</p>
+<p>&#0;
+</p>
+<p>&#1;
+</p>
+<p>&#3; &#4;&#6;&#5; &#7;
+</p>
+<p>$
+</p>
+<p>&#8;&amp;/ 0&amp;1
+</p>
+<p>(2)&amp;+
+</p>
+<p>&#3; &#4;&quot;&#19; &#7;
+</p>
+<p>$
+</p>
+<p>&#8; 3
+</p>
+<p>&#15;&#17;4
+</p>
+<p>&#3; &#18;&#20;&#19; &#18;
+</p>
+<p>&#21;
+</p>
+<p>&#8;&#11;&#22;&#24;&#23;
+</p>
+<p>&#25; &#26;&#14;ff fi fl
+</p>
+<p>&#23;
+</p>
+<p>ffi &#31;  !
+</p>
+<p>&#25; &#26;&#14;fl
+</p>
+<p>&#0;
+</p>
+<p>&#1;
+</p>
+<p>&#3; &#7;&#12;&#5; &#4;&quot;&#19; &#13;&#14;&#8;#&#23;
+</p>
+<p>$
+</p>
+<p>&#31; %&amp;!
+</p>
+<p>' (*)
+</p>
+<p>&#3; &#7;
+</p>
+<p>$
+</p>
+<p>&#8;&#2;56&#23;
+</p>
+<p>7
+</p>
+<p>&#31; 8
+</p>
+<p>.
+</p>
+<p>(*)
+</p>
+<p>&#3; &#7;
+</p>
+<p>$
+</p>
+<p>&#19; &#7;
+</p>
+<p>7
+</p>
+<p>&#8;
+</p>
+<p>,
+</p>
+<p>&#23;
+</p>
+<p>ffi 9 &#31;  
+</p>
+<p>&#0;&amp;&#1; &#3; &#7; :&#12;&#5; &#3; &#7;
+</p>
+<p>7
+</p>
+<p>&#8;
+</p>
+<p>7
+</p>
+<p>&#31; 8
+</p>
+<p>.
+</p>
+<p>&#8;&lt;;
+</p>
+<p>=
+</p>
+<p>$&quot;&gt;
+</p>
+<p>&#23;
+</p>
+<p>7
+</p>
+<p>&#31; 8
+</p>
+<p>.
+</p>
+<p>/ 0&amp;1
+</p>
+<p>=
+</p>
+<p>$
+</p>
+<p>(2)
+</p>
+<p>&#3; &#7; :?&#19; &#7;
+</p>
+<p>7
+</p>
+<p>&#8;&#2;5@/ 0&amp;1
+</p>
+<p>=
+</p>
+<p>$
+</p>
+<p>(*)
+</p>
+<p>&#3; &#7; : &#8; A&quot;3
+</p>
+<p>o&#249; les
+</p>
+<p>(2)
+</p>
+<p>sont les diff&#233;rences de potentiel entre les mod&#232;les &#18; &#21; et &#18; , et
+=
+</p>
+<p>$ est le nombre de
+voisins du n&#339;ud B augment&#233; de 1 ( = $ &#22;C&#5; D $ &#5; 5
+</p>
+<p>;
+</p>
+<p>).
+Les d&#233;riv&#233;es E F&amp;G
+</p>
+<p>&#25;
+</p>
+<p>&#1;
+</p>
+<p>ff
+</p>
+<p>&#1; H
+</p>
+<p>fl
+</p>
+<p>E IKJ L
+</p>
+<p>&#25; &#26;&#14;ff
+</p>
+<p>ffi
+</p>
+<p>fl ne d&#233;pendent alors que des
+</p>
+<p>(*)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;&quot;&#19; &#7; &#8;
+</p>
+<p>. On peut donc trouver les para-
+m&#232;tres
+</p>
+<p>)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;&quot;&#19; &#7; &#8; en calculant it&#233;rativement les valeurs
+</p>
+<p>(2)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;&quot;&#19; &#7; &#8; qui maximisent
+&#15;
+</p>
+<p>&#16;
+</p>
+<p>&#3; &#18;&#20;&#19; &#18;
+</p>
+<p>&#21;
+</p>
+<p>&#8; (en
+utilisant des m&#233;thodes comme l&#8217;algorithme de Newton pour r&#233;soudre les &#233;quations E F&amp;G
+</p>
+<p>&#25;
+</p>
+<p>&#1;
+</p>
+<p>ff
+</p>
+<p>&#1; H
+</p>
+<p>fl
+</p>
+<p>E I&#2;J L
+</p>
+<p>&#25; &#26;&#14;ff
+</p>
+<p>ffi
+</p>
+<p>fl
+</p>
+<p>&#22;
+</p>
+<p>M ) et remplacer
+)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;&quot;&#19; &#7; &#8; par
+</p>
+<p>)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;N&#19; &#7; &#8;&#2;5
+</p>
+<p>(*)
+</p>
+<p>+
+</p>
+<p>&#3; &#4;N&#19; &#7; &#8; jusqu&#8217;&#224; convergence. On fait de m&#234;me pour
+les param&#232;tres
+</p>
+<p>(*)
+</p>
+<p>&#3; &#7; &#8; et
+</p>
+<p>(2)
+</p>
+<p>&#3; &#7;
+</p>
+<p>$
+</p>
+<p>&#19; &#7;
+</p>
+<p>7
+</p>
+<p>&#8;
+</p>
+<p>.
+</p>
+<p>Une fois les param&#232;tres optimaux obtenus, on peut, pour chacune des phrases du corpus, cal-
+culer la configuration de concepts la plus probable qui lui est associ&#233;e. On obtient donc un
+corpus compos&#233; de graphes de co-occurrences dont les n&#339;uds sont associ&#233;s &#224; des concepts, &#224;
+partir duquel on peut calculer les co-occurrences n&#233;cessaires &#224; la repr&#233;sentation des textes dans
+l&#8217;espace des concepts.
+</p>
+<p>5 &#201;valuation
+L&#8217;approche pr&#233;sent&#233;e dans cet article a &#233;t&#233; &#233;valu&#233;e pour une t&#226;che de Recherche Documentaire,
+en utilisant un corpus d&#8217;articles du journal La Monde, provenant de la campagne d&#8217;&#233;valuation
+AMARYLLIS. Cette &#233;valuation n&#8217;est pas directement centr&#233;e sur les r&#233;sultats obtenus pour la
+d&#233;sambigu&#239;sation s&#233;mantique (c&#8217;est-&#224;-dire l&#8217;affectation des concepts les plus probables &#224; une
+phrase), mais plut&#244;t sur l&#8217;impact de l&#8217;utilisation des concepts produits pour une application du
+type Recherche Documentaire. Pour cette t&#226;che, les documents de la base documentaire et
+les requ&#234;tes sont repr&#233;sent&#233;s dans l&#8217;espace vectoriel des concepts, &#224; l&#8217;aide d&#8217;un mod&#232;le DSIR
+utilisant les co-occurrences entre concepts au lieu des co-occurrences entre mots.
+</p>
+<p>Le travail de d&#233;sambigu&#239;sation d&#8217;une liste de synonymes d&#233;riv&#233;e d&#8217;un dictionnaire de syn-
+onymes a &#233;t&#233; mise en &#339;uvre s&#233;par&#233;ment et un ensemble de concepts en ont &#233;t&#233; d&#233;riv&#233;es (Pfister,
+2000).
+Pour la t&#226;che de Recherche Documentaire, un lexique de 7073 mots (lemmes) est utilis&#233;, qui
+correspond &#224; un total de 2936 concepts (le nombre moyen de mots par concepts est 2.7). Le
+corpus de r&#233;f&#233;rence est compos&#233; de 9574 documents et de 4 requ&#234;tes. Les r&#233;sultats, en termes
+de pr&#233;cision/rappel, pr&#233;sent&#233;s en Figure 2 montrent une am&#233;lioration des performances lors de
+l&#8217;utilisation de la repr&#233;sentation en concepts des documents et des requ&#234;tes (courbe &quot;concepts&quot;)
+par rapport &#224; la repr&#233;sentation en mots (courbe &quot;mots&quot;). Un test suppl&#233;mentaire a &#233;t&#233; effec-
+tu&#233; en associant le m&#234;me concept &#224; toutes les occurrences d&#8217;un mot donn&#233;, par exemple, en</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>R. Besan&#231;on, A. Rozenknop, J.-C. Chappelier, M. Rajman
+</p>
+<p>0
+</p>
+<p>0.2
+</p>
+<p>0.4
+</p>
+<p>0.6
+</p>
+<p>0.8
+</p>
+<p>1
+</p>
+<p>0 0.2 0.4 0.6 0.8 1
+</p>
+<p>Pr
+ec
+</p>
+<p>is
+io
+</p>
+<p>n
+</p>
+<p>Rappel
+</p>
+<p>concepts
+mots
+</p>
+<p>concepts simples
+</p>
+<p>Figure 2: R&#233;sultats de l&#8217;int&#233;gration des sens pour une t&#226;che de Recherche Documentaire sur le
+corpus &quot;Le Monde&quot;.
+</p>
+<p>prenant toujours le premier de la liste des concepts possibles du mot. Les r&#233;sultats de ce test
+(repr&#233;sent&#233;s par la courbe &quot;concepts simples&quot;) montrent que cette repr&#233;sentation n&#8217;am&#233;liore pas
+les performances par rapport &#224; la repr&#233;sentation directe en mots, ce qui semble confirmer que
+l&#8217;am&#233;lioration des performances est effectivement due &#224; la pertinence de l&#8217;association des con-
+cepts aux mots par la m&#233;thode pr&#233;sent&#233;e. D&#8217;autres exp&#233;riences de validation sont n&#233;anmoins
+n&#233;cessaires pour fournir plus de d&#233;tails sur les caract&#233;ristiques de la m&#233;thode qui expliquent
+cette am&#233;lioration.
+</p>
+<p>6 Conclusion
+</p>
+<p>Nous pr&#233;sentons dans cet article un mod&#232;le de repr&#233;sentation &#224; base de Champ de Markov per-
+mettant d&#8217;int&#233;grer les sens des mots dans un mod&#232;le probabiliste de repr&#233;sentation de textes. Les
+champs de Markov semblent fournir un bon cadre pour la repr&#233;sentation de ce type d&#8217;informa-
+tion de voisinage non-orient&#233;, et peuvent &#233;galement &#234;tre envisag&#233;s pour la mod&#233;lisation directe
+des co-occurrences de mots dans la repr&#233;sentation de documents. Les premiers r&#233;sultats pour
+l&#8217;&#233;valuation de cette repr&#233;sentation pour une t&#226;che de recherche documentaire montrent une
+am&#233;lioration des performances, mais une &#233;valuation plus pouss&#233;e devrait &#234;tre mise en &#339;uvre.
+D&#8217;autre part, la disponibilit&#233; d&#8217;un mod&#232;le de co-occurrence de concepts permet &#233;galement de
+mettre en &#339;uvre des techniques de d&#233;sambigu&#239;sation s&#233;mantique, et ce mod&#232;le devrait aussi &#234;tre
+&#233;valu&#233; pr&#233;cis&#233;ment pour cette seule t&#226;che, par une m&#233;thode adapt&#233;e, et pourrait &#234;tre compar&#233; &#224;
+d&#8217;autres techniques de d&#233;sambigu&#239;sation.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Int&#233;gration probabiliste de sens dans la repr&#233;sentation de textes
+</p>
+<p>R&#233;f&#233;rences
+Besag, J. (1974). Spatial interaction and the statistical analysis of lattice systems. Journal of Royal
+Statistics Society, 36:192&#8211;236.
+Besan&#231;on, R., Rajman, M., and Chappelier, J.-C. (1999). Textual similarities based on a distributional
+approach. In International Workshop on Similarity Search (IWOSS99), Florence, Italy.
+Chalmond, B. (1989). An iterative gibbsian technique for reconstruction of m-ary images. Pattern
+Recognition, 22(6):747&#8211;761.
+Dempster, A., Laird, N., and Rubin, D. (1977). Maximum likelihood from incomplete data via the EM
+algorithm. Jounal of Royal Statistics Society, 39:185&#8211;197.
+Gidas, B. (1988). Consistency of maximum likelihood and pseudolikelihood estimators for gibbs distri-
+butions. In Fleming, W. and Lions, P., editors, Stochastic Differential System, Stochastic Control Theory
+and Applications, pages 129&#8211;145. Springer, New York.
+Lafferty, J. (1996). Gibbs-markov models. Computing Science and Statistics, 27:370&#8211;377.
+Pfister, J.-P. (2000). D&#233;sambiguisation d&#8217;un dictionnaire de synonymes. Technical report, EPFL.
+Pietra, S., Pietra, V., and Lafferty, J. (1997). Inducing features of random fields. IEEE Transactions on
+Pattern Analysis and Machine Intelligence, 19(4):380&#8211;393.
+Rajman, M., Besan&#231;on, R., and Chappelier, J.-C. (2000). Le mod&#232;le DSIR : Une approche &#224; base de
+s&#233;mantique distributionnelle pour la recherche documentaire. Traitement Automatique des Langues,
+41(2).
+Rajman, M. and Bonnet, A. (1992). Corpora-base linguistics: new tools for natural language processing.
+In 1st Annual Conference of the Association for Global Strategic Information, Bad Kreuznach, Germany.
+Rungsawang, A. and Rajman, M. (1995). Textual information retrieval based on the concept of distri-
+butional semantics. In proc. of JADT&#8217;95 (3rd International Conference on Statistical Analysis of Textual
+Data), Rome.
+Salton, G. and Buckley, C. (1988). Term weighting approaches in automatic text retrieval. Information
+Processing and Management, 24:513&#8211;523.
+Singhal, A. (1997). Term Weighting Revisited. PhD thesis, Department of Computer Science, Cornell
+University.</p>
+
+</div></div>
+</body></html>

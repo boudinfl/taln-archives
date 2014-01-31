@@ -1,0 +1,439 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>An Example-Based Semantic Parser for Natural Language</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="page-break-before:always; page-break-after:always"><div><p>TALN 2002, Nancy, 24&#8211;27 juin 2002
+</p>
+<p>An Example-Based Semantic Parser for Natural Language
+</p>
+<p>Michel Ge&#769;ne&#769;reux
+Austrian Research Institute for Artificial Intelligence
+</p>
+<p>Schottengasse 3, A-1030, Vienna, Austria
+michel@oefai.at
+</p>
+<p>Abstract
+</p>
+<p>This paper presents a method for guiding semantic parsers based on a statistical model.
+The parser is example driven, that is, it learns how to interpret a new utterance by look-
+ing at some examples. It is mainly predicated on the idea that similarities exist between
+contexts in which individual parsing actions take place. Those similarities are then used to
+compute the degree of certainty of a particular parse. The treatment of word order and the
+disambiguation of meanings can therefore be learned.
+</p>
+<p>Mots-clefs &#8211; Keywords
+Analyseur se&#769;mantique, Corpus, Langue naturelle
+Semantic parser, Corpus, Natural language
+</p>
+<p>1 Introduction
+In order to achieve better results in acquisition, coverage, robustness and portability, corpus-
+based methods have been recently applied with success in areas like speech recognition (Ra-
+biber, 1989), part-of-speech tagging (Charniak, Hendrickson, Jacobson and Perkowitz,
+1993) and syntactic parsing (Manning and Carpenter, 1997). In Semantic Parsing, the
+process of mapping a natural language input to some structured meaning representation,
+Collins and Miller (Collins, 1998) describe a statistical model for extraction of events;
+Miller, Stallard, Bobrow and Schwartz describe an approach entirely based on a trained sta-
+tistical model (Miller, Stallard, Robrow and Schwartz, 1996) and Thompson, Mooney and
+Tang (Thompson, Mooney and Tang, 1997) propose a novel and very interesting approach
+based on a bottom-up parser and a machine learning algorithm. I propose an approach in
+which a bottom-up parser is combined with a statistical model. Figure 1 shows the overall
+architecture of the system.
+</p>
+<p>2 Overview of the Parsing Process
+This section presents the various elements of the system. The parser used is a variant of
+a Shift-Reduce parser (Marcus, 1980). It actually comprises three different manageable
+actions that the parser uses to get to the final parse, which is a semantic interpretation
+(in first-order logic) of a natural language utterance. This left to right parsing makes the
+process relatively intuitive for humans.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Michel Ge&#769;ne&#769;reux
+</p>
+<p>Figure 1: The Parser Architecture
+</p>
+<p>The Input String The input string is a list of words to give an interpretation for. When
+no action is applicable and the input string is empty, then the parsing process is completed.
+For example1:
+(1) &#0;Ich,suche,einen,Artikel,u&#776;ber,Bush]
+</p>
+<p>The Parse Stack Format: [concept1:[context1],concept2:[context2],. . . ]
+The parse stack is the actual parse state, the current interpretation of the input string
+</p>
+<p>found so far. It is a list of binary elements, each element representing a combination of the
+introduced predicate (or concept) with its context of introduction. Here is an example:
+(2) &#0;suche([],zeitung( ),zeit( )):[suche,einen,Artikel],start:[Ich]]
+</p>
+<p>The sHIFT action Syntax: sHIFT(word to be shifted)
+A sHIFT action simply puts the first word from the input string at the end of the context
+</p>
+<p>of the concept on the top of the parse stack. For example, the action sHIFT(&#776;uber) on the
+parse stack 2 would result in the following new parse stack:
+(3) &#0;suche([],zeitung( ),zeit( )):[suche,einen,Artikel,u&#776;ber],start:[Ich]]
+</p>
+<p>The iNTRODUCE action Syntax: iNTRODUCE(concept to be introduced)
+The iNTRODUCE action takes a concept from the semantic lexicon and puts it on the
+</p>
+<p>top of the parse stack, initializing its context of introduction to the word (or list of words)
+that triggered this concept. For example, the action iNTRODUCE(topic(1)) on the parse
+stack 2 would result in the following new parse stack:
+(4) &#0;topic(1):[topic(1)],suche([],zeitung( ),zeit( )):[suche,einen,Artikel],start:[Ich]]
+</p>
+<p>The dROP action Syntax: dROP(source term, target term)
+The dROP action attempts to place a term from the parse stack as argument to another
+</p>
+<p>term of the parse stack. For example, the action dROP(topic(1),suche([],zeitung( ),zeit( )))
+on the parse stack 4 would result in the following new parse stack:
+(5) &#0;suche([topic(1)],zeitung( ),zeit( )):[suche,einen,Artikel],start:[Ich]]
+</p>
+<p>A Parse State Format: op(aCTION(arguments)#Parse Stack#Input String)
+It indicates in which context, i.e. how the Parse Stack and the Input String looked like,
+</p>
+<p>when the action took place. Op is simply a container2 for all types of actions.
+1Although not yet topicalized.
+2A container is a term which embraces other terms.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>An Example-Based Semantic Parser for Natural Language
+</p>
+<p>A Final State Format: final(Parse Stack)
+It indicates the final aspect of a parse, i.e. the meaning found for an input string.
+</p>
+<p>Semantic Lexicon Format: lexicon(CONCEPT, [TRIGGERING PHRASE])
+It comprises all the concepts and their triggering phrase(s) that we wish our parser
+</p>
+<p>to process. For example, suche or brauche would trigger the suche concept. Here is an
+example of a lexical entry:
+(6) lexicon(suche([],zeitung( ),zeit( )),[suche]).
+</p>
+<p>The shift-reduce parser I am now ready to present the variant of the shift-reduce
+parser I am using. The algorithm of the parser is as follows:
+</p>
+<p>1. Try to introduce a new concept or shift a word.
+2. If possible, make one drop action.
+3. If there are more words in the input string, go back to Step 1. Otherwise stop.
+</p>
+<p>Topic extraction Typically, topic extraction replaces relevant noun phrases or preposi-
+tional phrases in the input string by successive topic( ) terms. For our running example 1,
+after topic extraction, this is the following phrase which is passed on to the parser:
+</p>
+<p>[Ich,suche,einen,Artikel,topic(1)]
+</p>
+<p>3 Training
+The training phase records successful actions (called op), as well as the different final states.
+For each of them uniquely defined, it assigns a frequency measure, defined as follows:
+</p>
+<p>&#0;&#1;&#2;&#3;&#4;&#2;&#5;&#6;&#7; &#0;
+</p>
+<p>&#0;&#1;&#1;&#2;&#3;&#4;&#5;&#1;&#4; &#6;&#7; &#8; &#9;&#8;&#3;&#10;&#11;&#1;&#2;&#12;&#8;&#3; &#8;&#1;&#10;&#11;&#6;&#5; &#11;&#5; &#8; &#13;&#9;&#4;&#1;&#11;&#7;&#11;&#1; &#1;&#6;&#5;&#10;&#4;&#14;&#10;
+</p>
+<p>&#15;&#6;&#10;&#8;&#12; &#5;&#2;&#16;&#17;&#4;&#3; &#6;&#7; &#6;&#1;&#1;&#2;&#3;&#4;&#5;&#1;&#4; &#6;&#7; &#10;&#18;&#11;&#13; &#8;&#1;&#10;&#11;&#6;&#5;
+</p>
+<p>(7)
+</p>
+<p>In the following are examples of sentences on which the parser was trained (a test set).
+</p>
+<p>Written Korpus
+Artikel u&#776;ber das Wiener Neujahrskonzert suche ich.
+Etwas u&#776;ber das Konzert als festen Bestandteil des kulturellen Lebens suche ich.
+</p>
+<p>Spoken Korpus
+Ich mo&#776;chte jetzt eine neue Suche beginnen.
+Die Kosovo-Krise un und Bill Clinton.
+</p>
+<p>Artificial data
+Bitte geben Sie mir einen Text zum Thema Kosovo-Krise.
+Aber bitte nur in der Zeitung Salzburger Nachrichten von vor einer Woche.
+</p>
+<p>Training file The training file is the file in which training examples are stored. These
+examples have the following format:
+</p>
+<p>training([topicalized phrase], meaning).
+Meaning is in the form of first order logic expressions. A training file example could be3:
+</p>
+<p>training([Ich,moechte,jetzt,eine,neue,Suche,beginnen],neue_suche).
+training([Ich,suche,einen,Artikel,topic(1)],suche([topic(1)],zeitung(_),zeit(_))).
+</p>
+<p>3oe stands for o&#776;, ue stands for u&#776; and ae stands for a&#776;</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Michel Ge&#769;ne&#769;reux
+</p>
+<p>Note that the examples for which we wish to train for should be topicalized for a changing
+domain. The third example could be helpful in training for a sentence like:
+</p>
+<p>Ich suche einen Artikel u&#776;ber Bush.
+While training, an overlyGeneralParser is used. It is overly general in the sense that it tries
+any possible actions to get to the final parse, without considering any information (such as
+statistics) that could be helpful to guide the parsing process. In training, a training beam
+can be specified. This means that only a certain number of parses will be recorded in the
+statistical file for each training example.
+</p>
+<p>File used by the Specialized Parser: the Statistical File The overlyGeneralParser
+parses the training file to generate the statistical file. Every step needed to go from the
+topicalized phrase to the meaning is recorded, as well as final states themselves. Final
+states are simply the states of the parse stack themselves at the end of the parse. Each of
+them (actions and final states) are assigned a frequency measure as described previously.
+Each line has either one of the following format (recall that op is a container for any action):
+</p>
+<p>op(ACTION#PARSE_STACK#INPUT_STRING#FREQUENCY).
+final(FINAL_STATE#FREQUENCY).
+</p>
+<p>Here is an example:
+op(sHIFT(Ich)#[start:[]]#[Ich,suche,einen,Text,for,topic(1),topic(2),
+</p>
+<p>bitte,bearbeiten,Sie,meinen,Suchauftrag]#0.3333).
+</p>
+<p>These lines are used by the specializedParser to compute the best parse.
+</p>
+<p>4 Statistical Parsing
+The actual parsing of the input phrase is done by a specializedParser. It is specialized in the
+sense that it uses a statistical model to process all the information available from the training
+phase in order to get the best possible parse (the one with the highest probability). This
+section presents a detailed description of the statistical model used. Weighting parameters
+are presented but not discussed.
+</p>
+<p>The Search space Like in the training phase, the most obvious way to influence the
+parse is to tell the parser how many parses it should try before taking a decision. I call it
+the search beam parameter.
+</p>
+<p>Measure of similarity between lists This is a crucial aspect of the specialized parser.
+When the parser tries to choose a suitable parse, it must compare list of words (to compare
+Actions, Parse stacks or Input strings). A good similarity measure between lists is essential,
+but because computing similarity is very demanding on computer resources, one must find
+a trade-off that preserves computational efficiency. At the top level, the similarity measure
+is simply a measure of the number of identical elements in both lists, divided by the size of
+the largest list. Therefore, we have:
+</p>
+<p>&#8;&#9;&#10;&#9;&#11;&#12;&#1;&#9;&#13;&#7; &#0;
+</p>
+<p>&#19;&#2;&#16;&#17;&#4;&#3; &#6;&#7; &#11;&#20;&#4;&#5;&#10;&#11;&#1;&#8;&#12; &#4;&#12;&#4;&#16;&#4;&#5;&#10;&#13;
+</p>
+<p>&#21;&#11;&#22;&#4; &#6;&#7; &#10;&#18;&#4; &#17;&#11;&#23;&#23;&#4;&#13;&#10; &#12;&#11;&#13;&#10;
+</p>
+<p>(8)
+</p>
+<p>For example, omitting case-sensitivity:
+(9) similarity([Ich,suche,einen,Artikel],[Das,suche,ich]) = 2/4 = 0.5</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>An Example-Based Semantic Parser for Natural Language
+</p>
+<p>Comparisons sometimes involves structures. Structures can be decomposed into list in
+PROLOG4, and then compared by using equation 8:
+</p>
+<p>&#0;&#1;&#2;&#3;&#4;&#5;&#6;&#7;&#2;&#1;&#6;&#1;&#8;&#2;&#9; &#6;&#1;&#8;&#3;&#9; &#10;&#10;&#10;&#4; &#5; &#0;&#0;&#1;&#2;&#3;&#4;&#5;&#6;&#7;&#2;&#9; &#6;&#1;&#8;&#2;&#9; &#6;&#1;&#8;&#3;&#9; &#10;&#10;&#10;&#6; (10)
+</p>
+<p>Therefore, we can now roughly compare structures as lists. Preliminary empirical results
+tend to show that the approximation is sensible .
+</p>
+<p>Parameterizing the model I introduce all the equations for the model, explaining their
+context of use. The best parse &#0; is found by taking the highest probability &#24;
+</p>
+<p>&#4;
+</p>
+<p>among the
+possible parses (limited by the search beam) available:
+</p>
+<p>&#0; &#0; &#1;&#2;&#3;
+</p>
+<p>&#4;
+</p>
+<p>&#24;
+</p>
+<p>&#4;
+</p>
+<p>(11)
+Each of these parses &#24;
+</p>
+<p>&#4;
+</p>
+<p>have a probability that amounts to combining the probability of
+the individual op or actions together (&#0;
+</p>
+<p>&#11;
+</p>
+<p>&#8;
+</p>
+<p>&#11;
+</p>
+<p>) and adding the probability of the final state
+(&#14;&#1;&#15;&#16;&#0; , see equation 15). These two components must be appropriately weighted by &#14;&#15;&#17;
+and &#14;&#18;&#5;&#12;&#11; . Multiplying by 100 gives a more readable value between 0 and 100.
+</p>
+<p>&#24;
+</p>
+<p>&#4;
+</p>
+<p>&#0; &#4;&#14;&#15;&#17; &#0; &#4;
+</p>
+<p>&#1;
+</p>
+<p>&#11;
+</p>
+<p>&#8;
+</p>
+<p>&#11;
+</p>
+<p>&#5; &#6; &#14;&#18;&#5;&#12;&#11; &#0; &#14;&#1;&#15;&#16;&#0; &#5; &#0; &#7;&#8;&#8; (12)
+</p>
+<p>The way each op &#8;
+&#11;
+</p>
+<p>is assigned a probability is by taking into account its similarity with
+one of the ops in the statistical file (see equation 14) as well as the frequency of this op
+(&#0;&#1;&#2;&#3;&#4;&#2;&#5;&#6;&#7;). These two components are also weighted by &#14;&#15;&#17; &#19;&#9;&#10; and &#14;&#15;&#17; &#15;&#6;&#6;.
+</p>
+<p>&#8;
+</p>
+<p>&#11;
+</p>
+<p>&#0; &#16;&#8;&#14;
+</p>
+<p>&#12;
+</p>
+<p>&#4;&#14;&#15;&#17; &#19;&#9;&#10; &#0; &#24;
+</p>
+<p>&#12;
+</p>
+<p>&#6; &#14;&#15;&#17; &#15;&#6;&#6; &#0; &#0;&#1;&#2;&#3;&#4;&#2;&#5;&#6;&#7;&#5; (13)
+While looking for a suitable op in the statistical file, the parser looks for similarity. The
+</p>
+<p>similarity of an op &#24;
+&#12;
+</p>
+<p>with one in the statistical file is measured by multiplying together
+the similarity of the op as such, the similarity of the parse stack and the similarity of the
+input string (t stands for training).
+</p>
+<p>&#13;
+</p>
+<p>&#0;
+</p>
+<p>&#5; &#12;&#6;&#14;&#1;&#0;&#1;&#2; &#3;&#1;&#4;&#5;
+</p>
+<p>&#0;&#1;&#2;&#3;&#4;&#5;
+</p>
+<p>&#9; &#6;
+</p>
+<p>&#4;&#6;
+</p>
+<p>&#4; &#0; &#0;&#1;&#2; &#7;&#8;&#1;&#4;&#5;
+</p>
+<p>&#6;&#7;
+</p>
+<p>&#9; &#6;
+</p>
+<p>&#6;&#7;
+</p>
+<p>&#4; &#0; &#0;&#1;&#2; &#9; &#1;&#4;&#5;
+</p>
+<p>&#3;&#5;&#6;&#8;&#2;
+</p>
+<p>&#9; &#6;
+</p>
+<p>&#3;&#5;&#6;&#8;&#2;
+</p>
+<p>&#4;&#4; (14)
+</p>
+<p>Computing the probability of a final parse state is similar to computing the one for
+actions. A final state probability &#14;&#1;&#15;&#16;&#0; is the weighted sum of the most similar final state
+in the statistical file &#14;
+</p>
+<p>&#15;
+</p>
+<p>(see 16) and the frequency of this final state &#0;&#1;&#2;&#3;&#4;&#2;&#5;&#6;&#7; :
+&#14;&#1;&#15;&#16;&#0; &#0; &#1;&#2;&#3;
+</p>
+<p>&#15;
+</p>
+<p>&#4;&#14;&#18;&#5;&#12;&#11; &#19;&#9;&#10; &#0; &#14;
+</p>
+<p>&#15;
+</p>
+<p>&#6; &#14;&#18;&#5;&#12;&#11; &#15;&#6;&#6; &#0; &#0;&#1;&#2;&#3;&#4;&#2;&#5;&#6;&#7;&#5; (15)
+</p>
+<p>&#24;
+</p>
+<p>&#15;
+</p>
+<p>&#0; &#16;&#8;&#14;
+</p>
+<p>&#16;
+</p>
+<p>&#4;&#19;&#9;&#10;&#4;&#13;
+</p>
+<p>&#10;
+</p>
+<p>&#25;&#0; &#5;&#5; (16)
+When needed, smoothing is carried out in a very conservative manner.
+</p>
+<p>5 Results
+I have conducted an experiment to test the performance of the parser. After training with
+only 80 examples, the parser averages 62% correctness while parsing a new sentence. Re-
+call is therefore slightly lower than the other approaches mentioned at the beginning of the
+paper. I believe there are mainly four reasons to that:
+</p>
+<p>1. The very low number (80) of training examples, compare to 560, 225 and 4000 sentences of
+other approaches.
+</p>
+<p>2. The lack of extensive testing on what would be the best setting for default values of weighting
+parameters. Only a set of rather intuitive values were used.
+</p>
+<p>3. The assimilation of natural language utterances to sets instead of lists.
+4. A measure of similarity that sacrifices precision for computational efficiency.
+</p>
+<p>4The programming language used.</p>
+
+</div></div>
+<div style="page-break-before:always; page-break-after:always"><div><p>Michel Ge&#769;ne&#769;reux
+</p>
+<p>6 Conclusion
+In this paper, a new probabilistic framework for semantic parsing is presented. The com-
+bination of a shift-reduce parser and a purely statistical model makes it unique. More pre-
+cisely, the parser learns efficient ways of parsing new sentences by collecting statistics on
+the context in which each parsing action takes place. It computes probabilities on the basis
+of the similarities of those contexts and their frequencies. The result is a simple and robust
+parser. Its configuration can be change in many ways, to fit different types of corpus or do-
+mains. At this point, the system has not yet been fully tested on very large corpora, to see
+if the statistical model remains as efficient. It does not include the treatment of variables,
+which means that there is no treatment of questions. However, testing with few examples,
+the parser shows promising results.
+Compare to similar systems using some machine-learning techniques, ours offers an ap-
+proach in which linguistics can play a decisive role; we have a more direct influence on the
+role of contexts in evaluating the probability of a parse. One crucial aspect of the parser,
+the computation of similarities between context, relies on a good interpretation of linguis-
+tic patterns found in phrases, and how those configurations may determine the particular
+meaning of a word or group of words. This is essential to interpret, and maybe understand,
+natural language utterances.
+</p>
+<p>Acknowledgments
+This work has been sponsored by the Fonds zur Fo&#776;rderung der wissenschaftlichen Forschung
+(FWF), Grant No. P13704. The Austrian Research Institute for Artificial Intelligence
+( &#168;OFAI) is supported by the Austrian Federal Ministry of Education, Science and Culture.
+</p>
+<p>References
+E. Charniak, C. Hendrickson, C. Jacobson and M. Perkowitz (1993), Equations for part-
+of-speech tagging, Proceedings of the 11th National Conference on AI, 784-789.
+M. Collins and S. Miller (1998), Semantic Tagging using a Probalistic Context Free Gram-
+mar, In Proceedings of the Sixth Workshop on Very Large Corpora.
+M.J. Collins (1997), Three generative, lexicalised models for statistical parsing, Proceed-
+ings of the 35th Annual Meeting of the Association for Computational Linguistics, 16-23.
+S. Miller, D. Stallard, R. Bobrow and R. Schwartz (1996), A Fully Statistical Approach
+to Natural Language Interfaces, Proceedings of the 34th Annual Meeting of the ACL,
+Morgan Kaufmann Publishers, San Francisco, Arivind Joshi and Martha Palmer, 55-61.
+L.R. Rabiner (1989), A tutorial on hidden Markov models and selected applications in
+speech recognition, Proceedings of the IEEE, Vol. 77, No. 2, 257-286.
+C. A. Thompson, R. J. Mooney and L. R.Tang (1997), Learning to Parse Natural Lan-
+guage Database Queries into Logical Form, Proceedings of the ML-97 Workshop on
+Automata Induction, Grammatical Inference, and Language Acquisition.
+C.D. Manning and B. Carpenter (1997), Three generative, lexicalised models for statisti-
+cal parsing, Proceedings of the 5th Int. Workshop on Parsing Technologies, 147-158.
+M.P. Marcus (1980), A Theory of Syntactic Recognition for Natural Language, MIT Press.
+Ulf Hermjakob and Raymond J. Mooney (1997), Learning Parse and Translation Deci-
+sions from Examples with Rich Context, Proceedings of the 35th Annual Meeting of the
+Association for Computational Linguistics, 482&#8211;489.</p>
+
+</div></div>
+</body></html>

@@ -9,7 +9,7 @@ resolution=300
 PATH_PDFBOX=/nlp/pdfbox-app-1.8.2.jar
 
 # Extraction du texte des fichiers de RECITAL
-for YEAR in {2003..2005} {2007..2013}
+for YEAR in {2002..2005} {2007..2013}
 do
     echo "Extracting text from RECITAL $YEAR papers"
 
@@ -88,7 +88,7 @@ do
 done
 
 # Extraction du texte des fichiers de TALN
-for YEAR in {2003..2005} {2007..2013}
+for YEAR in {2001..2005} {2007..2013}
 do
     echo "Extracting text from TALN $YEAR papers"
     # Creation du répertoire txt
