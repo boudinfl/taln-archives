@@ -58,6 +58,7 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013, papier court
 
 Mises à jour
+ - 02/02/2014, ajout des actes de RECITAL 2001.
  - 31/01/2014, ajout des actes des conférences TALN-RECITAL 2002 et TALN 2001, 
    modifications des scripts.
  - 29/01/2014, modification du script de conversion pdf->txt et ajout des 
