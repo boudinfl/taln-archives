@@ -46,6 +46,12 @@ Les méta-données des fichiers pdfs ont été modifiés avec l'outil
     cd tools/
     ./update_pdf_metadata.sh
 
+Les citations des articles ont été extraites avec l'outil 
+[ParsCit](http://aye.comp.nus.edu.sg/parsCit/) avec la commande :
+
+    cd tools/
+    ./extract_citations.sh
+
 Une version web de l'archive peut être créée avec la commande :
 
     cd tools/
@@ -58,6 +64,7 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013, papier court
 
 Mises à jour
+ - 03/02/2014, ajout de l'extraction des citations avec ParsCit.
  - 02/02/2014, ajout des actes de RECITAL 2001.
  - 31/01/2014, ajout des actes des conférences TALN-RECITAL 2002 et TALN 2001, 
    modifications des scripts.
