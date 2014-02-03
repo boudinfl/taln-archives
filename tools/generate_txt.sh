@@ -80,6 +80,10 @@ do
             echo 'java -jar $PATH_PDFBOX ExtractText -encoding UTF-8 -html $PDF_FILE $HTML_FILE'
             java -jar $PATH_PDFBOX ExtractText -encoding UTF-8 -html $PDF_FILE $HTML_FILE
         fi
+
+        # Normalize the accentuated characters in the txt file
+        python normalize_punctuation.py $TXT_FILE $TXT_FILE.norm
+        mv $TXT_FILE.norm $TXT_FILE
         
     done
 
@@ -158,6 +162,10 @@ do
             echo 'java -jar $PATH_PDFBOX ExtractText -encoding UTF-8 -html $PDF_FILE $HTML_FILE'
             java -jar $PATH_PDFBOX ExtractText -encoding UTF-8 -html $PDF_FILE $HTML_FILE
         fi
+
+        # Normalize the accentuated characters in the txt file
+        python normalize_punctuation.py $TXT_FILE $TXT_FILE.norm
+        mv $TXT_FILE.norm $TXT_FILE
 
     done
 
