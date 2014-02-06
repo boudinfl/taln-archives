@@ -34,23 +34,17 @@ partir du fichier de méta-données avec la commande :
     python generate_bib.py
 
 Les fichiers au format texte des articles ont été extraits avec l'outil 
-[PDFBox](http://pdfbox.apache.org/) au format texte et html ainsi que OCRisé 
+[pdftotext](http://poppler.freedesktop.org/) au format texte ou OCRisés
 avec l'outil [tesseract-ocr](http://code.google.com/p/tesseract-ocr/).
 
     cd tools/
-    ./generate_txt.sh
+    ./extract_text_from_pdfs.sh
 
 Les méta-données des fichiers pdfs ont été modifiés avec l'outil 
 [pdftk](http://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/) avec la commande :
 
     cd tools/
     ./update_pdf_metadata.sh
-
-Les citations des articles ont été extraites avec l'outil 
-[ParsCit](http://aye.comp.nus.edu.sg/parsCit/) avec la commande :
-
-    cd tools/
-    ./extract_citations.sh
 
 Une version web de l'archive peut être créée avec la commande :
 
@@ -64,6 +58,8 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013, papier court
 
 Mises à jour
+ - 06/02/2014, suppression des fichiers parscit/html/txt et conversion des 
+   articles avec pdftotext + nettoyage des header/footer.
  - 03/02/2014, ajout de l'extraction des citations avec ParsCit.
  - 02/02/2014, ajout des actes de RECITAL 2001.
  - 31/01/2014, ajout des actes des conférences TALN-RECITAL 2002 et TALN 2001, 
