@@ -64,6 +64,15 @@ for line in codecs.open(input_file, 'r', 'utf-8'):
     elif re.search(u'(?i)(TALN|RECITAL|RÉCITAL) 2007.+Toulouse, 5.+8 ?juin 2007', line):
         # print "----> delete", line
         continue
+
+    # remove header 2006
+    elif re.search(u'(?i)(TALN|RECITAL|RÉCITAL) 2006.+Leuven, 10.+13 ?avril 2006', line):
+        # print "----> delete", line
+        continue
+
+    elif re.search(u'^\d+\s+[A-ZÉÈÊÎÇËÂÀÍÏ ’\-,\.:]+$', line) or re.search(u'^[A-ZÉÈÊÎÇËÂÀÍÏ ’\-,\.:]+\s+\d+$', line):
+        # print "----> delete", line
+        continue
         
     # remove header 2005
     elif re.search(u'(?i)(TALN|RECITAL|RÉCITAL) 2005.+Dourdan, 6.+10 ?juin 2005', line):

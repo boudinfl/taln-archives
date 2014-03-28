@@ -1,0 +1,478 @@
+Vers une prédiction automatique de la difficulté
+d’une question en langue naturelle
+
+Laurianne Sitbon1,2 , Jens Grivolla1 , Laurent Gillard1 , Patrice Bellot1 ,
+Philippe Blache2
+1
+Laboratoire d’Informatique d’Avignon
+{laurianne.sitbon ; laurent.gillard ; jens.grivolla ; patrice.bellot}@univ-avignon.fr
+2
+Université de Provence – LPL-CNRS
+pb@lpl.univ-aix.fr
+
+Résumé
+
+Nous proposons et testons deux méthodes de prédiction de la capacité d’un système à répondre à une question
+factuelle. Une telle prédiciton permet de déterminer si l’on doit initier un dialogue afin de préciser ou de reformuler
+la question posée par l’utilisateur. La première approche que nous proposons est une adaptation d’une méthode de
+prédiction dans le domaine de la recherche documentaire, basée soit sur des machines à vecteurs supports (SVM)
+soit sur des arbres de décision, avec des critères tels que le contenu des questions ou des documents, et des mesures
+de cohésion entre les documents ou passages de documents d’où sont extraits les réponses. L’autre approche vise
+à utiliser le type de réponse attendue pour décider de la capacité du système à répondre. Les deux approches
+ont été testées sur les données de la campagne Technolangue EQUER des systèmes de questions-réponses en
+français. L’approche à base de SVM est celle qui obtient les meilleurs résultats. Elle permet de distinguer au mieux
+les questions faciles, celles auxquelles notre système apporte une bonne réponse, des questions difficiles, celles
+restées sans réponses ou auxquelles le système a répondu de manière incorrecte. A l’opposé on montre que pour
+notre système, le type de réponse attendue (personnes, quantités, lieux...) n’est pas un facteur déterminant pour la
+difficulté d’une question.
+
+Mots-clés : questions-réponses, prédiction de la difficulté, SVM, arbres de décision.
+Abstract
+
+This paper presents two methods for automatically predicting the ability for a question answering system to au-
+tomatically reply to a factoid question. The context of this prediction is the determination of the need to initiate
+a dialog with the user in order to focus or reformulate the question. The first method is an adaptation of a doc-
+ument retrieval prediction system based on SVM and decision trees. The features involved include question or
+document text, and cohesion measures between documents or extracts from which the answer is extracted. The
+second method uses only expected answer type to predict the answer validity. Both methods have been evaluated
+with data from the participation of our QA engine in the Technolangue EQUER campaign. On the one hand, the
+SVM based method leads to the best results. It correctly determines which are easy questions, namely, those to
+which our system gives the right answer, and which are hard questions, those to which our system gives bad or
+no answer. On the other hand, we show that for our system, the expected answer type (proper nouns, numbers,
+locations ...) is not a determining factor in defining question hardness.
+
+Keywords: question-answering, difficulty prediction, SVM, decision trees.
+1. Introduction
+Les systèmes de questions-réponses (sQR) sont au cœur des préoccupations en recherche d’in-
+formation. La campagne internationale TREC 1 inclut une tâche questions-réponses (QA) 2
+depuis 1999, la campagne européenne CLEF 3 intègre la tâche QA@clef où les questions sont
+disponibles en plusieurs langues européennes, et enfin la campagne nationale Technolangue
+EVALDA 4 comporte le volet EQUER, auquel nous nous sommes plus particulièrement in-
+téressés.
+Les sQR fonctionnent habituellement selon une analyse modulaire : analyse de la question,
+recherche de documents pouvant contenir la réponse (moteur de recherche documentaire) puis
+analyse en profondeur des documents trouvés pour extraction de réponses. Les campagnes d’é-
+valuation évoquées précédemment montrent que l’état les systèmes ont encore beaucoup de mal
+à répondre à certaines questions. Hors de toute mesure quantitative liée à des campagnes d’é-
+valuation, la prédiction de la capacité à répondre à une question posée (qu’elle soit liée au sQR
+lui même ou à l’absence de réponse dans le corpus) s’impose par un seuil d’admission de la
+question telle qu’elle est posée. Dans le cas où on ne peut pas répondre, il faut entamer un pro-
+cessus de dialogue, dans la direction adaptée, que ce soit un enrichissement (en cas d’ambiguité
+sémantique) ou une correction (il vaut mieux proposer différentes alternatives que proposer une
+réponse à une question automatiquement corrigée), ou encore une validation de la compréhen-
+sion. Il y a alors deux problèmes qui se posent dont seul le second sera traité ici : d’une part
+quelle doit être la nature de ce dialogue et comment en exploiter la teneur et d’autre part à partir
+de quel critère initier ou non le dialogue ?
+L’analyse de la capacité des système à apporter une information donnée est pratiquée dans le
+domaine de la recherche documentaire, où on cherche à affecter des scores de confiance à des
+résultats en fonction des requêtes posées. L’objet de cet article est d’étudier l’adaptabilité de ces
+méthodes à l’affectation de scores de confiance sur des réponses à des questions.
+Dans une première partie nous décrivons la problématique de l’affectation de scores de confi-
+ance en recherche documentaire, et son application avec des classifieurs dans la cadre d’un sQR.
+La seconde partie s’attache à l’application de ce système dans le cadre de la campagne EQUER
+avec le sQR LIA-QA.
+
+2. Une méthode de prédiction appliquée à un sQR
+2.1. Les scores de confiance en recherche documentaire
+
+La prédiction de la capacité à répondre à des requêtes ad-hoc est un domaine de recherche émer-
+gent, qui a fait l’objet d’un atelier 5 lors de la conférence internationale SIGIR en 2005 et de
+la tâche robust de la campagne TREC depuis 2003 (Voorhees, 2003). Les premiers critères de
+prédiction dégagés se basent sur des caractéristiques de la requête uniquement. C’est le cas de
+la méthode d’évaluation de la difficulté des requêtes proposée par (Loupy et Bellot, 2000), où
+la fréquence de chaque mot de la requête ansi que la fréquence combinée sont prises en compte.
+Les travaux de (Cronen-Townsend et al., 2002) se fondent sur un calcul du taux d’ambiguité de
+
+1
+http://trec.nist.gov
+2
+http://trec.nist.gov/data/qa.html
+3
+www.clef-campaign.org
+4
+http://www.elda.org/article118.html
+5
+http://www.haifa.il.ibm.com/sigir05-qp/
+la requête. Dans le même esprit, (Mothe et Tanguy, 2005) ont montré que les corrélations entre
+des caractéristiques linguistiques de la requête et la capacité des systèmes participant à TREC 3,
+5, 6 et 7 se situent uniquement au niveau de la complexité syntaxique (distance entre les termes
+syntaxiquement liés) et de la polysémie, écartant ainsi l’utilisation du nombre de certains types
+de termes (acronymes, noms propres, conjonctions, mots suffixés, ...). Ensuite l’utilisation des
+documents retournés par la requête a permis également de dégager de nouvelles caractéristiques
+pour évaluer la difficulté des requêtes. C’est le cas de (Amati et al., 2004) qui étudient la ré-
+partition des termes de la requête dans les premiers documents retournés. (K.L.Kwok, 2005)
+utilise une régression à l’aide des SVM sur des critères appris sur les résultats de son système,
+qui sont la répartition moyenne de la fréquence des termes de la question, ainsi que leur quantité
+d’information (inverse document frequency). Les travaux de (Grivolla et al., 2005) utilisent des
+classifieurs qui se fondent sur l’apprentissage de caractéristiques issues à la fois des questions et
+des documents retournés. Nous avons adapté cette dernière méthode à la prédiction de la capac-
+ité à répondre dans le cadre de la campagne EQUER, avec le sQR développé au LIA (Gillard
+et al., 2005).
+Par rapport à l’évaluation de la qualité des réponses, la campagne TREC QA s’est intéressée
+en 2002 (Voorhees, 2002) à la capacité des systèmes à juger de la pertinence de leurs réponses.
+Pour cela les participants n’avaient le droit de fournir qu’une seule réponse courte par ques-
+tion, mais ces réponses devaient être ordonnées par confiance décroissante. Ainsi une mesure
+a complété le pourcentage de bonnes réponses et les classiques rappel/précision : Confidence
+Weighted Score. Elle calcule la moyenne du taux de bonnes réponses à tous les rangs dans le
+classement des réponses de chaque participant. Pour répondre à cette problématique la plupart
+des systèmes se basent sur un consensus entre plusieurs propositions de réponses faites par dif-
+férentes parties du système, notamment lors de l’utilisation de ressources externes telles que
+des bases de connaissances (Chu-Carroll et al., 2002) ou (Bellot et al., 2002). Notre système
+utilise également d’autres critères dans le cas de consensus, appris de manière empirique sur le
+comportement du système (critère sur le type de réponse attendue), ou utilisant directement des
+scores de recherche d’informations internes au sQR.
+
+2.2. La prédiction par classification
+
+Dans le système de prédiction sur lequel nous nous sommes penchés, le problème de prédire
+si le système est a priori capable de répondre à une question est vu comme un problème de
+classification des questions en deux classes, les questions difficiles et les questions faciles. Les
+algorithmes d’apprentissage utilisés pour entraîner les classifieurs sont les arbres de décision
+(voir par exemple (Lefèbure et Venturi, 2001) ou (Kuhn et Mori, 1995) pour leur application au
+traitement automatique des langues) et les machines à vecteurs supports (SVM) introduites dans
+(C.Burges, 1998). Ces choix sont motivés dans l’article qui présente la conception du système
+sur des requêtes ad-hoc de TREC (Grivolla et al., 2005).
+Les deux principales étapes dans la mise en place d’un tel système sont la détermination des
+critères de classification et le choix des données d’apprentissage.
+Un certain nombre de caractéristiques de la question, sans prétraitement, ont été utilisées. Il
+s’agit notamment de la taille de la question. Les caractéristiques portant sur l’ambiguité des
+termes, dévoilées habituellement par le nombre de synonymes, le nombre de sens connus, ou
+les hyponymes, n’ont pas été utilisées dans ces premières expériences.
+La deuxième caractéristique utilisée porte sur la cohésion, lexicale notamment entre les docu-
+ments issus du moteurs de recherche d’où sont extraits les passages, ainsi que la cohésion entre
+les passages eux mêmes. Cette idée part du principe qu’une forte variabilité linguistique est
+corrélée avec un plus grand risque qu’une partie des documents ou passages utilisés soit non
+pertinents par rapport à la question, et conduisent à des réponses fausses.
+La similarité cosine a été calculée pour chaque question entre les 5, 10, 15 ou 20 premiers
+passages de documents ou documents complets sélectionnés par le système pour extraire les
+réponses. La similarité est calculée pour chaque paire de documents ou de passages en fonction
+des termes présents dans chacun d’eux et d’un poids qui leur est attribué pour chaque terme Ti,
+en fonction du nombre d’occurrences du terme Ti dans le passage ou dans le document (tfi ),
+et en fonction de la fréquence des lemmes dans la totalité des |D] documents du corpus de la
+campagne (dfi ). Le poids wij d’un terme T i dans le document Dj est donné par :
+wij = tfij ∗ log|D|/dfi
+L’autre mesure de cohésion initialement utilisée dans le système de prédiction sur la recherche
+documentaire est l’entropie, que l’on peut calculer sur les premiers documents retournés par le
+moteur de recherche à l’aide d’un modèle de langage (Carpineto et al., 2001). Dans l’optique de
+pouvoir utiliser notre système en tant qu’aide à l’utilisateur, nous avons choisi de ne pas calculer
+cette caractéristique, très gourmande en calculs. Pour la même raison nous avons limité le calcul
+des similarités moyennes entre les paires de documents aux 20 premiers documents.
+Sur des recherches ad-hoc, les scores de similarités entre les documents et la requête sont
+généralement utilisés pour le classement des documents, et non pas pour une évaluation dans
+l’absolu de leur pertinence. Différentes transformations ont été testées sur ces scores afin d’en
+déterminer une corrélation avec la capacité à répondre. Il s’agit par exemple de la différence
+entre le score du premier document et le score du nième, ou bien une moyenne des scores des
+n premiers documents retournés. Pour l’adaptation de cette mesure au problème des questions-
+réponses, nous avions uniquement les scores de densité de chaque extrait par rapport à la ques-
+tion.
+
+2.3. Les spécificités d’un sQR
+
+On distingue deux grandes catégories de sQR : ceux uniquement à bases de règles et ceux à base
+de méthodes stochastiques qui utilisent des règles pour l’étiquetage sémantique. Les premiers
+utilisent généralement des patrons de reformulation des questions afin de rechercher directe-
+ment les réponses dans leur forme attendue. Dans ce cas là, la détermination de la capacité du
+système à répondre dépend principalement de sa capacité à reformuler, et de la présence des
+reformulations dans les documents. Nous nous sommes donc intéressés à la seconde catégorie
+de systèmes. La figure 1 illustre le fonctionnent général de ces sQR, et plus particulièrement de
+celui que nous utilisons (Gillard et al., 2005), qui est modularisé comme la plupart des sQR au-
+jourd’hui. Les données sur fond gris sont celles qui ont été apprises par le sysème de prédiction.
+Les principales étapes de traitement sont l’analyse de la question, la recherche de documents
+pouvant contenir la réponse (moteur de recherche documentaire) puis une analyse en profondeur
+des documents trouvés pour extraction de réponses. La plupart des sQR à base de méthodes
+stochastiques utilisent différents scores, notamment au niveau de l’appariement. De plus, tous
+utilisent une étape de focalisation à l’intérieur des documents pour cibler la ou les phrases
+contenant la réponse potentielle.
+QUESTIONS                           CORPUS
+Moteur de
+Recherche
+
+Tagger +
+Etiquetage EN
+Etiquetage                                         DOCUMENTS
+des questions
+Questions :
+lemmes+ tags + EN               Tagger +
+Etiquetage EN
+Entités
+réponses
+attendues
+Scores de                DOCUMENTS
+sélection             lemmes + tags + EN
+Appariement               Passages
+lemmes + tags + EN
+Réponses                                         Nombre
+Validation              de bonnes
+réponses
+Figure 1. Fonctionnement général des sQR, en grisé les données utilisées par nos classifieurs
+
+3. Expériences sur les données de la campagne EQUER avec
+différentes méthodes de prédiction
+3.1. Le moteur LIA-QA et la campagne EQUER
+
+Lors de la campagne EQUER, pour la partie générale, les participants disposaient des 500 ques-
+tions classées selon des types généraux : 30 questions pour les catégories booléennes, listes,
+définitoire, et 407 questions factuelles. Etant donné que l’objet de la campagne n’était pas la
+recherche documentaire, les résultats d’un moteur de recherche (Pertimm) étaient fournis aux
+candidats. Pour chaque question les participants disposaient des 100 premiers documents trou-
+vés ordonnés, mais pas des scores. Ces documents sont majoritairement des articles de presse.
+Pour chaque question un système pouvait retourner jusqu’à 5 réponses. Les réponses ont été
+validées par un ou deux juges humains.
+Au niveau des classifieurs du système de prédiction, les informations utilisées sont issues d’é-
+tapes de traitement du moteur LIA-QA, décrit dans (Gillard et al., 2005), et dont la figure 1
+illustre le principe global.
+L’étiquetage morpho-syntaxique est effectué à l’aide du Tree Tagger (Schmid, 1994). Celui
+en entités nommées s’appuie sur les étiquettes obtenues. Ces étiquetages sont appliqués à la
+fois aux questions et aux documents sélectionnés par le moteur de recherche. D’autre part des
+automates permettent de déterminer pour chaque question quel type de réponse est attendue (cet
+étiquetage est décrit plus loin). Ensuite au plus 1 000 passages de 3 phrases issues des documents
+sont sélectionnés, en fonction d’un score de densité prenant en compte les mots de la question,
+les types d’entités nommées rencontrées et le type de réponse attendu. Ensuite l’appariement
+est fait par le calcul d’un score de compacité, entre les étiquettes des termes contenues dans les
+extraits et celle attendue par la réponse.
+3.2. Prédiction par arbres de classification et SVM
+
+Les expériences ont été menées avec les arbres de classification et les SVM implémentés au sein
+de la boite à outils WEKA (Ian H. Witten, 1999).
+Les classifieurs ont utilisé principalement trois classes de features détaillées en section 2.2 :
+– les questions, ainsi que leurs lemmes filtrés ou non, les étiquettes morpho-syntaxiques et
+sémantiques des mots qu’elles contiennent, ainsi que le type de réponse attendue. Sur ces
+données sont utilisées des mesures numériques et qualitatives ;
+– les documents issus de la recherche effectuée par le moteur Pertimm dans le cadre de la
+campagne EQUER et les passages de 3 phrases sur lesquelles s’appuie l’appariement, le tout
+au format lemmatisé et filtré. Les scores de similarités entre les 5, 10, 15 et 20 premiers sont
+calculés et utilisés comme attributs ;
+– les scores de densité qui ont permis de sélectionner les passages. Des mesures de moyenne
+sur les 5 à 50 premiers, ou d’écart type, ou la valeur à un rang donné sont obtenues sur ces
+scores de densité.
+Enfin les classifieurs disposaient pour chaque question du nombre de réponses courtes exactes
+retournées par le système, entre 0 et 5, correspondant aux deux classes, un nombre de réponses
+correctes supérieur à 0 pour la classe "facile", ou un nombre de réponses correctes nul pour la
+classe "difficile".
+Les travaux en recherche documentaire sur la prédiction des questions s’évaluent souvent à
+partir de la distance de Kendall’s tau, lorsqu’on dispose de scores liés à la prédiction. On mesure
+alors la distance entre le classement des réponses selon leur score de difficulté par rapport au
+classement selon le score de précision qu’elles ont obtenu. D’autres travaux dans un domaine ou
+on peut déterminer si le résultat est vrai ou faux, comme les questions-réponses, utilisent pour se
+positionner des mesures de type Confidence Weighted Score, qui de la même manière se fondent
+sur un classement de scores de prédiction. Nous ne nous sommes pas basés dans notre travail
+sur ce type de mesure, car nous avons cherché à déterminer de manière binaire la capacité d’un
+système à répondre à une question. Les résultats sont donc exprimés en pourcentage de bonne
+prédiction, sachant qu’une question est considérée "facile" si elle a eu au moins une réponse
+exacte parmi les cinq propositions.
+Comme il y a un nombre relativement réduit d’exemples (de questions), l’évaluation des classi-
+fications par arbres de décision et SVM est faite par une validation croisée avec 10 plis (10-fold
+cross-validation). De plus, nous proposons ici les résultats sur les questions factuelles unique-
+ment, car les autres étaient présentes en quantité trop peu représentative (30 items) pour fournir
+des résultats cohérents. Le tableau 1 montre les résultats des deux classifieurs, avec les dif-
+férentes classes de features utilisées. La dernière ligne correspond à une prédiction uniquement
+basée sur la distribution, qui peut donc être considérée comme la prédiction de référence.
+
+feature     SVM       Arbres de Décision
+toutes     68,5%           62,4%
+questions     69%            64,1%
+documents     53,8%           49,9%
+passages     52,3%           50,1%
+aucune                 51,6%
+Tableau 1. résultats de la classification automatique, en pourcentage de bonne prédiction
+Les résultats montrent que l’utilisation des données relatives aux questions uniquement, quelle
+que soit la méthode de classification, est très efficace et suffisante. De plus la classification avec
+les SVM donne de très bons résultats bien supérieurs à la référence. Une des raisons possibles
+au succès de la classification dans notre expérience est qu’il y a dans l’apprentissage à peu près
+autant d’exemples positifs que d’exemples négatifs, le pourcentage de bonnes réponses obtenues
+dans la catégorie des questions factuelles avoisinant les 50%. On peut supposer d’autre part que
+l’apport très pauvre des caractéristiques reliées aux scores des similarités entre documents et
+passages, et de celles reliées aux scores de densité des passages, est dû au fait que ce sont
+les même mesures utilisées par le système lui même pour extraire les réponses, et que donc il
+cherche dans tous les cas à les maximiser, indépendamment du taux d’ambiguïté éventuellement
+amené par les mots de la question.
+Les arbres de décision ont fourni des résultat moins bons que les SVM, mais en observant leur
+composition nous nous sommes aperçus qu’il y avait beaucoup de surapprentissage. On pourra à
+l’avenir optimiser cette classification en minimisant le nombre d’attributs et la taille des feuilles.
+La figure 2 montre un exemple d’un tel arbre, avec 8 feuilles qui prédisent si la réponse sera
+bonne ou mauvaise. Entre crochets est indiqué le nombre de questions correspondant effective-
+ment à la prédiction, puis le nombre de mauvaises prédictions. Le paramétrage qui a permis
+d’obtenir cet arbre aboutit à 63,145% de prédiction correcte sur les questions factuelles avec
+toutes les classes de features disponibles en 10-fold cross-validation, et 73,7101% sur le cor-
+pus d’apprentissage. L’inconvénient majeur de ce type d’optimisations est que dans ce cas le
+système pourrait être trop adapté aux données de EQUER et aux résultats de LIA-QA.
+
+Type de réponse
+attendue = UNKNOWN ?    NON
+OUI
+La question comporte
+Mauvaise         le mot "quel" ?         NON
+Réponse
+[52,0]      OUI
+Ratio entre le 1er et le
+10e score de densité ?         <=1,085
+Bonne
+Réponse         >1,085
+[30,6]                                 La question comporte
+Bonne                       le mot "combien ?        NON
+Réponse
+[72,16]                OUI
+Similarité entre les 15
+premiers passages ?         <=0,554
+Bonne
+Réponse            <=0,554
+[37,14]                                 La question contient
+combien de verbes ?        >1
+Mauvaise
+Réponse                <1
+[44,8]                                Similarité entre les 5
+Bonne                premiers passages ?
+Réponse
+[97,38]         <=0,708               >0,708
+Bonne             Mauvaise
+Réponse            Réponse
+[39,8]             [36,17]
+Figure 2. Un exemple d’arbre de décision optimisé. Les valeurs indiquées dans
+les feuilles sont le nombre de questions correctement classées par ce critère, et
+le nombre de mauvaises prédictions.
+3.3. Classification à partir des étiquettes de type de réponse attendue
+
+Le type de réponse attendue a été utilisé par un certain nombre de systèmes tels que celui de
+(Loupy et Bellot, 2000) lorsque les systèmes ont un fonctionnement dédié. Nous avons donc
+tenté dans cette section de déterminer si cette indication peut être un critère, sinon déterminatif,
+au moins prépondérant dans la détermination de la difficulté des questions.
+Le composant d’étiquetage en types de réponses attendues de LIA-QA dédié à l’appariement est
+un étiquetage hiérarchique des questions. La hiérarchie utilisée a été inspirée par celle proposée
+par (Sekine et al., 2002), dont elle est un sous-ensemble. Le choix de ce sous-ensemble, qui
+comprend 100 étiquettes, a été fait selon une observation de la fréquence des questions associées
+à une entrée de cette hiérarchie lors des précédentes campagnes d’évaluation QR de CLEF
+(2003 et 2004). Concrètement, cette phase d’étiquetage se déroule après une première étape
+d’uniformisation, à base de règles et de lexiques, permettant de réduire les différentes variantes
+à une même écriture et ainsi de diminuer le nombre de règles d’étiquetages à 172.
+Afin de pouvoir utiliser nos résultats sur la classification à partir des étiquettes, nous avons fait
+une vérification manuelle de l’étiquetage en type de réponses attendues, dont voici l’analyse.
+Sur les 407 questions factuelles il y en a eu 52 non étiquetées dont :
+– 13 étaient du type procédé , introduites par l’interrogatif comment
+– 8 étaient du type procédé exprimées différmment (par quel procédé, de quelle façon, ...)
+– 7 concernaient des événements,
+– 3 étaient des "pourquoi"
+– 2 étaient floues en termes d’attente de réponse : "qu’en est il de ... ?" ou "que devient ... ?"
+Les 19 autres questions se répartissent en 7 qui auraient dû être étiquetées par le système, et
+12 dont les types n’étaient pas attendus même si ils se trouvent dans la hiérarchie des entités
+nommées de (Sekine et al., 2002). Ce sont des entités de type maladie, nourriture, animal, etc.
+Parmi les 355 étiquettes de questions proposées, seulement 10 étaient erronées. Parmi elles 3
+étaient des numérations d’une mauvaise cible, et 3 n’auraient pas dû être étiquetées car elles
+sont de type procédé.
+
+TYPE                N     OK   %R
+TYPE           N    OK   %R
+Personne            102   62   60,8%
+Lieu           76   43   56,6%
+president           9   6    66,7%
+nationalite   12   9     75%
+écrivain            7   5    71,4%
+ville         10   8     80%
+Organisation         18   8    44,4%
+Nombres        81   48   59,3%
+parti politique     8   7    87,5%
+argent        6    4    66,7%
+entreprise          2   1     50%
+longueur      10   6     60%
+Date                 41   24   58,5%
+employés      4    1     25%
+Journal               4   3     75%
+population    7    6    85,7%
+Cause de décès        4   3     75%
+personnes     10   7     70%
+Film                  3   0     0%
+age           7    3    42,9%
+Fonction              8   1    12,5%
+
+Tableau 2. résultats des questions factuelles par type de réponse attendue : N
+est le nombre de questions étiquetées par le type, OK est le nombre de ques-
+tions pour lesquelles il y a eu au moins une bonne réponse fournie, et %R le
+pourcentage de ces questions
+Le tableau 2 recense pour certains types de réponses attendues le pourcentage de bonnes réponses
+fournies par le LIA-QA. On constate que, à part pour certains types très peu représentés, comme
+les films, les causes de decès ou les fonctions par exemple, la plupart des types conduisent à l’ob-
+tention d’une bonne réponse dans environ 57% des cas. Cela montre qu’on ne peut pas utiliser
+uniquement le type de réponse attendue pour déterminer a priori si on sera capable de répondre
+à la question, et donc qu’on ne peut pas déterminer la difficulté d’une question, pour notre mo-
+teur en tous cas, en fonction de l’objet de la question. Cela dit, même si cette caractéristique des
+questions n’est pas suffisante comme seul prédicteur, elle était utilisée par les classifieurs dans
+les expériences précédentes, et elle peut tout à fait avoir contribué à une bonne classification. Il
+est à noter que pour toutes les questions où l’étiquette n’a pas été déteminée, le système n’a pas
+fourni de réponse. C’est donc le seul critère que nous avons pu dégager à l’aide de l’étiquetage
+en type de réponse attendue.
+
+4. Conclusion et perspectives
+Les deux approches que nous avons mises en place pour la prédiction de la capacité d’un sys-
+tème à fournir une bonne réponse à une question factuelle dans des documents journalistiques
+en français ont montré que l’élément le plus significatif à prendre en compte était la question elle
+même, et non pas les documents utilisés pour trouver la réponse ou encore le type de réponse
+attendue. Cela est plutôt une bonne chose car cela montre que sans faire activer le moteur de
+questions-réponses on peut obtenir une très bonne indication sur la nécessité de la préciser ou
+de la reformuler. Cette hypothèse est cependant encore à confirmer à l’aide d’autres données
+obtenues par d’autres campagnes d’évaluation, sur d’autres types de documents (web par exem-
+ple) ou sur des domaines restreints. Les résultats obtenus avec les SVM sont très encourageants,
+mais ne permettent pas à eux seuls de dégager un critère de décision pour la mise en place
+d’une procédure de dialogue avant de fournir la réponse. Ils pourront probablement encore être
+améliorés par l’intégration de nouvelles ressources.
+En effet nous avons très peu adapté la classification au problème particulier des questions-
+réponses, afin de vérifier dans un premier temps si les solutions pouvaient coïncider avec celles
+des systèmes de recherche d’informations ad hoc. L’intégration du taux d’ambiguité dans les
+critères de prédiction à l’aide d’un réseau de collocations ou du réseau de connaissances séman-
+tique EuroWordNet devra être la prochaine étape de cette étude. Il sera calculé en fonction des
+dépendances sémantiques des termes de la question, hors mots outils ou interrogatifs.
+La difficulté des questions est un problème qui a été soulevé essentiellement du point de vue de
+la classification par types de réponses attendues. L’autre aspect qui peut rendre une question dif-
+ficile est la nécessité d’un traitement de la négation ou de la voix passive (Lavenus et Lapalme,
+2002). L’intégration de ce type de critères syntaxiques devra à terme être prise en compte pour
+l’élaboration d’un critère d’initiation de dialogue. En effet même si ces problèmes là ne se
+rencontrent pas spécifiquement dans la campagne EQUER, ils correspondent à un besoin dans
+l’utilisation réelle de ces systèmes.
+D’autre part les cas d’utilisation réelle amènent à s’interroger sur le cas des erreurs d’orthographe,
+notamment sur les noms propres (Hongrie –> Ongrie), ce qui en fait des mots absents du corpus
+et ne permet pas de retrouver les réponses sans traitement spécifique. Des erreurs sur les autres
+mots de la requête peuvent également avoir une influence importante sur la capacité à répon-
+dre. On pourrait alors imaginer un score orthographique qui selon le type d’erreurs pourraient
+prédire la capacité du système à passer outre.
+Références
+A MATI G., C ARPINETO C. et ROMANO G. (2004). « Query Difficulty, Robustness and Se-
+lective Application of query expansion ». In Actes de ECIR’04, Lecture Notes in Computer
+Science : Springer. Sunerland, p. 127-137.
+B ELLOT P., C RESTAN E., E L -B ÈZE M., G ILLARD L. et L OUPY C. D. (2002). « Coupling
+Named Entity Recognition, Vector-Space Model and Knowledge Bases for TREC-11 Ques-
+tion Answering Track ». In Actes de TREC 11.
+C ARPINETO C., M ORI R. D., ROMANO G. et B IGI B. (2001). « An Information Theoretic
+Approach to Automatic Query Expansion ». In ACM Transactions On Information Systems,
+19 (1).
+C.B URGES C. J. (1998). « A Tutorial on Support Vector Machines for Pattern Recognition ».
+In Data Mining and Knowledge Discovery, 2 (2), 121-167.
+C HU -C ARROLL J., P RAGER J., W ELTY C., C ZUBA K. et F ERRUCCI D. (2002). « A Multi-
+Strategy and Multi-Source Approach to Question Answering ». In Actes de TREC 11 : De-
+partment of Commerce, National Institute of Standards and Technology. p. 124-133.
+C RONEN -T OWNSEND S., Z HOU Y. et C ROFT W. B. (2002). « Predicting Query Perfor-
+mance ». In Actes de SIGIR’02 : ACM. p. 299–306.
+G ILLARD L., B ELLOT P. et E L -B ÈZE M. (2005). « Le LIA à EqueR (campagne Technolangue
+des systèmes Questions-réponses) ». In Actes de TALN’05. Dourdan.
+G RIVOLLA J., J OURLIN P. et M ORI R. D. (2005). « Automatic Classification of Queries by
+Expected Retrieval Performance ». In Actes de SIGIR’05 : ACM Press. Salvador.
+I AN H. W ITTEN E. F. (1999). Data Mining : Practical Machine Learning Tools and Tech-
+niques. Morgan Kaufmann, San Francisco.
+K.L.K WOK (2005). « An Attempt to Identify Weakest and Strongest Queries ». In Actes de
+SIGIR’05 : ACM Press. Salvador.
+K UHN R. et M ORI R. D. (1995). « The Application of Semantic Classification Trees to Nat-
+ural Language Understanding ». In IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 17 (5), 449-460.
+L AVENUS K. et L APALME G. (2002). « Evaluation des systèmes de question réponse. Aspects
+méthodologiques. ». In Traitement Automatique des Langues, 43 (3), 181-208.
+L EFÈBURE R. et V ENTURI G. (2001). Data mining. Eyrolles.
+L OUPY C. D. et B ELLOT P. (2000). « Evaluation of document retrieval systems and query
+difficulty ». In Actes du. LREC’2000 Satellite Workshop "Using Evaluation within HLT
+Programs : Results and trends". Athènes, p. 31-38.
+M OTHE J. et TANGUY L. (2005). « Linguistic features to predict query difficulty - a case study
+on previous TREC campaigns ». In Actes de SIGIR’05 : ACM Press. Salvador, p. 7-10.
+S CHMID H. (1994). « Probabilistic Part-of-Speech Tagging Using Decision Trees ». In Actes de
+International Conference on New Methods in Language Processing. Manchester, p. 44-49.
+S EKINE S., S UDO K. et N OBATA C. (2002). « Extended Named Entity Hierarchy ». In Actes
+de LREC 2002. Las Palmas, Canary Islands, p. 1818-1824.
+VOORHEES E. (2002). « Overview of the TREC 2002 question answering track ». In Actes de
+TREC’11 : NIST Special Publication 500-251.
+VOORHEES E. (2003). « Overview of the TREC 2003 robust retrieval track ». In Actes de
+TREC’12 : ACM Press. p. 69-77.

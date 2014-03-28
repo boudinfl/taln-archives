@@ -147,18 +147,9 @@ for path in paths:
 ################################################################################
 # Création du fichier html de la page principale
 ################################################################################
-
-# Patch pour ajouter 2006 en manquant
-conferences['TALN'].insert(5, {u'annee': u'2006'})
-conferences['RECITAL'].insert(4, {u'annee': u'2006'})
-
 handle = codecs.open(output+'index.html', 'w', 'utf-8')
 handle.write(indexTemplate.render(conferences=conferences, nb_papers=nb_papers))
 handle.close()
-
-# Patch pour ajouter 2006 en manquant
-conferences['TALN'].pop(5)
-conferences['RECITAL'].pop(4) 
 ################################################################################
 
 ################################################################################

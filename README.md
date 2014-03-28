@@ -58,6 +58,7 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013, papier court
 
 Mises à jour
+ - 28/03/2014, ajout des actes de TALN-RECITAL 2006.
  - 06/02/2014, suppression des fichiers parscit/html/txt et conversion des 
    articles avec pdftotext + nettoyage des header/footer.
  - 03/02/2014, ajout de l'extraction des citations avec ParsCit.
@@ -89,3 +90,5 @@ Remerciements
  - Patrick Paroubek
  - Gil Francopoulo
  - Amir Hazem
+ - Anne Vilnat
+ - Cédrick Fairon

@@ -4,7 +4,7 @@
 # fichiers de méta-données en xml
 
 # Extraction du texte des fichiers de RECITAL
-for YEAR in {2001..2005} {2007..2013}
+for YEAR in {2001..2013}
 do
 
     XML_FILE=../RECITAL/RECITAL-$YEAR/recital-$YEAR.xml
@@ -38,7 +38,7 @@ do
 done
 
 # Extraction du texte des fichiers de TALN
-for YEAR in {2001..2005} {2007..2013}
+for YEAR in {2001..2013}
 do
 
     XML_FILE=../TALN/TALN-$YEAR/taln-$YEAR.xml

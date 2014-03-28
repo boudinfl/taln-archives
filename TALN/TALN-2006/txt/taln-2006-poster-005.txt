@@ -1,0 +1,433 @@
+Mécanismes de contrôle pour l’analyse
+en Grammaires de Propriétés
+
+Philippe Blache, Stéphane Rauzy
+Université de Provence & CNRS, Laboratoire Parole et Langage
+{pb ; stephane.rauzy}@lpl.univ-aix.fr
+
+Résumé
+
+Les méthodes d’analyse syntaxiques hybrides, reposant à la fois sur des techniques statistiques et symboliques,
+restent peu exploiteés. Dans la plupart des cas, les informations statistiques sont intégreés à un squelette context-
+free et sont utiliseés pour contrôler le choix des règles ou des structures. Nous proposons dans cet article une
+méthode permettant de calculer un indice de corrélation entre deux objets linguistiques (catégories, propriétés).
+Nous décrivons une utilisation de cette notion dans le cadre de l’analyse des Grammaires de Propriétés. L’indice
+de corrélation nous permet dans ce cas de contrôler à la fois la sélection des constituants d’une catégorie, mais
+également la satisfaction des propriétés qui la décrivent.
+
+Mots-clés : analyseur syntaxique, modèle des patrons, indice de corrélation, Grammaires de Propriétés, technique
+d’analyse hybride.
+Abstract
+
+Hybrid parsing techniques based both on statistical and symbolic methods remain rare. In general, they integrate
+statistical information into a context-free skeleton, in order to control the selection of rules and structures. We
+propose a statistical method which allows the evaluation of a correlation index between two linguistic objects,
+namely, category, and property. We describe how to integrate this statistical information into the framework of
+Property Grammars. The correlation index is used for controling both the selection process of category constituents
+and the evaluation of properties satisfaction.
+
+Keywords: parsing, patterns model, correlation index, Property Grammars, hybrid parsing techniques.
+1. Introduction
+L’analyse syntaxique automatique doit aujourd’hui être en mesure de fournir des résultats sur
+du matériel tout-venant. Après la couverture, les questions de robustesse et d’efficacité redevi-
+ennent ainsi des problèmes majeurs du domaine. Plusieurs réponses sont aujourd’hui apporteés
+en ce sens. Les techniques numériques sont la solution généralement choisie dans ce cas. À
+condition de disposer des corpus annotés adéquats, il est ainsi possible de mettre en oeuvre des
+techniques probabilistes offrant l’avantage d’être rapides et pouvant s’adapter à des donneés
+non canoniques pour peu qu’elles aient été identifieés dans le corpus d’apprentissage.
+Les approches symboliques ne sont cependant pas en reste, comme l’indiquent les résultats
+de la campagne d’évaluation des analyseurs syntaxiques Easy (Vilnat, 2004). Les analyseurs
+symboliques superficiels sont ainsi très rapides tout en étant plus tolérants aux constructions
+non canoniques. Les analyseurs profonds quant à eux, s’ils offrent une bonne couverture et une
+bonne résistance aux donneés mal formeés (tout en offrant une analyse détailleé), présentent
+toutefois une efficacité plus limiteé, voire franchement mauvaise en termes de rapidité d’exécu-
+tion. Les solutions proposeés pour pallier ce type de problème reposent sur la combinaison de
+plusieurs techniques consistant par exemple à contrôler les analyseurs profonds à l’aide d’analy-
+seurs superficiels (Blache, 2005b). D’une façon plus générale, cette question de l’association de
+techniques différentes est régulièrement proposeé pour améliorer l’efficacité des systèmes. Se
+pose ainsi naturellement la question de l’association de techniques numériques et symboliques.
+Cette ideé est déjà ancienne (Klavans, 1996), elle consiste à contrôler le choix d’une structure
+(généralement un sous-arbre) par l’intermédiaire de probabilités. Il peut s’agir de sélection de
+structures entières (Bod, 1998), et l’utilisation des probabilités relève de la stratégie d’anal-
+yse, ou de contrôle de sélection de règles (Johnson, 1998 ; Manning, 1997). Dans ce cas, les
+probabilités sont intégreés à la représentation de la grammaire, offrant ainsi une architecture
+symbolique contrôleé par une technique numérique. Dans ces approches, le contrôle porte sur
+une partie de la structure syntaxique et se situe donc à un niveau élevé, ce qui peut rendre
+l’approche quelquefois peu efficace.
+Nous proposons d’intégrer l’utilisation de techniques numériques dans le cadre d’une approche
+permettant de contrôler l’information à un niveau plus fin. Il s’agit plus précisément de tirer
+parti des capacités de contrôle de ces stratégies à la fois pour ce qui concerne la détermination
+des unités syntaxiques, mais également de leurs propriétés linguistiques. Nous décrivons dans
+cet article les possibilités d’exploitation d’une information probabiliste, la corrélation, répon-
+dant à cet objectif double. Après une présentation de cette technique, nous en proposons une
+application dans le cadre des Grammaires de Propriétés offrant ainsi la possibilité d’introduire
+au sein d’une architecture symbolique un niveau de contrôle probabiliste.
+Les propositions faites dans cet article sont, en l’état, théoriques. Leur validation est en cours
+d’expérimentation.
+
+2. Probabilités sur l’espace des séquences de catégories
+Il s’agit ici de proposer un mécanisme pour probabiliser l’espace S composé de toutes les
+séquences de catégories pouvant être produites. Nous présentons une nouvelle approche, le
+modèle des patrons, qui permet de réaliser cet objectif. Le modèle des patrons est caractérisé
+par deux propriétés :
+- une extraction optimale de l’information contenue dans le corpus d’apprentissage,
+- une faible complexité de calcul des probabilités des séquences de catégories.
+
+2.1. Le modèle des patrons
+
+On considère dans la suite que l’ensemble des catégories C est de taille N , C = {c1 , ..., cj , ..., cN }.
+Nous disposons d’un corpus d’apprentissage constitué par la réalisation d’une séquence de caté-
+gories de taille importante, contenant de l’information sur la distribution des catégories et sur
+leurs interdépendances. L’objectif est de donner une estimation de la probabilité d’une séquence
+de catégories donneé, par exemple la séquence (c3 , c14 , c12 , c3 , c5 , c14 ) représentant la séquence
+(Det, N c, Cc, Det, Adj, N c) de l’énoncé "la maison et le grand chêne". La probabilité de la
+séquence est donneé par la formule canonique des probabilités conditionnelles, i.e.
+P (c3 , c14 , c12 , c3 , c5 , c14 ) = π1 × π2 × π3 × π4 × π5 × π6                (1)
+avec π1 = P (c3 ) = P (c3 |∅); π2 = P (c14 |c3 ), π3 = P (c12 |c3 , c14 ), π4 = P (c3 |c3 , c14 , c12 ),
+π5 = P (c5 |c3 , c14 , c12 , c3 ) et π6 = P (c14 |c3 , c14 , c12 , c3 , c5 ). Dans le terme π4 par exemple
+M ÉCANISMES DE CONTRÔLE POUR L’ ANALYSE EN G RAMMAIRES DE P ROPRIÉTÉS                                   417
+P (c3 |c3 , c14 , c12 ) est la probabilité de c3 conditionneé par la séquence (c3 , c14 , c12 ).
+Un patron σi est caractérisé par deux informations :
+- son identifiant si , c’est-à-dire la séquence de catégories qui le constitue, e.g. si = (c3 , c14 , c12 )
+- un vecteur de taille N , (Pi,1 , ..., Pi,j , ..., Pi,N ) donnant la probabilité de chaque catégorie cj
+conditionneé par l’identifiant du patron σi , Pi,j = P (cj |si ). On a par définition N   j=1 Pi,j = 1.
+
+La liste des patrons est extraite du corpus d’apprentissage en prenant garde aux problèmes
+d’échantillonnage. Un patron sera inclus dans le modèle si le nombre d’occurrences de sa
+séquence identifiante dans le corpus d’apprentissage permet une évaluation fiable des proba-
+bilités conditionnelles Pi,j . Les problèmes standards liés à l’estimation des paramètres d’une loi
+multinomiale (zero-frequency problem, etc.) seront traités par des techniques de lissage du type
+back-off model (Katz, 1987).
+Contrairement aux modèles du type n-grammes, la stratégie n’est pas ici de fixer une taille com-
+mune aux patrons, puis d’appliquer des méthodes d’interpolation pour estimer les paramètres
+Pi,j pour les patrons qui ne sont pas présents dans le corpus d’apprentissage (information man-
+quante). Le modèle des patrons est composé de patrons de taille variable. Le critère d’inclusion
+du patron σi dans le modèle repose sur la fiabilité de l’estimation statistique des paramètres
+Pi,j à partir du corpus d’apprentissage. L’objectif est ici d’extraire une information optimale
+du corpus, en conservant notamment les patrons de taille importante possédant une séquence
+identifiante fréquemment rencontreé dans le corpus.
+On considère dans la suite que nous avons extrait M patrons de taille variable définissant le
+modèle des patrons M = {σ1 , ..., σi , ..., σM }. Pour chaque patron σi et pour chaque catégorie
+cj , nous introduisons la notion de patron cible σk = succ(σi , cj ) : c’est le patron appartenant
+au modèle dont l’identifiant est le plus proche (du point de vue du conditionnement) lorsqu’on
+ajoute la catégorie cj à l’identifiant si du patron σi . Par exemple, si si = (c14 , c12 , c3 ) et cj = c5 ,
+on recherchera dans le modèle si le patron d’identifiant (c14 , c12 , c3 , c5 ) existe, puis (c12 , c3 , c5 ),
+puis (c3 , c5 ), etc., jusqu’à rencontrer le patron cible dans la liste des patrons du modèle.
+Le modèle des patrons M est finalement caractérisé par la matrice des probabilités condition-
+nelles Pi,j de taille M × N , et la matrice Ii,j de taille M × N qui donne pour chaque patron σi
+et pour chaque catégorie cj , l’indice du patron cible dans la liste des patrons du modèle.
+Pour calculer la probabilité d’une séquence, la méthode consiste à approximer la formule donneé
+équation (1) par un produit des probabilités conditionnelles des patrons du modèle. Par exemple,
+imaginons que le modèle contienne 9 patrons d’identifiants s1 = ∅, s2 = c3 , s3 = c12 , s4 = c5 ,
+s5 = c14 , s6 = (c3 , c14 ), s7 = (c3 , c5 ), s8 = (c12 , c3 ) et s9 = (c12 , c3 , c5 ). Les valeurs de la
+matrice Ii,j utiliseés pour calculer la probabilité de la séquence S = (c3 , c14 , c12 , c3 , c5 , c14 ) sont
+successivement I1,3 = 2, I2,14 = 6, I6,12 = 3, I3,3 = 8, I8,5 = 9 et la probabilité de la séquence
+est approximeé par :
+
+P (c3 , c14 , c12 , c3 , c5 , c14 ) ≈ P1,3 × P2,14 × P6,12 × P3,3 × P8,5 × P9,14                        (2)
+
+La comparaison termes à termes des équations (1) et (2) nous donne les approximations ef-
+fectueés : P (c14 |c3 , c14 , c12 , c3 , c5 ) ≈ P (c14 |c12 , c3 , c5 ), P (c5 |c3 , c14 , c12 , c3 ) ≈ P (c5 |c12 , c3 ) et
+P (c3 |c3 , c14 , c12 ) ≈ P (c3 |c12 ). Cette approximation représente la meilleure estimation que l’on
+peut faire de la probabilité de la séquence, compte tenu des informations fournies par le corpus
+d’apprentissage.
+Cet exemple montre que le modèle des patrons peut être vu comme un système à M états, les
+patrons σi , qui change d’état à chaque ajout d’une catégorie à la séquence. Nous généralisons
+cette interprétation dans la section suivante.
+
+2.2. Calcul de la probabilité d’une séquence d’observations
+
+L’objectif est de calculer la probabilité d’une séquence composeé de la succession de T obser-
+vations ST = (o1 , ..., ot , ..., oT ). Deux cas peuvent être distingués :
+- Mélange : L’information que l’on a sur la catégorie à la position t est ambiguë et propose
+plusieurs solutions possibles. Dans ce cas ot = (αt,1 , ..., αt,j , ..., αt,N ) est caractériseé par une
+distribution de probabilité d’observation sur l’ensemble des catégories C, avec par définition
+N
+j=1 αt,j = 1. C’est le cas par exemple lorsque l’information sur ot est extraite d’un lexique
+de formes proposant plusieurs catégories pour une forme observeé (e.g. la forme "montres" en
+entreé donne deux catégories syntaxiques en sortie (N c, V m)).
+- Cas pur : L’information de la catégorie à la position t n’est pas ambiguë et donne c12 par
+exemple. Dans ce cas, on a pour les coefficients de ot : αt,12 = 1 et αt,j = 0 pour j = 12.
+Cette notation permet de prendre en compte le cas particulier où l’on ne possède aucune infor-
+mation sur la catégorie à la position t. La distribution des coefficients sur les catégories est alors
+équiprobable, i.e. ot = oN I = (1/N, ..., 1/N, ..., 1/N ).
+Le système est décrit par M états, les patrons σi du modèle M, et un vecteur densité qui
+caractérise la distribution de probabilité des états du système à la position t de la séquence,
+ρt = (ρt,1 , ..., ρt,i , ..., ρt,M ) avec M
+i=1 ρt,i = 1 par définition. L’évolution du système est régie
+par l’ajout successif des observations à la séquence. On peut montrer que la probabilité de la
+séquence d’observation ST = (o1 , ..., ot , ..., oT ) est donneé par :
+M            N                   T   M            N
+P (o1 , ..., ot , ..., oT ) = P (o1 , ..., ot , ..., oT −1 ) ×           ρT,i         αT,j Pi,j =             ρt,i         αt,j Pi,j
+i=1          j=1                 t=1 i=1          j=1
+
+avec une équation d’évolution du système gouvernant la densité ρt de la forme :
+M           N
+1
+ρt+1,k =              ρt,i         αt,j Pi,j δ[k, Ii,j ]
+A   i=1          j=1
+
+où δ[k, Ii,j ] est la distribution de Kroeneker (i.e. δ[k, Ii,j ] = 1 si k = Ii,j , δ[k, Ii,j ] = 0 sinon)
+et A un facteur de normalisation guarantissant M      k=1 ρt+1,k = 1. En pratique, on doit initialiser
+les coefficients de ρ1 en choisissant par exemple un coefficient égal à 1 pour le patron défini par
+l’identifiant ∅ (patron non-conditionné) et des coefficients égaux à 0 pour les autres patrons.
+Le modèle des patrons permet de calculer la probabilité de toutes séquences d’observations.
+La complexité du calcul est faible, de l’ordre de M × N × T opérations, pour une séquence de
+longueur T , dans un modèle à M patrons et N catégories. La probabilité de toutes les séquences
+d’une longueur T donneé est normaliseé, i.e. ST ∈ST P (ST ) = 1.
+
+2.3. La notion de corrélation entre catégories
+
+Pour une séquence donneé ST = (o1 , ..., ot , ..., oT ), nous souhaitons former une quantité qui
+permet de mesurer l’influence, au sens statistique, de l’observation à la position t1 sur l’obser-
+vation à la position t2 > t1 . Pour ce faire, nous définissons 2 quantités calculables à partir du
+modèle des patrons :
+
+fC (cj ) = P (cj |o1 , ..., ot1 , ..., ot2 −1 ) ; fN C (cj ) = P (cj |o1 , ..., ot1 = oN I , ..., ot2 −1 )
+M ÉCANISMES DE CONTRÔLE POUR L’ ANALYSE EN G RAMMAIRES DE P ROPRIÉTÉS                      419
+La quantité fC (cj ) est la distribution de probabilités prédites sur les N catégories à la position t2
+de la séquence, conditionneé par l’observation de ot1 et influenceé par les autres observations.
+La quantité fN C (cj ) est la distribution de probabilités prédites sur les N catégories à la posi-
+tion t2 , non-conditionneé par l’observation de ot1 (on a remplacé l’observation par le vecteur
+oN I = (1/N, ..., 1/N, ..., 1/N ) indiquant qu’aucune information n’est disponible à la position
+t1 ) mais influenceé par les autres observations. Nous nous attendons, si l’observation ot1 n’a pas
+d’influence sur l’observation à la position t2 , à ce que les distributions fC (cj ) et fN C (cj ) soient
+identiques. Pour chacune des N catégories, nous formons la quantité :
+fC (cj ) − fN C (cj )
+∆j (ot1 , ot2 ) =
+fC (cj ) + fN C (cj )
+Chaque ∆j peut varier de 1 à −1. Les ∆j mesurent l’influence statistique en contexte de l’ob-
+servation ot1 sur l’observation à la position t2 . Nous devons maintenant prendre en compte la
+valeur de l’observation ot2 = (αt2 ,1 , ..., αt2 ,j , ..., αt2 ,N ), les coefficients αt2 ,j venant pondérer
+les quantités ∆j . Nous retiendrons finalement comme critère de corrélation, entre deux obser-
+vations ot1 et ot2 de la séquence ST :
+N
+ot1 et ot2 sont corrélées si ∆(ot1 , ot2 ) =         αt2 ,j × ∆j (ot1 , ot2 ) > ∆seuil
+j=1
+
+avec ∆seuil une quantité seuil à préciser.
+
+3. L’analyse syntaxique en Grammaires de Propriétés
+3.1. Les caractéristiques des Grammaires de Propriétés
+
+Les Grammaires de Propriétés permettent de représenter l’information syntaxique de façon dé-
+centraliseé et locale. Là où les approches classiques manipulent des structures, les GP permet-
+tent de spécifier des propriétés sur des ensembles de catégories, voire de traits, indépendamment
+de toute structure. Cette caractéristique est essentielle pour le traitement de donneés incom-
+plètes, partielles ou non canoniques. Nous sommes ainsi en mesure d’exprimer des relations
+entre deux objets indépendamment de leur position dans la chaîne ou dans une structure. De
+plus, la description d’une unité syntaxique - nous parlons de construction - se fait en tenant
+compte aussi bien des propriétés satisfaites que de celles qui ne le sont pas. Nous sommes ainsi
+en mesure de proposer une description très fine de l’information, y compris dans le cas de don-
+neés non canoniques ou non grammaticales.
+Sans entrer dans les détails des Grammaires de Propriétés, rappelons-en malgré tout les grandes
+lignes. La caractéristique essentielle des GP repose sur l’ideé qu’il est possible de représen-
+ter toute l’information syntaxique à l’aide de propriétés (?). Celles-ci sont des relations entre
+deux ou plusieurs catégories. Les propriétés expriment différents types d’information : l’ordre
+linéaire, la cooccurrence impérative ou impossible, la dépendance, la répétition, etc. Cette liste
+est évolutive, il est toujours possible d’ajouter de nouveaux types de propriétés, à condition bien
+entendu d’en préciser la sémantique. Une catégorie syntaxique est ainsi décrite dans la gram-
+maire par un ensemble de propriétés mettant en relation ses constituants. Voici par exemple
+quelques propriétés décrivant la construction SV :
+
+Linéarité :                                      V ≺ SN
+Cooccurrence :                                   Aux ⇒ V[ppas]
+Restriction de cooccurrence :                    V[intrans] ⇒ SP
+L’analyse d’un énoncé consiste donc à vérifier pour chaque construction de l’énoncé l’ensem-
+ble des propriétés qui lui correspondent dans la grammaire. Certaines de ces propriétés peuvent
+être satisfaites, tandis que d’autres peuvent être enfreintes. Nous obtenons ainsi un ensemble
+de propriété évalueés (satisfaites ou pas) que nous appelons "caractérisation". Une telle ap-
+proche permet donc de décrire n’importe quel type de construction : partielle, discontinue, non
+canonique, etc., répondant ainsi à l’objectif exprimé plus haut.
+Cette souplesse d’utilisation a cependant un coût : le problème de l’analyse en GP est en effet
+d’une complexité exponentielle (VanRullen, 2005). Cette complexité, nous y reviendrons, vient
+tout d’abord de la possibilité offerte de prendre en considération toutes les unités, indépen-
+damment de leur position. Ceci nous permet de prendre en compte des relations distantes ou
+non projectives entre deux unités (dépendance à distance, constituants discontinus, dépendances
+croiseés). Par ailleurs, l’analyse d’entreés non canoniques repose sur la possibilité de construire
+des descriptions à l’aide de propriétés plus ou moins satisfaites. En termes d’implantation, une
+propriété étant une contrainte, il faut proposer une possibilité de relâchement de contrainte. Ces
+deux facteurs sont essentiels dans la complexité du problème.
+
+3.2. Les mécanismes d’analyse en GP
+
+Nous décrivons dans cette section un mécanisme théorique - et naïf - d’analyse syntaxique
+en GP. Il ne s’agit pas d’une stratégie d’analyse, mais d’un schéma permettant de décrire les
+facteurs de complexité.
+Le processus d’analyse consiste à instancier l’ensemble des constructions décrivant un énoncé.
+Ce mécanisme revient en fait à produire les caractérisations leur correspondant. Ce processus
+nécessite l’identification des constituants entrant en jeu dans la construction, afin d’en véri-
+fier les propriétés pertinentes. Les constructions pouvant être discontinues, il convient donc
+d’effectuer cette vérification sur toutes les combinaisons de constituants, en d’autres termes
+l’ensemble des sous-ensembles possibles de catégories prises en considération. Nous appelons
+affectation chaque combinaison de constituants. L’ensemble des catégories de départ est ainsi
+formé par l’ensemble des catégories correspondant aux mots de l’énoncé à analyser avec leur
+position dans l’énoncé. Toutes les affectations, construites à partir de cet ensemble, sont éval-
+ués. Ceci revient pour chaque affectation à parcourir la grammaire, autrement dit, l’ensemble
+des propriétés en les évaluant lorsque c’est possible. Pour certaines affectations, aucune pro-
+priété n’est pertinente et la caractérisation construite est un ensemble vide et l’affectation est
+non productive. En revanche, pour d’autres, une caractérisation peut être construite. Au pre-
+mier niveau de l’analyse, toutes les constructions ont pour constituants des catégories lexicales,
+comme dans les exemples suivants :
+
+Construction       Constituants       Caractérisation
+SA                 {Adv, Adj}         {Adv ≺ Adj ; Adv ❀ Adj ; ...}
+SN                 {Det, N}           {Det ≺ N ; Det ❀ N ; N ⇒ Pro ; ...}
+
+Une construction instancieé a pour conséquence d’ajouter son étiquette à l’ensemble des caté-
+gories à prendre en considération. Dans les exemples précédents, les catégories SA et SN sont
+ainsi ajouteés à l’ensemble des catégories lexicales de départ. Un nouvel ensemble d’affecta-
+tions peut alors être construit, incluant ces nouvelles catégories, permettant ainsi d’identifier de
+nouvelles constructions.
+M ÉCANISMES DE CONTRÔLE POUR L’ ANALYSE EN G RAMMAIRES DE P ROPRIÉTÉS              421
+Initialisation
+Pour chaque mot à une position i de l’énoncé
+creér l’ensemble des ci , ses catégories possibles
+K ← {ci | 1<i<nombre de mots}
+S ← ensemble des sous-ensembles de K
+Répéter
+Pour chaque Si ∈ S
+si Si a une caractérisation productive
+ajouter ki l’étiquette de la caractérisation à K
+S ← ensemble des sous-ensembles de K
+Tant que de nouvelles caractérisations sont produites
+Ce processus d’analyse illustre la complexité lieé au nombre d’affectations à prendre en compte,
+celles-ci devant être reconstruites à chaque étape, c’est à dire chaque fois qu’une nouvelle con-
+struction est identifieé. À chaque niveau, il faut donc régénérer l’ensemble des sous-ensembles
+de catégories.
+Précisons maintenant l’opération de caractérisation. Le processus consiste, étant donné une af-
+fectation, à vérifier toutes les propriétés évaluables de la grammaire. Une propriété p est évalu-
+able lorsque l’affectation A contient les catégories nécessaires au calcul de p. Dans le cas de
+propriétés unaires portant sur une catégorie c il suffit donc que c ∈ A. Les propriétés binaires
+ont une évaluabilité différente selon qu’elles sont positives ou négatives. Les premières mettent
+en relation deux catégories réaliseés (par exemple la nécessité de cooccurrence). Dans ce cas, si
+c1 et c2 sont ces catégories, on a {c1 , c2 } ⊂ A. Dans le cas de propriétés binaires négatives, si
+c1 et c2 sont les catégories de p, on a soit c1 ∈ A, soit c2 ∈ A.
+Lorsqu’une propriété est évaluable pour un A donné, sa satisfaisabilité est calculeé, en fonction
+de sa propre sémantique. Chaque propriété est ainsi associeé à un solveur, leur détail n’est pas
+exposé ici. Le processus global s’écrit :
+Soit G l’ensemble des propriétés, soit A une affectation
+∀pi ∈ G
+Si pi est évaluable
+Calculer la satisfaction de pi pour A
+Ajouter pi et le résultat de son évaluation à la caractérisation C de A
+Décider si C est productive
+Ce processus signifie que pour toutes les affectations, toutes les propriétés de la grammaire
+doivent être parcourues pour en vérifier la satisfaction.
+Le dernier volet du processus concerne l’évaluation de la caractérisation elle-même. Une car-
+actérisation productive permet d’instancier la catégorie correspondante ou, en d’autres termes,
+de considérer que cette catégorie est réaliseé. Il est alors possible de l’ajouter à l’ensemble des
+catégories K à prendre en considération. Une caractérisation est bien entendu productive si elle
+est entièrement composeé de propriétés satisfaites. Mais il est également possible de la con-
+sidérer comme étant productive même si elle contient des propriétés enfreintes. Ceci revient à
+relâcher les contraintes. Ce processus doit bien entendu être contrôlé : définition d’un seuil de
+contraintes à satisfaire, spécification d’une hiérarchisation des contraintes, etc. Ce processus de
+décision est effectué sur la base de caractérisations complètes.
+La construction des affectations, le calcul de leur évaluabilité et de leur productivité constituent
+les trois processus fondamentaux en GP. Chacun représente un facteur de complexité que nous
+proposons de contrôler grâce à la corrélation.
+
+4. La corrélation au service des GP
+La question est de savoir s’il est possible d’intégrer des informations numériques au cœur de
+l’architecture symbolique décrite dans la section précédente. Nous proposons pour cela d’appli-
+quer la corrélation aux deux processus fondamentaux de l’analyse en GP : la construction des
+affectations et celle de la caractérisation.
+
+4.1. Le contrôle des affectations
+
+La génération des affectations, si elle n’est pas contrôleé, est un processus coûteux compte tenu
+de la quantité de calculs qu’elle entraîne à la fois pour leur construction et leur évaluation.
+L’utilisation de la corrélation permet d’en réduire nombre.
+Ainsi que nous l’avons vu, la corrélation indique une dépendance existant entre deux catégories
+pour un contexte donné. Toutes les catégories appartenant à une unité syntaxique ont donc une
+influence mutuelle et sont corréleés.
+L’intérêt de la méthode proposeé ici réside dans le fait qu’il est possible pour chaque couple
+de catégories de donner une indication sur leur indice de corrélation. La proposition consiste
+à limiter la construction des affectations aux seules catégories corréleés. Remarquons que ce
+calcul est peu coûteux, il est fonction du nombre de patrons, du nombre de catégories et du
+nombre d’éléments dans la séquence.
+
+Soit P l’ensemble des affectations
+(initialisé aux singletons des catégories de l’énoncé concerné)
+Répéter
+∀ci ∈ K
+∀An ∈ P
+si ∃cj ∈ An tq ∆(ci , cj ) > ∆seuil
+P ← An ∪ {cj }
+Tant que de nouvelles affectations sont creéés
+Le principe consiste à creér les affectations par concaténation de nouvelles catégories à une
+affectation support. La concaténation n’est effectueé que si la nouvelle catégorie est corréleé à
+au moins l’une des catégories de l’affectation support.
+
+4.2. Le contrôle de la satisfaction
+
+Nous proposons dans cette section de généraliser cette méthode aux propriétés. De la même
+façon que les probabilités ont été appliqueés sur l’ensemble des catégories, nous suggérons de
+probabiliser l’espace formé de toutes les caractérisations (autrement dit des séquences de pro-
+priétés). Une telle information peut être calculeé sur la base d’un corpus annoté à l’aide des
+grammaires de propriétés. A ce jour, les corpus dont nous disposons ont été creé́s automatique-
+ment et n’ont pas été corrigés. Il peuvent néanmoins former une base d’expérimentation pour
+l’acquisition de donneés statistiquement significatives.
+M ÉCANISMES DE CONTRÔLE POUR L’ ANALYSE EN G RAMMAIRES DE P ROPRIÉTÉS               423
+L’observation des caractérisations permet, comme pour les catégories, d’indiquer des ensembles
+de propriétés dont on observe une cooccurrence. Chaque propriété prend valeur dans l’ensemble
+{vrai, f aux} indiquant sa satisfaction. Il est possible, comme pour les catégories, d’indiquer
+des probabilités de satisfaction pour les propriétés, compte tenu des autres propriétés satisfaites.
+Il est donc possible de proposer des ensembles de propriétés corréleés, cette information étant
+obtenue comme précédemment pour les catégories.
+Cette technique présente l’avantage d’identifier dans l’ensemble total des propriétés formeés par
+la grammaire des sous-ensembles. La vérification de la caractérisation d’une affectation donneé
+pourra donc porter seulement sur ces sous-ensembles.
+Nous sommes ainsi de plus en mesure d’identifier directement des propriétés de plus haut
+niveau, dont la satisfaction dépend de celle d’autres propriétés. L’exemple suivant illustre ce
+phénomène :
+(1)   a.   Elle est longtemps partie
+b.   Elle est partie longtemps
+La différence d’interprétation entre ces deux énoncés dépend de la position de l’adverbe (?) :
+dans le premier cas, il s’agit d’un adjoint, dans le second un complément. Nous avons donc les
+corrélation suivantes :
+
+Adv ≺ V ⇒ Adv ❀adj V
+V ≺ Adv ⇒ Adv ❀comp V
+
+Cette corrélation permet d’identifier directement des propriétés et les insérer dans la caractéri-
+sation sans avoir besoin d’interpréter la caractérisation. D’une façon plus générale, l’utilisation
+de corrélation entre propriétés est particulièrement utile pour établir les relations existant entre
+propriétés linguistiques venant de domaines différents (prosodiques, syntaxiques, sémantiques,
+etc.) et constituera ainsi un mécanisme de contrôle important pour l’analyse de donneés multi-
+modales.
+
+5. Conclusion
+Le développement de techniques d’analyse hybrides, tirant parti à la fois de stratégies numériques
+et symboliques, est souvent limité à l’utilisation de coefficients de pondération permettant de
+guider le choix des règles. La notion de corrélation décrite dans cet article permet un usage plus
+fin et généralisable à plusieurs types d’information. Une telle notion est très utile dans le cadre
+de l’analyse des Grammaires de Propriétés : il devient en effet possible de contrôler à la fois les
+constituants, mais également les propriétés caractérisant une entreé.
+L’expérimentation de la validité de cette proposition et de son efficacité est bien entendu in-
+dispensable. Elle est actuellement en cours, sur la base des corpus annotés dans le cadre de la
+campagne d’évaluation Easy.
+Références
+A BEILLÉ A. & G ODARD D. (2003). « The Syntactic Flexibility of French degree adverbs », in
+Proceedings of HPSG 2003, CSLI publications, pp. 26-46.
+B ÈS G. & B LACHE P. (1999). « Propriétés et analyse d’un langage », in proceedings of
+TALN’99.
+B LACHE P. (2005). « Property Grammars : A Fully Constraint-Based Theory », in Constraint
+Satisfaction and Language Processing, H. Christiansen et al. (eds), Springer-Verlag LNAI
+3438.
+B LACHE P. (2005). « Combiner analyse superficielle et profonde : bilan et perspectives », in
+actes de TALN-05.
+B OD R. (1998). Beyond Grammar, CSLI.
+J OHNSON M. (1998). « PCFG Models of Linguistic Tree Representations », in Computational
+Linguistics 24(4).
+K ATZ S. (1987). « Estimation of probabilities from sparse data for the language model compo-
+nent of a speech recognizer », IEEE Trans. ASSP 35 : 400-401.
+K LAVANS J., R ESNIK P. (1996). The Balancing Act. Combining Symbolic and Statisctical Ap-
+proaches to Language, MIT Press.
+M ANNING C., C ARPENTER B. (1997). « Probabilistic Parsing Using Left Corner Language
+Models », in proceedings of IWPT’97.
+V ILNAT A., M ONCEAUX L., PAROUBEK P. , ROBBA I., G ENDNER V., I LLOUZ G., JARDINO
+M. (2004). « Annoter en constituants pour évlauer des analyseurs syntaxiques », in actes de
+TALN-04.
+VAN RULLEN T. (2005). Vers une analyse syntaxique à granularité variable, Thèse de l’Uni-
+versité de Provence.

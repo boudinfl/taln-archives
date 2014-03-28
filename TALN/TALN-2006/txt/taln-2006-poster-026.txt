@@ -1,0 +1,484 @@
+Analyse spectrale des textes : détection automatique
+des frontières de langue et de discours
+
+Pascal Vaillant1,2 , Richard Nock1 , Claudia Henry1
+1
+Université des Antilles-Guyane, GRIMAAG
+2
+Université des Antilles-Guyane, GEREC-F
+{pvaillan ; chenry ; rnock}@martinique.univ-ag.fr
+
+Résumé
+
+Nous proposons un cadre théorique qui permet, à partir de matrices construites sur la base des données statistiques
+d’un corpus, d’extraire par des procédés mathématiques simples des informations sur les mots du vocabulaire
+de ce corpus, et sur la syntaxe des langues qui l’ont engendré. À partir des mêmes données initiales, on peut
+construire une matrice de similarité syntagmatique (probabilités de transition d’un mot à un autre), ou une matrice
+de similarité paradigmatique (probabilité de partager des contextes identiques). Pour ce qui concerne la première de
+ces deux possibilités, les résultats obtenus sont interprétés dans le cadre d’une modélisation du processus génératif
+par chaînes de Markov. Nous montrons que les résultats d’une analyse spectrale de la matrice de transition peuvent
+être interprétés comme des probabilités d’appartenance de mots à des classes. Cette méthode nous permet d’obtenir
+une classiﬁcation continue des mots du vocabulaire dans des sous-systèmes génératifs contribuant à la génération
+de textes composites. Une application pratique est la segmentation de textes hétérogènes en segments homogènes
+d’un point de vue linguistique, notamment dans le cas de langues proches par le degré de recouvrement de leurs
+vocabulaires.
+
+Mots-clés : classiﬁcation spectrale continue, segmentation de textes, identiﬁcation de langue.
+Abstract
+
+We propose a theoretical framework within which information on the vocabulary of a given corpus can be in-
+ferred on the basis of statistical information gathered on that corpus. Inferences can be made on the categories
+of the words in the vocabulary, and on their syntactic properties within particular languages. Based on the same
+statistical data, it is possible to build matrices of syntagmatic similarity (bigram transition matrices) or paradig-
+matic similarity (probability for any pair of words to share common contexts). When clustered with respect to
+their syntagmatic similarity, words tend to group into sublanguage vocabularies, and when clustered with respect
+to their paradigmatic similarity, into syntactic or semantic classes. Experiments have explored the ﬁrst of these
+two possibilities. Their results are interpreted in the frame of a Markov chain modelling of the corpus’ generative
+processe(s). We show that the results of a spectral analysis of the transition matrix can be interpreted as probability
+distributions of words within clusters. This method yields a soft clustering of the vocabulary into sublanguages
+which contribute to the generation of heterogeneous corpora. As an application, we show how multilingual texts
+can be visually segmented into linguistically homogeneous segments. Our method is speciﬁcally useful in the case
+of related languages which happen to be mixed in corpora.
+
+Keywords: soft spectral clustering, text segmentation, language identiﬁcation.
+1. Introduction
+Un corpus nous livre des données brutes sur la syntaxe du système linguistique utilisé pour le
+produire. Le mot « syntaxe » est employé ici dans l’acception la plus lâche : on entend par
+là l’ensemble des régularités combinatoires observées, avec une fréquence dépassant un cer-
+tain seuil, dans la disposition des unités du corpus. Cette conception minimaliste, et purement
+empirique, de la syntaxe, est d’une part relative à un corpus, et d’autre part limitée à la descrip-
+tion de lois statistiques. L’objet épistémologique de « langue » est, dans ce contexte, hors de
+notre portée : dans un corpus, on peut d’une part avoir plusieurs langues entremêlées, et l’on
+n’observe jamais d’autre part toute la langue, mais seulement des régularités liées à une situ-
+ation donnée d’usage. Nous considérons donc plus prudemment que nous avons affaire, avec
+un corpus donné, à un échantillon fourni par un système génératif : celui-ci pouvant être con-
+sidéré, selon les besoins de la description, tantôt comme une langue, tantôt comme un type de
+discours (langage de spécialité, genre, etc.), tantôt comme un idiolecte qui peut lui-même être
+subordonné à un type de discours.
+Depuis Saussure, on envisage les régularités de l’ordre de la syntaxe sous deux dimensions
+possibles : la dimension syntagmatique, qui est celle de la disposition d’unités linguistiques dans
+la chaîne actualisée par la parole, et la dimension paradigmatique, qui est celle de l’ensemble
+des choix possibles entre unités, en fonction des contraintes de sélection, à un point donné de la
+chaîne. Deux unités linguistiques appartiennent au même syntagme si elles sont conjuguées, au
+sein d’une unité un peu plus ample, dans la même chaîne parlée ; elles appartiennent au même
+paradigme si elles constituent deux choix possibles pour remplir une position de la chaîne dans
+un contexte commun.
+En vertu de ces notions classiques en linguistique générale, il est possible de donner deux déf-
+initions de la similarité syntaxique de deux unités : l’une est une similarité syntagmatique :
+elle mesure la probabilité de deux unités de se retrouver associées dans une même chaîne, à
+deux positions différentes mais voisines ; l’autre est une similarité paradigmatique : elle mesure
+la probabilité de deux unités de pouvoir partager le même contexte, c’est-à-dire de pouvoir se
+retrouver alternativement à la même position dans des chaînes contenant par ailleurs les mêmes
+autres éléments. Selon cette déﬁnition, chien et aboie sont très voisins relativement à une dis-
+tance syntagmatique, et très éloignés relativement à une distance paradigmatique. À l’inverse,
+aboie et jappe sont très voisins relativement à une distance paradigmatique.
+En donnant à ces notions des déﬁnitions opératoires précises, il est possible de construire des
+matrices de dissimilarité (et respectivement, des matrices de similarité) sur l’espace des mots
+d’un corpus. L’analyse spectrale de ces matrices (analyse des vecteurs propres) fournit ensuite
+des axes de classiﬁcation des mots : une matrice de similarité syntagmatique, interprétée comme
+la matrice de transition d’une chaîne de Markov, nous fournit les éléments permettant de re-
+grouper ensemble les mots qui sont souvent voisins les uns des autres sur la même chaîne,
+et donc d’identiﬁer les systèmes génératifs . Une matrice de similarité paradigmatique nous
+fournit les éléments permettant de regrouper ensemble les mots qui partagent souvent le même
+contexte, et donc d’identiﬁer les catégories syntaxico-sémantiques . La présente communica-
+tion se concentrera sur la première de ces deux analyses, la seconde étant encore dans une phase
+d’implémentation plus précoce.
+Le système présenté ici se concentre sur la tâche de la classiﬁcation des mots-types (vocables)
+d’un corpus. En regroupant les mots par proximité syntagmatique, il parvient à des classes de
+mots qui reﬂètent leur appartenance à des systèmes génératifs (langues ou discours) distincts.
+Contrairement aux approches comparables fondées sur la classiﬁcation de textes (Lelu, 2004),
+il n’attribue pas de classe à chaque texte considéré comme un seul objet individuel : il trouve
+les oppositions entre classes au sein même du corpus qu’il étudie. Ceci ouvre la possibilité
+d’une segmentation du texte lui-même en systèmes génératifs distincts. Par systèmes génératifs,
+comme dit plus haut, nous entendons, selon les cas, les langues, les discours, les thématiques,
+les auteurs, ou une combinaison de ces paramètres1 .
+L’identiﬁcation de langue peut être considérée, sous certaines contraintes, comme un problème
+résolu : pour se limiter à la tâche de l’identiﬁcation de textes écrits, rédigés dans une seule
+langue, et lorsque celle-ci est répertoriée dans une liste de modèles connus, on sait que la méth-
+ode de statistiques sur les n-grammes les plus fréquents est très ﬁable, et donne des marges
+d’erreur inférieures à 1 % dès que la longueur du texte analysé dépasse quelques dizaines de
+caractères. En combinant cette méthode des n-grammes avec celle des mots les plus fréquents,
+on peut augmenter encore la ﬁabilité de l’identiﬁcation jusqu’à arriver à une marge d’erreur nég-
+ligeable (Greffenstette, 1995). Les choses se compliquent lorsque les textes que l’on cherche à
+étiqueter sont composites ; (Vo, 2004), par exemple, cherche à la fois à segmenter les textes en
+zones de langue homogène, et à identiﬁer la langue de chacune de ces zones. Cependant, dans
+de telles approches, il est encore nécessaire de disposer de modèles statistiques des différentes
+langues connues, acquis après une phase d’apprentissage supervisé. Or nous partons de données
+brutes, sans aucun modèles préalable. Nous cherchons, dans le cadre de ce travail, à identiﬁer,
+au sein d’un texte, des langues différentes mais (a) fréquemment entremêlées dans des textes,
+et (b) proches, au sens où elles partagent une grande quantité d’unités lexicales. Le but est de
+démêler des langues qui sont proches à la fois génétiquement et « sociolinguistiquement ». C’est
+notamment le cas dans la littérature antillaise, pour le français et le créole.
+Des approches statistiques ont été appliquées à la segmentation automatique de texte pour iden-
+tiﬁer des segments homogènes (Choi, 2000), sur d’autres plans que celui de la langue, comme
+par exemple sur le plan du thème ou sur celui de l’auteur. (Utiyama et Isahara, 2001) utilisent
+notamment une méthode qui déﬁnit les frontières des segments de façon à maximiser leur ho-
+mogénéité interne. (El-Bèze et al., 2005) introduisent le modèle de la chaîne de Markov pour
+modéliser les transitions entre segments de texte provenant du même auteur.
+Des travaux plus proches des nôtres sont celui de (Belkin et Goldsmith, 2002), qui utilisent une
+forme de classiﬁcation spectrale pour déterminer des catégories de mots ; et celui de (Pessiot
+et al., 2004), qui commencent par classer les mots du corpus et se servent de cette classiﬁcation
+pour identiﬁer des segments. Cependant, dans ce travail, la méthode de classiﬁcation fait le
+choix délibéré de n’assigner chaque mot qu’à un cluster et un seul. Pour notre application,
+nous avons besoin d’une méthode qui puisse à la fois identiﬁer les principaux regroupements
+spéciﬁques, tout en gardant également l’information concernant les mots qui appartiennent à la
+fois à plusieurs clusters.
+Notre méthode de classiﬁcation spectrale nous offre la possibilité d’une classiﬁcation continue,
+c’est-à-dire qu’elle n’attribue pas de manière discrète et univoque un mot à une classe, mais
+quantiﬁe la probabilité d’appartenance d’un mot à chacune des classes. Enﬁn, une originalité
+de ce travail réside dans une interprétation probabiliste des coordonnées des axes propres des
+matrices de similitude.
+
+1
+Pour paraphraser Hjelmslev, notre objectif est de « donner un système d’étiquettes permettant d’appeler un
+groupe de textes « anglais », un autre « danois », un autre « prose », un autre « poésie », un autre « Peter Ander-
+sen »ou « Lars Petersen », etc., sections qui, on le voit aisément, se croisent de plusieurs manières » (Hjelmslev,
+1963, p.179).
+2. Éléments du modèle
+Nous partons du postulat que nous disposons d’un corpus écrit (i.e. d’une production langagière
+déjà discrétisée en éléments d’expression élémentaires — des caractères) ; et, en outre, que ce
+corpus est transcrit dans un système d’écriture qui possède déjà une convention de délimitation
+des unités lexicales. C’est le cas dans les langues dont nous avons étudié des textes, qui sont
+des langues vivantes transcrites en caractères latins : les langues de cette catégorie ont à notre
+connaissance généralisé la convention consistant à délimiter les mots par des caractères spé-
+ciaux (signes de ponctuation, ou au moins caractère d’espacement). La méthode pourrait être
+généralisée aux langues n’appliquant pas cette convention — telles le chinois — au prix d’un
+prétraitement de délimitation des unités lexicales.
+Dans ce cadre, nous disposons des catégories pré-théoriques suivantes : le texte est une séquence
+de caractères ; le mot-occurrence est déﬁni « mécaniquement », au sein d’un texte, comme
+une séquence de caractères alphabétiques consécutifs, délimitée à gauche et à droite par des
+caractères non-alphabétiques. On peut choisir d’inclure, dans une déﬁnition étendue de « mot »
+(les tokens), les séquences de chiffres et les signes de ponctuation également représentés en un
+ou plusieurs exemplaires dans le texte : ce choix est un paramètre d’usage qu’il peut être utile de
+ﬁxer au dernier moment, en fonction des informations attendues des résultats 2. Pour l’instant,
+nous utilisons le terme mot-occurrence au sens le plus général, sans nous préoccuper de savoir
+si nous y incluons les « mots » non-alphabétiques ou non. Les notions suivantes découlent
+des premières : un mot-type (ou vocable) est un agencement de caractères alphabétiques qui
+se retrouve à une ou plusieurs reprises en tant que mot-occurrence dans les textes. Un corpus
+C est un ensemble de textes. Le vocabulaire d’un corpus, V(C) est l’ensemble des mots-types
+représentés par au moins une occurrence dans le corpus.
+Pour simpliﬁer, nous assimilons dans la suite le corpus à la concaténation de tous les textes qui le
+composent, bien que les deux notions ne soient pas identiques (lors de la collecte d’informations
+statistiques sur un corpus, on ne compte en effet pas le dernier mot du texte T k comme « voisin
+de gauche » du premier mot du texte T k+1 ). Nous parlons donc dorénavant indifféremment du
+« texte » comme s’il constituait à lui seul tout le corpus, ce qui simpliﬁe l’exposé des principes
+de notre travail, sans en modiﬁer fondamentalement le sens.
+Soit un texte T constitué d’une séquence de no occurrences w1 w2 ...wno , choisies parmi un vo-
+cabulaire V(T ) = {m1 , m2, ...mnt } (nt ≤ no). D’un point de vue algébrique, un texte est ni plus
+ni moins qu’une application surjective f T de [1, no] ⊂ N dans [1, nt] ⊂ N : on note fT ( j) = i
+lorsque w j est une occurrence du mot mi .
+
+2.1. Matrices
+
+Nous déﬁnissons la matrice de contexte à la distance k (k ∈ Z), notée C k , comme une matrice
+de nombres entiers, de dimension nt × nt, dans laquelle chaque coefﬁcient c k (i, j) correspond au
+nombre de fois où une occurrence du mot j apparaît à la position p + k lorsqu’une occurrence
+du mot i apparaît à la position p (pour tout p ∈ [1, no]). Par exemple, pour k = +1, cette matrice
+correspond à la matrice de contexte immédiat à droite : le coefﬁcient de C +1 à la ligne i et à
+
+2
+Pour la délimitation des classes syntaxiques au sein d’une langue, il peut être parfaitement pertinent d’inclure
+les virgules et les points, qui permettent par exemple de mettre facilement le doigt sur les classes systématiquement
+présentes en début de phrase ; cette donnée aurait au contraire plutôt tendance à brouiller les choses lors de la
+délimitation de différentes langues, utilisant toutes deux les mêmes signes de ponctuation.
+la colonne j, c+1 (i, j), contient le nombre de fois où le mot j s’est retrouvé juste après le mot
+i dans le texte. De même, C −1 correspond à la matrice de contexte immédiat à gauche, C +2 à
+la matrice de contexte à droite à deux mots de distance, etc. Conformément à cette déﬁnition,
+C0 est une matrice qui contient des zéros partout sauf sur la diagonale, et dont les coefﬁcients
+diagonaux contiennent le nombre d’occurrences de chaque mot. Dans la suite de cet exposé,
+pour simpliﬁer la notation, nous la noterons D : D = C 0 , et nous noterons en abrégé di ses
+coefﬁcients diagonaux : di = c0 (i, i) correspond au nombre d’occurrences du mot i dans le texte.
+Il convient par ailleurs de noter que quel que soit k, la somme de tous les coefﬁcients de la i-ième
+ligne de la matrice Ck , ainsi que la somme de tous les coefﬁcients de la i-ième colonne de cette
+même matrice, sont toujours égales à d i : en effet, les coefﬁcients stockés sur la i-ième ligne
+correspondent à l’ensemble des fois où le mot i a eu tel ou tel voisin à la distance k (donc il y
+en a au total autant que d’occurrences de mi dans le texte) ; de la même manière, les coefﬁcients
+de la i-ième colonne correspondent à l’ensemble des fois où un autre mot a eu le mot i comme
+voisin à la distance k.
+Dans le travail présenté ici, nous cherchons à extraire automatiquement des informations des
+corpus sans faire au départ aucune hypothèse sur la langue — ou le « système génératif » —
+dans lequel ceux-ci ont été composés. Ceci implique notamment de nous affranchir de toute hy-
+pothèse sur la directionalité de la lecture. Dans cet objectif, nous déﬁnissons un mode de lecture
+« circulaire » de chaque texte : nous supposons que le texte nous est donné comme un espace
+linéaire statique qu’un « lecteur » peut indifféremment (et aléatoirement) parcourir de gauche
+à droite ou de droite à gauche. Aﬁn de prendre en compte cette symétrisation, nous déﬁnissons
+une matrice de voisinage à la distance k (k ∈ Z), notée Vk , comme une matrice de nombres
+entiers, de dimension nt × nt, dans laquelle chaque coefﬁcient v k (i, j) correspond au nombre de
+fois où une occurrence du mot i et une occurrence du mot j se retrouvent à une distance de k
+mots l’une de l’autre dans la chaîne : vk (i, j) = ck (i, j) + ck ( j, i). En pratique, pour conserver
+une homogénéité de norme avec C, il est préférable de diviser ces coefﬁcients par un facteur
+2 (dans V chaque occurrence est en effet comptée deux fois) ; pour chaque k, nous déﬁnis-
+sons donc une nouvelle matrice Wk comme la matrice de dimension nt × nt et de coefﬁcients :
+wk (i, j) = 12 vk (i, j) = 12 ck (i, j) + ck ( j, i) . Ainsi, les sommes par ligne et par colonne de W sont
+elles aussi égales aux coefﬁcients di . La matrice W est l’équivalent de la matrice de contexte,
+mais avec un sens de lecture rendu aléatoire : c’est une matrice de contexte équidirectionnelle.
+L’étape suivante est de ramener ces informations, extraites d’un corpus donné, à un modèle
+abstrait indépendant de la taille du texte. Pour cela, il faut normaliser les informations sur le
+nombre de cas de voisinages observés autour du mot i, en les divisant par le nombre d’occur-
+rences de ce mot. On déﬁnit donc une matrice de probabilité de transition à la distance k, notée
+Pk , comme étant la matrice de nombres réels, de dimension nt×nt, et dont les coefﬁcients p k (i, j)
+correspondent à la probabilité qu’une occurrence du mot m j soit observée à une position p ± k
+sachant qu’une occurrence du mot mi a été observée à la position p : pk (i, j) = d1i wk (i, j). En ter-
+mes de multiplication de matrices, la matrice P se déﬁnit donc globalement par : P k = D−1 Wk .
+La matrice Pk ainsi déﬁnie a un certain nombre de propriétés intéressantes qui sont détaillées en
+§ 2.2 et § 3.
+Par ailleurs, avec les informations de base tirées des matrices de contexte C k , on peut construire
+des matrices de dissimilarité et de similarité paradigmatiques entre les mots de V(C).
+Tout d’abord, on déﬁnit pour chaque position contextuelle k une grandeur appelée dissimilarité
+des contextes du mot i et du mot j à la position k, qui correspond à la proportion de mots
+spéciﬁques au contexte à la position k de i ou à celui de j, rapportée au nombre total de mots
+pouvant apparaître dans les contextes à la position k de l’un aussi bien que de l’autre :
+nt                                 nt
+x=1 |ck (i, x) − ck ( j, x)|       x=1   |ck (i, x) − ck ( j, x)|
+δck (i,   j) =   nt                             =
+x=1 (ck (i, x) + ck ( j, x))                 di + d j
+Pour prendre l’exemple de k = +1 : δc+1 (i, j) correspond au cardinal de la différence symétrique
+des contextes immédiats à droite de m i et de m j , divisé par le cardinal de l’union de ces deux
+contextes (ou encore : au nombre de mots-occurrences apparaissant seulement derrière mi ou
+seulement derrière m j , divisé par le nombre total de mots-occurrences apparaissant derrière
+mi ou m j — c’est-à-dire divisé par la somme du nombre d’occurrences de mi et du nombre
+d’occurrences de m j ). Dans le cas particulier de k = 0 : δc0 se ramène à : δc0 (i, j) = 0 si i = j ;
+δc0 (i, j) = 1 si i j.
+On peut ensuite déﬁnir une dissimilarité contextuelle (ou dissimilarité paradigmatique) prenant
+en compte les contextes d’un intervalle I = [k1 , k2 ], comme une somme pondérée des dissimilar-
+ités contextuelles δck pour tous les k ∈ I. Par exemple si les poids valent 1, δ c (i, j) = k∈I δck (i, j).
+Une matrice de similarité contextuelle S peut alors être construite en transformant la dissimilar-
+ité δc en similarité, par la formule simple s(i, j) = 1 − δ c (i, j) (δc (i, j) étant comprise dans [0, 1],
+s(i, j) l’est aussi).
+
+2.2. Dissimilarités et similarités
+
+Il est possible de montrer que δc , déﬁnie comme ci-dessus (§ 2.1), est une véritable distance
+sur V(C) : pour commencer, elle prend ses valeurs sur R+ , et elle est symétrique. L’inégalité
+triangulaire est démontrable, mais nous n’en inclurons pas la preuve ici faute de place. Enﬁn,
+si l’intervalle I considéré ci-dessus contient k = 0, alors δ c vériﬁe également l’axiome de sépa-
+ration (∀i, j ∈ V(C), δc (i, j) = 0 ⇔ i = j), puisque même si deux vocables distincts m i et m j
+ont exactement les mêmes contextes sur les autres positions k ∈ I, la déﬁnition de δ c0 (i, j) sufﬁt
+à les discriminer. Cette distance sur l’espace des mots ouvre la voie à différentes possibilités
+d’algorithmes de minimisation. En outre, il est intéressant de noter que cette distance possède
+une interprétation en termes bayésiens : δc (i, j) correspond en effet à la probabilité de se trouver
+dans un contexte qui soit spéciﬁque à l’un des deux mots m i ou m j , sachant que l’on est dans
+une position contextuelle qui permet au moins l’un des deux, et peut-être les deux : bref, δ c (i, j)
+représente la probabilité que le contexte courant discrimine m i et m j au sein de leur paradigme
+commun. Cette interprétation a des implications en termes de déﬁnition de catégories syntax-
+iques et sémantiques que nous n’avons pas ﬁni d’explorer.
+Revenons maintenant à la matrice de probabilité de transition P, déﬁnie plus haut dans § 2.1.
+Dans la suite, pour alléger les notations, nous considérons le cas particulier où k = 1, et sauf
+indication contraire, nous notons simplement P pour P 1 et W pour W1 . Ce qui en est dit est
+généralisable sans difﬁculté aux autres valeurs possibles de k.
+Tout d’abord, on peut observer que les coefﬁcients de P, les p(i, j), possèdent certaines pro-
+priétés d’une fonction de similarité sur l’ensemble des mots : c’est une fonction de V(C)×V(C)
+dans ]0, 1] ⊂ R+ . On peut déﬁnir à partir de cette fonction une fonction de dissimilarité, grâce
+à une transformation du type δ(i, j) = 1 − p(i, j), ou δ(i, j) = (1 − p(i, j))/p(i, j), déﬁnie de
+V(C) × V(C) dans R+ , qui vériﬁe l’axiome de séparation (δ(i, j) = 0 ⇔ i = j) et l’axiome de
+BU
+GA                         BU
+49/100
+
+49/100
+49/100                                     49/100
+ZO          GA
+1/100            1/100
+1/100
+BU                                  MEU                                 1/100
+GA                      BU                                                                  GA     MEU        BU
+ZO                     MEU            49/100                                     49/100
+1/2                                  1/2                                             49/100
+
+1/2                                  1/2                                             49/100
+1/2                  1/2              1/2                 1/2                      ZO                        MEU
+GA                                    ZO                                               ZO
+
+Figure 1. À gauche, deux exemples de processus génératifs élémentaires : (a) l’un pro-
+duit des chaînes comme : « GA BU BU BU BU GA BU GA BU BU BU BU BU BU BU
+BU GA GA GA BU » ; (b) l’autre des chaînes comme : « ZO ZO ZO MEU ZO MEU
+ZO MEU MEU ZO MEU MEU MEU MEU MEU ZO MEU ZO ZO ZO ». À droite :
+(c) Processus génératif mixte produisant des chaînes comme : « BU GA GA BU BU
+GA BU BU GA ZO MEU MEU ZO MEU MEU ZO MEU MEU ZO ZO » ; la proba-
+bilité que la « parole » passe de l’ « auteur » disant « GA-BU » à l’ « auteur » disant
+« ZO-MEU » est de 2 %.
+symétrie (∀i, j, δ(i, j) = δ( j, i)). Cependant cette fonction ne vériﬁe pas l’inégalité triangulaire 3
+qui en ferait une distance à proprement parler, et ne peut donc pas directement servir de critère
+de base à un algorithme de minimisation. Véronis (2003), qui utilise une fonction de similarité
+proche de la nôtre pour cartographier la proximité syntagmatique de mots sur de grands cor-
+pus, attaque le problème par des heuristiques de détection de composantes fortement connexes
+dans des grands graphes de mots co-occurrents. Notre approche est différente et fait appel à des
+méthodes de classiﬁcation spectrale continue, en partant d’une autre propriété intéressante de
+P, dont il va être question en § 3.
+
+3. Interprétation en termes de chaînes de Markov
+La matrice P constitue, d’après un lemme classique (cf. par exemple (Petruszewycz, 1981)),
+l’estimation par maximum de vraisemblance, sur l’ensemble des bigrammes observés, de la
+matrice de transition de la chaîne de Markov engendrant le texte T .
+Revenons un instant sur la notion que nous cherchons à appréhender en parlant de système
+génératif. Comme nous l’avons dit plus haut, il peut s’agir d’une langue, d’un genre, d’un idi-
+olecte, etc. D’un point de vue empirique, nous n’avons pas d’autre moyen de caractériser cette
+variable que les n-grammes que nous observons dans le corpus. Les chaînes de Markov peuvent
+donc se révéler un outil de modélisation tout à fait adapté pour la représenter. Pour simpliﬁer,
+nous considérons pour l’instant uniquement les probabilités des bigrammes 4 . Dans ce cadre, il
+est facile de se représenter ce que signiﬁe un système génératif : il sufﬁt de s’imaginer un « au-
+teur » comme un agent simpliste effectuant un parcours aléatoire le long des transitions d’une
+chaîne de Markov. Le résultat du parcours est la chaîne engendrée. Nous donnons ﬁgure 1 (a)
+et (b) deux exemples de ce que peuvent produire des « auteurs » simplistes parcourant de telles
+chaînes de Markov.
+Un texte composite peut alors être conçu comme le résultat du parcours aléatoire d’une chaîne
+3
+On ne peut pas afﬁrmer, connaissant un mot m x et un mot my , qu’il est impossible de trouver un mot m z tel que
+p(x, z)+p(z, y) > p(x, y), en d’autres termes tel que la probabilité de transition de m x à my en passant par m z soit plus
+grande que la probabilité de passer directement de m x à my . Ce cas de ﬁgure est au contraire tout à fait courant : dans
+le composé match de barrage (exemple emprunté à Véronis), p(match, de) + p(de, barrage) > p(match, barrage).
+4
+Dans ce contexte, bigramme signiﬁe : « groupe de deux mots consécutifs ».
+de Markov complexe, résultant d’une combinaison de plusieurs chaînes de Markov plus com-
+pactes et plus homogènes, comme illustré dans la ﬁgure 1 (c). Le but de notre tâche de clas-
+siﬁcation peut alors être conçu comme un travail de séparation des deux processus génératifs,
+qui fonctionne en attribuant à chaque état une probabilité d’appartenance à l’une ou l’autre des
+sous-chaînes.
+Notre méthode de classiﬁcation se fonde ensuite sur le principe de la classiﬁcation spectrale,
+c’est-à-dire fondée sur la répartition des mots le long des principaux axes propres de la matrice
+P. Remarquons tout d’abord que P, sans être symétrique, est déﬁnie par le produit de deux ma-
+trices réelles symétriques (D−1 et W, cf. § 2.1), et qu’elle admet donc des valeurs propres réelles.
+D’autre part, par construction, P est stochastique par lignes, c’est-à-dire que la somme de tous
+les coefﬁcients d’une même ligne est toujours égale à 1 (c’est la somme des probabilités de
+transition d’un mot m i à un mot suivant). Ceci lui confère une autre propriété, qui est d’être de
+norme 1, et d’admettre également 1 comme plus grande valeur propre. Les autres valeurs pro-
+pres appartiennent toutes à ]0, 1[ et peuvent être (sans perte de généralité) considérées comme
+classées par ordre décroissant : λ2 , λ3 , etc. (il y en a nt en tout).
+Il convient de noter que le problème de la recherche d’une grande valeur propre de P est équiv-
+alent à celui de la recherche d’une valeur propre proche de zéro pour le problème de valeurs
+propres généralisé (D − W)y = µDy (à une multiplication par D−1 près, et en notant µ = 1 − λ).
+Ce problème résulte de la réécriture de la contrainte de minimisation d’un critère de coût nor-
+malisé, utilisé en classiﬁcation pour modéliser la recherche d’un minimum de conductance en-
+tre classes. La conductance entre une classe k et son complémentaire y est évaluée comme la
+somme, pour toutes les paires de mots (i, j), d’une distance représentant la probabilité d’ap-
+partenance commune à la classe k, pondérée par le poids de la transition possible entre i et j :
+κk (Z) = vi, j=1 wi j (zik − z jk )2 (zi j dénote la fonction caractéristique de l’appartenance du mot i
+à la classe k). Le critère de coût normalisé a notamment été introduit par (Shi et Malik, 2000)
+pour des applications de segmentation d’image, et également utilisé par (Belkin et Goldsmith,
+2002) pour le clustering de mots français et anglais. La classiﬁcation spectrale discrète procède
+ensuite à la recherche d’une fonction de seuil ; dans notre application, nous nous intéressons à
+une classiﬁcation continue, donc nous allons utiliser directement les vecteurs propres de P.
+Les axes propres d’une matrice peuvent être caractérisés par des vecteurs de norme quelconque,
+pourvu qu’ils soient sur le bon axe. Les fonctions de calcul d’algèbre linéaire que nous utilisons
+(paquetage LAPACK) fournissent des vecteurs propres y′k normalisés de telle sorte que ∥y′k ∥2 = 1.
+Notons y′k (i) les nt coordonnées des vecteurs y′k . Soient maintenant yk (k ∈ [1, nt]) les vecteurs
+propres de P déﬁnis par multiplication des y ′k par une constante scalaire déﬁnie pour chacun
+nt
+d’entre eux par 1/       i=1   di y′k (i)2 . Si nous notons yk (i) les nt coordonnées des vecteurs yk , ces
+vecteurs vériﬁent par construction : nt                 2
+i=1 di yk (i) = 1 (ou encore : y Dy = 1). Ceci signiﬁe que
+di yk (i)2 a les propriétés d’une distribution de probabilité sur V(C).
+En tant que vecteurs propres, ces yk vont être caractérisés par des coordonnées positives ou
+négatives qui correspondent à une corrélation de chaque mot avec une composante principale
+donnée ; cependant nous voulons insister sur l’autre interprétation possible des vecteurs pro-
+pres yk , qui est spéciﬁque à l’approche présentée. Nous pouvons considérer chaque axe propre
+comme une classe (appelons-la Lk ), chaque classe comportant tous les mots, mais avec une
+« probabilité d’appartenance » qui est donnée, pour chaque mot m i , par di yk (i)2 . Sous ce point
+de vue, la grandeur di yk (i)2 s’interprète donc comme la probabilité d’observer le mot m i sachant
+qu’on est dans la classe L k : Pr(mi |Lk ). Il est intéressant d’observer au passage que le premier
+vecteur propre y1 , généralement rejeté comme trivial, correspond en fait dans cette interpréta-
+tion à la classe globale du corpus observé, L 1 , contenant tous les mots avec une probabilité qui
+est précisément leur probabilité d’apparition dans le corpus (y 1 (i) = di / nt
+i=1 di ). Ensuite, pour
+k > 1, nous voyons se former des classes qu’il est possible d’interpréter comme représentant
+l’appartenance de chaque mot à tel ou tel système génératif.
+
+4. Applications et Conclusion
+Nous avons utilisé les méthodes décrites plus haut pour classiﬁer automatiquement les mots de
+corpus composites comportant des échantillons de plusieurs langues entremêlées. Nous nous
+sommes en particulier intéressés au cas de textes bilingues en français et en créole. Aﬁn de
+mieux visualiser les résultats, nous avons adopté une méthode consistant à faire ré-afﬁcher tous
+les mots dans l’ordre du texte, en les faisant apparaître sur un fond coloré dont le codage vecto-
+riel RVB correspond à l’afﬁchage des coordonnées du vocable sur trois axes propres signiﬁcatifs
+(les meilleurs résultats étant en général donnés par le choix des axes propres correspondant aux
+valeurs propres λ2 , λ3 et λ4 ). Un exemple de résultat de ce type de visualisation est donné ﬁgure
+2. Notons que ce procédé ne permet pas de visualiser des langues à proprement parler, puisque
+le système a créé des classes de manière totalement non supervisée, et que ce sont ces classes
+qui servent de base à l’afﬁchage ; pour attribuer une langue, choisie dans un ensemble prédéﬁni,
+à chaque mot du corpus, il faut effectuer une deuxième étape d’apprentissage, supervisée cette
+fois, qui nécessite l’étiquetage préalable de quelques mots représentatifs de chacune des langues
+manifestées.
+Figure 2. Une visualisation par codes de couleur de l’appartenance de chaque mot
+aux classes correspondant aux axes propres de rang 2, 3 et 4, sur l’exemple d’un texte
+bilingue français et créole martiniquais (roman Lavwa Egal — La voix égale, de Thérèse
+Léotin, 2003). Sur ce schéma, les grandeurs représentées sont proportionnelles aux car-
+rés des coordonnées de chaque mot sur les vecteurs propres.
+
+Les positions respectives des mots les plus fréquents du corpus sur les deux premiers axes
+propres peuvent également être représentées sur un diagramme bidimensionnel comme celui de
+la ﬁgure 3.
+Les méthodes mises en œuvre dans ce travail ont prouvé leur efﬁcacité sur des problèmes
+génériques, en se limitant volontairement à des données de base extrêmement simples (ma-
+trices de transition sur des bigrammes). Ils arrivent à identiﬁer des sous-systèmes génératifs
+à partir de corpus bruts, sans aucune information enrichie. La principale voie d’amélioration
+que nous comptons explorer est celle de l’enrichissement mutuel des deux approches présen-
+tées (catégorisation syntagmatique et paradigmatique) dans le cadre d’un processus itératif, aﬁn
+3
+Lavwa Egal      La voix égale : 40 mots les plus fréquents
+X = 10   n
+ka           an
+axe 2                                       pa té      sé
+i      ki                               de
+pou mwen y            l                             d
+yo              fè    di
+ba             ou      w             sa le
+4               lé          li
+ni
+a      il que       je        les
+et à un
+épi en                ne
+est
+ce pas
+
+la
+5
+mots créoles                                  tout
+mots français
+
+6
+14   13      12      11        10     9         8    7          6          5           4
+Y = 10     n
+
+axe 3
+
+Figure 3. Les 40 mots les plus fréquents de Lavwa egal — La voix égale , développés
+sur les deux premiers axes principaux de valeur propre < 1 . N.B. « en », « y », « an »,
+« tout »et « la »sont tout à la fois des mots créoles et des mots français (parmi eux, « y »,
+« an »et « tout »apparaissent plus fréquemment dans des contextes de phrases créoles que
+dans des contextes de phrases françaises).
+
+d’aller vers l’annotation automatique ou semi-automatique des corpus — cette annotation ser-
+vant elle-même de base à une meilleure segmentation. L’objectif est d’arriver à une plate-forme
+d’acquisition automatique d’information sur les langues ou sur les genres.
+Références
+B ELKIN M. et G OLDSMITH J. (2002). « Using eigenvectors of the bigram graph to infer mor-
+pheme identity ». In Morphological and Phonological Learning: Proc. of the 6 th Workshop
+of the ACL SIG in Computational Phonology (SIGPHON). p. 41–47.
+C HOI F. Y. Y. (2000). « Advances in domain independent linear text segmentation ». In Pro-
+ceedings of NAACL. p. 26–33.
+E L -B ÈZE M., TORRES -M ORENO J. M. et B ÉCHET F. (2005). « Peut-on rendre automa-
+tiquement à César ce qui lui appartient ? Application au jeu du Chirand-Mitterrac ». In M.
+Jardino (éd.), Actes de TALN 2005 (Traitement automatique des langues naturelles) : LIMSI.
+ATALA, Dourdan, p. 125–134. Atelier DEFT’05.
+G REFFENSTETTE G. (1995). « Comparing two language identiﬁcation schemes ». In Journées
+Internationales d’Analyse des Données Textuelles (JADT). p. 263–268.
+H JELMSLEV L. (1963). Degrés Linguistiques, In Le langage, p. 175–181. Arguments. Les
+Éditions de Minuit: Paris.
+L ELU A. (2004). « Analyse en composantes locales et graphes de similarité entre textes ». In
+Journées Internationales d’Analyse des Données Textuelles (JADT). p. 737–742.
+P ESSIOT J.-F., C AILLET M., A MINI M.-R. et G ALLINARI P. (2004). « Apprentissage non-
+supervisé pour la segmentation automatique de textes ». In Conférence en Recherche d’In-
+formation et Applications (CORIA’04). p. 1–8.
+P ETRUSZEWYCZ M. (1981). Les chaînes de Markov. Travaux de linguistique quantitative.
+Slatkine, Genève / Paris.
+S HI J. et M ALIK J. (2000). « Normalized Cuts and Image Segmentation ». In IEEE Trans. on
+Pattern Analysis and Machine Intelligence, 22 (8), 888–905.
+U TIYAMA M. et I SAHARA H. (2001). « A Statistical Model for Domain-Independent Text Seg-
+mentation ». In Proc. of the 39 th Meeting of the Association for Computational Linguistics.
+p. 491–498.
+V ÉRONIS J. (2003). « Cartographie lexicale pour la recherche d’information ». In B. Daille
+(éd.), Actes de TALN 2003 (Traitement automatique des langues naturelles) : IRIN. ATALA,
+Batz-sur-mer, p. 265–274.
+VO T.-H. (2004). « Construction d’un outil pour identiﬁer et segmenter automatiquement un
+texte hétérogène en zones homogènes ». In Recherche Innovation Vietnam et Francophonie.
+p. 175–178.
