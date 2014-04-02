@@ -22,6 +22,7 @@ paths = ['TALN/', 'RECITAL/']
 # paths = ['TALN/']
 output = "../www/"
 conferences = {}
+nb_pdfs = 0
 nb_papers = 0
 mots_cles = {}
 auteurs = {}
@@ -97,24 +98,18 @@ for path in paths:
                        + current_conf.meta['pays'] + ')'
         conferences[conference].append(info)
 
-        ########################################################################
-        # Création du fichier html de la page principale
-        ########################################################################
-        handle = codecs.open(fichier_html, 'w', 'utf-8')
-        handle.write(editionTemplate.render(meta=current_conf.meta, \
-            articles=current_conf.articles))
-        handle.close()
-
         # Comptage du nombre de papiers dans TALN Archives
         nb_papers += len(current_conf.articles)
-
+        
         # Extraction des mots clés et des auteurs de la base
-        for article in current_conf.articles:
+        for a in range(len(current_conf.articles)):
+            article = current_conf.articles[a]
+            lien_article = path + edition + "/" + article['id'] + '.pdf'
+
             if article['mots_cles'] != "":
                 article_keywords = article['mots_cles'].lower().split(',')
 
                 titre = ""
-                lien_article = path + edition + "/" + article['id'] + '.pdf'
                 if article['titre'] != "":
                     titre = article['titre']
                 else:
@@ -133,6 +128,12 @@ for path in paths:
                         auteurs[auteur] = []
                     auteurs[auteur].append(article_info)
 
+            # Ajout du lien vers le fichiers pdf
+            current_conf.articles[a]['pdf'] = False
+            if os.path.isfile(output+lien_article):
+                current_conf.articles[a]['pdf'] = True
+                nb_pdfs += 1
+
             ####################################################################
             # Création du fichier html de l'article
             ####################################################################
@@ -142,13 +143,23 @@ for path in paths:
                          article=article))
             handle.close()
 
+        ########################################################################
+        # Création du fichier html de la page principale
+        ########################################################################
+        handle = codecs.open(fichier_html, 'w', 'utf-8')
+        handle.write(editionTemplate.render(meta=current_conf.meta, \
+            articles=current_conf.articles))
+        handle.close()
+
 ################################################################################
 
 ################################################################################
 # Création du fichier html de la page principale
 ################################################################################
 handle = codecs.open(output+'index.html', 'w', 'utf-8')
-handle.write(indexTemplate.render(conferences=conferences, nb_papers=nb_papers))
+handle.write(indexTemplate.render( conferences=conferences, 
+                                   nb_papers=nb_papers, 
+                                   nb_pdfs=nb_pdfs))
 handle.close()
 ################################################################################
 

@@ -7,8 +7,7 @@ resolution=300
 PDF_TO_TEXT=/usr/local/bin/pdftotext
 
 # Extraction par année
-# for YEAR in {2001..2005} {2007..2013}
-for YEAR in 2006
+for YEAR in {1999..2013}
 do
     echo "Extraction du contenu textuel des fichiers de TALN $YEAR"
 
