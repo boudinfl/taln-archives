@@ -38,7 +38,7 @@ do
 done
 
 # Extraction du texte des fichiers de TALN
-for YEAR in {2001..2013}
+for YEAR in {1997..2013}
 do
 
     XML_FILE=../TALN/TALN-$YEAR/taln-$YEAR.xml

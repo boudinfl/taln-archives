@@ -1,0 +1,528 @@
+52                                                     Conférence TALN 1998, Paris, 10–12 juin 1998
+Extraction stochastique d’arbres d’analyse
+pour le modèle DOP
+
+Jean-Cédric Chappelier et Martin Rajman
+
+EPFL – DI-LIA, Écublens, CH-1015 Lausanne, Suisse
+{chaps, rajman}@lia.di.epfl.ch
+Résumé
+Dans le cadre des approches à base de grammaires faiblement sensibles au contexte 1, cette
+contribution passe en revue le problème de l’extraction de l’arbre d’analyse le plus probable
+dans le modèle du Data-Oriented Parsing (DOP) (Bod, 1995). Une démonstration formelle de
+l’utilisabilité des méthodes Monte-Carlo est donnée, puis une technique d’échantillonnage con-
+trôlée est développée permettant de garantir que l’arbre d’analyse sélectionné est bien (avec un
+certain seuil de confiance fixé a priori) l’arbre d’analyse le plus probable au sens du modèle
+DOP.
+1. Introduction
+L’analyse syntaxique guidée par les données (Data-Oriented Parsing ou DOP) (Bod, 1995)
+constitue aujourd’hui une des voix de recherche prometteuses dans le cadre des approches à
+base de grammaires faiblement sensibles au contexte 1. Elle correspond à une mise en œuvre
+spécifique des grammaires probabilistes à substitution d’arbres et présente, à ce titre, plusieurs
+différences importantes avec le modèle usuel des grammaires stochastiques (SCFG 2). En partic-
+ulier, et à la différence des SCFG, il n’y a pas dans le cadre du modèle DOP une correspondance
+bi-univoque entre un arbre d’analyse et la façon de produire cet arbre par la grammaire (par ex-
+emple une liste de sous-arbres) 3.
+La conséquence fondamentale de cet état de fait est qu’à la différence des SCFG, trouver
+l’arbre d’analyse le plus probable devient un problème NP-difficile (Sima’an, 1996). Seule la
+dérivation la plus probable peut être trouvée en un temps polynômial. Une solution possible
+consiste alors à chercher l’arbre d’analyse le plus probable, non plus par une méthode exacte
+mais par échantillonnage statistique au sein de la forêt des dérivations.
+Cependant, pour qu’une telle technique soit effectivement opérationnelle, il est nécessaire
+que les probabilités servant à échantillonner la forêt des dérivations soient (1) elles-mêmes
+1. « mildly context-sensitive grammars »
+2. pour « Stochastic Context-Free Grammars »
+3. et ceci malgré la convention consistant à réécrire systématiquement en premier la feuille non-terminale la
+plus à gauche.
+
+Extraction stochastique d’arbres d’analyse                                                                          53
+calculables en un temps polynômial et (2) compatibles avec les probabilités des arbres d’analyse
+au sens du modèle DOP, de façon à ce que la probabilité d’obtenir un arbre d’analyse par
+échantillonnage soit égale à sa DOP-probabilité.
+Le but de cet article est, d’une part, de fournir une démonstration formelle de la faisabilité
+des deux points ci-dessus (sections 2 et 3 ci-après) et, d’autre part, de proposer une méthode
+d’échantillonnage contrôlée permettant de garantir (avec un seuil de confiance donné a priori)
+la sélection effective de l’arbre d’analyse le plus probable (section 4). La section 5 complète
+l’analyse en détaillant certains aspects d’implémentation des méthodes décrites.
+2. Problématique
+2.1.   Définitions et notations
+
+Une grammaire à substitution d’arbres est une grammaire formelle dont les règles sont des
+arbres (appelés ci-après arbres de référence) dont les racines et les nœuds intérieurs sont des
+symboles non-terminaux de la grammaire et les feuilles des symboles quelconques (terminaux
+()                   ()
+ou non-terminaux). Pour un arbre a, on notera r a sa racine, F a la séquence ordonnée 4 de
+()
+ses feuilles et fi a la i-ième feuille dans F a .      ()
+Sur l’ensemble des arbres d’analyse 5, on définit une loi interne qui à deux arbres a et b
+associe l’arbre c     =a b résultant de la substitution par b de la feuille non-terminale la plus
+à gauche de a, si cette feuille est égale à la racine de b, et l’arbre vide sinon. n’étant pas
+associative, a1 ::: am sera interprété par convention comme ::: a1 a2 ::: am . Une( (           )      )       )
+décomposition d’un arbre d’analyse a quelconque est la donnée de m sous-arbres de référence
+a1, ..., am, tels que a a1 ::: am.
+Dans le cadre du modèle DOP, la probabilisation d’une grammaire à substitution d’arbres
+s’effectue alors de la façon suivante : à chaque arbre de référence a est associé un coefficient
+()
+stochastique p a (équivalent au coefficient stochastique associé aux règles dans une SCFG)
+P
+vérifiant la contrainte stochastique bjr(b)=r(a) p b        ( )=1
+. Ce coefficient stochastique sera appelé
+probabilité élémentaire de a.
+La probabilité P d’une décomposition a1 ::: am est alors définie comme le produit des
+probabilités élémentaires de chacun des ai, et la probabilité d’un arbre d’analyse quelconque
+()
+a, appelée DOP-probabilité et notée PDOP a 6, est définie comme la somme des probabilités
+de toutes ses décompositions. Notons la différence, pour un arbre élémentaire, entre sa DOP-
+probabilité et sa probabilité élémentaire: la première est toujours supérieure ou égale à la sec-
+onde et ne lui est égale que dans le cas particulier où l’arbre de référence considéré ne possède
+pas d’autre décomposition que lui-même sur l’ensemble des arbres de référence.
+
+2.2.   Extraction de l’arbre le plus probable
+
+Le fait de pouvoir produire toutes les analyses de la séquence à analyser en un temps polynômial
+ne garantit en aucun cas que l’on puisse déterminer l’analyse la plus probable en un temps
+polynômial. En effet, non seulement une séquence donnée peut avoir un nombre exponentiel
+4. graphiquement de gauche à droite
+5. ou « arbres syntaxiques »
+6. Ceci est une notation un peu abusive car en toute rigueur il s’agit de la probabilité PDOP (a; w) puisqu’en effet
+la sommePdes DOP-probabilités d’arbre couvrant la même phrase est égale à la probabilité de la phrase, c.-à-d.
+P (w) =      ajF (a)=w
+PDOP (a). De ce fait, on notera également PDOP (ajw) le rapport PDOP (a)=P (w).
+
+54                                                                                J.-C. Chappelier, M. Rajman
+d’arbres d’analyse, mais un arbre d’analyse peut de plus lui-même avoir un nombre exponentiel
+de décompositions. Il n’est donc pas possible, dans le cas général, d’extraire de façon efficace
+l’arbre d’analyse le plus probable simplement en parcourant toutes les décompositions possi-
+bles. En fait, il a été démontré que ce problème d’extraction est NP-difficile (Sima’an, 1996).
+Cependant, le fait qu’il n’existe pas d’algorithme polynômial exact permettant de trouver
+l’arbre d’analyse le plus probable ne signifie pas qu’il n’existe pas d’algorithme polynômial
+permettant d’estimer cet arbre d’analyse avec une probabilité d’erreur aussi petite que pos-
+sible. C’est précisément cette stratégie qui est appliquée dans (Bod, 1995). Le problème est
+alors de trouver un algorithme d’échantillonnage probabiliste qui permette l’extraction d’un ar-
+bre d’analyse en un temps polynômial 7 et soit compatible avec le modèle probabiliste utilisé,
+c.-à-d. tel que la probabilité d’obtenir par échantillonnage un arbre d’analyse a soit être égale à
+( )
+PDOP ajw , sa DOP-probabilité sachant la séquence w à analyser.
+
+3. Échantillonnage
+Pour une séquence de mots à analyser w fixée, la sélection d’une décomposition parmi toutes
+les décompositions possibles de tous les arbres d’analyse possibles de w s’effectue par une suite
+de choix successifs (et indépendants) d’éléments de décomposition.
+( ( ) ( ))
+Plus précisément, si un élément de décomposition e est un couple u e ; e , où u e est                       ()
+()
+un arbre de référence et e un tuple de taille p               +1
+d’indices strictement croissants, p étant le
+()
+nombre de feuilles de u e , alors une décomposition a1, ..., am de l’arbre d’analyse a d’une
+8
+
+séquence w w1:::wn est obtenue par la sélection successive des éléments de décomposition
+1               =(         )
+e1, ..., em tels que pour tout k entre et m, ek ak ; k avec k la partition induite par les
+feuilles de ak sur la sous-séquence de w couverte dans a par la racine de ak 9 .
+S
+S
+S                    S                               S           S
+Par exemple la décomposition                     S       S        de l’arbre d’analyse                        cor-
+S       S                a                           S       S       a
+a       a
+a     a
+respond à la sélection successive des éléments de décomposition e1 , e2, e3 suivants :
+0                       1
+!       B S
+C                           !
+e1   =      S
+(1 3 4)
+; ; ; , e2          =B
+S@    S; ; ;      (1 2 3)C
+et e3 A
+S
+; ; . =       (3 4)
+S     S                                                  a
+a     a
+Il est important de souligner ici que c’est précisément la donnée du second élément (la parti-
+tion) qui permet d’effectuer le choix des éléments d’une même décomposition d’une façon qui
+ne dépende que du père de l’élément choisi et non pas de l’ensemble de la décomposition (i.e.
+un choix local). Il est à noter que le choix d’un sous-arbre seul (comme par exemple indiqué
+dans (Rajman, 1995) 10), ne permet pas de déterminer de façon unique la décomposition choisie.
+7. Ce qui signifie en particulier que les probabilités d’échantillonnage utilisées doivent également pouvoir être
+calculées en un temps polynômial.
+8. Pour (e) = (i1 ; :::; ip+1), on notera ik (e) = ik , i(e) = i1 (e) = i1 , j (e) = ip+1 (e) = ip+1 .
+9. autrement dit : la l-ième feuille de ak domine dans a la sous-séquence wil(ek ) :::wil+1(ek)?1 de w. Par exemple
+X
+(         ; (1; 3; 4)) signifie que Y doit dominer w1 w2 et Z w3.
+Y      Z
+10. Dans (Rajman, 1995), c’est plus précisément une règle de la grammaire équivalente qui est choisie ; ce qui
+
+Extraction stochastique d’arbres d’analyse                                                                     55
+En effet, une même règle peut appartenir à plusieurs décompositions différentes. Par exemple,
+avec la grammaire S -> S S | a, la séquence aaa possède deux arbres d’analyse où la
+même règle s’applique au sommet. Il n’est donc pas suffisant de se contenter de choisir des
+règles pour caractériser une décomposition.
+L’ensemble des éléments de décomposition parmi lesquels on peut choisir pour étendre un
+non-terminal X dans l’analyse de wi :::wj (          1                       )
+i j n ) est l’ensemble, appelé ci-après
+( )
+domaine d’extension de X en i; j défini par :
+
+D(X; i; j ) = fe j r(u(e)) = X; i(e) = i; j (e) = j + 1g
+Le problème central est alors de déterminer la probabilité avec laquelle on doit choisir les
+éléments de décomposition au sein des domaines d’extension, de sorte que, pour une séquence
+w à analyser donnée, la probabilité d’obtenir une séquence d’éléments de décomposition corre-
+spondant à un arbre d’analyse de w soit égale à la DOP-probabilité de cet arbre.
+Posons                  8                    Y            X
+< p(u(e))                                 P0(e0)    si nt(e) 6= 0
+P0(e) = :                 1 k   nt(e) e 2 k (e)
+0
+p(u(e))                                           si nt(e) = 0
+(e) est le nombre de feuilles non-terminales de u(e) et
+où nt
+
+k (e) = D(f (k) (u(e)); i (k)(e); i (k)+1(e) ? 1)
+avec (i) l’indice de la i-ème feuille non-terminale 11. P0 (e) peut être facilement calculé au
+cours de la phase d’analyse (cf section 5).
+On définit alors la probabilité d’échantillonnage d’un élément                        e   au sein de l’ensemble
+D(         )
+X; i; j par :
+PE (e) =         XP0(e)
+P0 (e0)
+e 2D(X;i;j )
+0
+et le mécanisme d’échantillonnage des décompositions d’arbres d’analyse d’une séquence
+w = w1:::wn donnée est le suivant :
+1. On initialise le processus en choisissant aléatoirement suivant PE un élément de décom-
+position dans le domaine d’extension D(S; 1; n), où S est le symbole de plus haut niveau
+de la grammaire.
+2. Soit = (e1; :::; ek) la séquence d’éléments de décomposition obtenue après k sélections
+aléatoires successives.
+– si nt( ) = 0, l’échantillonnage est terminé 12.
+– sinon, il existe alors nécessairement un i et un j tels que la feuille non-terminale X
+la plus à gauche de u(e1) ::: u(ek) soit la j -ème de u(ei ). Le k +1-ième élément de
+décomposition est obtenu en choisissant aléatoirement suivant PE un élément dans
+le domaine d’extension j (ei ). On appellera ei le « père » de ek+1 . De plus, par
+construction, j (ei ) = D(r(u(ek+1 )); i(ek+1 ); j (ek+1) ? 1) que nous noterons par
+la suite (ek+1 ).
+est strictement équivalent au choix d’un sous-arbre de référence seul.
+11. En toute rigueur (i) dépend de e. En cas d’ambiguïté, nous le noterons alors e (i).
+12. En notant nt(e1 ; :::; ek) le nombre de feuilles non-terminales de u(e1 ) ::: u(ek )
+
+56                                                                                       J.-C. Chappelier, M. Rajman
+En termes moins formels, les choix possibles pour un nouvel élément de décomposition
+à un moment donné du processus d’échantillonage sont tous les éléments de décomposition
+permettant réécrire le non-terminal courant, tout en respectant la contrainte de couverture de la
+chaîne imposée par le choix de l’élément « père ».
+La probabilité d’obtention d’une séquence d’éléments de décomposition d                              = (e1; :::; em) est
+alors le produit des probabilités d’échantillonnage. En effet :
+Y                                                     Y
+PE (d) = PE (e1; :::; em) = PE (e1)                   PE (eije1; :::; ei?1) = PE (e1)                   PE (eijpère de ei)
+2 i m                                                 2 i m
+Y
+puisque le choix d’un élément ne dépend que de son père. On a donc PE              PE (e).       (d) =
+e2d
+Montrons alors que cette probabilité d’échantillonnage correspond bien à la probabilité de la
+décomposition obtenue (sachant w). C’est-à-dire que
+iY
+=m
+1
+PE (e1; :::; em) = P (u(e1) ::: u(en)jw) = P (w)
+DOP                               p(u(ei))
+i=1
+
+Soit   (p) la proposition : Toute décomposition terminale e1; :::; em de profondeur p vérifie
+Y
+PE (e1; :::; em) = X 1 0            p(u(ei))
+P0(e ) 1 i m
+e 2 (e1 )
+0
+Montrons par récurrence sur p que p est vraie :()
+=                                              1
+p 1 Une décomposition de profondeur a nécessairement un seul élément e1 qui, du fait que
+la décomposition est terminale, n’a que des feuilles terminales. La proposition    est                          (1)
+alors triviale puisque, par définition,
+
+PE (e1) =          XP0(e1) 0 = X 1                            p(u(e1))
+P0 (e )                P0(e0)
+e 2 (e1)
+0
+e 2 (e1 )
+0
+Récurrence Supposons         ()
+p et montrons que                      (p + 1) est vraie. Soit donc e1; :::; em une
+décomposition terminale de profondeur p                  + 1.
+( )
+Alors, pour tout ei , u ei est contenu dans un unique sous-arbre terminal aj de racine
+( )
+l’un des fils non-terminaux de e1 contenant u ei . De plus, du fait de la convention con-
+sistant à réécrire en premier la feuille non-terminale la plus à gauche, un tel aj définit
+alors de manière univoque deux indices nj et mj tels que             nj mj m et     2
+= ( )           ( )
+aj u enj ::: u emj . Nous pouvons donc écrire :
+Y                                       Y
+PE (e1; :::; em) =                   PE (ei) = PE (e1)                    PE (ei)
+1 i m                                   2 i m
+Y
+= XP0(e1) 0                                   PE (enj ; :::; emj )
+P0(e )                  1 j   nt(e1 )
+e 2 (e1 )
+0
+
+Extraction stochastique d’arbres d’analyse                                                                                                          57
+en regroupant les produits de sorte à faire apparaître les probabilités d’échantillonnage
+de chacune des décompositions terminales (i.e. les enj ; :::; emj ) associées aux feuilles    (                   )
+( )
+non-terminales de u e1 .
+De plus, chacun des (enj ; :::; emj ) est une décomposition de profondeur au plus p (sinon
+e1; :::; em serait de profondeur plus grande que p +1). Donc par hypothèse de récurrence :
+Y
+PE (enj ; :::; emj ) = X 1 0               p(u(ei))
+P0(e ) nj i mj
+e 2 (enj )
+0
+2                                   3
+Ce qui nous donne :
+P   (e   )      Y 66              1           Y              77
+PE (e1; :::; em) = X     0    1                6 X                         p(u(ei))75
+P0(e0) 1 j nt(e ) 4            P0(e0) nj i mj  1
+e 2 (e )          0
+1   e 2 (enj )                           0
+Y Y
+= X1 0                Y P0(X     e1 )                                p(u(ei))
+P0(e )       0                                    P0(e ) 1       j nt(e1 ) nj i mj
+e 2 (e1 )
+0
+1 j    nt(e1 ) e0 2      (enj )
+Or par définition de enj ,            (enj ) = j (e1), donc :
+Y P0(X e1 )        =     Y P0(X
+e1 )
+P0(e0)                 P0(e0)
+1 j       nt(e1 ) e0 2   (enj )                   1 j       nt(e1 ) e0 2 j (e1 )
+
+ce qui, par définition de P0 e1 , vaut p u e1 .  ( )              ( ( ))
+On a donc, en utilisant le même argument que celui qui nous a permis de décomposer le
+produit à la première étape :
+Y               Y
+PE (e1; :::; em) =                            X1                   p(u(e1))                                          p(u(ei))
+P0(e0)                               1 j nt(e1 ) nj i mj
+e 2 (e1 )
+Y
+0
+= X1                                        p(u(ei))
+P0(e0) 1          i m
+e 2 (e1 )
+0
+ce qui termine la démonstration par récurrence.
+X
+De plus, par définition              (e1) = D(S; 1; n) et donc par construction                                                  P0(e) = P (w).
+e2 (e1 )
+On a donc bien, pour toute décomposition, égalité entre la probabilité d’obtenir cette décom-
+position par le processus d’échantillonnage précédemment décrit et la probabilité conditionnelle
+de cette décomposition sachant w. Il en résulte alors que la probabilité d’obtenir un arbre syn-
+taxique par ce processus d’échantillonnage est aussi égale à sa DOP-probabilité sachant w. En
+effet :
+X                                                          X
+PE (a) =                                   PE (e1; :::; em) =                                P (a1 ::: amjw) = P (ajw)
+DOP                                  DOP
+
+e1 ;:::;em                                                a1 ::: am=a
+u(e1 ) ::: u(em )=a
+j
+
+58                                                                                   J.-C. Chappelier, M. Rajman
+4. Calcul de l’analyse la plus probable par échantillonnage
+Nous avons montré dans la section précédente que, si l’on choisit convenablement la loi
+de probabilité utilisée pour l’échantillonnage au sein des arbres syntaxiques associés à une
+séquence de mots donnée, la probabilité de sélectionner l’un quelconque des ces arbres est
+égale à la probabilité conditionnelle de cet arbre au sens du modèle DOP.
+L’idée intuitive qui est alors à la base de l’approche par échantillonnage est de chercher à
+identifier l’arbre le plus probable sur la base de sa fréquence relative d’occurrence au sein d’un
+échantillon produit de façon aléatoire à l’aide du mécanisme d’échantillonnage détaillé à la
+section 3. En effet, puisque cette fréquence relative va tendre vers la probabilité de l’arbre, pour
+une taille d’échantillon suffisamment grande, l’arbre le plus fréquent sera aussi l’arbre le plus
+probable.
+Toute la question est alors de contrôler le mécanisme d’échantillonnage de façon à garantir
+(avec une probabilité d’erreur fixée a priori) la justesse de la procédure de sélection fréquen-
+tielle. Ceci correspond à un problème classique d’ordonnancement statistique car, si k est le
+nombre d’arbres associés à la séquence de mots analysée (k peut être calculé sans sur-coût
+algorithmique lors de l’analyse syntaxique), rechercher l’arbre le plus probable revient à déter-
+miner la modalité la plus probable d’une variable aléatoire discrète à k modalités (chacune des
+modalités correspondant à l’un des arbres d’analyse possibles) suivant une loi multinomiale.
+La méthode de sélection proposée par R. Bod (1995) constitue un premier exemple d’un tel
+mécanisme. Elle souffre cependant de l’imprécision introduite par l’estimation de la probabilité
+de sélection erronée utilisée 13 dont il est extrêmement difficile d’évaluer l’impact sur la qualité
+des résultats obtenus. De plus, la nature purement séquentielle de la méthode (qui fournit en fait
+un critère d’arrêt pour l’échantillonnage) a pour conséquence qu’elle ne permet pas un calcul a
+priori de la taille d’échantillon nécessaire.
+Pour ces différentes raisons, il nous a paru important d’utiliser des méthodes plus sophis-
+tiquées telles que celles proposées et testées dans la littérature spécialisée (sélection et or-
+donnancement de populations statistiques). Dans cette contribution, nous nous limiterons à
+la présentation de la méthode de sélection séquentielle Bechhofer-Kiefel-Sobel avec tronca-
+ture (Bechhofer & Goldsman, 1985) (appelée ci-après BKST ), qui est une des meilleures con-
+nues pour le problème de la sélection de la modalité la plus probable d’une variable aléatoire
+discrète suivant une loi multinomiale.
+La procédure de sélection BKST est en fait la combinaison d’une méthode de sélection
+séquentielle (appelée ci-après BKS ) 14 (Bechhofer et al., 1968) et d’une méthode de sélection
+non-séquentielle (appelée ci-après BEM ) (Bechhofer et al., 1959).
+
+4.1.    La procédure de sélection non-séquentielle BEM
+
+Pour toute variable aléatoire discrète à k modalités k              (       2
+) suivant une loi de probabilité
+multinomiale, nous noterons ci-après par p 1]; :::; p k] les k paramètres, classés par ordre décrois-
+sant (p 1] ::: p k] ), de la loi multinomiale 15.
+
+13. En effet, en utilisant les notations p i] et f i] introduites dans les sections 4.1 et 4.2 ci-après, dans la méthode
+P             p        p                                          P            p
+de Bod l’erreur i>1(1 ? ( p 1] ? p i] )2 )N est simplement estimée par i>1(1 ? ( f 1] ? f i] )2 )N .
+p
+14. correspondant à une spécialisation pour les lois multinomiales d’une méthode plus générale d’ordonnance-
+ment des populations de Koopman-Darmois
+15. évidemment p 1] + ::: + p k] = 1
+
+Extraction stochastique d’arbres d’analyse                                                                          59
+Si l’on considère alors le problème de sélectionner la modalité la plus probable sur la base
+des fréquences d’occurrence des modalités dans un échantillon aléatoire de réalisations indépen-
+dantes de la variable aléatoire, on peut démontrer (Kesten & Morse, 1959) que, pour toute vari-
+able aléatoire discrète à k modalités suivant une loi multinomiale vérifiant p 1]        p 2] (avec
+1
+> fixé), la probabilité de sélection correcte (i.e. les cas où la modalité la plus fréquente
+–avec tirage aléatoire entre ex-aequo si nécessaire– est effectivement la plus probable) est tou-
+jours minorée par la probabilité de sélection correcte Pmin associée à la loi k -nomiale dont tous
+les paramètres sont égaux sauf un, le plus grand 16. De plus, pour toute taille d’échantillon N ,
+Pmin (qui est fonction de k, et N ) peut être effectivement calculée par addition des probabil-
+ités de toutes les situations de sélection correcte, qui peuvent être explicitement énumérées 17.
+(        )
+La fonction Pmin k; ; N peut donc être tabulée (voir par exemple (Bechhofer et al., 1959)).
+La méthode de sélection non-séquentielle BEM est alors extrêmement simple :
+P
+1. choisir une valeur minimale pour le rapport P 1]2] (cette valeur correspond à une estima-
+tion a priori de la difficulté du problème) et une valeur minimale acceptable Pmin pour
+la probabilité de sélection correcte;
+2. déterminer, à partir des valeurs tabulées, la plus petite valeur de N telle que
+Pmin Pmin k; ; N 18 ;(        )
+3. déterminer les fréquences d’occurrence des modalités dans un échantillon aléatoire de N
+réalisations indépendantes de la variable aléatoire.
+
+Si P 1] et P 2] vérifient bien P 1]  P 2], la modalité la plus fréquente (avec tirage aléatoire
+en cas d’ex-aequo) est alors effectivement, avec une probabilité supérieure Pmin , la modalité la
+plus probable.
+
+4.2.    La procédure de sélection séquentielle BKS et sa troncature
+
+La procédure de sélection séquentielle BKS repose sur la propriété fondamentale suiv-
+ante (Bechhofer et al., 1968; Levin, 1984) : pour toute variable aléatoire discrète à k modalités
+suivant une loi multinomiale vérifiant p 1]                                     1
+p 2] (avec > fixé), si l’on note f 1]; :::; f k]
+les fréquences relatives d’occurrence (classées par ordre décroissant) des k modalités dans un
+échantillon aléatoire de taille N de réalisations indépendantes de la variable aléatoire, alors
+la probabilité de sélection correcte est toujours minorée par la valeur Pmin              1           =
+=P ()
+1+ZN , où
+ZN             1 (f 1] ?f i] ).
+i>1
+La méthode de sélection séquentielle BKS est alors extrêmement simple : choisir les valeurs
+et Pmin ; puis échantillonner itérativement la variable aléatoire en tenant à jour les fréquences
+d’occurrence f i] des modalités jusqu’à ce que Pmin 1+1ZN .
+Si P 1] et P 2] vérifient bien P 1]  P 2], la modalité la plus fréquente (avec tirage aléatoire
+en cas d’ex-aequo) est alors effectivement, avec une probabilité supérieure Pmin , la modalité la
+plus probable.
+16. c.-à-d. la loi multinomiale de paramètre ( ( + k ? 1); + k ? 1; :::; + k ? 1).
+17. Pour de grandes valeurs de N ou de k, le nombre de situations à énumérer devient prohibitif et Pmin(k; ; N )
+doit elle-même être estimée par une méthode Monte-Carlo.
+q
+& les grandes valeurs de 'N , la formule approchée suivante peut être utilisée :
+18. Pour
+(k;P )2 (1+ (k?1)( +k?2) )
+N   =                q                 p
+4(arcsin( +k?1 )?arcsin( +k1?1 )) 2
+, où   (k; P ) est l’intégrale (k ? 1)-uple de la densité de probabilité
+normale standard de corrélation uniforme 0.5, tabulée dans (Gupta, 1956) avec les notations de (Bechhofer et al.,
+1959).
+
+60                                                                              J.-C. Chappelier, M. Rajman
+La méthode de sélection avec troncature BKST consiste alors tout simplement à intégrer
+la méthode BEM dans la méthode BKS en ajoutant au critère d’arrêt la condition consistant
+à arrêter l’échantillonnage dès que la taille de l’échantillon a atteint la taille minimale Nmin
+calculée a priori comme indiqué dans la section 4.1.
+5. Implémentation
+Le but de cette section est d’expliciter quelques aspects d’implémentation importants de
+notre algorithme d’échantillonage. Nous nous intéresserons en particulier au calcul, durant la
+phase de construction de la forêt d’analyse, des probabilités P0 nécessaires pour l’échantillon-
+nage (ce calcul doit pouvoir être fait dans un temps polynômial) ; puis à la nature et au coût de
+l’extraction aléatoire d’une décomposition.
+
+5.1.   Calcul ascendant (bottom-up) des probabilités
+
+L’algorithme d’analyse syntaxique utilisé dans notre approche est une version généralisée de
+l’algorithme CYK et de l’algorithme Earley bottom-up, voisine des travaux de Graham et al.
+(1980). Les détails de cet algorithme sont donnés dans (Chappelier & Rajman, 1998). Parmi
+ses caractéristiques importantes on peut citer (1) qu’il permet de traiter des grammaires SCFG
+quelconques (i.e. non limitées à la forme normale de Chomsky) en effectuant, à l’aide d’une
+généralisation des « Earley items », une binarisation dynamique de la grammaire 19 ;(2) que le
+calcul des probabilités 20 de ces « items généralisés » peut être réalisé de façon ascendante sans
+augmentation de la complexité algorithmique de l’analyse syntaxique 21. Ce calcul s’effectue en
+effet de proche en proche au cours de la construction « bottom-up » des interprétations, en mul-
+tipliant le coefficient de la règle appliquée par les deux probabilités partielles (déjà calculées)
+des deux constituants utilisés.
+
+5.2.   Extraction descendante (top-down) des décompositions
+
+Contrairement à l’approche proposée par R. Bod (1995), nous avons choisi une méthode
+d’extraction descendante, semblable à celle utilisée pour l’extraction des arbres d’analyse dans
+le cadre des SCFG classiques. La différence importante est que les choix (des éléments con-
+stitutifs des décompositions) sont ici aléatoires au lieu de correspondre à la recherche d’une
+probabilité optimale. À chaque étape un nouveau constituant de décomposition est choisi de
+façon aléatoire suivant la probabilité PE dont les composants P0 ont été calculés durant la phase
+d’analyse. Ce processus se déroule itérativement de façon descendante à partir du symbole de
+plus haut niveau jusqu’à obtention d’une décomposition complète et la démonstration effectuée
+à la section 3 assure que la probabilité d’obtenir un arbre donné (sachant la séquence à analyser)
+est alors effectivement égale à sa DOP-probabilité.
+Notons par ailleurs qu’à la différence de la méthode proposée par R. Bod (1995), qui, pour
+chaque extraction, nécessite un tirage aléatoire pour tous les terminal dans toutes les cases de la
+table, il nous suffit de réaliser autant de tirages que d’éléments présents dans la décomposition.
+
+19. pour une définition détaillée des « items » stockés dans une case de la table, se reporter à (Chappelier & Ra-
+jman, 1998). Schématiquement, ces éléments sont les constituants d’éléments de décomposition tels qu’introduits
+en section 3.
+20. qui correspondent au P0 (e) de la section 3.
+21. qui reste en O(n3 ), où n est la taille de la séquence à analyser.
+
+Extraction stochastique d’arbres d’analyse                                                            61
+6. Conclusion
+Dans la présente contribution, nous avons présenté deux résultats importants pour l’extrac-
+tion d’arbres d’analyse dans le modèle DOP :
+– Tout d’abord nous avons démontré de façon formelle le bien-fondé de la mise en œuvre
+de méthodes de type Monte-Carlo. A notre connaissance, une telle démonstration n’a été,
+au mieux, que brièvement esquissée dans les publications disponibles sur le sujet.
+– Ensuite nous avons proposé une méthode permettant de contrôler la qualité de l’échan-
+tillonnage et de garantir (avec un seuil de confiance fixé a priori) que l’arbre d’analyse
+sélectionné est effectivement l’arbre d’analyse le plus probable.
+
+Ces deux résultats permettent de fonder sur une base théorique plus solide les expérimenta-
+tions nécessaires pour une meilleure évaluation du modèle syntaxique DOP qui apparaît aujour-
+d’hui comme l’un des candidats prometteurs de la classe des grammaires faiblement sensibles
+au contexte.
+Références
+B ECHHOFER R., E LMAGHRABY S. & M ORSE N. (1959). A single-sample multiple-decision procedure
+for selecting the multinomial event which has the largest probability. Ann. Math. Statist., 30, 102–119.
+B ECHHOFER R. & G OLDSMAN D. (1985). Truncation of the Bechhofer-Kiefer-Sobel sequential proce-
+dure for selecting the multinomial event which has the largest probability. Communications in Statistics:
+simulation and computation, 14(2), 283–315.
+B ECHHOFER R., K IEFER J. & S OBEL M. (1968). Sequential Identification and Ranking Procedures.
+University of Chicago Press, Chicago.
+B OD R. (1995). Enriching Linguistics with Statistics: Performance Models of Natural Language. Ams-
+terdam (The Netherlands): Academische Pers.
+C HAPPELIER J.-C. & R AJMAN M. (1998). A generalized cyk algorithm for parsing stochastic cfg. In
+TAPD’98 Workshop, p. 133–137, Paris (France).
+G RAHAM S. L., H ARRISON M. A. & RUZZO W. L. (1980). An improved context-free recognizer.
+ACM Transactions on Programming Languages and Systems, 2(3), 415–462.
+G UPTA S. (1956). On a decision rule for a problem in ranking means. Number 150 in Institute of
+Statistics Mimeograph Series. University of North Carolina.
+K ESTEN H. & M ORSE N. (1959). A property of the multinomial distribution. Ann. Math. Statist., 30,
+120–127.
+L EVIN B. (1984). On a sequential selection procedure of Bechhofer, Kiefer and Sobel. Statistics and
+Probability Letters, 2, 91–94.
+R AJMAN M. (1995). Apports d’une approche à base de corpus aux techniques de traitement automa-
+tique du langage naturel. PhD thesis, École Nationale Supérieure des Télécommunications, Paris.
+S IMA’ AN K. (1996). Computational complexity of probabilistic disambiguation by means of tree gram-
+mars. In Proceedings of COLING’96, Copenhagen (Denmark). cmp-lg/9606019.

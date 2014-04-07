@@ -2,7 +2,7 @@
 
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
-conférences RECITAL et TALN de 2001 à 2013.
+conférences RECITAL et TALN de 1997 à 2013.
 
 Une version html est disponible 
 [ici](http://www.florianboudin.org/taln_archives/).
@@ -55,10 +55,11 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
 
  - Florian Boudin, TALN Archives : une archive numérique francophone des 
    articles de recherche en Traitement Automatique de la Langue, Traitement 
-   Automatique des Langues Naturelles (TALN), 2013, papier court
+   Automatique des Langues Naturelles (TALN), 2013.
 
 Mises à jour
- - 02/04/2014, ajout des actes de TALN-RECITAL 1999 et 2000
+ - 07/04/2014, ajout des actes de TALN 1997 et 1998.
+ - 02/04/2014, ajout des actes de TALN-RECITAL 1999 et 2000.
  - 28/03/2014, ajout des actes de TALN-RECITAL 2006.
  - 06/02/2014, suppression des fichiers parscit/html/txt et conversion des 
    articles avec pdftotext + nettoyage des header/footer.
@@ -93,3 +94,4 @@ Remerciements
  - Amir Hazem
  - Anne Vilnat
  - Cédrick Fairon
+ - Pierre Zweigenbaum
