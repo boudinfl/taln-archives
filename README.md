@@ -5,7 +5,7 @@ Traitement Automatique de la Langue. Elle contient actuellement les actes des
 conférences RECITAL et TALN de 1997 à 2013.
 
 Une version html est disponible 
-[ici](http://www.florianboudin.org/taln_archives/).
+[ici](http://www.atala.org/taln_archives/).
 
 Un fichier XML contenant les méta-données a été créé pour chaque édition des 
 conférences, ce dernier contient :
@@ -15,9 +15,7 @@ conférences, ce dernier contient :
   - Dates de début et de fin de la conférence
   - Noms des présidents du comité de programme
   - Formats des articles publiés (e.g.~court, long)
-  - Nombre d'articles soumis et nombre d'articles acceptés
   - URL du site web de la conférence
-  - Identifiant(s) du(des) meilleur(s) article(s)
 
 - Méta-données pour chaque article
   - Identifiant unique (e.g.~taln-2008-long-001)
@@ -31,7 +29,7 @@ Les fichiers bibtex de tous les articles ont été générés automatiquement à
 partir du fichier de méta-données avec la commande :
 
     cd tools/
-    python generate_bib.py
+    ./generate_bibtex_files.sh
 
 Les fichiers au format texte des articles ont été extraits avec l'outil 
 [pdftotext](http://poppler.freedesktop.org/) au format texte ou OCRisés
@@ -58,6 +56,9 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013.
 
 Mises à jour
+ - 06/05/2015, bug-fixes, ajout des prénoms/noms dans les fichiers de 
+   méta-données, modification des bibtex (maintenant en UTF-8), transfert des
+   informations sur les meilleurs papiers et les taux de sélection.
  - 07/04/2014, ajout des actes de TALN 1997 et 1998.
  - 02/04/2014, ajout des actes de TALN-RECITAL 1999 et 2000.
  - 28/03/2014, ajout des actes de TALN-RECITAL 2006.

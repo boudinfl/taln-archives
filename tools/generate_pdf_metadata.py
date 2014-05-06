@@ -37,7 +37,7 @@ if len(article_metadata) == 0:
 titre = article_metadata['titre']
 if len(titre) == 0:
     titre = article_metadata['title']
-auteurs = ', '.join(article_metadata['auteurs'])
+auteurs = ', '.join([u+' '+v for u, v in article['auteurs']])
 
 # Complétion du nouveau fichier de méta-données
 meta_buffer = 'InfoBegin\n'

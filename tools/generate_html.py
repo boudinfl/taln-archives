@@ -8,7 +8,7 @@ import re
 import cgi
 import os
 import shutil
-import xml_parser as parser
+import taln_archives_parser as parser
 
 from mako.template import Template
 editionTemplate = Template(filename='templates/edition.html')
@@ -83,7 +83,7 @@ for path in paths:
 
         ########################################################################
         # Copie des fichiers bibtex
-        src_dir = root + path + edition +'/bibtex/'
+        src_dir = root + path + edition +'/bib/'
         for fichier_bibtex in os.listdir(src_dir):
             if re.search('\.bib$', fichier_bibtex):
                 shutil.copy(src_dir+fichier_bibtex, rep_edition+fichier_bibtex)
@@ -123,7 +123,8 @@ for path in paths:
                         mots_cles[keyword] = []
                     mots_cles[keyword].append(article_info)
 
-                for auteur in article['auteurs']:
+                for prenom, nom in article['auteurs']:
+                    auteur = nom+', '+prenom
                     if not auteurs.has_key(auteur):
                         auteurs[auteur] = []
                     auteurs[auteur].append(article_info)
