@@ -18,7 +18,7 @@ do
    
 done
 
-# Extraction du texte des fichiers de TALN
+# TALN
 for YEAR in {1997..2013}
 do
 

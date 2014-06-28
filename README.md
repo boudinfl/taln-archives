@@ -56,6 +56,7 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013.
 
 Mises à jour
+ - 28/06/2014, corrections meta-donnés.
  - 06/05/2015, bug-fixes, ajout des prénoms/noms dans les fichiers de 
    méta-données, modification des bibtex (maintenant en UTF-8), transfert des
    informations sur les meilleurs papiers et les taux de sélection.
