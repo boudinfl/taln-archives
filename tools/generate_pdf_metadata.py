@@ -8,7 +8,7 @@ import re
 import cgi
 import os
 import shutil
-import xml_parser as parser
+import taln_archives_parser as parser
 
 
 xml_file = sys.argv[1]

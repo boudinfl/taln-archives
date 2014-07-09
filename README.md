@@ -2,7 +2,7 @@
 
 TALN Archives est une archive numérique francophone des articles de recherche en
 Traitement Automatique de la Langue. Elle contient actuellement les actes des 
-conférences RECITAL et TALN de 1997 à 2013.
+conférences RECITAL et TALN de 1997 à 2014.
 
 Une version html est disponible 
 [ici](http://www.atala.org/taln_archives/).
@@ -56,6 +56,7 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013.
 
 Mises à jour
+ - 09/07/2014, ajout des actes de TALN-RECITAL 2014.
  - 28/06/2014, corrections meta-donnés.
  - 06/05/2015, bug-fixes, ajout des prénoms/noms dans les fichiers de 
    méta-données, modification des bibtex (maintenant en UTF-8), transfert des

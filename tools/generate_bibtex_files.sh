@@ -3,7 +3,7 @@
 # Script pour générer les fichiers bibtex
 
 #  RECITAL
-for YEAR in {1999..2013}
+for YEAR in {1999..2014}
 do
 
     XML_FILE=../RECITAL/RECITAL-$YEAR/recital-$YEAR.xml
@@ -19,7 +19,7 @@ do
 done
 
 # TALN
-for YEAR in {1997..2013}
+for YEAR in {1997..2014}
 do
 
     XML_FILE=../TALN/TALN-$YEAR/taln-$YEAR.xml

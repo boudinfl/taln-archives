@@ -24,6 +24,7 @@ months = { 1:'January', 2:'February', 3:'March', 4:'April', 5:'May', 6:'June',
 
 volumes = [ (u'long', 'Long Papers'), 
             (u'court', 'Short Papers'),
+            (u'poster', 'Posters'),
             (u'démonstration', 'System Demonstrations'),
             (u'invite', 'Invited Conferences') ]
 
