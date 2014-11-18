@@ -56,6 +56,8 @@ Si vous utilisez cet ensemble de données, veuillez citer l'article :
    Automatique des Langues Naturelles (TALN), 2013.
 
 Mises à jour
+ - 18/11/2014, ajout des titres en anglais pour TALN 2014, RECITAL 2014 et 
+   TALN-2011.
  - 09/07/2014, ajout des actes de TALN-RECITAL 2014.
  - 28/06/2014, corrections meta-donnés.
  - 06/05/2015, bug-fixes, ajout des prénoms/noms dans les fichiers de 
