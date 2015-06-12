@@ -19,7 +19,7 @@ do
 done
 
 # TALN
-for YEAR in {1997..2014}
+for YEAR in {1997..2015}
 do
 
     XML_FILE=../TALN/TALN-$YEAR/taln-$YEAR.xml
