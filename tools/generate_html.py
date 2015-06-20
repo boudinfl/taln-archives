@@ -18,11 +18,10 @@ rechTemplate = Template(filename='templates/recherche.html')
 confTemplate = Template(filename='templates/conference.html')
 
 root = '../'
-
-conf_dir = 'conferences/'
 conf_paths = ['TALN/', 'RECITAL/']
+# conf_paths = ['RECITAL/']
 ws_dir = 'ateliers/'
-ws_paths = ['DEFT/', 'ETeRNAL/', 'ITI/', 'TALaRE/', 'TASLA/']
+ws_paths = ['2015/']
 
 output = "../www/"
 conferences = {}
@@ -43,7 +42,7 @@ for path in conf_paths:
     conference = re.sub('\/$', '', path)
 
     # Lister les editions de la conférence
-    editions = os.listdir(root+conf_dir+path)
+    editions = os.listdir(root+path)
 
     # memoriser les éditions de la conférences
     conferences[conference] = []
@@ -55,10 +54,10 @@ for path in conf_paths:
             continue
 
         # Nom du fichier meta
-        fichier = root + conf_dir + path + edition +'/'+ edition.lower() +'.xml'
+        fichier = root + path + edition + '/' + edition.lower() + '.xml'
 
         # Nom du répertoire de la conférence
-        rep_edition = output + conf_dir + path + edition + "/"
+        rep_edition = output + path + edition + "/"
 
         # Création du répertoire de l'édition
         if not os.path.exists(rep_edition):
@@ -77,16 +76,18 @@ for path in conf_paths:
         current_conf.meta['conference'] = re.sub('\'?(\d{4})$', '', \
                                              current_conf.meta['acronyme'])
 
+        current_conf.meta['atelier'] = False 
+
         ########################################################################
         # Copie des fichiers d'actes
-        src_dir = root + conf_dir + path + edition +'/actes/'
+        src_dir = root + path + edition + '/actes/'
         for fichier_pdf in os.listdir(src_dir):
             if re.search('\.pdf$', fichier_pdf):
                 shutil.copy(src_dir+fichier_pdf, rep_edition+fichier_pdf)
 
         ########################################################################
         # Copie des fichiers bibtex
-        src_dir = root + conf_dir + path + edition +'/bib/'
+        src_dir = root + path + edition +'/bib/'
         for fichier_bibtex in os.listdir(src_dir):
             if re.search('\.bib$', fichier_bibtex):
                 shutil.copy(src_dir+fichier_bibtex, rep_edition+fichier_bibtex)
@@ -96,7 +97,7 @@ for path in conf_paths:
         # les liens de la page d'acceuil
         info = {}
         info['annee'] = annee
-        info['path'] = conf_dir +path + edition+'/index.html'
+        info['path'] =  path + edition + '/index.html'
         info['lieu'] = current_conf.meta['ville'] +' (' \
                        + current_conf.meta['pays'] + ')'
         conferences[conference].append(info)
@@ -107,7 +108,7 @@ for path in conf_paths:
         # Extraction des mots clés et des auteurs de la base
         for a in range(len(current_conf.articles)):
             article = current_conf.articles[a]
-            lien_article = conf_dir + path + edition + "/" + article['id'] + '.pdf'
+            lien_article = path + edition + "/" + article['id'] + '.pdf'
 
             if article['mots_cles'] != "":
                 article_keywords = article['mots_cles'].lower().split(',')
@@ -162,67 +163,74 @@ for path in conf_paths:
 ################################################################################
 for path in ws_paths:
 
-    # Nom de l'atelier
-    atelier = re.sub('\/$', '', path)
+    # Année de l'atelier
+    annee_atelier = re.sub('\/$', '', path)
 
-    # Lister les editions de l'adtelier
-    editions = os.listdir(root+ws_dir+path)
+    # Lister les ateliers de l'année
+    noms_ateliers = os.listdir(root+ws_dir+path)
 
-    # memoriser les éditions de la conférences
-    ateliers[atelier] = []
+    # memoriser les ateliers de l'année
+    ateliers[annee_atelier] = []
 
     # Pour toutes le éditions de la conférence
-    for edition in editions:
+    for atelier in noms_ateliers:
 
-        if not re.search(atelier, edition):
+        if not re.search('^[A-Za-z0-9]+$', atelier):
             continue
 
         # Nom du fichier meta
-        fichier = root + ws_dir + path + edition +'/'+ edition.lower() +'.xml'
+        fichier = root + ws_dir + path + atelier + '/' 
+        fichier += atelier.lower() + '-' + annee_atelier + '.xml'
+        
+        # Nom du répertoire de l'atelier
+        rep_atelier = output + ws_dir + path + atelier + "/"
 
-        # Nom du répertoire de la conférence
-        rep_edition = output + ws_dir + path + edition + "/"
+        # Création du répertoire de l'atelier
+        if not os.path.exists(rep_atelier):
+            os.makedirs(rep_atelier)
 
-        # Création du répertoire de l'édition
-        if not os.path.exists(rep_edition):
-            os.makedirs(rep_edition)
+        # Création du nom du fichier html de l'atelier
+        fichier_html = rep_atelier + 'index.html'
 
-        # Création du nom du fichier html de la conférence
-        fichier_html = rep_edition + 'index.html'
-
-        # Parsing du fichier xml de la conférence
+        # Parsing du fichier xml de l'atelier
         current_ws = parser.content_handler(fichier)
 
-        # Récupération de l'année de la conférence à partir de la date de début
+        # Récupération de l'année de l'atelier à partir de la date de début
         annee = re.sub('^(\d{4})-.+$', '\g<1>', current_ws.meta['dateDebut'])
 
-        # Ajout de la conférence (eg TALN pour TALN'2010) dans les meta
-        current_ws.meta['conference'] = re.sub('\'?(\d{4})$', '', \
-                                             current_ws.meta['acronyme'])
+        current_ws.meta['conference'] = annee
+        # current_ws.meta['acronyme'] = current_ws.meta['conference']
+        
+
+        # Ajout de l'atelier (eg TALN pour TALN'2010) dans les meta
+        # current_ws.meta['conference'] = re.sub('\'?(\d{4})$', '', \
+        #                                      current_ws.meta['acronyme'])
+        current_ws.meta['atelier'] = True 
 
         ########################################################################
         # Copie des fichiers d'actes
-        src_dir = root + ws_dir + path + edition +'/actes/'
+        src_dir = root + ws_dir + path + atelier +'/actes/'
         for fichier_pdf in os.listdir(src_dir):
             if re.search('\.pdf$', fichier_pdf):
-                shutil.copy(src_dir+fichier_pdf, rep_edition+fichier_pdf)
+                shutil.copy(src_dir+fichier_pdf, rep_atelier+fichier_pdf)
 
         ########################################################################
         # Copie des fichiers bibtex
-        src_dir = root + ws_dir + path + edition +'/bib/'
+        src_dir = root + ws_dir + path + atelier +'/bib/'
         for fichier_bibtex in os.listdir(src_dir):
             if re.search('\.bib$', fichier_bibtex):
-                shutil.copy(src_dir+fichier_bibtex, rep_edition+fichier_bibtex)
+                shutil.copy(src_dir+fichier_bibtex, rep_atelier+fichier_bibtex)
 
 
         # Ajout de la conférence au conteneur des différentes conférences pour
         # les liens de la page d'acceuil
         info = {}
         info['annee'] = annee
-        info['path'] = ws_dir + path + edition+'/index.html'
+        info['atelier'] = atelier
+        info['path'] = ws_dir + path + atelier + '/index.html'
         info['lieu'] = current_ws.meta['ville'] +' (' \
                        + current_ws.meta['pays'] + ')'
-        ateliers[atelier].append(info)
+        ateliers[annee_atelier].append(info)
 
         # Comptage du nombre de papiers dans TALN Archives
         nb_papers += len(current_ws.articles)
@@ -230,7 +238,7 @@ for path in ws_paths:
         # Extraction des mots clés et des auteurs de la base
         for a in range(len(current_ws.articles)):
             article = current_ws.articles[a]
-            lien_article = ws_dir + path + edition + "/" + article['id'] + '.pdf'
+            lien_article = ws_dir + path + atelier + "/" + article['id'] + '.pdf'
 
             if article['mots_cles'] != "":
                 article_keywords = article['mots_cles'].lower().split(',')
@@ -264,7 +272,7 @@ for path in ws_paths:
             ####################################################################
             # Création du fichier html de l'article
             ####################################################################
-            fichier_article = rep_edition+article['id']+'.html'
+            fichier_article = rep_atelier+article['id']+'.html'
             handle = codecs.open(fichier_article, 'w', 'utf-8')
             handle.write(paperTemplate.render(meta=current_ws.meta, \
                          article=article))
@@ -312,13 +320,13 @@ handle.close()
 # Création des fichiers html des conférences
 ################################################################################
 for conference in conferences:
-    lien_conference = output + conf_dir + conference + "/index.html"
+    lien_conference = output + conference + "/index.html"
     for i in range(len(conferences[conference])):
         conferences[conference][i]['path'] = \
-                 re.sub(conf_dir+conference+"/", "", conferences[conference][i]['path'])
+                 re.sub(conference+"/", "", conferences[conference][i]['path'])
 
     handle = codecs.open(lien_conference, 'w', 'utf-8')
-    handle.write(confTemplate.render(editions=conferences[conference], \
+    handle.write(confTemplate.render(editions=conferences[conference],
                                      conference=conference))
     handle.close()
 
@@ -329,8 +337,9 @@ for atelier in ateliers:
                  re.sub(ws_dir+atelier+"/", "", ateliers[atelier][i]['path'])
 
     handle = codecs.open(lien_conference, 'w', 'utf-8')
-    handle.write(confTemplate.render(editions=ateliers[atelier], \
-                                     conference=atelier))
+    handle.write(confTemplate.render(editions=ateliers[atelier],
+                                     conference=atelier,
+                                     atelier=True))
     handle.close()
 
 
